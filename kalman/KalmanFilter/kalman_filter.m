@@ -1,0 +1,29 @@
+function [x_est, P_est, innovations] = kalman_filter(t, meas, params)
+dt = params.dt;
+N = numel(t);
+x = zeros(4,1);
+if isfield(params.kf,'x0'), x = params.kf.x0; end
+P = params.kf.P0;
+F = [1 0 dt 0; 0 1 0 dt; 0 0 1 0; 0 0 0 1];
+q = params.kf.process_noise_accel;
+G = [0.5*dt^2 0; 0 0.5*dt^2; dt 0; 0 dt];
+Q = (G*G')*(q^2);
+H = [1 0 0 0; 0 1 0 0];
+R_pos = (params.noise.pos^2)*eye(2);
+x_est = zeros(N,4);
+P_est = zeros(4,4,N);
+innovations = zeros(N,2);
+for k=1:N
+    x = F*x;
+    P = F*P*F' + Q;
+    z = meas.pos(k,:)';
+    y = z - H*x;
+    S = H*P*H' + R_pos;
+    K = P*H'/S;
+    x = x + K*y;
+    P = (eye(4)-K*H)*P;
+    x_est(k,:) = x';
+    P_est(:,:,k) = P;
+    innovations(k,:) = y';
+end
+end
