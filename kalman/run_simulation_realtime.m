@@ -12,6 +12,35 @@ addpath(fullfile(root_dir,'KalmanFilter'));
 params = config_params();
 N = floor(params.T/params.dt)+1;
 
+% display performance options (can be set in config_params as params.display.update_rate and pause_factor)
+if ~isfield(params,'display') || ~isfield(params.display,'update_rate')
+	% how many simulation steps between GUI updates (higher => faster)
+	params.display.update_rate = max(1, round(0.01/params.dt)); % default aim ~100 Hz if dt small
+end
+
+% local callback to cycle speed multipliers
+function cycleSpeed(btn, fig)
+	if ~isvalid(fig) || ~isvalid(btn), return; end
+	sp = getappdata(fig,'speed'); if isempty(sp), sp = 1; end
+	% allow up to 20x speed
+	speeds = [1,2,4,8,10,20];
+	idx = find(speeds==sp,1);
+	if isempty(idx), idx = 1; end
+	idx = idx + 1;
+	if idx > numel(speeds), idx = 1; end
+	new_sp = speeds(idx);
+	setappdata(fig,'speed', new_sp);
+	set(btn, 'String', sprintf('Speed x%d', new_sp));
+end
+if ~isfield(params,'display') || ~isfield(params.display,'pause_factor')
+	params.display.pause_factor = 0.25; % pause = dt * pause_factor (smaller => faster)
+end
+
+% minimum pause threshold (seconds). If computed pause < min_pause, we skip pausing.
+if ~isfield(params,'display') || ~isfield(params.display,'min_pause')
+    params.display.min_pause = 0.002; % 2 ms default
+end
+
 % 初期化: params の設定が拡張されている (例: 10 要素) 場合でも安全に動作するように調整します。
 % 現在の sim_step / ekf_filter_step は 4 状態 [x;y;vx;vy] を期待しているため、
 % 必要に応じて先頭 4 要素を使用します。
@@ -57,8 +86,8 @@ end
 
 
 % filter options: 'none', 'avg10', or 'ema'
-if ~isfield(params,'filter'), params.filter.method = 'none'; end
-if ~isfield(params.filter,'method'), params.filter.method = 'none'; end
+if ~isfield(params,'filter'), params.filter.method = 'avg10'; end
+if ~isfield(params.filter,'method'), params.filter.method = 'avg10'; end
 if ~isfield(params.filter,'alpha'), params.filter.alpha = 0.2; end % EMA の係数
 
 % バッファ初期化（avg10用）
@@ -75,10 +104,10 @@ h_true = plot(ax, state_prev(1), state_prev(2), '-k','LineWidth',1.5, 'DisplayNa
 h_meas = plot(ax, state_prev(1), state_prev(2), '.r', 'DisplayName','Measured');
 % create avg plot only if filter is not 'none'
 show_avg = ~strcmpi(params.filter.method,'none');
-if show_avg
-	h_meas_avg = plot(ax, state_prev(1), state_prev(2), 'x','Color',[0 0.6 0], 'DisplayName','Measured(avg)');
-else
-	h_meas_avg = []; % placeholder
+% create the average plot handle as a green line. If averaging is disabled, hide it.
+h_meas_avg = plot(ax, state_prev(1), state_prev(2), '-', 'Color', [0 0.6 0], 'LineWidth', 1.2, 'DisplayName', 'Measured(avg)');
+if ~show_avg
+    set(h_meas_avg, 'Visible', 'off');
 end
 h_est = plot(ax, x_est(1), x_est(2), '-b','LineWidth',1.5, 'DisplayName','EKF');
 % heading vectors: true and estimated (quiver: X,Y,U,V)
@@ -95,6 +124,11 @@ setappdata(fig,'running',true);
 btn_run = uicontrol('Parent',fig,'Style','pushbutton','String','Stop','Units','normalized',... 
 	'Position',[0.88 0.95 0.1 0.045], 'Callback',@(src,ev) toggleRunning(src,fig));
 
+% add speed control button (cycles through x1,x2,x4,x8)
+setappdata(fig,'speed',1);
+btn_speed = uicontrol('Parent',fig,'Style','pushbutton','String','Speed x1','Units','normalized',... 
+    'Position',[0.74 0.95 0.12 0.045], 'Callback',@(src,ev) cycleSpeed(src,fig));
+
 true_traj = state_prev(1:2)';
 meas_traj = state_prev(1:2)';
 est_traj = x_est(1:2)';
@@ -108,7 +142,8 @@ fig_gyro = figure('Name','gyro3'); ax_mg = axes(fig_gyro); hold(ax_mg,'on'); gri
 fig_mag = figure('Name','mag3'); ax_mm = axes(fig_mag); hold(ax_mm,'on'); grid(ax_mm,'on'); ylabel(ax_mm,'uT'); title(ax_mm,'mag3');
 fig_head = figure('Name','heading (angle)'); ax_mh = axes(fig_head); hold(ax_mh,'on'); grid(ax_mh,'on'); ylabel(ax_mh,'rad'); title(ax_mh,'heading (angle)');
 fig_baro = figure('Name','barometer'); ax_mb = axes(fig_baro); hold(ax_mb,'on'); grid(ax_mb,'on'); ylabel(ax_mb,'unit'); title(ax_mb,'barometer');
-fig_gps = figure('Name','GPS x/y'); ax_mgps = axes(fig_gps); hold(ax_mgps,'on'); grid(ax_mgps,'on'); ylabel(ax_mgps,'m'); xlabel(ax_mgps,'time [s]'); title(ax_mgps,'GPS x/y');
+% GPS figure: show x-y plane points (not time-series)
+fig_gps = figure('Name','GPS x-y'); ax_mgps = axes(fig_gps); hold(ax_mgps,'on'); grid(ax_mgps,'on'); xlabel(ax_mgps,'x [m]'); ylabel(ax_mgps,'y [m]'); title(ax_mgps,'GPS x-y (points)');
 
 % initialize empty logs (they will be appended in loop)
 meas_time = [];
@@ -129,8 +164,9 @@ h_mag = plot(ax_mm, NaN, NaN, '-r', NaN, NaN, '-g', NaN, NaN, '-b');
 legend(ax_mm, {'mx','my','mz'});
 h_head = plot(ax_mh, NaN, NaN, '-k');
 h_baro = plot(ax_mb, NaN, NaN, '-m');
-h_gps = plot(ax_mgps, NaN, NaN, '-r', NaN, NaN, '-b');
-legend(ax_mgps, {'gps_x','gps_y'});
+% line handle for GPS x-y trajectory
+h_gps_line = plot(ax_mgps, NaN, NaN, '-','Color',[0.85 0.33 0.1], 'LineWidth',1.0, 'DisplayName','GPS (x,y)');
+legend(ax_mgps, {'GPS (x,y)'});
 
 
 for k=1:N
@@ -273,8 +309,10 @@ for k=1:N
 	set(h_mag(3), 'XData', meas_time, 'YData', meas_mag_log(:,3));
 	set(h_head, 'XData', meas_time, 'YData', meas_heading_log);
 	set(h_baro, 'XData', meas_time, 'YData', meas_baro_log);
-	set(h_gps(1), 'XData', meas_time, 'YData', meas_gps_log(:,1));
-	set(h_gps(2), 'XData', meas_time, 'YData', meas_gps_log(:,2));
+	% update GPS x-y scatter (plot all measured gps points so far)
+	if exist('meas_gps_log','var') && size(meas_gps_log,1)>0
+		set(h_gps_line, 'XData', meas_gps_log(:,1), 'YData', meas_gps_log(:,2));
+	end
 
 	% プロット更新
 	set(h_true, 'XData', true_traj(:,1), 'YData', true_traj(:,2));
@@ -299,7 +337,13 @@ for k=1:N
 	end
 	set(h_true_head, 'XData', true_traj(end,1), 'YData', true_traj(end,2), 'UData', heading_scale*cos(th_true), 'VData', heading_scale*sin(th_true));
 	set(h_est_head, 'XData', est_traj(end,1), 'YData', est_traj(end,2), 'UData', heading_scale*cos(th_est), 'VData', heading_scale*sin(th_est));
-	drawnow;
+	% throttle GUI updates to reduce overhead and respect speed multiplier
+	sp = getappdata(fig,'speed'); if isempty(sp), sp = 1; end
+	% when speed increases we want fewer UI updates -> increase update_rate
+	effective_update_rate = max(1, round(params.display.update_rate * sp));
+	if mod(k, effective_update_rate) == 0
+		drawnow;
+	end
 
 	% (time-series plots removed)
 
@@ -309,7 +353,16 @@ for k=1:N
 	x_est = x_upd;
 	P = P_upd;
 
-	pause(params.dt*0.8); % 実時間に近い表示
+	% adjust pause by speed (higher speed -> shorter pause). If pause time
+	% becomes very small, skip pausing to avoid tiny sleeps.
+	pause_time = params.dt * params.display.pause_factor / max(1, sp);
+	if pause_time >= params.display.min_pause
+		pause(pause_time);
+	else
+		% skip pause when below threshold for responsiveness/performance
+		% yield briefly to event loop if available
+		drawnow limitrate;
+	end
 end
 
 fprintf('Realtime simulation finished.\n');

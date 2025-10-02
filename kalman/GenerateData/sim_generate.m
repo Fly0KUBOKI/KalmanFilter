@@ -88,11 +88,13 @@ meas.vel = state(:,3:4) + params.noise.vel.*randn(N,2);
 vel = state(:,3:4);
 true_accel_world = [zeros(1,2); diff(vel)./dt];
 meas.accel3 = zeros(N,3);
+% accelerometer per-axis noise (white component)
 if isfield(params.noise,'accel3')
     accel_noise = params.noise.accel3(:)'; if numel(accel_noise)==1, accel_noise = repmat(accel_noise,1,3); end
 else
     accel_noise = [params.noise.accel, params.noise.accel, params.noise.accel];
 end
+
 for k=1:N
     th = state(k,5);
     Rwb = [cos(th) sin(th) 0; -sin(th) cos(th) 0; 0 0 1];
@@ -108,12 +110,38 @@ zero_idx = (theta_use==0);
 theta_use(zero_idx) = vel_heading(zero_idx);
 theta_unwrap = unwrap(theta_use);
 omega_z = [0; diff(theta_unwrap)./dt];
+
+% --- Gyro Allan-like noise: bias RW and rate RW for z-axis (optional) ---
+gyro_bias = zeros(N,1);
+gyro_rate_rw = zeros(N,1);
+if isfield(params.noise,'gyro_allan') && isfield(params.noise.gyro_allan,'enable') && params.noise.gyro_allan.enable
+    % interpret bias_sigma / rate_rw_sigma as per-sec values; scale by sqrt(dt)
+    bs = params.noise.gyro_allan.bias_sigma;
+    rs = params.noise.gyro_allan.rate_rw_sigma;
+    for k=2:N
+        gyro_bias(k) = gyro_bias(k-1) + bs * sqrt(dt) * randn;
+        gyro_rate_rw(k) = gyro_rate_rw(k-1) + rs * sqrt(dt) * randn;
+    end
+end
+% --- Barometer Allan-like noise: bias RW and rate RW (optional) ---
+baro_bias = zeros(N,1);
+baro_rate_rw = zeros(N,1);
+if isfield(params.noise,'baro_allan') && isfield(params.noise.baro_allan,'enable') && params.noise.baro_allan.enable
+    bbs = params.noise.baro_allan.bias_sigma;
+    brs = params.noise.baro_allan.rate_rw_sigma;
+    for k=2:N
+        baro_bias(k) = baro_bias(k-1) + bbs * sqrt(dt) * randn;
+        baro_rate_rw(k) = baro_rate_rw(k-1) + brs * sqrt(dt) * randn;
+    end
+end
 if isfield(params.noise,'gyro3')
     gyro_noise = params.noise.gyro3(:)'; if numel(gyro_noise)==1, gyro_noise = repmat(gyro_noise,1,3); end
 else
     gyro_noise = [0,0,params.noise.heading];
 end
-meas.gyro3 = [zeros(N,2), omega_z] + randn(N,3).*gyro_noise;
+% incorporate Allan-style bias and rate-random-walk into gyro z measurement
+gyro_z_clean = omega_z + gyro_bias + gyro_rate_rw;
+meas.gyro3 = [zeros(N,2), gyro_z_clean] + randn(N,3).*gyro_noise;
 mag_field = [1;0;0];
 if isfield(params,'sensors') && isfield(params.sensors,'mag_field')
     mag_field = params.sensors.mag_field(:);
@@ -146,9 +174,194 @@ if isfield(params.noise,'baro')
 else
     baro_noise = 0.5;
 end
+% apply Allan-style bias and rate RW to baro measurement if present
 meas.baro = zeros(N,1) + baro_noise.*randn(N,1);
+if exist('baro_bias','var')
+    meas.baro = meas.baro + baro_bias + baro_rate_rw;
+end
 theta_vals = state(:,5);
 theta_vals = theta_vals + params.noise.heading.*randn(N,1);
 meas.heading = [cos(theta_vals), sin(theta_vals)];
+
+% ---- Global pink-noise: apply pink noise to multiple sensors if enabled ----
+if isfield(params.noise,'pink') && isfield(params.noise.pink,'enable') && params.noise.pink.enable
+    % Paul Kellet's pink filter coefficients (approx 1/f)
+    b_p = [0.049922035 -0.095993537 0.050612699 -0.004408786];
+    a_p = [1 -2.494956002 2.017265875 -0.522189400];
+    % helper to generate pink noise matrix N x D from std vector
+    gen_pink = @(std_vec) deal_gen_pink(N, std_vec, b_p, a_p);
+
+    % pos (2)
+    pos_std = params.noise.pink.std.pos; if numel(pos_std)==1, pos_std = repmat(pos_std,1,2); end
+    ppos = gen_pink(pos_std);
+    meas.pos = meas.pos + ppos;
+
+    % vel (2)
+    vel_std = params.noise.pink.std.vel; if numel(vel_std)==1, vel_std = repmat(vel_std,1,2); end
+    pvel = gen_pink(vel_std);
+    meas.vel = meas.vel + pvel;
+
+    % accel3 (3)
+    accel3_std = params.noise.pink.std.accel3; if numel(accel3_std)==1, accel3_std = repmat(accel3_std,1,3); end
+    pacc = gen_pink(accel3_std);
+    meas.accel3 = meas.accel3 + pacc;
+
+    % gyro3 (3)
+    gyro3_std = params.noise.pink.std.gyro3; if numel(gyro3_std)==1, gyro3_std = repmat(gyro3_std,1,3); end
+    pgyro = gen_pink(gyro3_std);
+    meas.gyro3 = meas.gyro3 + pgyro;
+
+    % mag3 (3)
+    mag3_std = params.noise.pink.std.mag3; if numel(mag3_std)==1, mag3_std = repmat(mag3_std,1,3); end
+    pmag = gen_pink(mag3_std);
+    meas.mag3 = meas.mag3 + pmag;
+
+    % gps (2)
+    gps_std = params.noise.pink.std.gps; if numel(gps_std)==1, gps_std = repmat(gps_std,1,2); end
+    pgps = gen_pink(gps_std);
+    meas.gps = meas.gps + pgps;
+
+    % baro (1)
+    baro_std = params.noise.pink.std.baro;
+    pbaro = gen_pink(baro_std);
+    meas.baro = meas.baro + pbaro(:,1);
+
+    % heading (angle) - perturb angle then normalize
+    heading_std = params.noise.pink.std.heading;
+    ph = gen_pink(heading_std);
+    ang = atan2(meas.heading(:,2), meas.heading(:,1));
+    nang = ang + ph(:,1);
+    meas.heading(:,1) = cos(nang);
+    meas.heading(:,2) = sin(nang);
+else
+    % legacy: if global pink disabled but accel_pink enabled, apply accel pink only
+    if isfield(params.noise,'accel_pink') && isfield(params.noise.accel_pink,'enable') && params.noise.accel_pink.enable
+        b_p = [0.049922035 -0.095993537 0.050612699 -0.004408786];
+        a_p = [1 -2.494956002 2.017265875 -0.522189400];
+        pink_std = params.noise.accel_pink.std(:)'; if numel(pink_std)==1, pink_std = repmat(pink_std,1,3); end
+        pacc = deal_gen_pink(N, pink_std, b_p, a_p);
+        meas.accel3 = meas.accel3 + pacc;
+    end
+end
+
+% helper function (local inline) to generate pink noise matrix
+function P = deal_gen_pink(nn, std_vec, bcoef, acoef)
+    d = numel(std_vec);
+    P = zeros(nn, d);
+    for jj=1:d
+        w = randn(nn,1);
+        ptmp = filter(bcoef, acoef, w);
+        ptmp = ptmp - mean(ptmp);
+        sp = std(ptmp);
+        if sp>0
+            ptmp = ptmp / sp * std_vec(jj);
+        else
+            ptmp = zeros(size(ptmp));
+        end
+        P(:,jj) = ptmp;
+    end
+end
+
+% ---- Inject random outliers into measurements ----
+% Configure via params.noise.outlier
+% fields: prob (per-sample probability), mag (struct with per-sensor magnitudes)
+if isfield(params.noise,'outlier')
+    out = params.noise.outlier;
+else
+    out = struct();
+end
+if ~isfield(out,'prob') || isempty(out.prob)
+    out.prob = 0.01; % default 1% samples
+end
+% default outlier magnitudes scaled from nominal noise values
+def = struct();
+pos_n = params.noise.pos(:)'; if numel(pos_n)==1, pos_n = repmat(pos_n,1,2); end
+vel_n = params.noise.vel(:)'; if numel(vel_n)==1, vel_n = repmat(vel_n,1,2); end
+def.pos = 10*pos_n;
+def.vel = 10*vel_n;
+def.accel3 = 10*accel_noise;
+def.gyro3 = 10*gyro_noise;
+def.mag3 = 10*mag_noise;
+def.gps = 10*(gps_noise(:)'); if numel(def.gps)==1, def.gps = repmat(def.gps,1,2); end
+def.baro = 5*(baro_noise + eps);
+def.heading = 5*(params.noise.heading + eps);
+
+% merge user-specified out.mag with defaults so missing fields are filled
+if ~isfield(out,'mag') || isempty(out.mag)
+    out.mag = def;
+else
+    fn = fieldnames(def);
+    for i=1:numel(fn)
+        if ~isfield(out.mag, fn{i}) || isempty(out.mag.(fn{i}))
+            out.mag.(fn{i}) = def.(fn{i});
+        end
+    end
+end
+
+p = out.prob;
+M = out.mag;
+
+mask = @(n) (rand(n,1) < p);
+
+% pos
+m = mask(N);
+if any(m)
+    s = sum(m);
+    meas.pos(m,:) = meas.pos(m,:) + randn(s,2) .* repmat(M.pos, s, 1);
+end
+
+% vel
+m = mask(N);
+if any(m)
+    s = sum(m);
+    meas.vel(m,:) = meas.vel(m,:) + randn(s,2) .* repmat(M.vel, s, 1);
+end
+
+% accel3
+m = mask(N);
+if any(m)
+    s = sum(m);
+    meas.accel3(m,:) = meas.accel3(m,:) + randn(s,3) .* repmat(M.accel3, s, 1);
+end
+
+% gyro3
+m = mask(N);
+if any(m)
+    s = sum(m);
+    meas.gyro3(m,:) = meas.gyro3(m,:) + randn(s,3) .* repmat(M.gyro3, s, 1);
+end
+
+% mag3
+m = mask(N);
+if any(m)
+    s = sum(m);
+    meas.mag3(m,:) = meas.mag3(m,:) + randn(s,3) .* repmat(M.mag3, s, 1);
+end
+
+% gps
+m = mask(N);
+if any(m)
+    s = sum(m);
+    meas.gps(m,:) = meas.gps(m,:) + randn(s,2) .* repmat(M.gps, s, 1);
+end
+
+% baro
+m = mask(N);
+if any(m)
+    s = sum(m);
+    meas.baro(m) = meas.baro(m) + randn(s,1) .* M.baro;
+end
+
+% heading (perturb angle)
+m = mask(N);
+if any(m)
+    s = sum(m);
+    ang = atan2(meas.heading(m,2), meas.heading(m,1));
+    dth = randn(s,1) .* M.heading;
+    nang = ang + dth;
+    meas.heading(m,1) = cos(nang);
+    meas.heading(m,2) = sin(nang);
+end
+
 meas.t = t;
 end
