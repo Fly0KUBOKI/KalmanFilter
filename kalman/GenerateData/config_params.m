@@ -12,7 +12,7 @@ params.initial_state = [0;0;1;0;0;0;0;0;0;0];
 % motion
 params.motion.mode = 'circular'; % 'circular' or 'random'
 params.motion.center = [0,0];
-params.motion.radius = 20;
+params.motion.radius = 50;
 params.motion.omega = 0.2;
 params.motion.phase_noise = deg2rad(0.5);
 params.motion.speed_mean = 0.01;
