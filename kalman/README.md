@@ -10,6 +10,7 @@
 - `sim_step.m` - 1ステップ分の真値と観測を生成する関数（realtime 用）
 - `ekf_filter_step.m` - 1ステップのEKF予測・更新（逐次処理用）
 - `kalman_filter.m` - (既存) バッチ処理用のカルマンフィルタ実装
+- `rts_smoother.m` - (追加) Rauch-Tung-Striebel 後方スムーザー: 逐次フィルタの出力を用いて時系列全体を平滑化します
 - `visualize_sim.m` - (既存) 結果のプロットとアニメーション（バッチ表示用）
 
 使い方:
@@ -32,6 +33,19 @@
 
 4. 実行:
 	run_simulation
+
+後方スムーザーの利用例（バッチ実行後）:
+
+```matlab
+% バッチカルマンフィルタを実行して x_est (N x n) と P_est (n x n x N) を得る
+[x_est, P_est, ~] = kalman_filter(t, meas, params);
+
+% 状態遷移行列 F とプロセス雑音 Q を用意 (定常モデルなら定数)
+F = ...; Q = ...;
+
+[x_smooth, P_smooth] = rts_smoother(x_est, P_est, F, Q);
+```
+
 
 
 将来の改良案:
