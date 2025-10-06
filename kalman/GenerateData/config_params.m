@@ -15,7 +15,7 @@ params.motion.center = [0,0];
 params.motion.radius = 20;
 params.motion.omega = 0.2;
 params.motion.phase_noise = deg2rad(0.5);
-params.motion.speed_mean = 0.5;
+params.motion.speed_mean = 0.01;
 params.motion.speed_std = 0.0;
 params.motion.heading_change_std = deg2rad(90);
 params.motion.change_interval = 0.1;
@@ -77,7 +77,7 @@ params.kf.x0 = [0;0;1;0;0;0;0;0;0;0]; % default: vx=1
 params.kf.P0 = diag([10,10,5,5,1,1,1,1,1,1]);
 params.kf.process_noise_accel = 0.5;
 % filter type: 'ekf', 'ukf', or 'kf' (step-wise KF)
-params.kf.type = 'kf';
+params.kf.type = 'ukf';
 
 % filter options
 params.filter.method = 'none'; % 'none','avg10','ema'
