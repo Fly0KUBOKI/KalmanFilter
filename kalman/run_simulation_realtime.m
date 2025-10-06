@@ -17,20 +17,6 @@ if ~(isfield(params,'data') && isfield(params.data,'source') && strcmpi(params.d
 	error('This simplified script only supports CSV data. Set params.data.source=''csv'' and params.data.file.');
 end
 
-% display defaults
-if ~isfield(params,'display'), params.display = struct(); end
-if ~isfield(params.display,'update_rate'), params.display.update_rate = max(1, round(0.05/params.dt)); end
-if ~isfield(params.display,'min_pause'), params.display.min_pause = 0.002; end
-if ~isfield(params.display,'show') || isempty(params.display.show)
-	params.display.show.ekf = true;
-	params.display.show.accel = false;
-	params.display.show.gyro = false;
-	params.display.show.mag = false;
-	params.display.show.heading = false;
-	params.display.show.baro = false;
-	params.display.show.gps = false;
-end
-
 % --- 10次元固定: initial_state, kf.x0, kf.P0 ---
 if isfield(params,'initial_state') && numel(params.initial_state) == 10
 	state_prev = params.initial_state(:);
@@ -63,7 +49,7 @@ switch lower(params.kf.type)
 		filter_step = @ekf_filter_step;
 end
 
-% 準備プロット（平均プロット等は削除）
+% 準備プロット
 fig = figure('Name','Realtime EKF');
 ax = axes(fig); hold(ax,'on'); grid(ax,'on'); axis equal;
 h_true = plot(ax, state_prev(1), state_prev(2), '-k','LineWidth',1.5, 'DisplayName','True');
@@ -169,9 +155,6 @@ for k=1:N
 	if norm(v_est) > 1e-6, th_est = atan2(v_est(2), v_est(1)); end
 	set(h_true_head, 'XData', true_traj(end,1), 'YData', true_traj(end,2), 'UData', heading_scale*cos(th_true), 'VData', heading_scale*sin(th_true));
 	set(h_est_head, 'XData', est_traj(end,1), 'YData', est_traj(end,2), 'UData', heading_scale*cos(th_est), 'VData', heading_scale*sin(th_est));
-
-	effective_update_rate = max(1, round(params.display.update_rate));
-	if mod(k, effective_update_rate) == 0, drawnow; end
 
 	% 状態更新
 	state_prev = state_curr;
