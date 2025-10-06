@@ -82,10 +82,6 @@ true_traj = state_prev(1:2)';
 meas_traj = state_prev(1:2)';
 est_traj = x_est(1:2)';
 
-% (sensor-specific individual display figures removed: accel/gyro/mag/heading/baro/gps)
-
-% sensor-specific logs and per-sensor plot handles removed
-
 % --- read CSV once ---
 T = readtable(params.data.file);
 csvN = height(T);
@@ -126,7 +122,7 @@ for k=1:N
 		end
 	end
 
-	% call filter with raw measurement (no averaging)
+	% call filter with raw measurement
 	[x_pred, P_pred, x_upd, P_upd, y, S, K, params] = filter_step(x_est, P, meas, params);
 
 	% ログ更新
@@ -137,8 +133,6 @@ for k=1:N
 		meas_traj(end+1,:) = meas.pos;
 	end
 	est_traj(end+1,:) = x_upd(1:2)';
-
-	% sensor-specific per-sensor logs and plots removed
 
 	% プロット更新
 	set(h_true, 'XData', true_traj(:,1), 'YData', true_traj(:,2));
