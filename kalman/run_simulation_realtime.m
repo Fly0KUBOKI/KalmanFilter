@@ -135,27 +135,52 @@ for k=1:N
 	est_traj(end+1,:) = x_upd(1:2)';
 
 	% プロット更新
-	set(h_true, 'XData', true_traj(:,1), 'YData', true_traj(:,2));
-	set(h_meas, 'XData', meas_traj(:,1), 'YData', meas_traj(:,2));
-	set(h_est, 'XData', est_traj(:,1), 'YData', est_traj(:,2));
-	% update heading arrows
-	if numel(state_curr) >= 4
-		v_true = state_curr(3:4);
-		if norm(v_true) > 1e-6, th_true = atan2(v_true(2), v_true(1)); end
-	else
-		th_true = 0;
+	% プロット更新: adaptive_R のウォームアップ中（最初の N サンプル）はグラフ表示しない
+	warmupActive = false;
+	if isfield(params,'kf') && isfield(params.kf,'ema_warmup') && isfield(params.kf,'R_warmup_count')
+		rc = params.kf.R_warmup_count;
+		fn = fieldnames(rc);
+		if ~isempty(fn)
+			% try quick vectorized check, fall back to loop
+			try
+				vals = struct2array(rc);
+				warmupActive = any(vals < params.kf.ema_warmup);
+			catch
+				for jj = 1:numel(fn)
+					if rc.(fn{jj}) < params.kf.ema_warmup
+						warmupActive = true; break;
+					end
+				end
+			end
+		end
 	end
-	v_est = x_upd(3:4);
-	if norm(v_est) > 1e-6, th_est = atan2(v_est(2), v_est(1)); end
-	set(h_true_head, 'XData', true_traj(end,1), 'YData', true_traj(end,2), 'UData', heading_scale*cos(th_true), 'VData', heading_scale*sin(th_true));
-	set(h_est_head, 'XData', est_traj(end,1), 'YData', est_traj(end,2), 'UData', heading_scale*cos(th_est), 'VData', heading_scale*sin(th_est));
 
-	% 状態更新
-	state_prev = state_curr;
-	x_est = x_upd;
-	P = P_upd;
-
-	drawnow limitrate;
+	if ~warmupActive
+		set(h_true, 'XData', true_traj(:,1), 'YData', true_traj(:,2));
+		set(h_meas, 'XData', meas_traj(:,1), 'YData', meas_traj(:,2));
+		set(h_est, 'XData', est_traj(:,1), 'YData', est_traj(:,2));
+		% update heading arrows
+		if numel(state_curr) >= 4
+			v_true = state_curr(3:4);
+			if norm(v_true) > 1e-6, th_true = atan2(v_true(2), v_true(1)); end
+		else
+			th_true = 0;
+		end
+		v_est = x_upd(3:4);
+		if norm(v_est) > 1e-6, th_est = atan2(v_est(2), v_est(1)); end
+		set(h_true_head, 'XData', true_traj(end,1), 'YData', true_traj(end,2), 'UData', heading_scale*cos(th_true), 'VData', heading_scale*sin(th_true));
+		set(h_est_head, 'XData', est_traj(end,1), 'YData', est_traj(end,2), 'UData', heading_scale*cos(th_est), 'VData', heading_scale*sin(th_est));
+		% 状態更新
+		state_prev = state_curr;
+		x_est = x_upd;
+		P = P_upd;
+		drawnow limitrate;
+	else
+		% still update internal state but skip expensive plotting
+		state_prev = state_curr;
+		x_est = x_upd;
+		P = P_upd;
+	end
 end
 
 fprintf('Realtime simulation finished.\n');
