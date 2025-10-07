@@ -24,11 +24,6 @@
 #include <cstring>
 #include "../../cpp/inc/kalman_filter.hpp"
 
-// Helper: check input argument count
-void mexErrIfNotArguments(int nlhs, int nrhs, int need_nlhs, int need_nrhs) {
-    if (nrhs < need_nrhs) mexErrMsgIdAndTxt("kalman_mex:args","Not enough input arguments");
-}
-
 // Create a MATLAB uint64 scalar to hold pointer
 mxArray* createHandle(KalmanFilter* ptr) {
     mxArray* out = mxCreateNumericMatrix(1,1,mxUINT64_CLASS,mxREAL);
@@ -38,17 +33,10 @@ mxArray* createHandle(KalmanFilter* ptr) {
 }
 
 KalmanFilter* getHandle(const mxArray* arr) {
-    if (!mxIsNumeric(const_cast<mxArray*>(arr)) || mxGetNumberOfElements(arr) != 1) {
-        mexErrMsgIdAndTxt("kalman_mex:badhandle","Handle must be a numeric scalar (uint64)");
+    if (!mxIsUint64(const_cast<mxArray*>(arr)) || mxGetNumberOfElements(arr) != 1) {
+        mexErrMsgIdAndTxt("kalman_mex:badhandle","Handle must be uint64 scalar");
     }
-    uint64_t val = 0;
-    if (mxIsUint64(const_cast<mxArray*>(arr))) {
-        val = *(uint64_t*)mxGetData(const_cast<mxArray*>(arr));
-    } else {
-        // accept double as fallback
-        double d = mxGetScalar(arr);
-        val = static_cast<uint64_t>(d);
-    }
+    uint64_t val = *(uint64_t*)mxGetData(const_cast<mxArray*>(arr));
     return reinterpret_cast<KalmanFilter*>(val);
 }
 
@@ -92,13 +80,6 @@ void copyVecToFloat(const mxArray* vec, float* dst, mwSize expectedLen) {
     } else {
         mexErrMsgIdAndTxt("kalman_mex:type","Input must be single or double.");
     }
-}
-
-mxArray* createDoubleVecFromFloat(const float* src, mwSize len) {
-    mxArray* out = mxCreateDoubleMatrix(len,1,mxREAL);
-    double* dst = mxGetPr(out);
-    for (mwSize i = 0; i < len; ++i) dst[i] = static_cast<double>(src[i]);
-    return out;
 }
 
 mxArray* createSingleVecFromFloat(const float* src, mwSize len) {
