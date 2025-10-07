@@ -28,6 +28,11 @@ public:
     // Estimate measurement/prediction noise from incoming measurements (EWMA)
     void EstimateNoise(float meas);
     void GetData(float* out_states);
+    // Allow user to set noise levels from MATLAB
+    void SetProcessNoise(float q);
+    void SetMeasurementNoise(float r);
+    // Set diagonal of prediction covariance P to a constant value (for initialization)
+    void SetPredictionCovarianceDiag(float val);
 
     // 入力パラメータ
     float observation[OBS_SIZE_MAX]={};                // 観測値
