@@ -15,14 +15,14 @@
  *   kalman_mex('delete', h);
  *
  * Compile in MATLAB (from project root or this folder):
- *   mex('kalman_mex.cpp', 'kalman_filter.cpp')
+ *   mex('kalman_mex.cpp', '..\\..\\cpp\\src\\kalman_filter.cpp')
  *
  */
 
 #include "mex.h"
 #include <cstdint>
 #include <cstring>
-#include "inc/kalman_filter.hpp"
+#include "../../cpp/inc/kalman_filter.hpp"
 
 // Helper: check input argument count
 void mexErrIfNotArguments(int nlhs, int nrhs, int need_nlhs, int need_nrhs) {
@@ -56,33 +56,55 @@ KalmanFilter* getHandle(const mxArray* arr) {
 // In this project, C++ expects row-major flattened as row*cols + col, but MATLAB stores column-major.
 // We'll map MATLAB (m x n) to C buffer with same logical matrix: C[i*cols + j] = matlab(j,i)
 void copyMatToFloat(const mxArray* mat, float* dst, mwSize expectedRows, mwSize expectedCols) {
-    if (!mxIsDouble(const_cast<mxArray*>(mat))) mexErrMsgIdAndTxt("kalman_mex:type","Input must be double.");
     mwSize rows = mxGetM(mat);
     mwSize cols = mxGetN(mat);
     if (rows != expectedRows || cols != expectedCols) mexErrMsgIdAndTxt("kalman_mex:size","Input matrix has incorrect size.");
-    double* src = mxGetPr(mat);
-    // Map: for r=1..rows, c=1..cols -> C[(r-1)*cols + (c-1)] = src[(c-1)*rows + (r-1)]
-    for (mwSize r = 0; r < rows; ++r) {
-        for (mwSize c = 0; c < cols; ++c) {
-            dst[r * cols + c] = static_cast<float>(src[c * rows + r]);
+    if (mxIsSingle(const_cast<mxArray*>(mat))) {
+        float* src = (float*)mxGetData(mat);
+        for (mwSize r = 0; r < rows; ++r) {
+            for (mwSize c = 0; c < cols; ++c) {
+                dst[r * cols + c] = src[c * rows + r];
+            }
         }
+    } else if (mxIsDouble(const_cast<mxArray*>(mat))) {
+        double* src = mxGetPr(mat);
+        for (mwSize r = 0; r < rows; ++r) {
+            for (mwSize c = 0; c < cols; ++c) {
+                dst[r * cols + c] = static_cast<float>(src[c * rows + r]);
+            }
+        }
+    } else {
+        mexErrMsgIdAndTxt("kalman_mex:type","Input must be single or double.");
     }
 }
 
 void copyVecToFloat(const mxArray* vec, float* dst, mwSize expectedLen) {
-    if (!mxIsDouble(const_cast<mxArray*>(vec))) mexErrMsgIdAndTxt("kalman_mex:type","Input must be double.");
     mwSize rows = mxGetM(vec);
     mwSize cols = mxGetN(vec);
     mwSize len = rows * cols;
     if (len != expectedLen) mexErrMsgIdAndTxt("kalman_mex:size","Input vector has incorrect length.");
-    double* src = mxGetPr(vec);
-    for (mwSize i = 0; i < len; ++i) dst[i] = static_cast<float>(src[i]);
+    if (mxIsSingle(const_cast<mxArray*>(vec))) {
+        float* src = (float*)mxGetData(vec);
+        for (mwSize i = 0; i < len; ++i) dst[i] = src[i];
+    } else if (mxIsDouble(const_cast<mxArray*>(vec))) {
+        double* src = mxGetPr(vec);
+        for (mwSize i = 0; i < len; ++i) dst[i] = static_cast<float>(src[i]);
+    } else {
+        mexErrMsgIdAndTxt("kalman_mex:type","Input must be single or double.");
+    }
 }
 
 mxArray* createDoubleVecFromFloat(const float* src, mwSize len) {
     mxArray* out = mxCreateDoubleMatrix(len,1,mxREAL);
     double* dst = mxGetPr(out);
     for (mwSize i = 0; i < len; ++i) dst[i] = static_cast<double>(src[i]);
+    return out;
+}
+
+mxArray* createSingleVecFromFloat(const float* src, mwSize len) {
+    mxArray* out = mxCreateNumericMatrix(len,1,mxSINGLE_CLASS,mxREAL);
+    float* dst = (float*)mxGetData(out);
+    for (mwSize i = 0; i < len; ++i) dst[i] = src[i];
     return out;
 }
 
@@ -129,6 +151,29 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         return;
     }
 
+    if (strcmp(cmd, "setQMatrix") == 0) {
+        if (nrhs < 3) mexErrMsgIdAndTxt("kalman_mex:args","setQMatrix requires handle and Q matrix");
+        mwSize rows = mxGetM(prhs[2]);
+        mwSize cols = mxGetN(prhs[2]);
+        if (rows != cols) mexErrMsgIdAndTxt("kalman_mex:size","Q must be square");
+        // temporary buffer
+        float Qbuf[STATE_SIZE_MAX * STATE_SIZE_MAX];
+        copyMatToFloat(prhs[2], Qbuf, rows, cols);
+        kf->SetQMatrix(Qbuf);
+        return;
+    }
+
+    if (strcmp(cmd, "setRMatrix") == 0) {
+        if (nrhs < 3) mexErrMsgIdAndTxt("kalman_mex:args","setRMatrix requires handle and R matrix");
+        mwSize rows = mxGetM(prhs[2]);
+        mwSize cols = mxGetN(prhs[2]);
+        if (rows != cols) mexErrMsgIdAndTxt("kalman_mex:size","R must be square");
+        float Rbuf[OBS_SIZE_MAX * OBS_SIZE_MAX];
+        copyMatToFloat(prhs[2], Rbuf, rows, cols);
+        kf->SetRMatrix(Rbuf);
+        return;
+    }
+
     if (strcmp(cmd, "setObservationMatrix") == 0) {
         if (nrhs < 3) mexErrMsgIdAndTxt("kalman_mex:args","setObservationMatrix requires handle and H matrix");
         mwSize rows = mxGetM(prhs[2]);
@@ -162,16 +207,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     }
 
     if (strcmp(cmd, "get") == 0) {
-        // return state vector
-        // we need to know STATE_SIZE; since it's private, infer from system_matrix diagonal nonzero or check first nonzero
-        // Simpler: assume MATLAB user knows state size and stored in system_matrix dims; infer by scanning until zero? We'll search for first zero row/col
-        // As a robust approach, try to return up to STATE_SIZE_MAX and trim trailing zeros.
         float tmp[STATE_SIZE_MAX];
         kf->GetData(tmp);
-        // find length to return: try STATE_SIZE_MAX but trim trailing zeros beyond last non-zero
         mwSize len = STATE_SIZE_MAX;
         while (len>1 && tmp[len-1]==0.0f) len--;
-        plhs[0] = createDoubleVecFromFloat(tmp, len);
+        plhs[0] = createSingleVecFromFloat(tmp, len);
         return;
     }
 

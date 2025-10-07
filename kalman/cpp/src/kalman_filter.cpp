@@ -44,27 +44,24 @@ void KalmanFilter::Init(uint8_t state_size, uint8_t obs_size) {
         prediction_covariance[i * STATE_SIZE + i] = 1.0f;
         identity_matrix[i * STATE_SIZE + i] = 1.0f;
     }
-
-#if KALMAN_USE_SMOOTHER
-    for (uint8_t i = 0; i < STATE_SIZE_MAX; i++) {
-        for (uint8_t j = 0; j < SMOOTHER_WINDOW_SIZE; j++) {
-            smooth_buffer[i][j] = 0.0f;
-        }
-        smooth_output[i] = 0.0f;
-    }
-    smooth_index = 0;
-#endif
-
 }
 
 
 void KalmanFilter::Update() {
     // Update Q and R diagonal entries
-    for (uint8_t i = 0; i < STATE_SIZE; ++i) {
-        prediction_noise_matrix[i * STATE_SIZE + i] = prediction_noise;
+    // If full Q/R matrices are not set by caller, fill diagonals from scalar members
+    if (!qMatrixSet) {
+        for (uint8_t i = 0; i < STATE_SIZE; ++i) {
+            // zero full matrix first to avoid residuals
+            for (uint8_t j = 0; j < STATE_SIZE; ++j) prediction_noise_matrix[i * STATE_SIZE + j] = 0.0f;
+            prediction_noise_matrix[i * STATE_SIZE + i] = prediction_noise;
+        }
     }
-    for (uint8_t i = 0; i < OBS_SIZE; ++i) {
-        observation_noise_matrix[i * OBS_SIZE + i] = observation_noise;
+    if (!rMatrixSet) {
+        for (uint8_t i = 0; i < OBS_SIZE; ++i) {
+            for (uint8_t j = 0; j < OBS_SIZE; ++j) observation_noise_matrix[i * OBS_SIZE + j] = 0.0f;
+            observation_noise_matrix[i * OBS_SIZE + i] = observation_noise;
+        }
     }
 
     const uint8_t s = STATE_SIZE;
@@ -111,6 +108,12 @@ void KalmanFilter::Update() {
         }
         so += observation_noise_matrix[0];
         observation_covariance[0] = so;
+        // Simple NaN/Inf guard and regularization for scalar case
+        if (!isfinite(so) || fabsf(so) < 1e-8f) {
+            const float EPS_REG = 1e-6f;
+            so = (isfinite(so) ? so : 0.0f) + EPS_REG;
+            observation_covariance[0] = so;
+        }
     } else {
         // general (rare) path: compute SO matrix
         for (uint8_t i = 0; i < (o * o); ++i) observation_covariance[i] = 0.0f;
@@ -123,6 +126,13 @@ void KalmanFilter::Update() {
                     }
                 }
                 observation_covariance[ii * o + jj] = sum + observation_noise_matrix[ii * o + jj];
+            }
+        }
+        // Simple regularization for full S: ensure diagonal entries are not too small and finite
+        for (uint8_t i = 0; i < o; ++i) {
+            float diag = observation_covariance[i * o + i];
+            if (!isfinite(diag) || fabsf(diag) < 1e-8f) {
+                observation_covariance[i * o + i] = (isfinite(diag) ? diag : 0.0f) + 1e-6f;
             }
         }
     }
@@ -146,8 +156,40 @@ void KalmanFilter::Update() {
             kalman_gain[i * o + 0] = temp_ph[i] * inv_so;
         }
     } else {
-        // Not expected for altitude use-case; leave K zeroed for safety
-        for (uint8_t i = 0; i < (s * o); ++i) kalman_gain[i] = 0.0f;
+        // o>1: K = P H^T S^{-1} using Cholesky
+        // PHt = P * H^T (s x o)
+        float PHt[STATE_SIZE_MAX * OBS_SIZE_MAX];
+        for (uint8_t i = 0; i < s; ++i) {
+            for (uint8_t j = 0; j < o; ++j) {
+                float sum = 0.0f;
+                for (uint8_t k = 0; k < s; ++k) sum += prediction_covariance[i * s + k] * observation_matrix[j * s + k];
+                PHt[i * o + j] = sum;
+            }
+        }
+        // Cholesky decomposition of S: S = L L^T
+        float L[OBS_SIZE_MAX * OBS_SIZE_MAX];
+        for (uint8_t i = 0; i < o * o; ++i) L[i] = 0.0f;
+        for (uint8_t i = 0; i < o; ++i) {
+            for (uint8_t j = 0; j <= i; ++j) {
+                float sum = observation_covariance[i * o + j];
+                for (uint8_t k = 0; k < j; ++k) sum -= L[i * o + k] * L[j * o + k];
+                L[i * o + j] = (i == j) ? sqrtf(sum > 1e-10f ? sum : 1e-10f) : sum / L[j * o + j];
+            }
+        }
+        // Solve L Y = PHt^T for Y (o x s), then L^T K^T = Y
+        for (uint8_t col = 0; col < s; ++col) {
+            float y[OBS_SIZE_MAX];
+            for (uint8_t i = 0; i < o; ++i) {
+                float sum = PHt[col * o + i];
+                for (uint8_t j = 0; j < i; ++j) sum -= L[i * o + j] * y[j];
+                y[i] = sum / L[i * o + i];
+            }
+            for (int i = o - 1; i >= 0; --i) {
+                float sum = y[i];
+                for (uint8_t j = i + 1; j < o; ++j) sum -= L[j * o + i] * kalman_gain[col * o + j];
+                kalman_gain[col * o + i] = sum / L[i * o + i];
+            }
+        }
     }
 
     // ---------- output = prediction + K * (observation - H * prediction) ----------
@@ -209,21 +251,13 @@ void KalmanFilter::GetData(float* out_states) {
 // prediction variances and updates observation_noise and prediction_noise members.
 void KalmanFilter::EstimateNoise(float meas) {
     const float EPS_NOISE = 1e-6f;
-    // static locals hold internal noise estimation state (function-scoped, static lifetime)
-    static float noise_meas_mean = 0.0f;
-    static float noise_meas_var = 1.0f;
-    static float noise_proc_mean = 0.0f;
-    static float noise_proc_var = 0.1f;
-    static float noise_prev_pred0 = 0.0f;
-
-    // measurement mean/variance (EWMA)
+    // measurement mean/variance (EWMA) using instance members
     noise_meas_mean = (1.0f - NOISE_ALPHA) * noise_meas_mean + NOISE_ALPHA * meas;
     float v = meas - noise_meas_mean;
     noise_meas_var = (1.0f - NOISE_ALPHA) * noise_meas_var + NOISE_ALPHA * v * v;
 
     // prediction error proxy: use prediction[0] (prediction vector first element)
-    float pred0 = 0.0f;
-    pred0 = prediction[0];
+    float pred0 = prediction[0];
     float pred_err = pred0 - noise_prev_pred0;
     noise_proc_mean = (1.0f - NOISE_ALPHA) * noise_proc_mean + NOISE_ALPHA * pred_err;
     float pv = pred_err - noise_proc_mean;
@@ -242,6 +276,28 @@ void KalmanFilter::EstimateNoise(float meas) {
     }
 
     noise_prev_pred0 = pred0;
+}
+
+// Set full Q matrix (row-major). Size is STATE_SIZE x STATE_SIZE.
+void KalmanFilter::SetQMatrix(const float* Q) {
+    if (Q == nullptr) return;
+    for (uint8_t i = 0; i < STATE_SIZE; ++i) {
+        for (uint8_t j = 0; j < STATE_SIZE; ++j) {
+            prediction_noise_matrix[i * STATE_SIZE + j] = Q[i * STATE_SIZE + j];
+        }
+    }
+    qMatrixSet = true;
+}
+
+// Set full R matrix (row-major). Size is OBS_SIZE x OBS_SIZE.
+void KalmanFilter::SetRMatrix(const float* R) {
+    if (R == nullptr) return;
+    for (uint8_t i = 0; i < OBS_SIZE; ++i) {
+        for (uint8_t j = 0; j < OBS_SIZE; ++j) {
+            observation_noise_matrix[i * OBS_SIZE + j] = R[i * OBS_SIZE + j];
+        }
+    }
+    rMatrixSet = true;
 }
 
 

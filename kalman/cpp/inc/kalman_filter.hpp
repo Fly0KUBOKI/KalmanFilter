@@ -14,11 +14,11 @@
 // EWMA alpha for noise estimation
 #define NOISE_ALPHA 0.02f
 
-// フィルタの最大サイズ定義
-#define STATE_SIZE_MAX    10    // 状態ベクトルの最大サイズ
-#define OBS_SIZE_MAX      10    // 観測ベクトルの最大サイズ
+// Maximum sizes for the filter
+#define STATE_SIZE_MAX    10    // maximum state vector size
+#define OBS_SIZE_MAX      10    // maximum observation vector size
 
-// テンポラリバッファの最大サイズ（state x state が最大想定）
+// Maximum temporary buffer size (state x state)
 #define TEMP_BUFFER_MAX (STATE_SIZE_MAX * STATE_SIZE_MAX)
 
 class KalmanFilter {
@@ -34,46 +34,50 @@ public:
     // Set diagonal of prediction covariance P to a constant value (for initialization)
     void SetPredictionCovarianceDiag(float val);
 
-    // 入力パラメータ
-    float observation[OBS_SIZE_MAX]={};                // 観測値
-    float prediction[STATE_SIZE_MAX]={};               // 予測値
+    // Input parameters
+    float observation[OBS_SIZE_MAX]={};                // observation values
+    float prediction[STATE_SIZE_MAX]={};               // predicted state values
 
 
     float system_matrix[STATE_SIZE_MAX * STATE_SIZE_MAX]={};    // F
     float observation_matrix[OBS_SIZE_MAX * STATE_SIZE_MAX]={}; // H
 
+    // Set full process/measurement noise matrices (row-major float arrays)
+    void SetQMatrix(const float* Q);
+    void SetRMatrix(const float* R);
 
 
 private:
     uint8_t STATE_SIZE = 0;
     uint8_t OBS_SIZE = 0;
 
-    // 保存する変数
-    float observation_noise = 0.0f;                         // 観測ノイズ
-    float prediction_noise = 0.0f;                          // 予測ノイズ
-    float output[STATE_SIZE_MAX]={};                        // 出力値
-    float prediction_noise_matrix[STATE_SIZE_MAX * STATE_SIZE_MAX] = {};      // Q
-    float observation_noise_matrix[OBS_SIZE_MAX * OBS_SIZE_MAX] = {};         // R
-    float prediction_covariance[STATE_SIZE_MAX * STATE_SIZE_MAX] = {};        // P
-    float observation_covariance[OBS_SIZE_MAX * OBS_SIZE_MAX] = {};          // SO
-    float kalman_gain[STATE_SIZE_MAX * OBS_SIZE_MAX] = {};                   // K
-    float identity_matrix[STATE_SIZE_MAX * STATE_SIZE_MAX] = {};             // I
+    // Stored variables
+    float observation_noise = 0.0f;                         // observation noise (R scalar)
+    float prediction_noise = 0.0f;                          // process noise (Q scalar)
+    float output[STATE_SIZE_MAX]={};                        // output state vector
+    float prediction_noise_matrix[STATE_SIZE_MAX * STATE_SIZE_MAX] = {};      // Q matrix
+    float observation_noise_matrix[OBS_SIZE_MAX * OBS_SIZE_MAX] = {};         // R matrix
+    float prediction_covariance[STATE_SIZE_MAX * STATE_SIZE_MAX] = {};        // P matrix
+    float observation_covariance[OBS_SIZE_MAX * OBS_SIZE_MAX] = {};          // S/O matrix
+    float kalman_gain[STATE_SIZE_MAX * OBS_SIZE_MAX] = {};                   // K matrix
+    float identity_matrix[STATE_SIZE_MAX * STATE_SIZE_MAX] = {};             // Identity matrix
 
-    // 汎用テンポラリバッファ（ヘッダでは最大サイズで確保）
+    // General temporary buffers (allocated to maximum sizes in header)
     float temp_buffer_a[TEMP_BUFFER_MAX] = {};
     float temp_buffer_b[TEMP_BUFFER_MAX] = {};
 
-    #if KALMAN_USE_SMOOTHER
-    float smooth_output[STATE_SIZE_MAX]={};            // 平滑化後の出力
-    float smooth_buffer[STATE_SIZE_MAX][SMOOTHER_WINDOW_SIZE] = {};       // 直近N回分のバッファ（移動平均用）
-    int smooth_index = 0;
+    // Internal state for online noise estimation (moved from static locals to per-instance)
+    float noise_meas_mean = 0.0f;
+    float noise_meas_var = 1.0f;
+    float noise_proc_mean = 0.0f;
+    float noise_proc_var = 0.1f;
+    float noise_prev_pred0 = 0.0f;
 
-    // スムーザー関数
-    void Smoother();
-    #endif
+    // Flags indicating whether full Q/R matrices have been provided via setters
+    bool qMatrixSet = false;
+    bool rMatrixSet = false;
+
 
 };
-
-
 
 #endif /* INC_KALMAN_FILTER_HPP_ */
