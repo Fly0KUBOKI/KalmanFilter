@@ -15,7 +15,7 @@ sensors = {
     {'gyro3_x','gyro3_y','gyro3_z'}, 'Gyroscope';
     {'mag3_x','mag3_y','mag3_z'}, 'Magnetometer';
     {'gps_x','gps_y'}, 'GPS (x/y)';
-    {'baro'}, 'Barometer';
+    % baro removed from FFT analysis list
     {'meas_heading_x','meas_heading_y'}, 'Heading vector';
 };
 

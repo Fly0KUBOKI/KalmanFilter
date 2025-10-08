@@ -19,8 +19,8 @@ end
 % Define variables to show after processing (edit here)
 % Each entry should be a column name present in the CSV (or a name
 % that get_col_from_table can resolve). You can add multiple entries.
-plot_def.columns = {'gyro3_x','gyro3_y','gyro3_z','baro'};   % e.g. {'accel3_x','accel3_y'}
-plot_def.labels  = {'Gyro X','Gyro Y','Gyro Z','Baro'};    % optional human-readable labels
+plot_def.columns = {'gyro3_x','gyro3_y','gyro3_z'};   % e.g. {'accel3_x','accel3_y'}
+plot_def.labels  = {'Gyro X','Gyro Y','Gyro Z'};    % optional human-readable labels
 % ---------------------------------------------------------------------
 
 switch lower(cfg.mode)

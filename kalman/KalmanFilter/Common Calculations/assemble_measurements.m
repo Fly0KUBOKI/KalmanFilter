@@ -108,18 +108,7 @@ if isfield(meas,'mag3') && ~isempty(meas.mag3)
     add_block(zm, hm, Hm, Rm, 'mag3');
 end
 
-% baro
-if isfield(meas,'baro') && ~isempty(meas.baro)
-    zb = meas.baro(:);
-    hb = x_pred(9);
-    Hb = zeros(1,numel(x_pred)); Hb(1,9) = 1;
-    if isfield(params.noise,'baro')
-        rb = params.noise.baro;
-    else
-        rb = 0.5;
-    end
-    add_block(zb, hb, Hb, rb^2, 'baro');
-end
+% barometer removed: no baro measurement
 
 % heading (cos/sin)
 if isfield(meas,'heading') && ~isempty(meas.heading)

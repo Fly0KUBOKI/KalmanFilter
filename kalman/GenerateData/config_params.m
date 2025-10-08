@@ -29,7 +29,7 @@ params.noise.accel3 = [0.1, 0.1, 0.1];
 params.noise.gyro3 = deg2rad([0.1, 0.1, 0.1]);
 params.noise.mag3 = [0.1, 0.1, 0.1];
 params.noise.gps = 1.0;
-params.noise.baro = 0.01;
+% barometer removed
 params.noise.heading = deg2rad(0.1);
 
 
@@ -43,7 +43,7 @@ params.noise.pink.std.accel3 = [0.1, 0.1, 0.0];
 params.noise.pink.std.gyro3 = deg2rad([0.1, 0.1, 0.1]);
 params.noise.pink.std.mag3 = [0.1, 0.1, 0.1];
 params.noise.pink.std.gps = 1.0;
-params.noise.pink.std.baro = 1.0;
+% baro pink-noise removed
 params.noise.pink.std.heading = deg2rad(0.1);
 
 
@@ -52,9 +52,7 @@ params.noise.gyro_allan.bias_sigma = deg2rad(0.8);
 params.noise.gyro_allan.rate_rw_sigma = deg2rad(0.01);
 
 
-params.noise.baro_allan.enable = true;
-params.noise.baro_allan.bias_sigma = 0.8;
-params.noise.baro_allan.rate_rw_sigma = 0.01;
+% baro allan settings removed
 
 
 params.noise.outlier.prob_per = struct();
@@ -64,17 +62,16 @@ params.noise.outlier.prob_per.accel3 = 0.01;
 params.noise.outlier.prob_per.gyro3 = 0.01;
 params.noise.outlier.prob_per.mag3 = 0.01;
 params.noise.outlier.prob_per.gps = 0.1;
-params.noise.outlier.prob_per.baro = 0.1;
+% baro outlier probability removed
 params.noise.outlier.prob_per.heading = 0.01;
 
 % nominal magnetic field in world frame (2D + z=0)
 params.sensors.mag_field = [1; 0; 0]; % arbitrary unit vector pointing along +x
 
-% EKF params (10-state model)
-% initial state for EKF: [x y vx vy theta ax ay omega z vz]
-params.kf.x0 = [0;0;1;0;0;0;0;0;0;0]; % default: vx=1
-% initial covariance (10x10)
-params.kf.P0 = diag([10,10,5,5,1,1,1,1,1,1]);
+% EKF params (8-state model: [x y vx vy theta ax ay omega])
+params.kf.x0 = [0;0;1;0;0;0;0;0]; % default: vx=1
+% initial covariance (8x8)
+params.kf.P0 = diag([10,10,5,5,1,1,1,1]);
 params.kf.process_noise_accel = 0.5;
 % filter type: 'ekf', 'ukf', or 'kf' (step-wise KF)
 params.kf.type = 'ukf';
