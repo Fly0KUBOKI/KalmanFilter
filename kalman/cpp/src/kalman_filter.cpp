@@ -14,6 +14,9 @@
 
 void KalmanFilter::Init(uint8_t state_size, uint8_t obs_size) {
 
+    // Bounds check: ensure sizes do not exceed compile-time maxima
+    if (state_size > STATE_SIZE_MAX) state_size = STATE_SIZE_MAX;
+    if (obs_size > OBS_SIZE_MAX) obs_size = OBS_SIZE_MAX;
     STATE_SIZE = state_size;
     OBS_SIZE = obs_size;
 
@@ -128,12 +131,42 @@ void KalmanFilter::Update() {
                 observation_covariance[ii * o + jj] = sum + observation_noise_matrix[ii * o + jj];
             }
         }
-        // Simple regularization for full S: ensure diagonal entries are not too small and finite
+        // Handle NaN/Inf in observation vector by inflating corresponding R diagonal entries
+        // Note: observation[] may contain NaN/Inf; make a mask and increase R diag for those indices
+        bool nanmask[OBS_SIZE_MAX];
         for (uint8_t i = 0; i < o; ++i) {
-            float diag = observation_covariance[i * o + i];
-            if (!isfinite(diag) || fabsf(diag) < 1e-8f) {
-                observation_covariance[i * o + i] = (isfinite(diag) ? diag : 0.0f) + 1e-6f;
+            nanmask[i] = !(isfinite(observation[i]));
+        }
+        if (0) {
+            // placeholder to keep minimal changes; real inflation occurs below during regularization
+        }
+
+        // Regularization loop: attempt to ensure S is reasonably conditioned by adding diagonal jitter
+        const float reg_scale_base = 1e-8f;
+        int iter = 0;
+        const int max_iter = 8;
+        // compute a base scale from trace
+        float traceS = 0.0f;
+        for (uint8_t i = 0; i < o; ++i) traceS += observation_covariance[i * o + i];
+        float base = (traceS > 0.0f) ? (traceS / (float)o) : 1.0f;
+        // If any NaN in observation, inflate the corresponding R diag aggressively
+        for (uint8_t i = 0; i < o; ++i) {
+            if (nanmask[i]) {
+                observation_covariance[i * o + i] = fmaxf(observation_covariance[i * o + i], base * 1e6f);
             }
+        }
+        // iterative conditioning check: ensure diagonal not too small and finite
+        auto is_well_conditioned = [&](void)->bool {
+            for (uint8_t ii = 0; ii < o; ++ii) {
+                float d = observation_covariance[ii * o + ii];
+                if (!isfinite(d) || fabsf(d) < 1e-12f) return false;
+            }
+            return true;
+        };
+        while (!is_well_conditioned() && iter < max_iter) {
+            float reg = powf(10.0f, (float)iter) * reg_scale_base * base;
+            for (uint8_t i = 0; i < o; ++i) observation_covariance[i * o + i] += reg;
+            iter++;
         }
     }
 

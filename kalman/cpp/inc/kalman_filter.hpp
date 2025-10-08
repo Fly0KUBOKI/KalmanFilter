@@ -9,7 +9,9 @@
 #define INC_KALMAN_FILTER_HPP_
 
 #include <cstdint>
-#include "math.h"
+#include <cmath>
+#include <cstring>
+#include <cstddef>
 
 // EWMA alpha for noise estimation
 #define NOISE_ALPHA 0.02f
@@ -45,6 +47,25 @@ public:
     // Set full process/measurement noise matrices (row-major float arrays)
     void SetQMatrix(const float* Q);
     void SetRMatrix(const float* R);
+
+    // Minimal measurement assemble types (kept small on purpose)
+    struct Meas {
+        bool has_gps = false; float gps[2] = {0.0f, 0.0f};
+        bool has_vel = false; float vel[2] = {0.0f, 0.0f};
+        bool has_baro = false; float baro = 0.0f;
+    };
+
+    struct MeasTag {
+        char name[16];
+        uint8_t start; // 0-based start index in z
+        uint8_t length;
+    };
+
+    // AssembleMeasurements: minimal implementation (gps, vel, baro) that
+    // fills out_z (len z_len), out_h (z_len), out_H (row-major z_len x state_size),
+    // out_R (row-major z_len x z_len), tags (preallocated), and sets z_len.
+    void AssembleMeasurements(const Meas& meas, const float* x_pred, float* out_z, float* out_h,
+                              float* out_H, float* out_R, MeasTag* tags, uint8_t& z_len, uint8_t state_size);
 
 
 private:
