@@ -1,6 +1,6 @@
 #include "../inc/kalman_filter.hpp"
 
-// Minimal AssembleMeasurements implementation supporting gps (2), vel (2)
+// Minimal AssembleMeasurements implementation supporting gps (2), vel (2), baro (1)
 // Fills out_z, out_h, out_H (row-major z_len x state_size), out_R (row-major z_len x z_len), tags
 // Assumes out arrays are preallocated to OBS_SIZE_MAX and state_size provided
 
@@ -56,7 +56,17 @@ void KalmanFilter::AssembleMeasurements(const Meas& meas, const float* x_pred, f
         float Rv_diag[2] = { 0.1f, 0.1f };
         add_block(zv, 2, hv, Hv_row, Rv_diag, "vel");
     }
-    // baro removed
+    // baro
+    if (meas.has_baro) {
+        float zb[1] = { meas.baro };
+        float hb[1] = { 0.0f };
+        if (state_size >= 9) hb[0] = x_pred[8];
+        float Hb_row[1 * STATE_SIZE_MAX];
+        for (uint8_t i = 0; i < state_size; ++i) Hb_row[i] = 0.0f;
+        if (state_size >= 9) Hb_row[0 * state_size + 8] = 1.0f;
+        float Rb_diag[1] = { 0.5f };
+        add_block(zb, 1, hb, Hb_row, Rb_diag, "baro");
+    }
 
     // zero-fill remaining z/h if any
     for (uint8_t i = z_len; i < OBS_SIZE_MAX; ++i) { out_z[i] = 0.0f; out_h[i] = 0.0f; }

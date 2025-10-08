@@ -102,7 +102,12 @@ else
     gps_noise = [params.noise.pos, params.noise.pos];
 end
 meas.gps = state(1:2)' + randn(1,2).*gps_noise;
-        % barometer removed: do not produce meas.baro
+if isfield(params.noise,'baro')
+    baro_noise = params.noise.baro;
+else
+    baro_noise = 0.5;
+end
+meas.baro = state(9) + baro_noise*randn;
 theta_noisy = state(5) + params.noise.heading.*randn;
 meas.heading = [cos(theta_noisy), sin(theta_noisy)];
 end

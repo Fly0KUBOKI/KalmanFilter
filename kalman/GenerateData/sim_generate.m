@@ -162,7 +162,12 @@ else
     gps_noise = [params.noise.pos, params.noise.pos];
 end
 meas.gps = state(:,1:2) + randn(N,2).*gps_noise;
-% barometer removed: do not produce meas.baro
+if isfield(params.noise,'baro')
+    baro_noise = params.noise.baro;
+else
+    baro_noise = 0.5;
+end
+meas.baro = zeros(N,1) + baro_noise.*randn(N,1);
 theta_vals = state(:,5);
 theta_vals = theta_vals + params.noise.heading.*randn(N,1);
 meas.heading = [cos(theta_vals), sin(theta_vals)];
@@ -205,7 +210,10 @@ if isfield(params.noise,'pink') && isfield(params.noise.pink,'enable') && params
     pgps = gen_pink(gps_std);
     meas.gps = meas.gps + pgps;
 
-    % baro removed from pink-noise pipeline
+    % baro (1)
+    baro_std = params.noise.pink.std.baro;
+    pbaro = gen_pink(baro_std);
+    meas.baro = meas.baro + pbaro(:,1);
 
     % heading (angle) - perturb angle then normalize
     heading_std = params.noise.pink.std.heading;
@@ -255,7 +263,7 @@ def.accel3 = 10*accel_noise;
 def.gyro3 = 10*gyro_noise;
 def.mag3 = 10*mag_noise;
 def.gps = 10*(gps_noise(:)'); if numel(def.gps)==1, def.gps = repmat(def.gps,1,2); end
-% def.baro removed
+def.baro = 5*(baro_noise + eps);
 def.heading = 5*(params.noise.heading + eps);
 
 % merge user-specified out.mag with defaults so missing fields are filled
@@ -318,7 +326,12 @@ if any(m)
     meas.gps(m,:) = meas.gps(m,:) + randn(s,2) .* repmat(M.gps, s, 1);
 end
 
-% baro outliers removed
+% baro
+m = mask_for(N, get_prob('baro'));
+if any(m)
+    s = sum(m);
+    meas.baro(m) = meas.baro(m) + randn(s,1) .* M.baro;
+end
 
 % heading (perturb angle)
 m = mask_for(N, get_prob('heading'));

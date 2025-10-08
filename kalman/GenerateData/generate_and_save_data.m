@@ -39,7 +39,7 @@ if isfield(meas,'accel3'), T.accel3_x = meas.accel3(:,1); T.accel3_y = meas.acce
 if isfield(meas,'gyro3'), T.gyro3_x = meas.gyro3(:,1); T.gyro3_y = meas.gyro3(:,2); T.gyro3_z = meas.gyro3(:,3); end
 if isfield(meas,'mag3'), T.mag3_x = meas.mag3(:,1); T.mag3_y = meas.mag3(:,2); T.mag3_z = meas.mag3(:,3); end
 if isfield(meas,'gps'), T.gps_x = meas.gps(:,1); T.gps_y = meas.gps(:,2); end
-% baro removed: do not include baro in saved table
+if isfield(meas,'baro'), T.baro = meas.baro; end
 
 writetable(T, fname);
 fprintf('Saved simulated data to %s (N=%d)\n', fname, N);

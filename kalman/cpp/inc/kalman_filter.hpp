@@ -50,8 +50,9 @@ public:
 
     // Minimal measurement assemble types (kept small on purpose)
     struct Meas {
-    bool has_gps = false; float gps[2] = {0.0f, 0.0f};
-    bool has_vel = false; float vel[2] = {0.0f, 0.0f};
+        bool has_gps = false; float gps[2] = {0.0f, 0.0f};
+        bool has_vel = false; float vel[2] = {0.0f, 0.0f};
+        bool has_baro = false; float baro = 0.0f;
     };
 
     struct MeasTag {
@@ -60,7 +61,7 @@ public:
         uint8_t length;
     };
 
-    // AssembleMeasurements: minimal implementation (gps, vel) that
+    // AssembleMeasurements: minimal implementation (gps, vel, baro) that
     // fills out_z (len z_len), out_h (z_len), out_H (row-major z_len x state_size),
     // out_R (row-major z_len x z_len), tags (preallocated), and sets z_len.
     void AssembleMeasurements(const Meas& meas, const float* x_pred, float* out_z, float* out_h,

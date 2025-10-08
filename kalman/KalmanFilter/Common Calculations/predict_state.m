@@ -6,11 +6,10 @@ function x_pred = predict_state(x, params)
 dt = params.dt;
 n = numel(x);
 F = eye(n);
-% support 8-state model: [x y vx vy theta ax ay omega]
-if n >= 8
+if n >= 10
     F(1,3) = dt; F(1,6) = 0.5*dt^2;
     F(2,4) = dt; F(2,7) = 0.5*dt^2;
-    F(3,6) = dt; F(4,7) = dt; F(5,8) = dt;
+    F(3,6) = dt; F(4,7) = dt; F(5,8) = dt; F(9,10) = dt;
 end
 
 x_pred = F * x;

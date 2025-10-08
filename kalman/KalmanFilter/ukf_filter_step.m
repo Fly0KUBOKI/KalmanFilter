@@ -29,10 +29,10 @@ F = eye(n);
 if n>=10
     F(1,3) = dt; F(1,6) = 0.5*dt^2;
     F(2,4) = dt; F(2,7) = 0.5*dt^2;
-        F(3,6) = dt; F(4,7) = dt; F(5,8) = dt;
+    F(3,6) = dt; F(4,7) = dt; F(5,8) = dt; F(9,10) = dt;
 end
 q_a = params.kf.process_noise_accel;
-    Q = zeros(n); if n>=8, Q(6,6) = (q_a)^2; Q(7,7) = (q_a)^2; Q(8,8) = (q_a*0.1)^2; end
+Q = zeros(n); if n>=10, Q(6,6) = (q_a)^2; Q(7,7) = (q_a)^2; Q(8,8) = (q_a*0.1)^2; Q(10,10) = (q_a)^2; end
 
 % propagate sigma points
 for i=1:size(sig,2)

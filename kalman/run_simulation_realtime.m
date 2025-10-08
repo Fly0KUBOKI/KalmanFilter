@@ -17,25 +17,25 @@ if ~(isfield(params,'data') && isfield(params.data,'source') && strcmpi(params.d
 	error('This simplified script only supports CSV data. Set params.data.source=''csv'' and params.data.file.');
 end
 
-% --- 8次元モデル: initial_state, kf.x0, kf.P0 ---
-if isfield(params,'initial_state') && numel(params.initial_state) == 8
+% --- 10次元固定: initial_state, kf.x0, kf.P0 ---
+if isfield(params,'initial_state') && numel(params.initial_state) == 10
 	state_prev = params.initial_state(:);
 else
-	state_prev = zeros(8,1);
+	state_prev = zeros(10,1);
 	state_prev(3) = 1; % default vx=1
 end
 
-if isfield(params,'kf') && isfield(params.kf,'x0') && numel(params.kf.x0) == 8
+if isfield(params,'kf') && isfield(params.kf,'x0') && numel(params.kf.x0) == 10
 	x_est = params.kf.x0(:);
 else
-	x_est = zeros(8,1);
+	x_est = zeros(10,1);
 	x_est(3) = 1;
 end
 
-if isfield(params,'kf') && isfield(params.kf,'P0') && all(size(params.kf.P0) == [8 8])
+if isfield(params,'kf') && isfield(params.kf,'P0') && all(size(params.kf.P0) == [10 10])
 	P = params.kf.P0;
 else
-	P = diag([10,10,5,5,1,1,1,1]);
+	P = diag([10,10,5,5,1,1,1,1,1,1]);
 end
 
 % choose filter implementation
@@ -108,7 +108,7 @@ for k=1:N
 	if ismember('gyro3_x', T.Properties.VariableNames), meas.gyro3 = [T.gyro3_x(k), T.gyro3_y(k), T.gyro3_z(k)]; end
 	if ismember('mag3_x', T.Properties.VariableNames), meas.mag3 = [T.mag3_x(k), T.mag3_y(k), T.mag3_z(k)]; end
 	if ismember('gps_x', T.Properties.VariableNames), meas.gps = [T.gps_x(k), T.gps_y(k)]; end
-	% barometer removed: do not read baro from CSV
+	if ismember('baro', T.Properties.VariableNames), meas.baro = T.baro(k); end
 	if ismember('meas_heading_x', T.Properties.VariableNames), meas.heading = [T.meas_heading_x(k), T.meas_heading_y(k)]; end
 
 	% check runtime filter selection from UI
@@ -161,12 +161,12 @@ for k=1:N
 		set(h_est, 'XData', est_traj(:,1), 'YData', est_traj(:,2));
 		% update heading arrows
 		if numel(state_curr) >= 4
-					v_true = state_curr(3:4);
+			v_true = state_curr(3:4);
 			if norm(v_true) > 1e-6, th_true = atan2(v_true(2), v_true(1)); end
 		else
 			th_true = 0;
 		end
-				v_est = x_upd(3:4);
+		v_est = x_upd(3:4);
 		if norm(v_est) > 1e-6, th_est = atan2(v_est(2), v_est(1)); end
 		set(h_true_head, 'XData', true_traj(end,1), 'YData', true_traj(end,2), 'UData', heading_scale*cos(th_true), 'VData', heading_scale*sin(th_true));
 		set(h_est_head, 'XData', est_traj(end,1), 'YData', est_traj(end,2), 'UData', heading_scale*cos(th_est), 'VData', heading_scale*sin(th_est));

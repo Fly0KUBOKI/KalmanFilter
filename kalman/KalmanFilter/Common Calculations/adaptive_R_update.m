@@ -86,6 +86,8 @@ for i=1:numel(meas_tags)
             params.noise.gyro3 = repmat(val,1,3);
         case 'mag3'
             params.noise.mag3 = sqrt(R_new(:));
+        case 'baro'
+            params.noise.baro = sqrt(mean(R_new));
         case 'heading'
             params.noise.heading = sqrt(mean(R_new));
         otherwise

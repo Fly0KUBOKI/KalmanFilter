@@ -17,6 +17,7 @@ params.kf.process_noise_accel = 0.1;
 params.noise.pos = 0.5;
 params.noise.vel = 0.2;
 params.noise.heading = 0.05;
+params.noise.baro = 0.5;
 params.noise.accel3 = [0.1,0.1,0.1];
 params.noise.mag3 = [0.01,0.01,0.01];
 params.kf.adaptive_R_enabled = false; % start disabled for deterministic results
@@ -28,6 +29,7 @@ params.kf.debug = true;
 meas.gps = [1.0; 0.5];
 meas.vel = [0.1; -0.05];
 meas.heading = [cos(0.1); sin(0.1)];
+meas.baro = 10.0;
 
 fprintf('--- Running KF step ---\n');
 try
