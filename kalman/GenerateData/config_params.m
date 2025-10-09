@@ -12,10 +12,10 @@ params.initial_state = [0;0;1;0;0;0;0;0;0;0];
 % motion
 params.motion.mode = 'circular'; % 'circular' or 'random'
 params.motion.center = [0,0];
-params.motion.radius = 50; 
-params.motion.omega = 0.001;
+params.motion.radius = 20; 
+params.motion.omega = 0.05;
 params.motion.phase_noise = deg2rad(0.5);
-params.motion.speed_mean = 0.01;
+params.motion.speed_mean = 0.001;
 params.motion.speed_std = 0.0;
 params.motion.heading_change_std = deg2rad(90);
 params.motion.change_interval = 0.1;
