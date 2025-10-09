@@ -3,7 +3,7 @@ function params = config_params()
 params = struct();
 
 % timing
-params.dt = 0.01;
+params.dt = 0.0025;
 params.T = 100;
 
 % initial state for [x y vx vy theta ax ay omega z vz]
@@ -12,8 +12,8 @@ params.initial_state = [0;0;1;0;0;0;0;0;0;0];
 % motion
 params.motion.mode = 'circular'; % 'circular' or 'random'
 params.motion.center = [0,0];
-params.motion.radius = 50;
-params.motion.omega = 0.2;
+params.motion.radius = 50; 
+params.motion.omega = 0.001;
 params.motion.phase_noise = deg2rad(0.5);
 params.motion.speed_mean = 0.01;
 params.motion.speed_std = 0.0;
@@ -78,6 +78,14 @@ params.kf.P0 = diag([10,10,5,5,1,1,1,1,1,1]);
 params.kf.process_noise_accel = 0.5;
 % filter type: 'ekf', 'ukf', or 'kf' (step-wise KF)
 params.kf.type = 'ukf';
+
+% update_factors: relative update intervals for blocks (in CSV rows)
+% vel: every vel_factor rows (default 1)
+% att: every att_factor rows (default 4)
+% pos: every pos_factor rows (default 40)
+params.kf.update_factors.vel = 1;
+params.kf.update_factors.att = 4;
+params.kf.update_factors.pos = 40;
 
 % filter options
 params.filter.method = 'none'; % 'none','avg10','ema'
