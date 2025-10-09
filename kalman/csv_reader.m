@@ -11,16 +11,46 @@ function [meas, state_curr, is_end] = csv_reader(params, k)
 %   state_curr - 真値状態ベクトル
 %   is_end     - CSVファイルの終端に達した場合はtrue
 
-persistent T csvN
+persistent T csvN file_path file_datenum
 
-% 初回読み込み時にCSVファイルを読み取り
+% Validate params
+if ~(isfield(params,'data') && isfield(params.data,'source') && strcmpi(params.data.source,'csv') && isfield(params.data,'file'))
+    error('CSV data source required. Set params.data.source=''csv'' and params.data.file.');
+end
+
+% Resolve full path
+requested_path = params.data.file;
+% If the requested path is relative, make it absolute relative to pwd
+if ~ischar(requested_path)
+    error('params.data.file must be a file path string');
+end
+if ~isfolder(fileparts(requested_path)) && ~isfile(requested_path)
+    % leave as-is; readtable will error if not found
+end
+
+% Check file modification time and reload when changed or when first call
+file_info = dir(requested_path);
+need_reload = false;
+if isempty(file_info)
+    error('CSV file not found: %s', requested_path);
+end
 if isempty(T)
-    if ~(isfield(params,'data') && isfield(params.data,'source') && strcmpi(params.data.source,'csv') && isfield(params.data,'file'))
-        error('CSV data source required. Set params.data.source=''csv'' and params.data.file.');
+    need_reload = true;
+elseif isempty(file_path) || ~strcmp(file_path, requested_path)
+    need_reload = true;
+else
+    % datenum changed -> reload
+    if file_info.datenum ~= file_datenum
+        need_reload = true;
     end
-    T = readtable(params.data.file);
+end
+
+if need_reload
+    T = readtable(requested_path);
     csvN = height(T);
-    fprintf('CSV file loaded: %d rows\n', csvN);
+    file_path = requested_path;
+    file_datenum = file_info.datenum;
+    fprintf('CSV file loaded/reloaded: %s (%d rows)\n', requested_path, csvN);
 end
 
 % CSVファイルの終端チェック
