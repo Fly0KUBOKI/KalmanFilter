@@ -86,6 +86,12 @@ est_traj = x_est(1:2)';
 T = readtable(params.data.file);
 csvN = height(T);
 
+% センサーデータの周波数に基づく処理
+imu_freq = 400; % Hz
+mag_freq = 100; % Hz
+baro_freq = 50; % Hz
+gps_freq = 10; % Hz
+
 for k=1:N
 	% check figure closed
 	if ~isvalid(fig)
@@ -181,6 +187,36 @@ for k=1:N
 		x_est = x_upd;
 		P = P_upd;
 	end
+
+	% IMUデータ（400Hz）
+    if mod(k, params.dt * imu_freq) == 0
+        % ノミナル状態積分（高速）
+        % 誤差状態予測（線形、P行列のみ）
+        % ここにIMU処理を追加
+    end
+
+    % 地磁気データ（100Hz）
+    if mod(k, params.dt * mag_freq) == 0
+        % 誤差状態更新（姿勢誤差中心）
+        % ここに地磁気処理を追加
+    end
+
+    % 気圧データ（50Hz）
+    if mod(k, params.dt * baro_freq) == 0
+        % 誤差状態更新（高度誤差）
+        % ここに気圧処理を追加
+    end
+
+    % GPSデータ（10Hz）
+    if mod(k, params.dt * gps_freq) == 0
+        % 誤差状態更新（位置・速度誤差）
+        % バイアス再推定
+        % ここにGPS処理を追加
+    end
+
+    % 随時処理
+    % 誤差のノミナルへの注入とリセット
+    % ここに随時処理を追加
 end
 
 fprintf('Realtime simulation finished.\n');
