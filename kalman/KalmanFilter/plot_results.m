@@ -1,18 +1,25 @@
-function plot_results(vel_results, att_results, pos_results, truth_data, current_idx)
+function plot_results(vel_results, att_results, pos_results, truth_data, current_idx, plot_opts)
 % PLOT_RESULTS - リアルタイムプロット更新
 % 位置推定完了時に各ブロックの結果を個別プロット
 
 persistent fig_vel fig_att fig_pos
 
-% 図の初期化
-if isempty(fig_vel) || ~isvalid(fig_vel)
-    fig_vel = figure('Name', '速度推定結果', 'Position', [100, 600, 800, 400], 'WindowStyle', 'docked');
+
+% 図の初期化（有効なものだけ）
+if isfield(plot_opts,'enable_velocity') && plot_opts.enable_velocity
+    if isempty(fig_vel) || ~any(isgraphics(fig_vel))
+        fig_vel = figure('Name', '速度推定結果', 'Position', [100, 600, 800, 400], 'WindowStyle', 'docked');
+    end
 end
-if isempty(fig_att) || ~isvalid(fig_att)
-    fig_att = figure('Name', '姿勢推定結果', 'Position', [100, 200, 800, 400], 'WindowStyle', 'docked');
+if isfield(plot_opts,'enable_attitude') && plot_opts.enable_attitude
+    if isempty(fig_att) || ~any(isgraphics(fig_att))
+        fig_att = figure('Name', '姿勢推定結果', 'Position', [100, 200, 800, 400], 'WindowStyle', 'docked');
+    end
 end
-if isempty(fig_pos) || ~isvalid(fig_pos)
-    fig_pos = figure('Name', '位置推定結果', 'Position', [100, 50, 800, 600], 'WindowStyle', 'docked');
+if isfield(plot_opts,'enable_position') && plot_opts.enable_position
+    if isempty(fig_pos) || ~any(isgraphics(fig_pos))
+        fig_pos = figure('Name', '位置推定結果', 'Position', [100, 50, 800, 600], 'WindowStyle', 'docked');
+    end
 end
 
 % データ範囲の決定
@@ -20,19 +27,46 @@ max_display = min(current_idx * 40, length(truth_data.t));
 t_range = 1:max_display;
 
 % 速度プロット
-figure(fig_vel);
-clf;
-plot_velocity_vectors(vel_results, truth_data, t_range);
+if nargin < 6 || ~isstruct(plot_opts)
+    plot_opts = struct('enable_velocity', true, 'enable_attitude', true, 'enable_position', true);
+end
 
-% 姿勢プロット  
-figure(fig_att);
-clf;
-plot_attitude_vectors(att_results, truth_data, t_range);
+
+% 速度プロット
+if isfield(plot_opts,'enable_velocity') && plot_opts.enable_velocity
+    if any(isgraphics(fig_vel))
+        set(0, 'CurrentFigure', fig_vel);
+    end
+    clf(fig_vel);
+    plot_velocity_vectors(vel_results, truth_data, t_range);
+elseif isfield(plot_opts,'enable_velocity') && ~plot_opts.enable_velocity && any(isgraphics(fig_vel))
+    close(fig_vel);
+    fig_vel = [];
+end
+
+% 姿勢プロット
+if isfield(plot_opts,'enable_attitude') && plot_opts.enable_attitude
+    if any(isgraphics(fig_att))
+        set(0, 'CurrentFigure', fig_att);
+    end
+    clf(fig_att);
+    plot_attitude_vectors(att_results, truth_data, t_range);
+elseif isfield(plot_opts,'enable_attitude') && ~plot_opts.enable_attitude && any(isgraphics(fig_att))
+    close(fig_att);
+    fig_att = [];
+end
 
 % 位置プロット
-figure(fig_pos);
-clf;
-plot_position_trajectory(pos_results, truth_data, current_idx);
+if isfield(plot_opts,'enable_position') && plot_opts.enable_position
+    if any(isgraphics(fig_pos))
+        set(0, 'CurrentFigure', fig_pos);
+    end
+    clf(fig_pos);
+    plot_position_trajectory(pos_results, truth_data, current_idx);
+elseif isfield(plot_opts,'enable_position') && ~plot_opts.enable_position && any(isgraphics(fig_pos))
+    close(fig_pos);
+    fig_pos = [];
+end
 
 drawnow;
 
@@ -262,9 +296,6 @@ axis equal;
 
 % 真値軌跡
 max_display = min(current_idx * 40, length(truth_data.pos));
-if max_display > 0
-    plot(truth_data.pos(1:max_display, 1), truth_data.pos(1:max_display, 2), 'k-', 'LineWidth', 2);
-end
 
 % 推定軌跡
 pos_est_x = [];
@@ -291,28 +322,25 @@ for i = 1:length(pos_results)
     end
 end
 
-if ~isempty(pos_est_x)
-    plot(pos_est_x, pos_est_y, 'b-', 'LineWidth', 1.5);
-end
-if ~isempty(gps_x)
-    plot(gps_x, gps_y, 'ro', 'MarkerSize', 4);
-end
-if ~isempty(pos_pred_x)
-    plot(pos_pred_x, pos_pred_y, 'g.', 'MarkerSize', 8);
-end
-
+        % 描画と凡例用ハンドル収集
         h = gobjects(0);
         labels = {};
         if max_display > 0
-            plot(truth_data.pos(1:max_display, 1), truth_data.pos(1:max_display, 2), 'k-', 'LineWidth', 2);
-            h(end+1) = plot(NaN, NaN, 'k-', 'LineWidth', 2); labels{end+1} = '真値';
+            h0 = plot(truth_data.pos(1:max_display, 1), truth_data.pos(1:max_display, 2), 'k-', 'LineWidth', 2);
+            h(end+1) = h0; labels{end+1} = '真値';
         end
         if ~isempty(pos_est_x)
-            h(end+1) = plot(pos_est_x, pos_est_y, 'b-', 'LineWidth', 1.5); labels{end+1} = '推定値'; end
+            h1 = plot(pos_est_x, pos_est_y, 'b-', 'LineWidth', 1.5);
+            h(end+1) = h1; labels{end+1} = '推定値';
+        end
         if ~isempty(gps_x)
-            plot(gps_x, gps_y, 'ro', 'MarkerSize', 4); labels{end+1} = 'GPS'; end
+            h2 = plot(gps_x, gps_y, 'ro', 'MarkerSize', 4);
+            h(end+1) = h2; labels{end+1} = 'GPS';
+        end
         if ~isempty(pos_pred_x)
-            plot(pos_pred_x, pos_pred_y, 'g.', 'MarkerSize', 8); labels{end+1} = '予測値'; end
+            h3 = plot(pos_pred_x, pos_pred_y, 'g.', 'MarkerSize', 8);
+            h(end+1) = h3; labels{end+1} = '予測値';
+        end
         if ~isempty(h)
             legend(h, labels, 'Location', 'best');
         end
@@ -327,7 +355,7 @@ grid on;
 
 if max_display > 0
     t_plot = truth_data.t(1:max_display);
-    plot(t_plot, truth_data.pos(1:max_display, 3), 'k-', 'LineWidth', 2);
+    h_z_true = plot(t_plot, truth_data.pos(1:max_display, 3), 'k-', 'LineWidth', 2);
 end
 
 if ~isempty(pos_results)
@@ -340,18 +368,16 @@ if ~isempty(pos_results)
         end
     end
     if ~isempty(t_pos)
-        plot(t_pos, z_pos, 'b-', 'LineWidth', 1.5);
+        h_z_est = plot(t_pos, z_pos, 'b-', 'LineWidth', 1.5);
     end
 end
-
 % 凡例（高度）
-h_leg = gobjects(0);
-labels_leg = {};
-if max_display > 0
-    h_leg(end+1) = plot(NaN, NaN, 'k-', 'LineWidth', 2); labels_leg{end+1} = '真値';
+h_leg = gobjects(0); labels_leg = {};
+if exist('h_z_true','var') && ~isempty(h_z_true)
+    h_leg(end+1) = h_z_true; labels_leg{end+1} = '真値';
 end
-if exist('t_pos','var') && ~isempty(t_pos)
-    h_leg(end+1) = plot(NaN, NaN, 'b-', 'LineWidth', 1.5); labels_leg{end+1} = '推定値';
+if exist('h_z_est','var') && ~isempty(h_z_est)
+    h_leg(end+1) = h_z_est; labels_leg{end+1} = '推定値';
 end
 if ~isempty(h_leg)
     legend(h_leg, labels_leg, 'Location', 'best');
@@ -379,15 +405,12 @@ if ~isempty(pos_results) && max_display > 0
         end
     end
     if ~isempty(t_err)
-        plot(t_err, err_norm, 'r-', 'LineWidth', 1.5);
+            h_err = plot(t_err, err_norm, 'r-', 'LineWidth', 1.5);
     end
 end
-
-    % 凡例（誤差）
-    if exist('t_err','var') && ~isempty(t_err)
-        h_err = plot(NaN, NaN, 'r-', 'LineWidth', 1.5);
-        delete(h_err);
-        legend(plot(NaN, NaN, 'r-', 'LineWidth', 1.5), '位置誤差', 'Location', 'best');
-    end
+        % 凡例（誤差）
+        if exist('h_err','var') && ~isempty(h_err)
+            legend(h_err, '位置誤差', 'Location', 'best');
+        end
 
 end

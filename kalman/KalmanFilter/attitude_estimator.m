@@ -54,26 +54,47 @@ H = single([
 ]);
 
 % 観測ノイズ R
-R = single(diag([params.noise.gyro3, params.noise.mag3].^2));
+% 各観測: gyro_x,y,z (3), mag_yaw (1), roll_from_accel (1), pitch_from_accel (1)
+R = single(zeros(6,6));
+R(1:3,1:3) = single(diag(params.noise.gyro3.^2));
+% approximate yaw variance from mag3 per-axis std values
+R(4,4) = single(mean(params.noise.mag3.^2));
+% 加速度由来のroll/pitchは加速度ノイズを使う（accel3 の各軸ノイズを参考）
+if isfield(params.noise, 'accel3') && numel(params.noise.accel3) >= 3
+    R(5,5) = params.noise.accel3(1).^2;
+    R(6,6) = params.noise.accel3(2).^2;
+else
+    R(5,5) = 0.1^2;
+    R(6,6) = 0.1^2;
+end
 
 % 観測値構築
 gyro_obs = single(sensor_data.gyro3(idx, :)');
 mag_obs = single(sensor_data.mag3(idx, :)');
 
-% 加速度から重力方向を推定（簡略化）
-if ~isempty(vel_estimate)
-    accel_est = vel_estimate.acceleration;
-    % 重力補正済み加速度から姿勢角を推定（簡略化）
-    roll_from_accel = atan2(accel_est(2), sqrt(accel_est(1)^2 + accel_est(3)^2));
-    pitch_from_accel = atan2(-accel_est(1), sqrt(accel_est(2)^2 + accel_est(3)^2));
+% 加速度センサの生データから roll/pitch を推定（重力方向が主成分であると仮定）
+accel_raw = single(sensor_data.accel3(idx, :)');
+% 加速度の大きさを正規化して重力成分を抽出
+accel_norm = norm(accel_raw);
+if accel_norm > 0.1 % ゼロ除算を避ける
+    accel_normalized = accel_raw / accel_norm;
+    roll_from_accel = atan2(accel_normalized(2), accel_normalized(3));
+    pitch_from_accel = atan2(-accel_normalized(1), sqrt(accel_normalized(2)^2 + accel_normalized(3)^2));
 else
     roll_from_accel = 0;
     pitch_from_accel = 0;
 end
 
-% 地磁気から方位角を推定（簡略化）
-yaw_from_mag = atan2(mag_obs(2), mag_obs(1));
+% 地磁気から方位角を推定（tilt補正）
+% 回転行列を使って body-frame の磁気をレベル平面に投影して方位を計算
+r = roll_from_accel; p = pitch_from_accel;
+Rx = [1, 0, 0; 0, cos(r), -sin(r); 0, sin(r), cos(r)];
+Ry = [cos(p), 0, sin(p); 0, 1, 0; -sin(p), 0, cos(p)];
+% body -> intermediate (remove tilt): apply Rx then Ry
+mag_lev = Ry * Rx * mag_obs;
+yaw_from_mag = atan2(mag_lev(2), mag_lev(1));
 
+% 観測ベクトル: [gyro(3); mag_yaw; roll_from_accel; pitch_from_accel]
 z = single([gyro_obs; yaw_from_mag; roll_from_accel; pitch_from_accel]);
 
 % UKF予測ステップ

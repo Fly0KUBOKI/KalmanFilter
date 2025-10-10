@@ -1,0 +1,45 @@
+Header columns:
+    {'t'             }
+    {'x'             }
+    {'y'             }
+    {'vx'            }
+    {'vy'            }
+    {'theta'         }
+    {'ax'            }
+    {'ay'            }
+    {'omega'         }
+    {'z'             }
+    {'vz'            }
+    {'meas_pos_x'    }
+    {'meas_pos_y'    }
+    {'meas_vel_x'    }
+    {'meas_vel_y'    }
+    {'meas_heading_x'}
+    {'meas_heading_y'}
+    {'accel3_x'      }
+    {'accel3_y'      }
+    {'accel3_z'      }
+    {'gyro3_x'       }
+    {'gyro3_y'       }
+    {'gyro3_z'       }
+    {'mag3_x'        }
+    {'mag3_y'        }
+    {'mag3_z'        }
+    {'gps_x'         }
+    {'gps_y'         }
+    {'baro'          }
+
+
+First row sample values for accel/gyro/mag/gps/baro:
+accel3: -0.0759881 0.145718 -9.7347
+gyro3:  -0.00683107 -0.00310604 0.00446574
+mag3:   -0.905734 -0.278871 -0.0404146
+gps:    -18.0088 -8.17074
+baro:   -0.534294
+
+Std dev (first 1000 rows):
+accel std: 4.89908 0.158839 0.110806
+gyro std:  0.00295065 0.00284851 4.90599
+mag std:   0.17516 0.159251 0.163404
+gps std:   3.22528 3.7339
+done
