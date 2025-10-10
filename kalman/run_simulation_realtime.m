@@ -7,10 +7,21 @@ root_dir = fileparts(mfilename('fullpath'));
 addpath(fullfile(root_dir,'GenerateData'));
 addpath(fullfile(root_dir,'Graph'));
 addpath(fullfile(root_dir,'KalmanFilter'));
+% add ESKF implementation path (minimal integration)
+addpath(fullfile(root_dir,'ESKF'));
 
 % パラメータは設定ファイルから読み込む
 params = config_params();
 N = floor(params.T/params.dt)+1;
+
+% initialize adaptive R warmup containers to avoid accumulation across runs
+if ~isfield(params,'kf'), params.kf = struct(); end
+if ~isfield(params.kf,'R_warmup_count') || isempty(params.kf.R_warmup_count)
+	params.kf.R_warmup_count = struct();
+end
+if ~isfield(params.kf,'R_warmup_sum') || isempty(params.kf.R_warmup_sum)
+	params.kf.R_warmup_sum = struct();
+end
 
 % require CSV data source
 if ~(isfield(params,'data') && isfield(params.data,'source') && strcmpi(params.data.source,'csv') && isfield(params.data,'file'))
@@ -38,12 +49,21 @@ else
 	P = diag([10,10,5,5,1,1,1,1,1,1]);
 end
 
+% prepare minimal ESKF nominal state and covariance (15x15 error-state)
+nominal_eskf.pos = [x_est(1); x_est(2); 0];
+nominal_eskf.vel = [x_est(3); x_est(4); 0];
+nominal_eskf.quat = [1;0;0;0];
+nominal_eskf.bg = zeros(3,1);
+nominal_eskf.ba = zeros(3,1);
+P_eskf = eye(15) * 0.1;
+
 % choose filter implementation
 if ~isfield(params,'kf') || ~isfield(params.kf,'type'), params.kf.type = 'ekf'; end
 switch lower(params.kf.type)
 	case 'ekf', filter_step = @ekf_filter_step;
 	case 'kf',  filter_step = @kf_filter_step;
 	case 'ukf', filter_step = @ukf_filter_step;
+	case 'eskf', filter_step = @eskf_filter_step;
 	otherwise
 		warning('Unknown params.kf.type="%s"; defaulting to ekf', params.kf.type);
 		filter_step = @ekf_filter_step;
@@ -71,6 +91,7 @@ btn_run = uicontrol('Parent',fig,'Style','pushbutton','String','Stop','Units','n
 % filter type popup
 uicontrol('Parent',fig,'Style','text','Units','normalized','Position',[0.70 0.95 0.08 0.03], 'String','Filter:','HorizontalAlignment','right');
 popup_filter = uicontrol('Parent',fig,'Style','popupmenu','Units','normalized','Position',[0.79 0.95 0.08 0.04], 'String',{'ekf','kf','ukf'}, 'Value',1, 'Callback',@(src,ev) setappdata(fig,'filter_type',src.String{src.Value}));
+ popup_filter = uicontrol('Parent',fig,'Style','popupmenu','Units','normalized','Position',[0.79 0.95 0.08 0.04], 'String',{'ekf','kf','ukf','eskf'}, 'Value',1, 'Callback',@(src,ev) setappdata(fig,'filter_type',src.String{src.Value}));
 if isfield(params,'kf') && isfield(params.kf,'type')
 	setappdata(fig,'filter_type',params.kf.type);
 	vals = get(popup_filter,'String'); idx = find(strcmpi(vals, params.kf.type),1); if ~isempty(idx), set(popup_filter,'Value',idx); end
@@ -124,12 +145,39 @@ for k=1:N
 			case 'ekf', filter_step = @ekf_filter_step;
 			case 'kf',  filter_step = @kf_filter_step;
 			case 'ukf', filter_step = @ukf_filter_step;
+			case 'eskf', filter_step = [];
 			otherwise,  filter_step = @ekf_filter_step;
 		end
 	end
 
-	% call filter with raw measurement
-	[x_pred, P_pred, x_upd, P_upd, y, S, K, params] = filter_step(x_est, P, meas, params);
+	% choose filter invocation: ESKF has different API (nominal struct + P_eskf)
+	if isappdata(fig,'filter_type') && strcmpi(getappdata(fig,'filter_type'),'eskf')
+		% build meas_eskf mapping from existing meas fields
+		meas_eskf = struct();
+		if isfield(meas,'accel3'), meas_eskf.imu.accel = meas.accel3(:); end
+		if isfield(meas,'gyro3'), meas_eskf.imu.gyro = meas.gyro3(:); end
+		if isfield(meas,'mag3'), meas_eskf.mag3 = meas.mag3(:); end
+		if isfield(meas,'baro'), meas_eskf.baro = meas.baro; end
+		if isfield(meas,'gps'), 
+			% ensure 3D GPS expected by ESKF: fill missing z with previous nominal
+			g = meas.gps(:);
+			if numel(g) < 3, g(3) = nominal_eskf.pos(3); end
+			meas_eskf.gps = g;
+		end
+		if isfield(meas,'vel')
+			v = meas.vel(:);
+			if numel(v) < 3, v(3) = nominal_eskf.vel(3); end
+			meas_eskf.vel = v;
+		end
+		[nominal_eskf, P_eskf, innovations] = eskf_filter_step(nominal_eskf, P_eskf, meas_eskf, params);
+		% prepare values for plotting/logging consistent with existing EKF path
+		x_upd = zeros(10,1); x_upd(1:2) = nominal_eskf.pos(1:2); x_upd(3:4) = nominal_eskf.vel(1:2);
+		P_upd = P; % keep original P unchanged for non-ESKF filters
+		y = []; S = []; K = [];
+	else
+		% call filter with raw measurement for EKF/KF/UKF
+		[x_pred, P_pred, x_upd, P_upd, y, S, K, params] = filter_step(x_est, P, meas, params);
+	end
 
 	% ログ更新
 	true_traj(end+1,:) = state_curr(1:2)';

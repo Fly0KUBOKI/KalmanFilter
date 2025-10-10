@@ -49,10 +49,33 @@ if isfield(meas,'imu') && ~isempty(meas.imu)
     F(7:9,10:12) = -eye(3) * dt;
     % discrete process noise covariance
     Q = zeros(15);
-    sigma_wg = params.noise.gyro_bias_walk; % gyro bias random walk
-    sigma_wa = params.noise.accel_bias_walk; % accel bias random walk
-    sigma_imu_gyro = params.noise.imu_gyro; % gyro noise
-    sigma_imu_accel = params.noise.imu_accel; % accel noise
+    % safe retrieval of noise parameters with fallbacks
+    if isfield(params,'noise') && isfield(params.noise,'gyro_bias_walk')
+        sigma_wg = params.noise.gyro_bias_walk;
+    elseif isfield(params,'noise') && isfield(params.noise,'gyro_allan') && isfield(params.noise.gyro_allan,'rate_rw_sigma')
+        sigma_wg = params.noise.gyro_allan.rate_rw_sigma;
+    else
+        sigma_wg = 1e-5;
+    end
+    if isfield(params,'noise') && isfield(params.noise,'accel_bias_walk')
+        sigma_wa = params.noise.accel_bias_walk;
+    else
+        sigma_wa = 1e-4;
+    end
+    if isfield(params,'noise') && isfield(params.noise,'imu_gyro')
+        sigma_imu_gyro = params.noise.imu_gyro;
+    elseif isfield(params,'noise') && isfield(params.noise,'gyro3')
+        sigma_imu_gyro = mean(params.noise.gyro3(:));
+    else
+        sigma_imu_gyro = deg2rad(0.1);
+    end
+    if isfield(params,'noise') && isfield(params.noise,'imu_accel')
+        sigma_imu_accel = params.noise.imu_accel;
+    elseif isfield(params,'noise') && isfield(params.noise,'accel3')
+        sigma_imu_accel = mean(params.noise.accel3(:));
+    else
+        sigma_imu_accel = 0.1;
+    end
     % noise mapping
     % accel noise affects vel
     Q(4:6,4:6) = (sigma_imu_accel^2) * eye(3) * dt^2; % integrated accel noise
@@ -77,7 +100,17 @@ if isfield(meas,'mag3') && ~isempty(meas.mag3)
     % measurement model linearized around small attitude error: delta_h = -Rwb' * skew(mag_field) * dtheta
     H = zeros(3,15);
     H(:,7:9) = -Rwb' * eskf_utils('skew', mag_field);
-    Rm = (params.noise.mag3^2) * eye(3);
+    % measurement noise for mag3: accept scalar or 3-vector
+    if isfield(params,'noise') && isfield(params.noise,'mag3')
+        mn = params.noise.mag3(:)';
+        if numel(mn) == 1
+            Rm = (mn^2) * eye(3);
+        else
+            Rm = diag((mn(:)).^2);
+        end
+    else
+        Rm = 0.01 * eye(3);
+    end
     z = zm;
     y = z - hb;
     S = H * P * H' + Rm;
@@ -96,7 +129,11 @@ end
 if isfield(meas,'baro') && ~isempty(meas.baro)
     zb = meas.baro;
     H = zeros(1,15); H(3) = 1; % pz
-    Rb = (params.noise.baro^2);
+    if isfield(params,'noise') && isfield(params.noise,'baro')
+        Rb = (params.noise.baro)^2;
+    else
+        Rb = 0.5^2;
+    end
     y = zb - p(3);
     S = H * P * H' + Rb;
     K = (P * H') / S;
@@ -113,7 +150,18 @@ if isfield(meas,'gps') && ~isempty(meas.gps)
     H = zeros(6,15);
     H(1:3,1:3) = eye(3); % pos
     H(4:6,4:6) = eye(3); % vel
-    Rg = blkdiag((params.noise.gps_pos^2)*eye(3), (params.noise.gps_vel^2)*eye(3));
+    % GPS noise (allow scalar or vector)
+    if isfield(params,'noise') && isfield(params.noise,'gps_pos')
+        gp = params.noise.gps_pos; if numel(gp)==1, gp = repmat(gp,1,3); end
+    else
+        gp = repmat(3.0,1,3);
+    end
+    if isfield(params,'noise') && isfield(params.noise,'gps_vel')
+        gv = params.noise.gps_vel; if numel(gv)==1, gv = repmat(gv,1,3); end
+    else
+        gv = repmat(0.5,1,3);
+    end
+    Rg = blkdiag(diag((gp(:)).^2), diag((gv(:)).^2));
     % assemble measurement
     z = [zg; meas.vel(:)];
     h = [p; v];

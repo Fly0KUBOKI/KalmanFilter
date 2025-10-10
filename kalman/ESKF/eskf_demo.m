@@ -1,23 +1,16 @@
-function eskf_demo()
-% Minimal demo for the ESKF implementation using sim_data.csv in repo root
+function eskf_demo(csvfile)
+% Minimal demo for the ESKF implementation.
+% Usage: eskf_demo('C:/path/to/sim_data.csv')
+% If csvfile is not provided, this function will NOT search the workspace and will
+% error immediately (by design per user request).
 root = fileparts(mfilename('fullpath'));
-% explicit common locations to search (repo root, kalman, current)
 repo_root = fullfile(root,'..','..');
-cand = {
-    fullfile(repo_root,'sim_data.csv'), ... % repo root
-    fullfile(root,'..','sim_data.csv'), ... % kalman folder
-    fullfile(root,'sim_data.csv'), ...      % eskf folder
-};
-csvfile = '';
-for i=1:numel(cand)
-    if exist(cand{i},'file')
-        csvfile = cand{i}; break;
+if nargin < 1 || isempty(csvfile)
+    % default to repo root location but do not search other places
+    csvfile = fullfile(repo_root,'sim_data.csv');
+    if ~exist(csvfile,'file')
+        error('sim_data.csv not found at %s. Provide path: eskf_demo(''path/to/sim_data.csv'')', csvfile);
     end
-end
-if isempty(csvfile)
-    msg = sprintf(['sim_data.csv not found. Searched:\n  %s\n  %s\n  %s\n', ...
-        'Please place sim_data.csv in the repository root or kalman/ folder.'], cand{1}, cand{2}, cand{3});
-    error(msg);
 end
 T = readtable(csvfile);
 % build params
@@ -32,6 +25,20 @@ params.sensors.mag_field = [1;0;0];
 nominal.pos = [0;0;0]; nominal.vel=[0;0;0]; nominal.quat=[1;0;0;0]; nominal.bg=[0;0;0]; nominal.ba=[0;0;0];
 P = eye(15) * 0.1;
 N = height(T);
+% reset adaptive R warmup containers if present
+if ~isfield(params,'kf'), params.kf = struct(); end
+params.kf.R_warmup_count = struct(); params.kf.R_warmup_sum = struct();
+
+% prepare simple plotting
+fig = figure('Name','ESKF Demo'); ax = axes(fig); hold(ax,'on'); grid(ax,'on');
+h_true = plot(ax, NaN, NaN, '-k', 'DisplayName','True');
+h_meas = plot(ax, NaN, NaN, '.r', 'DisplayName','Meas');
+h_est = plot(ax, NaN, NaN, '-b', 'DisplayName','ESKF');
+legend;
+
+true_traj = [];
+meas_traj = [];
+est_traj = [];
 for k=1:N
     meas = struct();
     if ismember('gyro_x', T.Properties.VariableNames)
@@ -62,6 +69,27 @@ for k=1:N
         meas.vel = vel;
     end
     [nominal, P, ~] = eskf_filter_step(nominal, P, meas, params);
+
+    % logging for plot
+    if ismember('x', T.Properties.VariableNames) && ismember('y', T.Properties.VariableNames)
+        true_traj(end+1,:) = [T.x(k), T.y(k)];
+    else
+        true_traj(end+1,:) = nominal.pos(1:2)';
+    end
+    if isfield(meas,'gps') && numel(meas.gps) >= 2
+        meas_traj(end+1,:) = meas.gps(1:2)';
+    else
+        meas_traj(end+1,:) = [NaN NaN];
+    end
+    est_traj(end+1,:) = nominal.pos(1:2)';
+
+    % update plot occasionally to reduce overhead
+    if mod(k,20)==0
+        set(h_true, 'XData', true_traj(:,1), 'YData', true_traj(:,2));
+        set(h_meas, 'XData', meas_traj(:,1), 'YData', meas_traj(:,2));
+        set(h_est, 'XData', est_traj(:,1), 'YData', est_traj(:,2));
+        drawnow limitrate;
+    end
 end
 fprintf('Demo finished. Nominal pos: [%g %g %g]\n', nominal.pos);
 end

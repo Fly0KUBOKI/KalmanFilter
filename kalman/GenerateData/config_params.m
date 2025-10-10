@@ -77,7 +77,7 @@ params.kf.x0 = [0;0;1;0;0;0;0;0;0;0]; % default: vx=1
 params.kf.P0 = diag([10,10,5,5,1,1,1,1,1,1]);
 params.kf.process_noise_accel = 0.5;
 % filter type: 'ekf', 'ukf', or 'kf' (step-wise KF)
-params.kf.type = 'ukf';
+params.kf.type = 'eskf';
 
 % filter options
 params.filter.method = 'none'; % 'none','avg10','ema'
