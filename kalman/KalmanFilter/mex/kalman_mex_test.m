@@ -39,6 +39,19 @@ kalman_mex('setPrediction', h, est);
 % Read observations from CSV and run up to 10 filter updates
 root = fileparts(mfilename('fullpath'));
 csv_candidate = fullfile(root, '..', '..', 'sim_data.csv');
+% prefer config file default location for CSV (GenerateData)
+try
+    p = config_params();
+    if isfield(p,'data') && isfield(p.data,'file') && ~isempty(p.data.file)
+        csv_candidate = p.data.file;
+    else
+        root = fileparts(mfilename('fullpath'));
+        csv_candidate = fullfile(root, '..', '..', 'sim_data.csv');
+    end
+catch
+    root = fileparts(mfilename('fullpath'));
+    csv_candidate = fullfile(root, '..', '..', 'sim_data.csv');
+end
 if ~exist(csv_candidate, 'file')
     fprintf('CSV file not found at %s\n', csv_candidate);
     fprintf('Falling back to synthetic test (no CSV available).\n');

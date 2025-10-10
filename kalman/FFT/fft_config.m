@@ -11,8 +11,17 @@ function cfg = fft_config()
 
 cfg = struct();
 
-% CSV location
-cfg.csvfile = fullfile(pwd, 'sim_data.csv');
+% CSV location: prefer config_params default (GenerateData location) then fallback to pwd
+try
+    p = config_params();
+    if isfield(p,'data') && isfield(p.data,'file') && ~isempty(p.data.file)
+        cfg.csvfile = p.data.file;
+    else
+        cfg.csvfile = fullfile(pwd, 'sim_data.csv');
+    end
+catch
+    cfg.csvfile = fullfile(pwd, 'sim_data.csv');
+end
 
 % dt: try to read from config_params(), otherwise fallback
 try
