@@ -85,6 +85,7 @@ params.filter.alpha = 0.2;
 
 % data source default: 'sim' or 'csv'
 params.data.source = 'csv';
-params.data.file = fullfile(pwd,'sim_data.csv');
+% default CSV file: place sim_data.csv next to this config function (GenerateData folder)
+params.data.file = fullfile(fileparts(mfilename('fullpath')),'sim_data.csv');
 
 end
