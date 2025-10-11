@@ -1,11 +1,60 @@
 function [y, S, R_out] = compute_innovation_and_S(z, h, H, P_pred, R, params)
 % Compute innovation y and innovation covariance S.
 % Handles NaN/Inf in z/h by inflating R diag and regularizes S.
+% Now includes adaptive gating for outlier rejection.
 
 y = z - h;
 
 % initial S
 S = H * P_pred * H' + R;
+
+% Apply gating if enabled
+if isfield(params, 'kf') && isfield(params.kf, 'gating_enabled') && params.kf.gating_enabled
+    gate_threshold = 9; % chi-square threshold for 95% confidence (2 DOF)
+    if isfield(params.kf, 'gate_threshold')
+        gate_threshold = params.kf.gate_threshold;
+    end
+    
+    % Check current step for gating bypass during initialization
+    current_step = 1;
+    if isfield(params.kf, 'current_step')
+        current_step = params.kf.current_step;
+    end
+    
+    maha_disable_steps = 3; % disable gating for first few steps
+    if isfield(params.kf, 'maha_disable_steps')
+        maha_disable_steps = params.kf.maha_disable_steps;
+    end
+    
+    % Apply gating only after initialization period
+    if current_step > maha_disable_steps
+        % Compute Mahalanobis distance for gating
+        if size(S,1) > 0 && det(S) > eps
+            d_squared = y' * (S \ y);
+            
+            % If measurement is an outlier, inflate R to reduce its influence
+            if d_squared > gate_threshold
+                % Adaptive inflation based on how much the measurement exceeds threshold
+                inflation_factor = max(2, sqrt(d_squared / gate_threshold));
+                
+                % Apply inflation to corresponding R diagonal elements
+                R_diag = diag(R);
+                R_diag = R_diag * inflation_factor;
+                R = diag(R_diag);
+                
+                % Recompute S with inflated R
+                S = H * P_pred * H' + R;
+                
+                % Store gating info for debugging
+                if ~isfield(params, 'kf')
+                    params.kf = struct();
+                end
+                params.kf.last_gating_info = struct('d_squared', d_squared, ...
+                    'threshold', gate_threshold, 'inflation_factor', inflation_factor);
+            end
+        end
+    end
+end
 
 % protect against NaN/Inf in innovation
 nan_idx = isnan(y) | isinf(y);

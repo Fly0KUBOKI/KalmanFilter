@@ -166,10 +166,61 @@ if isfield(meas,'gps') && ~isempty(meas.gps)
     z = [zg; meas.vel(:)];
     h = [p; v];
     y = z - h;
+    % save prior P for debugging
+    P_prior = P;
     S = H * P * H' + Rg;
     K = (P * H') / S;
     dx = K * y;
     P = (eye(15) - K*H) * P * (eye(15) - K*H)' + K * Rg * K';
+    % --- Debug logging: append GPS update diagnostics to CSV ---
+    try
+        dbg_dir = fullfile(root,'..','KalmanFilter','debug');
+        if ~exist(dbg_dir,'dir'), mkdir(dbg_dir); end
+        dbg_file = fullfile(dbg_dir,'eskf_gps_log.csv');
+        if ~exist(dbg_file,'file')
+            fid = fopen(dbg_file,'w');
+            if fid~=-1
+                fprintf(fid,'t,y_px,y_py,y_pz,y_vx,y_vy,y_vz,');
+                fprintf(fid,'S1,S2,S3,S4,S5,S6,Rg1,Rg2,Rg3,Rg4,Rg5,Rg6,');
+                fprintf(fid,'norm_dx_p,norm_dx_v,tracePprior_pos,tracePpost_pos\n');
+                fclose(fid);
+            end
+        end
+        % prepare values
+        if isfield(meas,'t')
+            tval = meas.t;
+        else
+            tval = NaN;
+        end
+        % force column vectors where applicable
+        y = y(:);
+        dS = diag(S); dS = dS(:);
+        dRg = diag(Rg); dRg = dRg(:);
+        norm_dx_p = norm(dx(1:3));
+        norm_dx_v = norm(dx(4:6));
+        tracePprior_pos = trace(P_prior(1:3,1:3));
+        tracePpost_pos = trace(P(1:3,1:3));
+        % safe scalar extraction with bounds checks
+        getv = @(v,i) (numel(v)>=i) * v(i) + (numel(v)<i) * NaN;
+        yp1 = getv(y,1); yp2 = getv(y,2); yp3 = getv(y,3);
+        yv1 = getv(y,4); yv2 = getv(y,5); yv3 = getv(y,6);
+        S1 = getv(dS,1); S2 = getv(dS,2); S3 = getv(dS,3); S4 = getv(dS,4); S5 = getv(dS,5); S6 = getv(dS,6);
+        R1 = getv(dRg,1); R2 = getv(dRg,2); R3 = getv(dRg,3); R4 = getv(dRg,4); R5 = getv(dRg,5); R6 = getv(dRg,6);
+        % append as fixed-format row (23 values)
+        fid = fopen(dbg_file,'a');
+        if fid~=-1
+            fmt = ['%g,%g,%g,%g,%g,%g,%g,', ...        % t, y_px..y_vz
+                   '%g,%g,%g,%g,%g,%g,', ...        % S1..S6
+                   '%g,%g,%g,%g,%g,%g,', ...        % R1..R6
+                   '%g,%g,%g,%g\n'];                 % norm_dx_p,norm_dx_v,tracePprior_pos,tracePpost_pos
+            fprintf(fid,fmt, tval, yp1,yp2,yp3, yv1,yv2,yv3, S1,S2,S3,S4,S5,S6, R1,R2,R3,R4,R5,R6, norm_dx_p, norm_dx_v, tracePprior_pos, tracePpost_pos);
+            fclose(fid);
+        end
+    catch ex
+        % avoid throwing from debug logging
+        warning('eskf_filter_step:dbg','Failed to write eskf_gps_log.csv: %s', ex.message);
+    end
+    % --- end debug logging ---
     % inject errors: pos, vel, attitude, biases
     p = p + dx(1:3);
     v = v + dx(4:6);

@@ -4,7 +4,7 @@ params = struct();
 
 % timing
 params.dt = 0.01;
-params.T = 100;
+params.T = 10;
 
 % initial state for [x y vx vy theta ax ay omega z vz]
 params.initial_state = [0;0;1;0;0;0;0;0;0;0];
@@ -78,6 +78,20 @@ params.kf.P0 = diag([10,10,5,5,1,1,1,1,1,1]);
 params.kf.process_noise_accel = 0.5;
 % filter type: 'ekf', 'ukf', or 'kf' (step-wise KF)
 params.kf.type = 'eskf';
+
+% safety defaults for initialization and gating
+% initialize from first GPS observation if available
+params.kf.init_from_first_gps = true;
+% disable Mahalanobis gating for the first N steps to avoid excluding
+% legitimate large initial residuals
+params.kf.maha_disable_steps = 3;
+% Mahalanobis gating inflation defaults (max multiplier and scale)
+params.kf.maha_inflation_max = 100;    % cap for R inflation multiplier when gating
+params.kf.maha_inflation_scale = 50;   % scale factor mapping (d2 - gate) to inflation
+
+% Adaptive R estimation safeguards
+params.kf.R_est_max_mult = 10;         % per-step max multiplicative growth for R_est
+params.kf.R_est_abs_max = 1e4;         % absolute upper bound on estimated R (variance)
 
 % filter options
 params.filter.method = 'none'; % 'none','avg10','ema'

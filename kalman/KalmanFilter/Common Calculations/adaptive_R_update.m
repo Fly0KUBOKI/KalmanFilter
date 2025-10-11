@@ -1,25 +1,37 @@
 function params = adaptive_R_update(params, y, H, P_pred, R, meas_tags)
-% EMA-based adaptive measurement noise estimation per tag (keeps API similar to original)
+% EMA-based adaptive measurement noise estimation per tag.
+% Inputs:
+%  params - parameter struct (contains params.kf fields for state)
+%  y, H, P_pred, R - innovation, measurement jacobian, predicted P and nominal R
+%  meas_tags - cell array of structs with fields 'name' and 'range' indicating
+%              which elements of y correspond to each measurement tag
+
+% default alpha
 if ~isfield(params,'kf') || ~isfield(params.kf,'ema_alpha')
     alpha = 0.1;
 else
     alpha = params.kf.ema_alpha;
 end
-if ~isfield(params,'kf') || ~isfield(params.kf,'R_est')
-    if ~isfield(params,'kf'), params.kf = struct(); end
+
+if ~isfield(params,'kf'), params.kf = struct(); end
+if ~isfield(params.kf,'R_est')
     params.kf.R_est = struct();
 end
 
 % warmup configuration: number of samples to average before using EMA
 if ~isfield(params.kf,'ema_warmup') || isempty(params.kf.ema_warmup)
-    params.kf.ema_warmup = 100; % default: use first 100 samples mean
+    params.kf.ema_warmup = 100;
 end
-% containers to hold warmup sums and counts per tag
 if ~isfield(params.kf,'R_warmup_count') || isempty(params.kf.R_warmup_count)
     params.kf.R_warmup_count = struct();
-end
-if ~isfield(params.kf,'R_warmup_sum') || isempty(params.kf.R_warmup_sum)
     params.kf.R_warmup_sum = struct();
+end
+
+% bounds for R estimates
+if isfield(params.kf,'R_est_abs_max') && ~isempty(params.kf.R_est_abs_max)
+    R_abs_max = max(eps, params.kf.R_est_abs_max);
+else
+    R_abs_max = 1e6;
 end
 
 HPHT = H * P_pred * H';
@@ -30,24 +42,30 @@ for i=1:numel(meas_tags)
     tag = meas_tags{i};
     rng = tag.range;
     if isempty(rng), continue; end
+
     res_sq = (y(rng)).^2;
     hpht_comp = HPHT_diag(rng);
     innov_comp = res_sq - hpht_comp;
-    % guard against negative or NaN innovation estimates
+    % guard against invalid values
     innov_comp(~isfinite(innov_comp)) = 0;
-    % prevent overly negative innovations which would drive R_new negative
     innov_comp = max(innov_comp, 0);
+
+    % ensure we have an initial R estimate for this tag
     if ~isfield(params.kf.R_est, tag.name)
-        params.kf.R_est.(tag.name) = R_diag(rng);
+        % if R_diag shorter than rng, expand sensibly
+        if numel(R_diag) >= max(rng)
+            params.kf.R_est.(tag.name) = R_diag(rng);
+        else
+            params.kf.R_est.(tag.name) = max(eps, mean(R_diag)) * ones(numel(rng),1);
+        end
     end
 
-    % initialize warmup containers for this tag if needed
+    % initialize warmup containers
     if ~isfield(params.kf.R_warmup_count, tag.name) || isempty(params.kf.R_warmup_count.(tag.name))
         params.kf.R_warmup_count.(tag.name) = 0;
         params.kf.R_warmup_sum.(tag.name) = zeros(size(innov_comp));
     end
 
-    % warmup phase: accumulate innov_comp and use mean until enough samples
     count = params.kf.R_warmup_count.(tag.name);
     sumv = params.kf.R_warmup_sum.(tag.name);
     if count < params.kf.ema_warmup
@@ -55,22 +73,26 @@ for i=1:numel(meas_tags)
         count = count + 1;
         params.kf.R_warmup_sum.(tag.name) = sumv;
         params.kf.R_warmup_count.(tag.name) = count;
-        R_new = sumv / count; % use sample mean during warmup
+        R_new = sumv / count;
         params.kf.R_est.(tag.name) = R_new;
     else
-        % after warmup: run EMA
         R_prev = params.kf.R_est.(tag.name);
         if numel(R_prev) ~= numel(innov_comp)
             R_prev = repmat(mean(R_prev), numel(innov_comp), 1);
         end
         R_new = (1-alpha)*R_prev + alpha * innov_comp;
+        % optional per-step growth cap
+        if isfield(params.kf,'R_est_max_mult') && ~isempty(params.kf.R_est_max_mult)
+            mult = max(1, params.kf.R_est_max_mult);
+            R_prev_safe = max(R_prev, eps);
+            R_new = min(R_new, R_prev_safe * mult);
+        end
         params.kf.R_est.(tag.name) = R_new;
     end
-    % clamp R within reasonable bounds to avoid collapse or explosion
-    R_min = eps;
-    R_max = 1e6;
-    R_new(~isfinite(R_new)) = R_min;
-    R_new = min(max(R_new, R_min), R_max);
+
+    % clamp R_new
+    R_new(~isfinite(R_new)) = eps;
+    R_new = min(max(R_new, eps), R_abs_max);
     params.kf.R_est.(tag.name) = R_new;
 
     % write back into params.noise in expected format
