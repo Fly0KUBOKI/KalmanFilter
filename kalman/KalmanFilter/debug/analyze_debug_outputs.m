@@ -105,7 +105,7 @@ function analyze_debug_outputs(write_all, run_sweep, sweep_write_csv)
             warning('Missing columns in %s: %s', files{i}, strjoin(missing, ','));
         end
 
-        % Basic stats
+    % Basic stats
         nrows = height(T);
         initial_d2 = T.d2g(1);
         max_d2 = max(T.d2g);
@@ -129,7 +129,39 @@ function analyze_debug_outputs(write_all, run_sweep, sweep_write_csv)
             max_dx = NaN; idx_max_dx = NaN; t_max_dx = NaN;
         end
 
-        summaries{i} = struct('file', files{i}, 'nrows', nrows, 'initial_d2', initial_d2, 'max_d2', max_d2, 'median_d2', median_d2, 'count_over', count_over, 'max_xupd_norm', max_norm, 'step_max_xupd', idx_max, 'time_max_xupd', t_max, 'max_delta_xupd', max_dx, 'step_max_delta', idx_max_dx, 'time_max_delta', t_max_dx);
+        % Velocity analysis if velocity columns present
+        has_meas_vel = all(ismember({'meas_vel_x','meas_vel_y'}, T.Properties.VariableNames));
+        has_xupd_vel = all(ismember({'x_upd_vx','x_upd_vy'}, T.Properties.VariableNames));
+        vel_stats = struct();
+        if has_meas_vel && has_xupd_vel
+            vm = [T.meas_vel_x, T.meas_vel_y];
+            vu = [T.x_upd_vx, T.x_upd_vy];
+            valid_rows = all(isfinite(vm) & isfinite(vu), 2);
+            if any(valid_rows)
+                vd = vm(valid_rows,:) - vu(valid_rows,:);
+                err_mag = sqrt(sum(vd.^2,2));
+                vel_stats.mean_err = mean(err_mag,'omitnan');
+                vel_stats.rmse = sqrt(mean(sum(vd.^2,2),'omitnan'));
+                [max_err, idx_max_err_rel] = max(err_mag);
+                % map back to table row index
+                idxs = find(valid_rows);
+                idx_max_err = idxs(idx_max_err_rel);
+                vel_stats.max_err = max_err;
+                vel_stats.idx_max_err = idx_max_err;
+                % angle differences
+                ang_m = atan2(vm(valid_rows,2), vm(valid_rows,1));
+                ang_u = atan2(vu(valid_rows,2), vu(valid_rows,1));
+                ang_diff = mod(ang_m - ang_u + pi, 2*pi) - pi; % wrap to [-pi,pi]
+                vel_stats.mean_abs_angle_deg = mean(abs(ang_diff),'omitnan')*180/pi;
+                vel_stats.std_abs_angle_deg = std(abs(ang_diff),'omitnan')*180/pi;
+            else
+                vel_stats.mean_err = NaN; vel_stats.rmse = NaN; vel_stats.max_err = NaN; vel_stats.idx_max_err = NaN; vel_stats.mean_abs_angle_deg = NaN; vel_stats.std_abs_angle_deg = NaN;
+            end
+        else
+            vel_stats.mean_err = NaN; vel_stats.rmse = NaN; vel_stats.max_err = NaN; vel_stats.idx_max_err = NaN; vel_stats.mean_abs_angle_deg = NaN; vel_stats.std_abs_angle_deg = NaN;
+        end
+
+        summaries{i} = struct('file', files{i}, 'nrows', nrows, 'initial_d2', initial_d2, 'max_d2', max_d2, 'median_d2', median_d2, 'count_over', count_over, 'max_xupd_norm', max_norm, 'step_max_xupd', idx_max, 'time_max_xupd', t_max, 'max_delta_xupd', max_dx, 'step_max_delta', idx_max_dx, 'time_max_delta', t_max_dx, 'vel_stats', vel_stats);
 
         % Prepare per-file detailed event lists (top d^2 and top delta)
         try
@@ -235,6 +267,18 @@ function analyze_debug_outputs(write_all, run_sweep, sweep_write_csv)
             fprintf(fid, ' Max 1-step |Δ x_upd|: %.6g at step %d (t=%.3f)\n', s.max_delta_xupd, s.step_max_delta, s.time_max_delta);
         else
             fprintf(fid, ' Max 1-step |\Delta x_upd|: N/A\n');
+        end
+        % velocity statistics (if available)
+        if isfield(s,'vel_stats') && ~isempty(s.vel_stats)
+            vs = s.vel_stats;
+            if ~isnan(vs.mean_err)
+                fprintf(fid, ' Velocity mean error (m): %.6g\n', vs.mean_err);
+                fprintf(fid, ' Velocity RMSE (m): %.6g\n', vs.rmse);
+                fprintf(fid, ' Velocity max error (m) at step %d: %.6g\n', vs.idx_max_err, vs.max_err);
+                fprintf(fid, ' Velocity mean abs angle diff (deg): %.3f, std (deg): %.3f\n', vs.mean_abs_angle_deg, vs.std_abs_angle_deg);
+            else
+                fprintf(fid, ' Velocity stats: N/A\n');
+            end
         end
         fprintf(fid, '\n');
     end

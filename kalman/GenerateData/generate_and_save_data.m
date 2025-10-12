@@ -9,7 +9,9 @@ if nargin<1 || isempty(params)
 end
 
 if nargin<2 || isempty(fname)
-    fname = fullfile(pwd,'sim_data.csv');
+    % default to the GenerateData folder (same folder as this function)
+    func_dir = fileparts(mfilename('fullpath'));
+    fname = fullfile(func_dir, 'sim_data.csv');
 end
 
 [t, state, meas, params] = sim_generate(params);

@@ -5,7 +5,8 @@ function run_trial(root, base_params, meas_full, maxIter, out_filename, init_fro
 params = base_params;
 out_path = fullfile(root, out_filename);
 fid = fopen(out_path,'w');
-fprintf(fid,'k,t,yg_x,yg_y,d2g,Sg_x,Sg_y,Ppos_x,Ppos_y,x_upd_x,x_upd_y\n');
+% include measured velocity and updated-state velocity columns for debugging
+fprintf(fid,'k,t,yg_x,yg_y,d2g,Sg_x,Sg_y,Ppos_x,Ppos_y,meas_vel_x,meas_vel_y,x_upd_x,x_upd_y,x_upd_vx,x_upd_vy\n');
 
 % detailed debug dump for selected steps (early steps and event around t=8.5)
 detailed_out = fullfile(root, ['detailed_' out_filename]);
@@ -185,11 +186,21 @@ for k = 1:maxIter
         end
     end
 
-    if numel(x_upd) >= 2
-        fprintf(fid,'%d,%.6f,%.6g,%.6g,%.6g,%.6g,%.6g,%.6g,%.6g,%.6g,%.6g\n', k-1, t, yg_x, yg_y, d2g, Sg_x, Sg_y, Ppos_x, Ppos_y, x_upd(1), x_upd(2));
-    else
-        fprintf(fid,'%d,%.6f,%.6g,%.6g,%.6g,%.6g,%.6g,%.6g,%.6g,NaN,NaN\n', k-1, t, yg_x, yg_y, d2g, Sg_x, Sg_y, Ppos_x, Ppos_y);
+    % prepare measured velocity (if any) and updated-state velocities for CSV
+    meas_vx = NaN; meas_vy = NaN;
+    if isfield(meas,'vel') && numel(meas.vel) >= 2
+        meas_vx = meas.vel(1); meas_vy = meas.vel(2);
     end
+    xupd1 = NaN; xupd2 = NaN; xupd_vx = NaN; xupd_vy = NaN;
+    if numel(x_upd) >= 2
+        xupd1 = x_upd(1); xupd2 = x_upd(2);
+    end
+    if numel(x_upd) >= 4
+        xupd_vx = x_upd(3); xupd_vy = x_upd(4);
+    end
+    vals_main = [k-1, t, yg_x, yg_y, d2g, Sg_x, Sg_y, Ppos_x, Ppos_y, meas_vx, meas_vy, xupd1, xupd2, xupd_vx, xupd_vy];
+    fmt_main = [repmat('%.6g,',1,numel(vals_main)-1) '%.6g\n'];
+    fprintf(fid, fmt_main, vals_main);
 
     x = x_upd; P = P_upd;
 end

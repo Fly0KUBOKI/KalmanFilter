@@ -1,0 +1,42 @@
+Analysis summary
+Gate threshold = 9
+
+File: debug_output_baseline.csv
+ Rows: 10001
+ Initial d^2: 227.352
+ Max d^2: 227.352
+ Median d^2: 0.100663
+ Count d^2 > 9: 2
+ Max |x_upd|: 50.3103 at step 851 (t=8.500)
+ Max 1-step |Δ x_upd|: 2.16558 at step 2 (t=0.010)
+ Velocity mean error (m): 0.0807449
+ Velocity RMSE (m): 0.137861
+ Velocity max error (m) at step 4103: 2.87772
+ Velocity mean abs angle diff (deg): 0.325, std (deg): 0.502
+
+File: debug_output_initgps.csv
+ Rows: 10001
+ Initial d^2: 227.352
+ Max d^2: 227.352
+ Median d^2: 0.100663
+ Count d^2 > 9: 2
+ Max |x_upd|: 50.3103 at step 851 (t=8.500)
+ Max 1-step |Δ x_upd|: 2.16558 at step 2 (t=0.010)
+ Velocity mean error (m): 0.0807449
+ Velocity RMSE (m): 0.137861
+ Velocity max error (m) at step 4103: 2.87772
+ Velocity mean abs angle diff (deg): 0.325, std (deg): 0.502
+
+File: debug_output_initgps_nogate.csv
+ Rows: 10001
+ Initial d^2: 227.352
+ Max d^2: 227.352
+ Median d^2: 0.102383
+ Count d^2 > 9: 2
+ Max |x_upd|: 50.3096 at step 851 (t=8.500)
+ Max 1-step |Δ x_upd|: 2.16558 at step 2 (t=0.010)
+ Velocity mean error (m): 0.0776756
+ Velocity RMSE (m): 0.0984869
+ Velocity max error (m) at step 4103: 1.0908
+ Velocity mean abs angle diff (deg): 0.313, std (deg): 0.299
+

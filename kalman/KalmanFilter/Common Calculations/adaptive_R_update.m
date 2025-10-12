@@ -8,7 +8,7 @@ function params = adaptive_R_update(params, y, H, P_pred, R, meas_tags)
 
 % default alpha
 if ~isfield(params,'kf') || ~isfield(params.kf,'ema_alpha')
-    alpha = 0.1;
+    alpha = 0.05;
 else
     alpha = params.kf.ema_alpha;
 end
@@ -20,13 +20,15 @@ end
 
 % warmup configuration: number of samples to average before using EMA
 if ~isfield(params.kf,'ema_warmup') || isempty(params.kf.ema_warmup)
-    params.kf.ema_warmup = 100;
+    % default number of samples to collect before switching to EMA
+    % shortened from 100 to 10 to reduce long initialization delays
+    params.kf.ema_warmup = 0;
 end
 if ~isfield(params.kf,'R_warmup_count') || isempty(params.kf.R_warmup_count)
     params.kf.R_warmup_count = struct();
     params.kf.R_warmup_sum = struct();
 end
-
+        params.kf.ema_warmup = 0; % Set default ema_warmup to 0
 % bounds for R estimates
 if isfield(params.kf,'R_est_abs_max') && ~isempty(params.kf.R_est_abs_max)
     R_abs_max = max(eps, params.kf.R_est_abs_max);

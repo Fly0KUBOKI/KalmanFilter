@@ -3,7 +3,7 @@ function params = config_params()
 params = struct();
 
 % timing
-params.dt = 0.01;
+params.dt = 0.0025;
 params.T = 10;
 
 % initial state for [x y vx vy theta ax ay omega z vz]
@@ -78,6 +78,14 @@ params.kf.P0 = diag([10,10,5,5,1,1,1,1,1,1]);
 params.kf.process_noise_accel = 0.5;
 % filter type: 'ekf', 'ukf', or 'kf' (step-wise KF)
 params.kf.type = 'eskf';
+
+% EMA adaptive R defaults
+% number of samples to collect before switching to EMA (shortened default)
+params.kf.ema_warmup = 0; % disable warmup by default
+% EMA smoothing factor (alpha)
+params.kf.ema_alpha = 0.1;
+% adaptive R enabled flag (default: disabled)
+params.kf.adaptive_R_enabled = false;
 
 % safety defaults for initialization and gating
 % initialize from first GPS observation if available
