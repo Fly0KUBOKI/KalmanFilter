@@ -77,7 +77,8 @@ for k = 1:maxIter
     end
 
     params.kf.current_step = k; % let filter know current step
-    [x_pred,P_pred,x_upd,P_upd,y,S,K,params] = kf_filter_step(x,P,meas,params);
+    % Use ESKF wrapper as the canonical filter step
+    [~,~,x_upd,P_upd,~,S,~,params] = eskf_filter_step_wrapper(x, P, meas, params);
 
     % write detailed diagnostics for first few steps and near t=8.5
     dump = false;
@@ -112,14 +113,34 @@ for k = 1:maxIter
                 end
             end
         end
-        % safe indexing for state elements
+        % safe indexing for state elements (new layout: [v q1 q2 q3 q4 x y z])
         xpred_x = NaN; xpred_y = NaN; xpred_vx = NaN; xpred_vy = NaN;
         xupd_vx = NaN; xupd_vy = NaN;
-        if numel(x_pred) >= 4
-            xpred_x = x_pred(1); xpred_y = x_pred(2); xpred_vx = x_pred(3); xpred_vy = x_pred(4);
+        if numel(x_pred) >= 8
+            xpred_x = x_pred(6); xpred_y = x_pred(7);
+            % derive predicted vx,vy from v and quaternion if present
+            try
+                if numel(x_pred) >= 5
+                    v_k = x_pred(1); q = x_pred(2:5); qw=q(1); qx=q(2); qy=q(3); qz=q(4);
+                    R = [1-2*(qy^2+qz^2), 2*(qx*qy- qz*qw), 2*(qx*qz+ qy*qw);
+                         2*(qx*qy+ qz*qw), 1-2*(qx^2+qz^2), 2*(qy*qz- qx*qw);
+                         2*(qx*qz- qy*qw), 2*(qy*qz+ qx*qw), 1-2*(qx^2+qy^2)];
+                    vel_pred = (R * [v_k;0;0]);
+                    xpred_vx = vel_pred(1); xpred_vy = vel_pred(2);
+                end
+            catch
+            end
         end
-        if numel(x_upd) >= 4
-            xupd_vx = x_upd(3); xupd_vy = x_upd(4);
+        if numel(x_upd) >= 8
+            try
+                v_k = x_upd(1); q = x_upd(2:5); qw=q(1); qx=q(2); qy=q(3); qz=q(4);
+                R = [1-2*(qy^2+qz^2), 2*(qx*qy- qz*qw), 2*(qx*qz+ qy*qw);
+                     2*(qx*qy+ qz*qw), 1-2*(qx^2+qz^2), 2*(qy*qz- qx*qw);
+                     2*(qx*qz- qy*qw), 2*(qy*qz+ qx*qw), 1-2*(qx^2+qy^2)];
+                vel_upd = (R * [v_k;0;0]);
+                xupd_vx = vel_upd(1); xupd_vy = vel_upd(2);
+            catch
+            end
         end
         % P_pred diagonals
         Ppred_xx = NaN; Ppred_yy = NaN; Ppred_vxvx = NaN; Ppred_vyvy = NaN;
@@ -155,7 +176,12 @@ for k = 1:maxIter
         % Build values vector and dynamic format to avoid mismatch
         xupd1 = NaN; xupd2 = NaN;
         if numel(x_upd) >= 2
-            xupd1 = x_upd(1); xupd2 = x_upd(2);
+            % xupd position
+            if numel(x_upd) >= 7
+                xupd1 = x_upd(6); xupd2 = x_upd(7);
+            else
+                xupd1 = x_upd(1); xupd2 = NaN;
+            end
         end
         vals = [k-1, t, zg_x, zg_y, hg_x, hg_y, yg_x_d, yg_y_d, xpred_x, xpred_y, xpred_vx, xpred_vy, xupd1, xupd2, xupd_vx, xupd_vy, Ppred_xx, Ppred_yy, Ppred_vxvx, Ppred_vyvy, Sg_x_d, Sg_y_d, K11, K22, K31, K42];
         fmt = [repmat('%.6g,',1,numel(vals)-1) '%.6g\n'];

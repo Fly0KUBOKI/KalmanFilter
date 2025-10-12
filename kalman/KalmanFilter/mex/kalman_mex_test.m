@@ -12,8 +12,8 @@ end
 % Create C++ Kalman handle
 
 h = kalman_mex('new');
-% 10-state (as in run_simulation_realtime). Observation size determined from CSV.
-state_n = 10;
+% 8-state (v, q1..q4, x,y,z). Observation size determined from CSV.
+state_n = 8;
 % default observation size (will be overridden after reading CSV)
 obs_n = 1;
 kalman_mex('init', h, state_n, obs_n);
@@ -21,24 +21,22 @@ kalman_mex('init', h, state_n, obs_n);
 % build F similar to run_simulation_realtime
 dt = single(1.0);
 F = single(eye(state_n));
-if state_n >= 10
-    F(1,3) = dt; F(1,6) = 0.5*dt^2;
-    F(2,4) = dt; F(2,7) = 0.5*dt^2;
-    F(3,6) = dt; F(4,7) = dt; F(5,8) = dt; F(9,10) = dt;
+if state_n >= 8
+    % minimal F: positions (6:8) integrate forward velocity (1)
+    F(6,1) = dt; F(7,1) = dt; F(8,1) = dt;
 end
 kalman_mex('setSystem', h, F);
 
-% initial estimate (10-dim)
+% initial estimate (8-dim)
 est = single(zeros(state_n,1));
 % default forward velocity similar to run_simulation_realtime
-if numel(est) >= 3
-    est(3) = single(1);
+if numel(est) >= 1
+    est(1) = single(1);
 end
 kalman_mex('setPrediction', h, est);
 
 % Read observations from CSV and run up to 10 filter updates
 root = fileparts(mfilename('fullpath'));
-csv_candidate = fullfile(root, '..', '..', 'sim_data.csv');
 % prefer config file default location for CSV (GenerateData)
 try
     p = config_params();
@@ -126,10 +124,11 @@ kalman_mex('setSystem', h, F);
 H = single(zeros(obs_n, state_n));
 % if pos measurements (2D), map to state positions (1,2)
 if obs_n == 2
-    H(1,1) = 1; H(2,2) = 1;
+    % map to position components in 8-dim state (x->6, y->7)
+    H(1,6) = 1; H(2,7) = 1;
 else
-    % scalar measurement map to x position
-    H(1,1) = 1;
+    % scalar measurement map to x position (index 6)
+    H(1,6) = 1;
 end
 kalman_mex('setObservationMatrix', h, H);
 

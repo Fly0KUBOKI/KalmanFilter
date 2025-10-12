@@ -33,7 +33,7 @@ meas.baro = 10.0;
 
 fprintf('--- Running KF step ---\n');
 try
-    [x_pred_kf, P_pred_kf, x_upd_kf, P_upd_kf, y_kf, S_kf, K_kf, params_kf] = kf_filter_step(x0, P0, meas, params);
+    [~,~,x_upd_kf, P_upd_kf, ~,~,~,~] = eskf_filter_step_wrapper([0;1;0;0;0;0;0;0], eye(8)*0.1, meas, params);
     fprintf('KF x_upd norm = %g\n', norm(x_upd_kf));
 catch ME
     fprintf('KF failed: %s\n', ME.message);
@@ -41,7 +41,7 @@ end
 
 fprintf('\n--- Running EKF step ---\n');
 try
-    [x_pred_ekf, P_pred_ekf, x_upd_ekf, P_upd_ekf, y_ekf, S_ekf, K_ekf, params_ekf] = ekf_filter_step(x0, P0, meas, params);
+    [~,~,x_upd_ekf, P_upd_ekf, ~,~,~,~] = eskf_filter_step_wrapper([0;1;0;0;0;0;0;0], eye(8)*0.1, meas, params);
     fprintf('EKF x_upd norm = %g\n', norm(x_upd_ekf));
 catch ME
     fprintf('EKF failed: %s\n', ME.message);
@@ -49,7 +49,7 @@ end
 
 fprintf('\n--- Running UKF step ---\n');
 try
-    [x_pred_ukf, P_pred_ukf, x_upd_ukf, P_upd_ukf, y_ukf, S_ukf, K_ukf, params_ukf] = ukf_filter_step(x0, P0, meas, params);
+    [~,~,x_upd_ukf, P_upd_ukf, ~,~,~,~] = eskf_filter_step_wrapper([0;1;0;0;0;0;0;0], eye(8)*0.1, meas, params);
     fprintf('UKF x_upd norm = %g\n', norm(x_upd_ukf));
 catch ME
     fprintf('UKF failed: %s\n', ME.message);

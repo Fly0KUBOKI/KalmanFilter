@@ -1,113 +1,58 @@
 function params = config_params()
-% config_params - central configuration for simulation and filters
+% Configuration parameters for sim_generate
+% Coordinate systems:
+%   Body: Forward(+X), Right(+Y), Down(+Z) - for velocity, acceleration, gyro, magnetometer
+%   Geographic: GPS coordinates only (lat, lon, alt)
+
 params = struct();
 
-% timing
-params.dt = 0.0025;
-params.T = 10;
+% Simulation timing
+params.dt = 0.1;     % Sample period (seconds) - 10Hz
+params.T = 60;       % Total simulation time (seconds)
 
-% initial state for [x y vx vy theta ax ay omega z vz]
-params.initial_state = [0;0;1;0;0;0;0;0;0;0];
+% Motion type selection
+params.motion_type = 'circular';  % 'circular' or 'random_walk'
 
-% motion
-params.motion.mode = 'circular'; % 'circular' or 'random'
-params.motion.center = [0,0];
-params.motion.radius = 50;
-params.motion.omega = 0.2;
-params.motion.phase_noise = deg2rad(0.5);
-params.motion.speed_mean = 0.01;
-params.motion.speed_std = 0.0;
-params.motion.heading_change_std = deg2rad(90);
-params.motion.change_interval = 0.1;
+% Sensor noise parameters (1-sigma standard deviations)
+params.noise = struct();
+params.noise.accel_std = 0.02;   % Accelerometer noise (m/s^2)
+params.noise.gyro_std = 0.001;   % Gyroscope noise (rad/s) 
+params.noise.mag_std = 5.0;      % Magnetometer noise (nT)
+params.noise.baro_std = 0.5;     % Barometer noise (meters)
+params.noise.gps_std = 1.0;      % GPS position noise (meters)
 
+% Motion parameters
+params.motion = struct();
 
-% --- Nominal (white) sensor noise levels (per-sensor defaults) ---
-% These are the baseline Gaussian noise stddev values used by sim_generate.
-params.noise.pos = 0.1;           % position noise (m)
-params.noise.vel = 0.1;           % velocity noise (m/s)
-params.noise.accel3 = [0.1, 0.1, 0.1];
-params.noise.gyro3 = deg2rad([0.1, 0.1, 0.1]);
-params.noise.mag3 = [0.1, 0.1, 0.1];
-params.noise.gps = 1.0;
-params.noise.baro = 0.01;
-params.noise.heading = deg2rad(0.1);
+% Circular motion parameters
+params.motion.circular = struct();
+params.motion.circular.radius = 50;       % Circular trajectory radius (meters)
+params.motion.circular.omega = 0.1;       % Angular velocity (rad/s)
+params.motion.circular.altitude = 100;    % Flight altitude (meters above sea level)
 
+% Random walk parameters  
+params.motion.random_walk = struct();
+params.motion.random_walk.velocity_std = 0.5;     % Velocity change std (m/s)
+params.motion.random_walk.angular_std = 0.05;     % Angular velocity std (rad/s)
+params.motion.random_walk.altitude_std = 0.1;     % Altitude change std (m/s)
 
-% Global pink-noise settings (apply pink noise to multiple sensors)
-% Set enable=true to add pink noise to the listed sensors. Per-sensor std
-% defaults are taken from the nominal noise fields above.
-params.noise.pink.enable = true;
-params.noise.pink.std.pos = 0.1;
-params.noise.pink.std.vel = 0.1;
-params.noise.pink.std.accel3 = [0.1, 0.1, 0.0];
-params.noise.pink.std.gyro3 = deg2rad([0.1, 0.1, 0.1]);
-params.noise.pink.std.mag3 = [0.1, 0.1, 0.1];
-params.noise.pink.std.gps = 1.0;
-params.noise.pink.std.baro = 1.0;
-params.noise.pink.std.heading = deg2rad(0.1);
+% GPS reference point (Tokyo area)  
+params.gps_origin = struct();
+params.gps_origin.lat = 35.6667;  % 35°40'N (degrees)
+params.gps_origin.lon = 139.7500; % 139°45'E (degrees)
+params.gps_origin.alt = 0;        % Sea level reference (meters)
 
+% Initial conditions (all in body frame except GPS position)
+params.initial = struct();
+params.initial.gps_position = [35.6667, 139.7500, 100];  % Initial GPS [lat, lon, alt]
+params.initial.velocity = [5, 0, 0];       % Initial velocity [Forward, Right, Down] (m/s) - body frame
+params.initial.attitude = [0, 0, 0];       % Initial attitude [Roll, Pitch, Yaw] (radians)
 
-params.noise.gyro_allan.enable = true;
-params.noise.gyro_allan.bias_sigma = deg2rad(0.8);
-params.noise.gyro_allan.rate_rw_sigma = deg2rad(0.01);
-
-
-params.noise.baro_allan.enable = true;
-params.noise.baro_allan.bias_sigma = 0.8;
-params.noise.baro_allan.rate_rw_sigma = 0.01;
-
-
-params.noise.outlier.prob_per = struct();
-params.noise.outlier.prob_per.pos = 0.01;
-params.noise.outlier.prob_per.vel = 0.01;
-params.noise.outlier.prob_per.accel3 = 0.01;
-params.noise.outlier.prob_per.gyro3 = 0.01;
-params.noise.outlier.prob_per.mag3 = 0.01;
-params.noise.outlier.prob_per.gps = 0.1;
-params.noise.outlier.prob_per.baro = 0.1;
-params.noise.outlier.prob_per.heading = 0.01;
-
-% nominal magnetic field in world frame (2D + z=0)
-params.sensors.mag_field = [1; 0; 0]; % arbitrary unit vector pointing along +x
-
-% EKF params (10-state model)
-% initial state for EKF: [x y vx vy theta ax ay omega z vz]
-params.kf.x0 = [0;0;1;0;0;0;0;0;0;0]; % default: vx=1
-% initial covariance (10x10)
-params.kf.P0 = diag([10,10,5,5,1,1,1,1,1,1]);
-params.kf.process_noise_accel = 0.5;
-% filter type: 'ekf', 'ukf', or 'kf' (step-wise KF)
-params.kf.type = 'eskf';
-
-% EMA adaptive R defaults
-% number of samples to collect before switching to EMA (shortened default)
-params.kf.ema_warmup = 0; % disable warmup by default
-% EMA smoothing factor (alpha)
-params.kf.ema_alpha = 0.1;
-% adaptive R enabled flag (default: disabled)
-params.kf.adaptive_R_enabled = false;
-
-% safety defaults for initialization and gating
-% initialize from first GPS observation if available
-params.kf.init_from_first_gps = true;
-% disable Mahalanobis gating for the first N steps to avoid excluding
-% legitimate large initial residuals
-params.kf.maha_disable_steps = 3;
-% Mahalanobis gating inflation defaults (max multiplier and scale)
-params.kf.maha_inflation_max = 100;    % cap for R inflation multiplier when gating
-params.kf.maha_inflation_scale = 50;   % scale factor mapping (d2 - gate) to inflation
-
-% Adaptive R estimation safeguards
-params.kf.R_est_max_mult = 10;         % per-step max multiplicative growth for R_est
-params.kf.R_est_abs_max = 1e4;         % absolute upper bound on estimated R (variance)
-
-% filter options
-params.filter.method = 'none'; % 'none','avg10','ema'
-params.filter.alpha = 0.2;
-
-% data source default: 'sim' or 'csv'
-params.data.source = 'csv';
-% default CSV file: place sim_data.csv next to this config function (GenerateData folder)
-params.data.file = fullfile(fileparts(mfilename('fullpath')),'sim_data.csv');
+% Output settings: directory and filenames for CSV outputs
+cfg_dir = fileparts(mfilename('fullpath'));
+params.output = struct();
+params.output.dir = cfg_dir;                    % default output directory (GenerateData folder)
+params.output.truth_filename = 'truth_data.csv';
+params.output.sensor_filename = 'sensor_data.csv';
 
 end

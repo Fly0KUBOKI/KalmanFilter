@@ -1,348 +1,203 @@
-% copied from root sim_generate.m - generate batch simulation data
-function [t, state, meas, params] = sim_generate(params)
+% sim_generate.m - Generate ground truth and sensor observations
+% Coordinate systems:
+%   Body: Forward(+X), Right(+Y), Down(+Z) - for velocity, acceleration, gyro, magnetometer
+%   Geographic: GPS coordinates only (lat, lon, alt)
+function sim_generate(params)
+
+% Allow running as a standalone program: if no params passed, load config
+if nargin < 1 || isempty(params)
+    params = config_params();
+end
+
 dt = params.dt;
 T = params.T;
 N = floor(T/dt)+1;
-t = (0:N-1)'.*dt;
-state = zeros(N,10);
-if isfield(params,'initial_state') && numel(params.initial_state) >= 1
-    init = params.initial_state(:)';
-    if numel(init) < 10
-        init = [init, zeros(1,10-numel(init))];
-    elseif numel(init) > 10
-        warning('params.initial_state has %d elements; using first 10 for simulation.', numel(init));
-        init = init(1:10);
+t = (0:N-1)' * dt;
+
+% Initialize arrays - all in body frame except GPS
+vel_body = zeros(N,3);     % Body frame velocity [forward, right, down] m/s
+accel_body = zeros(N,3);   % Body frame acceleration [forward, right, down] m/s^2
+attitude = zeros(N,3);     % Attitude [roll, pitch, yaw] radians
+pos_local = zeros(N,3);    % Local position for trajectory calculation [x, y, z] meters
+
+% Initial conditions
+vel_body(1,:) = params.initial.velocity;
+attitude(1,:) = params.initial.attitude;
+pos_local(1,:) = [0, 0, 0];  % Start at origin of local frame
+
+% Generate motion based on selected type
+motion_type = params.motion_type;
+
+% Generate motion trajectory
+if strcmp(motion_type, 'circular')
+    % Circular motion parameters
+    radius = params.motion.circular.radius;
+    omega = params.motion.circular.omega;
+    speed = omega * radius;
+    
+    for i = 1:N
+        angle = omega * t(i);
+        
+        % Local position (for GPS conversion)
+        pos_local(i,1) = radius * cos(angle);     % X (East direction)
+        pos_local(i,2) = radius * sin(angle);     % Y (North direction)
+        pos_local(i,3) = -params.motion.circular.altitude;  % Z (Down, negative = up)
+        
+        % Body frame velocity: constant forward motion
+        vel_body(i,1) = speed;                    % Forward velocity
+        vel_body(i,2) = 0;                        % No lateral velocity
+        vel_body(i,3) = 0;                        % No vertical velocity
+        
+        % Attitude: yaw follows trajectory direction
+        attitude(i,1) = 0;                        % Roll
+        attitude(i,2) = 0;                        % Pitch  
+        attitude(i,3) = angle + pi/2;             % Yaw (90° offset for forward direction)
+        
+        % Body frame acceleration: centripetal acceleration
+        accel_body(i,1) = 0;                      % No forward acceleration
+        accel_body(i,2) = -speed^2/radius;        % Centripetal acceleration (rightward)
+        accel_body(i,3) = 0;                      % No vertical acceleration
     end
-    state(1,:) = init;
+    
+elseif strcmp(motion_type, 'random_walk')
+    % Random walk motion but constrained to forward motion only
+    % We vary forward speed and yaw; lateral/vertical body velocities remain zero
+    vel_std = params.motion.random_walk.velocity_std;  % m/s per sqrt(sec)
+    ang_std = params.motion.random_walk.angular_std;    % rad/s per sqrt(sec)
+    
+    % Initialize random number generator for repeatability
+    rng(42);
+    
+    % initialize forward speed from initial condition
+    v_forward = vel_body(1,1);
+    for i = 2:N
+        % Update forward speed with small random walk (discrete-time)
+        dv = randn() * vel_std * sqrt(dt);
+        v_forward = max(0, v_forward + dv);  % do not allow negative forward speed
+        vel_body(i,1) = v_forward;
+        vel_body(i,2:3) = [0, 0];
+
+        % Update yaw (heading) with random angular velocity around Z
+        yaw_rate = randn() * ang_std;  % rad/s
+        attitude(i,3) = attitude(i-1,3) + yaw_rate * dt;
+        attitude(i,1:2) = attitude(i-1,1:2);  % keep roll/pitch unchanged for simplicity
+
+        % Convert forward body velocity to local frame displacement using yaw
+        yaw = attitude(i-1,3);
+        R_body_to_local = [cos(yaw), -sin(yaw), 0; 
+                          sin(yaw),  cos(yaw), 0;
+                          0,         0,        1];
+        local_vel = R_body_to_local * [vel_body(i,1); 0; 0];
+        pos_local(i,:) = pos_local(i-1,:) + (local_vel * dt)';
+
+        % Acceleration: from change in forward speed only (body frame)
+        accel_body(i,:) = [(vel_body(i,1)-vel_body(i-1,1))/dt, 0, 0];
+    end
+    
 else
-    state(1,:) = [0,0,1,0,0,0,0,0,0,0];
-end
-rng('shuffle');
-mode = 'random_walk';
-if isfield(params,'motion') && isfield(params.motion,'mode')
-    mode = params.motion.mode;
-end
-switch lower(mode)
-    case 'linear_random'
-        if ~isfield(params.motion,'speed_mean'), params.motion.speed_mean = 2.0; end
-        if ~isfield(params.motion,'speed_std'), params.motion.speed_std = 0.5; end
-        if ~isfield(params.motion,'heading_change_std'), params.motion.heading_change_std = deg2rad(15); end
-        if ~isfield(params.motion,'change_interval'), params.motion.change_interval = 1.0; end
-        v = state(1,3:4);
-        speed = norm(v);
-        if speed==0
-            speed = max(0.1, params.motion.speed_mean + params.motion.speed_std*randn);
-            ang = 2*pi*rand; v = speed*[cos(ang), sin(ang)];
-        end
-        change_steps = max(1, round(params.motion.change_interval/dt));
-        for k=2:N
-            v_prev = v;
-            if mod(k-2, change_steps) == 0
-                ang = atan2(v(2), v(1));
-                ang = ang + params.motion.heading_change_std*randn;
-                speed = max(0, params.motion.speed_mean + params.motion.speed_std*randn);
-                v = speed*[cos(ang), sin(ang)];
-            end
-            pos = state(k-1,1:2) + v*dt;
-            ax = (v(1)-v_prev(1))/dt;
-            ay = (v(2)-v_prev(2))/dt;
-            theta = atan2(v(2), v(1));
-            omega = (theta - state(k-1,5))/dt;
-            state(k,:) = [pos, v, theta, ax, ay, omega, 0, 0];
-        end
-    case 'circular'
-        if ~isfield(params.motion,'center'), params.motion.center = [0,0]; end
-        if ~isfield(params.motion,'radius'), params.motion.radius = 10; end
-        if ~isfield(params.motion,'omega'), params.motion.omega = 0.2; end
-        if ~isfield(params.motion,'phase_noise'), params.motion.phase_noise = deg2rad(1); end
-        cx = params.motion.center(1); cy = params.motion.center(2);
-        r = params.motion.radius; omega = params.motion.omega;
-        x0 = state(1,1); y0 = state(1,2);
-        if x0==0 && y0==0
-            theta0 = 2*pi*rand;
-        else
-            theta0 = atan2(y0-cy, x0-cx);
-        end
-        for k=1:N
-            th = theta0 + omega*(k-1)*dt + params.motion.phase_noise*randn;
-            x = cx + r*cos(th); y = cy + r*sin(th);
-            vx = -r*omega*sin(th); vy = r*omega*cos(th);
-            ax = -r*omega^2*cos(th); ay = -r*omega^2*sin(th);
-            theta = th; z = 0; vz = 0;
-            state(k,:) = [x,y,vx,vy,theta,ax,ay,omega,z,vz];
-        end
-    otherwise
-        % Prefer per-axis accel3 noise for planar random-walk; fall back to
-        % scalar params.noise.accel or a safe default if neither present.
-        if isfield(params.noise,'accel3') && ~isempty(params.noise.accel3)
-            tmp = params.noise.accel3(:)'; if numel(tmp)==1, tmp = repmat(tmp,1,3); end
-            accel_noise_vec = tmp(1:2);
-        end
-        accel = zeros(N,2);
-        for k=2:N
-            accel(k,:) = accel(k-1,:) + accel_noise_vec .* randn(1,2);
-            vx = state(k-1,3) + accel(k,1)*dt;
-            vy = state(k-1,4) + accel(k,2)*dt;
-            x = state(k-1,1) + vx*dt; y = state(k-1,2) + vy*dt;
-            theta = atan2(vy, vx); ax = accel(k,1); ay = accel(k,2); omega = 0; z = 0; vz = 0;
-            state(k,:) = [x,y,vx,vy,theta,ax,ay,omega,z,vz];
-        end
-end
-meas = struct();
-meas.pos = state(:,1:2) + params.noise.pos.*randn(N,2);
-meas.vel = state(:,3:4) + params.noise.vel.*randn(N,2);
-vel = state(:,3:4);
-true_accel_world = [zeros(1,2); diff(vel)./dt];
-meas.accel3 = zeros(N,3);
-% accelerometer per-axis noise (white component)
-if isfield(params.noise,'accel3')
-    accel_noise = params.noise.accel3(:)'; if numel(accel_noise)==1, accel_noise = repmat(accel_noise,1,3); end
-else
-    accel_noise = [params.noise.accel, params.noise.accel, params.noise.accel];
+    error('Unknown motion_type: %s. Use ''circular'' or ''random_walk''', motion_type);
 end
 
-for k=1:N
-    th = state(k,5);
-    Rwb = [cos(th) sin(th) 0; -sin(th) cos(th) 0; 0 0 1];
-    aw = [true_accel_world(k,1); true_accel_world(k,2); 0];
-    g = -9.81;
-    ab = Rwb * aw + [0;0;g];
-    meas.accel3(k,:) = ab' + randn(1,3).*accel_noise;
-end
-theta = state(:,5);
-vel_heading = atan2(state(:,4), state(:,3));
-theta_use = theta;
-zero_idx = (theta_use==0);
-theta_use(zero_idx) = vel_heading(zero_idx);
-theta_unwrap = unwrap(theta_use);
-omega_z = [0; diff(theta_unwrap)./dt];
+% Generate sensor observations
+gyro_body = zeros(N,3);
+mag_body = zeros(N,3);  
+baro = zeros(N,1);
+gps_lat = zeros(N,1);
+gps_lon = zeros(N,1);
+gps_alt = zeros(N,1);
 
-% --- Gyro Allan-like noise: bias RW and rate RW for z-axis (optional) ---
-gyro_bias = zeros(N,1);
-gyro_rate_rw = zeros(N,1);
-if isfield(params.noise,'gyro_allan') && isfield(params.noise.gyro_allan,'enable') && params.noise.gyro_allan.enable
-    % interpret bias_sigma / rate_rw_sigma as per-sec values; scale by sqrt(dt)
-    bs = params.noise.gyro_allan.bias_sigma;
-    rs = params.noise.gyro_allan.rate_rw_sigma;
-    for k=2:N
-        gyro_bias(k) = gyro_bias(k-1) + bs * sqrt(dt) * randn;
-        gyro_rate_rw(k) = gyro_rate_rw(k-1) + rs * sqrt(dt) * randn;
-    end
-end
-if isfield(params.noise,'gyro3')
-    gyro_noise = params.noise.gyro3(:)'; if numel(gyro_noise)==1, gyro_noise = repmat(gyro_noise,1,3); end
-else
-    gyro_noise = [0,0,params.noise.heading];
-end
-meas.gyro3 = [zeros(N,2), omega_z] + randn(N,3).*gyro_noise;
-mag_field = [1;0;0];
-if isfield(params,'sensors') && isfield(params.sensors,'mag_field')
-    mag_field = params.sensors.mag_field(:);
-end
-heading = theta_use;
-meas.mag3 = zeros(N,3);
-for k=1:N
-    th = heading(k);
-    Rz = [cos(th) -sin(th) 0; sin(th) cos(th) 0; 0 0 1];
-    vec = Rz*mag_field;
-    if isfield(params.noise,'mag3')
-        mag_noise = params.noise.mag3(:)';
-        if numel(mag_noise)==1
-            mag_noise = repmat(mag_noise,1,3);
-        end
+% GPS reference point from config
+lat0 = params.gps_origin.lat;    % Reference latitude (degrees)
+lon0 = params.gps_origin.lon;    % Reference longitude (degrees)  
+alt0 = params.gps_origin.alt;    % Reference altitude (meters)
+m_per_deg_lat = 111320; % meters per degree latitude
+m_per_deg_lon = 91290;  % meters per degree longitude (at 35°N)
+
+% Physical constants
+g = 9.81;               % gravity acceleration (m/s^2)
+% Magnetic field strength (nanotesla, nT). Use 50 nT as requested.
+mag_strength = 50;      % nT
+
+% Generate sensor measurements (all in body frame except GPS)
+for i = 1:N
+    roll = attitude(i,1);
+    pitch = attitude(i,2);
+    yaw = attitude(i,3);
+    
+    % Rotation matrix: Geographic to Body frame (for gravity and magnetic field)
+    R = eul2rotm([yaw, pitch, roll], 'ZYX');
+    
+    % Accelerometer: gravity + motion acceleration in body frame
+    gravity_geo = [0, 0, g];  % Gravity in geographic frame (down = +Z)
+    accel_body(i,:) = (R * gravity_geo')' + accel_body(i,:);  % Gravity + motion acceleration
+    
+    % Gyroscope: angular velocity in body frame
+    if i > 1
+        % Calculate angular velocity from attitude changes
+        att_diff = attitude(i,:) - attitude(i-1,:);
+        gyro_body(i,:) = att_diff / dt;
     else
-        mag_noise = [0.01,0.01,0.01];
+        gyro_body(i,:) = [0, 0, 0];  % Zero initial angular velocity
     end
-    meas.mag3(k,:) = vec' + randn(1,3).*mag_noise;
-end
-if isfield(params.noise,'gps')
-    gps_noise = params.noise.gps;
-    if numel(gps_noise)==1, gps_noise = [gps_noise, gps_noise]; end
-else
-    gps_noise = [params.noise.pos, params.noise.pos];
-end
-meas.gps = state(:,1:2) + randn(N,2).*gps_noise;
-if isfield(params.noise,'baro')
-    baro_noise = params.noise.baro;
-else
-    baro_noise = 0.5;
-end
-meas.baro = zeros(N,1) + baro_noise.*randn(N,1);
-theta_vals = state(:,5);
-theta_vals = theta_vals + params.noise.heading.*randn(N,1);
-meas.heading = [cos(theta_vals), sin(theta_vals)];
-
-% ---- Global pink-noise: apply pink noise to multiple sensors if enabled ----
-if isfield(params.noise,'pink') && isfield(params.noise.pink,'enable') && params.noise.pink.enable
-    % Paul Kellet's pink filter coefficients (approx 1/f)
-    b_p = [0.049922035 -0.095993537 0.050612699 -0.004408786];
-    a_p = [1 -2.494956002 2.017265875 -0.522189400];
-    % helper to generate pink noise matrix N x D from std vector
-    gen_pink = @(std_vec) deal_gen_pink(N, std_vec, b_p, a_p);
-
-    % pos (2)
-    pos_std = params.noise.pink.std.pos; if numel(pos_std)==1, pos_std = repmat(pos_std,1,2); end
-    ppos = gen_pink(pos_std);
-    meas.pos = meas.pos + ppos;
-
-    % vel (2)
-    vel_std = params.noise.pink.std.vel; if numel(vel_std)==1, vel_std = repmat(vel_std,1,2); end
-    pvel = gen_pink(vel_std);
-    meas.vel = meas.vel + pvel;
-
-    % accel3 (3)
-    accel3_std = params.noise.pink.std.accel3; if numel(accel3_std)==1, accel3_std = repmat(accel3_std,1,3); end
-    pacc = gen_pink(accel3_std);
-    meas.accel3 = meas.accel3 + pacc;
-
-    % gyro3 (3)
-    gyro3_std = params.noise.pink.std.gyro3; if numel(gyro3_std)==1, gyro3_std = repmat(gyro3_std,1,3); end
-    pgyro = gen_pink(gyro3_std);
-    meas.gyro3 = meas.gyro3 + pgyro;
-
-    % mag3 (3)
-    mag3_std = params.noise.pink.std.mag3; if numel(mag3_std)==1, mag3_std = repmat(mag3_std,1,3); end
-    pmag = gen_pink(mag3_std);
-    meas.mag3 = meas.mag3 + pmag;
-
-    % gps (2)
-    gps_std = params.noise.pink.std.gps; if numel(gps_std)==1, gps_std = repmat(gps_std,1,2); end
-    pgps = gen_pink(gps_std);
-    meas.gps = meas.gps + pgps;
-
-    % baro (1)
-    baro_std = params.noise.pink.std.baro;
-    pbaro = gen_pink(baro_std);
-    meas.baro = meas.baro + pbaro(:,1);
-
-    % heading (angle) - perturb angle then normalize
-    heading_std = params.noise.pink.std.heading;
-    ph = gen_pink(heading_std);
-    ang = atan2(meas.heading(:,2), meas.heading(:,1));
-    nang = ang + ph(:,1);
-    meas.heading(:,1) = cos(nang);
-    meas.heading(:,2) = sin(nang);
+    
+    % Magnetometer: magnetic north vector in body frame  
+    % Assume magnetic north aligns with geographic north (+Y direction)
+    mag_north_geo = [0, mag_strength, 0];  % North = +Y in geographic frame
+    mag_body(i,:) = (R * mag_north_geo')';
+    
+    % Barometer: altitude above sea level (from local Z position)
+    baro(i) = alt0 - pos_local(i,3);  % Convert down coordinate to altitude
+    
+    % GPS: convert local position to lat/lon/alt (only GPS uses geographic coordinates)
+    gps_lat(i) = lat0 + pos_local(i,2) / m_per_deg_lat;    % North to latitude
+    gps_lon(i) = lon0 + pos_local(i,1) / m_per_deg_lon;    % East to longitude  
+    gps_alt(i) = alt0 - pos_local(i,3);                    % Down to altitude
 end
 
-% helper function (local inline) to generate pink noise matrix
-function P = deal_gen_pink(nn, std_vec, bcoef, acoef)
-    d = numel(std_vec);
-    P = zeros(nn, d);
-    for jj=1:d
-        w = randn(nn,1);
-        ptmp = filter(bcoef, acoef, w);
-        ptmp = ptmp - mean(ptmp);
-        sp = std(ptmp);
-        if sp>0
-            ptmp = ptmp / sp * std_vec(jj);
-        else
-            ptmp = zeros(size(ptmp));
-        end
-        P(:,jj) = ptmp;
-    end
+% Add sensor noise if specified
+if isfield(params, 'noise')
+    accel_body = accel_body + randn(N,3) * params.noise.accel_std;
+    gyro_body = gyro_body + randn(N,3) * params.noise.gyro_std;
+    mag_body = mag_body + randn(N,3) * params.noise.mag_std;
+    baro = baro + randn(N,1) * params.noise.baro_std;
+    gps_lat = gps_lat + randn(N,1) * params.noise.gps_std / m_per_deg_lat;
+    gps_lon = gps_lon + randn(N,1) * params.noise.gps_std / m_per_deg_lon;
+    gps_alt = gps_alt + randn(N,1) * params.noise.gps_std;
 end
 
-% ---- Inject random outliers into measurements ----
-% Configure via params.noise.outlier
-% fields: prob (per-sample probability), mag (struct with per-sensor magnitudes)
-if isfield(params.noise,'outlier')
-    out = params.noise.outlier;
-else
-    out = struct();
-end
-if ~isfield(out,'prob') || isempty(out.prob)
-    out.prob = 0.01; % default 1% samples
-end
-% default outlier magnitudes scaled from nominal noise values
-def = struct();
-pos_n = params.noise.pos(:)'; if numel(pos_n)==1, pos_n = repmat(pos_n,1,2); end
-vel_n = params.noise.vel(:)'; if numel(vel_n)==1, vel_n = repmat(vel_n,1,2); end
-def.pos = 10*pos_n;
-def.vel = 10*vel_n;
-def.accel3 = 10*accel_noise;
-def.gyro3 = 10*gyro_noise;
-def.mag3 = 10*mag_noise;
-def.gps = 10*(gps_noise(:)'); if numel(def.gps)==1, def.gps = repmat(def.gps,1,2); end
-def.baro = 5*(baro_noise + eps);
-def.heading = 5*(params.noise.heading + eps);
+% Prepare truth data (body frame centered) - do NOT include GPS true values per user request
+truth_data = [t, vel_body, accel_body, attitude];
+truth_headers = {'time', 'vel_forward', 'vel_right', 'vel_left', ...
+                 'accel_forward', 'accel_right', 'accel_left', ...
+                 'roll', 'pitch', 'yaw'};
 
-% merge user-specified out.mag with defaults so missing fields are filled
-if ~isfield(out,'mag') || isempty(out.mag)
-    out.mag = def;
-else
-    fn = fieldnames(def);
-    for i=1:numel(fn)
-        if ~isfield(out.mag, fn{i}) || isempty(out.mag.(fn{i}))
-            out.mag.(fn{i}) = def.(fn{i});
-        end
-    end
+% Prepare sensor observation data (body frame for IMU/mag, geographic for GPS)
+sensor_data = [t, accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt];
+sensor_headers = {'time', 'accel_forward', 'accel_right', 'accel_left', ...
+                  'gyro_forward', 'gyro_right', 'gyro_left', ...
+                  'mag_forward', 'mag_right', 'mag_left', ...
+                  'baro', 'gps_lat', 'gps_lon', 'gps_altitude'};
+
+% Save to CSV files (write into params.output if provided)
+out_dir = '.';
+if isfield(params, 'output') && isfield(params.output, 'dir') && ~isempty(params.output.dir)
+    out_dir = params.output.dir;
+end
+truth_path = fullfile(out_dir, 'truth_data.csv');
+sensor_path = fullfile(out_dir, 'sensor_data.csv');
+if isfield(params, 'output') && isfield(params.output, 'truth_filename')
+    truth_path = fullfile(out_dir, params.output.truth_filename);
+end
+if isfield(params, 'output') && isfield(params.output, 'sensor_filename')
+    sensor_path = fullfile(out_dir, params.output.sensor_filename);
 end
 
-M = out.mag;
+truth_table = array2table(truth_data, 'VariableNames', truth_headers);
+writetable(truth_table, truth_path);
 
-% helper: get probability for sensor name (fallback to out.prob)
-get_prob = @(name) ( (isfield(out,'prob_per') && isfield(out.prob_per, name) && ~isempty(out.prob_per.(name))) .* out.prob_per.(name) + (~(isfield(out,'prob_per') && isfield(out.prob_per, name) && ~isempty(out.prob_per.(name))) .* out.prob) );
-mask_for = @(n,pval) (rand(n,1) < max(0,min(1,pval)));
+sensor_table = array2table(sensor_data, 'VariableNames', sensor_headers);
+writetable(sensor_table, sensor_path);
 
-% pos
-m = mask_for(N, get_prob('pos'));
-if any(m)
-    s = sum(m);
-    meas.pos(m,:) = meas.pos(m,:) + randn(s,2) .* repmat(M.pos, s, 1);
-end
+fprintf('sim_generate: wrote %s and %s (%d samples)\n', truth_path, sensor_path, N);
 
-% vel
-m = mask_for(N, get_prob('vel'));
-if any(m)
-    s = sum(m);
-    meas.vel(m,:) = meas.vel(m,:) + randn(s,2) .* repmat(M.vel, s, 1);
-end
-
-% accel3
-m = mask_for(N, get_prob('accel3'));
-if any(m)
-    s = sum(m);
-    meas.accel3(m,:) = meas.accel3(m,:) + randn(s,3) .* repmat(M.accel3, s, 1);
-end
-
-% gyro3
-m = mask_for(N, get_prob('gyro3'));
-if any(m)
-    s = sum(m);
-    meas.gyro3(m,:) = meas.gyro3(m,:) + randn(s,3) .* repmat(M.gyro3, s, 1);
-end
-
-% mag3
-m = mask_for(N, get_prob('mag3'));
-if any(m)
-    s = sum(m);
-    meas.mag3(m,:) = meas.mag3(m,:) + randn(s,3) .* repmat(M.mag3, s, 1);
-end
-
-% gps
-m = mask_for(N, get_prob('gps'));
-if any(m)
-    s = sum(m);
-    meas.gps(m,:) = meas.gps(m,:) + randn(s,2) .* repmat(M.gps, s, 1);
-end
-
-% baro
-m = mask_for(N, get_prob('baro'));
-if any(m)
-    s = sum(m);
-    meas.baro(m) = meas.baro(m) + randn(s,1) .* M.baro;
-end
-
-% heading (perturb angle)
-m = mask_for(N, get_prob('heading'));
-if any(m)
-    s = sum(m);
-    ang = atan2(meas.heading(m,2), meas.heading(m,1));
-    dth = randn(s,1) .* M.heading;
-    nang = ang + dth;
-    meas.heading(m,1) = cos(nang);
-    meas.heading(m,2) = sin(nang);
-end
-
-meas.t = t;
 end

@@ -46,24 +46,46 @@ end
 
 % populate
 for ii = 1:csvN
-    % true state
-    if ismember('x', T.Properties.VariableNames) && ismember('y', T.Properties.VariableNames) && ismember('vx', T.Properties.VariableNames) && ismember('vy', T.Properties.VariableNames)
-        true_state_full(ii,:) = [T.x(ii), T.y(ii), T.vx(ii), T.vy(ii)];
+    % true state: try to read x,y and velocity if available
+    if ismember('x', T.Properties.VariableNames) && ismember('y', T.Properties.VariableNames)
+        % if v and quaternion columns exist, we prefer computing vx,vy from them
+        if ismember('v', T.Properties.VariableNames) && ismember('q1', T.Properties.VariableNames)
+            v_k = T.v(ii);
+            qw = T.q1(ii); qx = T.q2(ii); qy = T.q3(ii); qz = T.q4(ii);
+            R = [1-2*(qy^2+qz^2), 2*(qx*qy- qz*qw), 2*(qx*qz+ qy*qw);
+                 2*(qx*qy+ qz*qw), 1-2*(qx^2+qz^2), 2*(qy*qz- qx*qw);
+                 2*(qx*qz- qy*qw), 2*(qy*qz+ qx*qw), 1-2*(qx^2+qy^2)];
+            vel_world = (R * [v_k;0;0]);
+            true_state_full(ii,:) = [T.x(ii), T.y(ii), vel_world(1), vel_world(2)];
+        elseif ismember('vx', T.Properties.VariableNames) && ismember('vy', T.Properties.VariableNames)
+            true_state_full(ii,:) = [T.x(ii), T.y(ii), T.vx(ii), T.vy(ii)];
+        else
+            true_state_full(ii,:) = [T.x(ii), T.y(ii), 0, 0];
+        end
     else
         true_state_full(ii,:) = [0 0 0 0];
     end
-    % measurements
+    % measurements: prefer meas_pos_x/meas_pos_y (existing) or meas.pos
     if ismember('meas_pos_x', T.Properties.VariableNames) && ismember('meas_pos_y', T.Properties.VariableNames)
         meas_full.pos(ii,:) = [T.meas_pos_x(ii), T.meas_pos_y(ii)];
+    elseif ismember('x', T.Properties.VariableNames) && ismember('y', T.Properties.VariableNames)
+        meas_full.pos(ii,:) = [T.x(ii), T.y(ii)];
     end
     if ismember('meas_vel_x', T.Properties.VariableNames) && ismember('meas_vel_y', T.Properties.VariableNames)
         meas_full.vel(ii,:) = [T.meas_vel_x(ii), T.meas_vel_y(ii)];
+    elseif ismember('v', T.Properties.VariableNames) && ismember('q1', T.Properties.VariableNames)
+        v_k = T.v(ii); qw = T.q1(ii); qx = T.q2(ii); qy = T.q3(ii); qz = T.q4(ii);
+        R = [1-2*(qy^2+qz^2), 2*(qx*qy- qz*qw), 2*(qx*qz+ qy*qw);
+             2*(qx*qy+ qz*qw), 1-2*(qx^2+qz^2), 2*(qy*qz- qx*qw);
+             2*(qx*qz- qy*qw), 2*(qy*qz+ qx*qw), 1-2*(qx^2+qy^2)];
+        vel_world = (R * [v_k;0;0]);
+        meas_full.vel(ii,:) = vel_world(1:2)';
     end
-    if isfield(meas_full,'accel3'), meas_full.accel3(ii,:) = [T.accel3_x(ii), T.accel3_y(ii), T.accel3_z(ii)]; end
-    if isfield(meas_full,'gyro3'), meas_full.gyro3(ii,:) = [T.gyro3_x(ii), T.gyro3_y(ii), T.gyro3_z(ii)]; end
-    if isfield(meas_full,'mag3'), meas_full.mag3(ii,:) = [T.mag3_x(ii), T.mag3_y(ii), T.mag3_z(ii)]; end
-    if isfield(meas_full,'gps'), meas_full.gps(ii,:) = [T.gps_x(ii), T.gps_y(ii)]; end
-    if isfield(meas_full,'baro'), meas_full.baro(ii) = T.baro(ii); end
-    if isfield(meas_full,'heading'), meas_full.heading(ii,:) = [T.meas_heading_x(ii), T.meas_heading_y(ii)]; end
+    if isfield(meas_full,'accel3') && ismember('accel3_x', T.Properties.VariableNames), meas_full.accel3(ii,:) = [T.accel3_x(ii), T.accel3_y(ii), T.accel3_z(ii)]; end
+    if isfield(meas_full,'gyro3') && ismember('gyro3_x', T.Properties.VariableNames), meas_full.gyro3(ii,:) = [T.gyro3_x(ii), T.gyro3_y(ii), T.gyro3_z(ii)]; end
+    if isfield(meas_full,'mag3') && ismember('mag3_x', T.Properties.VariableNames), meas_full.mag3(ii,:) = [T.mag3_x(ii), T.mag3_y(ii), T.mag3_z(ii)]; end
+    if isfield(meas_full,'gps') && ismember('gps_x', T.Properties.VariableNames), meas_full.gps(ii,:) = [T.gps_x(ii), T.gps_y(ii)]; end
+    if isfield(meas_full,'baro') && ismember('baro', T.Properties.VariableNames), meas_full.baro(ii) = T.baro(ii); end
+    if isfield(meas_full,'heading') && ismember('meas_heading_x', T.Properties.VariableNames), meas_full.heading(ii,:) = [T.meas_heading_x(ii), T.meas_heading_y(ii)]; end
 end
 end
