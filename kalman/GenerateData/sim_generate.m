@@ -14,6 +14,20 @@ T = params.T;
 N = floor(T/dt)+1;
 t = (0:N-1)' * dt;
 
+% --- Convert angle-configs provided in degrees (user-facing) into radians for internals ---
+if isfield(params, 'initial') && isfield(params.initial, 'attitude')
+    % initial.attitude is specified in degrees in config; convert to radians for internal use
+    params.initial.attitude = deg2rad(params.initial.attitude);
+end
+if isfield(params, 'motion') && isfield(params.motion, 'circular') && isfield(params.motion.circular, 'omega')
+    % omega specified in deg/s in config; convert to rad/s
+    params.motion.circular.omega = deg2rad(params.motion.circular.omega);
+end
+if isfield(params, 'motion') && isfield(params.motion, 'random_walk') && isfield(params.motion.random_walk, 'angular_std')
+    % angular_std specified in deg/s in config; convert to rad/s
+    params.motion.random_walk.angular_std = deg2rad(params.motion.random_walk.angular_std);
+end
+
 % Initialize arrays - all in body frame except GPS
 vel_body = zeros(N,3);     % Body frame velocity [forward, right, down] m/s
 accel_body = zeros(N,3);   % Body frame acceleration [forward, right, down] m/s^2
@@ -33,30 +47,42 @@ if strcmp(motion_type, 'circular')
     % Circular motion parameters
     radius = params.motion.circular.radius;
     omega = params.motion.circular.omega;
-    speed = omega * radius;
-    
+
     for i = 1:N
         angle = omega * t(i);
-        
+
         % Local position (for GPS conversion)
         pos_local(i,1) = radius * cos(angle);     % X (East direction)
         pos_local(i,2) = radius * sin(angle);     % Y (North direction)
         pos_local(i,3) = -params.motion.circular.altitude;  % Z (Down, negative = up)
-        
-        % Body frame velocity: constant forward motion
-        vel_body(i,1) = speed;                    % Forward velocity
-        vel_body(i,2) = 0;                        % No lateral velocity
-        vel_body(i,3) = 0;                        % No vertical velocity
-        
-        % Attitude: yaw follows trajectory direction
+
+        % Attitude: yaw follows trajectory direction (radians)
         attitude(i,1) = 0;                        % Roll
-        attitude(i,2) = 0;                        % Pitch  
-        attitude(i,3) = angle + pi/2;             % Yaw (90° offset for forward direction)
-        
-        % Body frame acceleration: centripetal acceleration
-        accel_body(i,1) = 0;                      % No forward acceleration
-        accel_body(i,2) = -speed^2/radius;        % Centripetal acceleration (rightward)
-        accel_body(i,3) = 0;                      % No vertical acceleration
+        attitude(i,2) = 0;                        % Pitch
+        % Yaw should point along the forward (tangent) direction of motion
+        attitude(i,3) = angle + pi/2;             % Yaw (radians)
+
+        % Compute velocity in local frame analytically for circular motion
+        % pos_local = [radius*cos(angle), radius*sin(angle), ...]
+        % local_vel = [-radius*omega*sin(angle), radius*omega*cos(angle), 0]
+        local_vel = [-radius * omega * sin(angle), radius * omega * cos(angle), 0];
+
+        % Transform local velocity to body frame using yaw (assume level: roll=pitch=0)
+        yaw = attitude(i,3);
+        R_local_to_body = [cos(yaw), sin(yaw), 0; -sin(yaw), cos(yaw), 0; 0, 0, 1];
+        v_body_vec = R_local_to_body * local_vel';
+
+        % Body frame velocity: forward is X, right is Y, down is Z
+        vel_body(i,1) = v_body_vec(1);
+        vel_body(i,2) = v_body_vec(2);
+        vel_body(i,3) = v_body_vec(3);
+
+        % Body frame acceleration: time derivative of body velocity
+        if i == 1
+            accel_body(i,:) = [0, 0, 0];
+        else
+            accel_body(i,:) = (vel_body(i,:) - vel_body(i-1,:)) / dt;
+        end
     end
     
 elseif strcmp(motion_type, 'random_walk')
@@ -74,21 +100,25 @@ elseif strcmp(motion_type, 'random_walk')
         % Update forward speed with small random walk (discrete-time)
         dv = randn() * vel_std * sqrt(dt);
         v_forward = max(0, v_forward + dv);  % do not allow negative forward speed
-        vel_body(i,1) = v_forward;
-        vel_body(i,2:3) = [0, 0];
 
         % Update yaw (heading) with random angular velocity around Z
         yaw_rate = randn() * ang_std;  % rad/s
         attitude(i,3) = attitude(i-1,3) + yaw_rate * dt;
         attitude(i,1:2) = attitude(i-1,1:2);  % keep roll/pitch unchanged for simplicity
 
-        % Convert forward body velocity to local frame displacement using yaw
-        yaw = attitude(i-1,3);
+        % Convert forward body velocity to local frame using current yaw
+        yaw = attitude(i,3);
         R_body_to_local = [cos(yaw), -sin(yaw), 0; 
                           sin(yaw),  cos(yaw), 0;
                           0,         0,        1];
-        local_vel = R_body_to_local * [vel_body(i,1); 0; 0];
+        local_vel = R_body_to_local * [v_forward; 0; 0];
+
+        % Update positions in local frame
         pos_local(i,:) = pos_local(i-1,:) + (local_vel * dt)';
+
+        % Assign body velocities from forward speed
+        vel_body(i,1) = v_forward;
+        vel_body(i,2:3) = [0, 0];
 
         % Acceleration: from change in forward speed only (body frame)
         accel_body(i,:) = [(vel_body(i,1)-vel_body(i-1,1))/dt, 0, 0];
@@ -135,7 +165,7 @@ for i = 1:N
     if i > 1
         % Calculate angular velocity from attitude changes
         att_diff = attitude(i,:) - attitude(i-1,:);
-        gyro_body(i,:) = att_diff / dt;
+        gyro_body(i,:) = att_diff / dt; % rad/s internally
     else
         gyro_body(i,:) = [0, 0, 0];  % Zero initial angular velocity
     end
@@ -154,22 +184,28 @@ for i = 1:N
     gps_alt(i) = alt0 - pos_local(i,3);                    % Down to altitude
 end
 
-% Add sensor noise if specified
-if isfield(params, 'noise')
-    accel_body = accel_body + randn(N,3) * params.noise.accel_std;
-    gyro_body = gyro_body + randn(N,3) * params.noise.gyro_std;
-    mag_body = mag_body + randn(N,3) * params.noise.mag_std;
-    baro = baro + randn(N,1) * params.noise.baro_std;
-    gps_lat = gps_lat + randn(N,1) * params.noise.gps_std / m_per_deg_lat;
-    gps_lon = gps_lon + randn(N,1) * params.noise.gps_std / m_per_deg_lon;
-    gps_alt = gps_alt + randn(N,1) * params.noise.gps_std;
-end
+    % Convert gyro from rad/s to deg/s for sensor output, then add sensor noise
+    gyro_body = rad2deg(gyro_body); % deg/s output
+
+    if isfield(params, 'noise')
+        accel_body = accel_body + randn(N,3) * params.noise.accel_std;
+        gyro_body = gyro_body + randn(N,3) * params.noise.gyro_std; % now interpreted as deg/s
+        mag_body = mag_body + randn(N,3) * params.noise.mag_std;
+        baro = baro + randn(N,1) * params.noise.baro_std;
+        gps_lat = gps_lat + randn(N,1) * params.noise.gps_std / m_per_deg_lat;
+        gps_lon = gps_lon + randn(N,1) * params.noise.gps_std / m_per_deg_lon;
+        gps_alt = gps_alt + randn(N,1) * params.noise.gps_std;
+    end
 
 % Prepare truth data (body frame centered) - do NOT include GPS true values per user request
-truth_data = [t, vel_body, accel_body, attitude];
+% Convert attitude (rad) to degrees for truth output. Internal calculations remain in radians.
+att_out = rad2deg(attitude);           % roll/pitch/yaw in degrees
+att_out(:,3) = mod(att_out(:,3), 360); % wrap yaw to [0,360)
+truth_data = [t, vel_body, accel_body, att_out];
+
 truth_headers = {'time', 'vel_forward', 'vel_right', 'vel_left', ...
-                 'accel_forward', 'accel_right', 'accel_left', ...
-                 'roll', 'pitch', 'yaw'};
+         'accel_forward', 'accel_right', 'accel_left', ...
+         'roll', 'pitch', 'yaw_deg'};
 
 % Prepare sensor observation data (body frame for IMU/mag, geographic for GPS)
 sensor_data = [t, accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt];
