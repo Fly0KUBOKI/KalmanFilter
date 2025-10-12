@@ -12,12 +12,7 @@ function plot_csv_variables()
 % - 時系列軸として列 't' があればそれを x 軸に使い、なければ行インデックスを使用します.
 
 % No command-line args: use config params default file (GenerateData location) or fall back to pwd
-cfg = config_params();
-if isfield(cfg,'data') && isfield(cfg.data,'file') && ~isempty(cfg.data.file)
-    fname = cfg.data.file;
-else
-    fname = fullfile(pwd,'sim_data.csv');
-end
+fname = '';
 if ~exist(fname,'file')
     [f,p] = uigetfile({'*.csv','CSV files'}, 'Select CSV file to plot');
     if isequal(f,0)

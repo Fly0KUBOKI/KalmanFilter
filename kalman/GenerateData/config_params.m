@@ -8,10 +8,14 @@ params = struct();
 
 % Simulation timing
 params.dt = 0.0025;     % Sample period (seconds) - 10Hz
-params.T = 60;       % Total simulation time (seconds)
+params.T = 100;       % Total simulation time (seconds)
 
 % Motion type selection
 params.motion_type = 'circular';  % 'circular' or 'random_walk'
+
+% Heading mode: 'fixed_north' => aircraft nose always points to geographic north (yaw=0)
+%               'align_velocity' => aircraft nose always aligned with velocity direction
+params.heading_mode = 'align_velocity'; % 'fixed_north' or 'align_velocity'
 
 % Sensor noise parameters (1-sigma standard deviations)
 params.noise = struct();
@@ -27,7 +31,7 @@ params.motion = struct();
 % Circular motion parameters
 params.motion.circular = struct();
 params.motion.circular.radius = 50;       % Circular trajectory radius (meters)
-params.motion.circular.omega = 0.1;       % Angular velocity (deg/s)
+params.motion.circular.omega = 5;       % Angular velocity (deg/s)
 params.motion.circular.altitude = 100;    % Flight altitude (meters above sea level)
 
 % Random walk parameters  
@@ -36,15 +40,15 @@ params.motion.random_walk.velocity_std = 0.0;     % Velocity change std (m/s)
 params.motion.random_walk.angular_std = 0.0;     % Angular velocity std (deg/s)
 params.motion.random_walk.altitude_std = 0.0;     % Altitude change std (m/s)
 
-% GPS reference point (Tokyo area)  
+% GPS reference point
 params.gps_origin = struct();
-params.gps_origin.lat = 35.6667;  % 35°40'N (degrees)
-params.gps_origin.lon = 139.7500; % 139°45'E (degrees)
+params.gps_origin.lat = 36.0;  % degrees (default origin as requested)
+params.gps_origin.lon = 140.0; % degrees
 params.gps_origin.alt = 0;        % Sea level reference (meters)
 
 % Initial conditions (all in body frame except GPS position)
 params.initial = struct();
-params.initial.gps_position = [35.6667, 139.7500, 100];  % Initial GPS [lat, lon, alt]
+params.initial.gps_position = [params.gps_origin.lat, params.gps_origin.lon, 100];  % Initial GPS [lat, lon, alt]
 params.initial.velocity = [5, 0, 0];       % Initial velocity [Forward, Right, Down] (m/s) - body frame
 params.initial.attitude = [0, 0, 0];       % Initial attitude [Roll, Pitch, Yaw] (degrees)
 
@@ -54,5 +58,7 @@ params.output = struct();
 params.output.dir = cfg_dir;                    % default output directory (GenerateData folder)
 params.output.truth_filename = 'truth_data.csv';
 params.output.sensor_filename = 'sensor_data.csv';
+
+params.thresholds = 1.0e-6;  % Thresholds
 
 end
