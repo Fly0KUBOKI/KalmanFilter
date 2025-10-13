@@ -28,17 +28,13 @@ function [p, v, q, ba, bg, P] = update_gps(p, v, q, ba, bg, P, lat, lon, alt, or
 
     [yv, S, R_used] = compute_innovation_and_S(z_meas, h, H, P, R_est, struct());
     K = compute_kalman_gain(P, H, S);
-    % dx = K * yv;
-
+    dx = K * yv;
+    
     % % Apply corrections
-    % p = p + dx(1:3);
-    % v = v + dx(4:6);
-    % dtheta = dx(7:9);
-    % dq = quat_lib('small_angle_quat', dtheta);
-    % q = quat_lib('quatmultiply', q, dq);
-    % q = quat_lib('quatnormalize', q);
+    p = p + dx(1:3);
+    v = v + dx(4:6);
 
-    % ba = ba + dx(10:12);
+    ba = ba + dx(10:12);
     % bg = bg + dx(13:15);
 
     x_pred = zeros(15,1);

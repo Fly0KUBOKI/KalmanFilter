@@ -61,6 +61,50 @@ function varargout = quat_lib(action, varargin)
                 v(3)   0   -v(1);
                 -v(2) v(1)    0 ];
             varargout{1} = S;
+        case 'quat_to_euler'
+            q = varargin{1}; q = q(:); q = quat_lib('quatnormalize', q);
+            qw = q(1); qx = q(2); qy = q(3); qz = q(4);
+
+            % Calculate roll (x-axis rotation)
+            sinr_cosp = 2 * (qw * qx + qy * qz);
+            cosr_cosp = 1 - 2 * (qx^2 + qy^2);
+            roll = atan2(sinr_cosp, cosr_cosp);
+
+            % Calculate pitch (y-axis rotation)
+            sinp = 2 * (qw * qy - qz * qx);
+            if abs(sinp) >= 1
+                pitch = sign(sinp) * pi / 2; % Use 90 degrees if out of range
+            else
+                pitch = asin(sinp);
+            end
+
+            % Calculate yaw (z-axis rotation)
+            siny_cosp = 2 * (qw * qz + qx * qy);
+            cosy_cosp = 1 - 2 * (qy^2 + qz^2);
+            yaw = atan2(siny_cosp, cosy_cosp);
+
+            varargout{1} = [roll; pitch; yaw];
+        case 'vector_to_quat'
+            v1 = varargin{1}(:); % First vector
+            v2 = varargin{2}(:); % Second vector
+
+            % Normalize the input vectors
+            v1 = v1 / norm(v1);
+            v2 = v2 / norm(v2);
+
+            % Compute the quaternion
+            dot_product = dot(v1, v2);
+            cross_product = cross(v1, v2);
+
+            qw = 1 + dot_product;
+            qx = cross_product(1);
+            qy = cross_product(2);
+            qz = cross_product(3);
+
+            q = [qw; qx; qy; qz];
+            q = quat_lib('quatnormalize', q); % Normalize the quaternion
+
+            varargout{1} = q;
         otherwise
             error('Unknown quat_lib action: %s', action);
     end

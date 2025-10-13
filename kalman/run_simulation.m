@@ -54,10 +54,10 @@ for k = 1:N
     [p, v, q, ba, bg, P, status] = eskf_update(p, v, q, ba, bg, P, obs, settings, k);
     results.p(:,k) = p;
     results.v(:,k) = v;
-    Rm = quat_lib('quat_to_rotm', q);
-    yaw = atan2(Rm(2,1), Rm(1,1));
-    pitch = asin(-Rm(3,1));
-    roll = atan2(Rm(3,2), Rm(3,3));
+    euler_angles = quat_lib('quat_to_euler', q);
+    roll = euler_angles(1);
+    pitch = euler_angles(2);
+    yaw = euler_angles(3);
     results.euler(:,k) = [roll; pitch; yaw];
 end
 

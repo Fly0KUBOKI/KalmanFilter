@@ -45,10 +45,12 @@ function [p, v, q, ba, bg, P] = update_accel(p, v, q, ba, bg, P, a_meas, dt)
 
     % update accel bias
     ba = ba + dx(10:12);
+    % fprintf('ba: [%f, %f, %f]\n', ba(1), ba(2), ba(3));
 
     % update covariance
     x_pred = zeros(15,1);
     x_pred(1:3) = p; x_pred(4:6) = v; x_pred(7:9) = zeros(3,1);
     x_pred(10:12) = ba; x_pred(13:15) = bg;
     [~, P] = update_state_covariance(x_pred, P, K, H, y, R_used);
+    
 end

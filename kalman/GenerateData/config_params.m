@@ -8,7 +8,7 @@ params = struct();
 
 % Simulation timing
 params.dt = 0.0025;     % Sample period (seconds) - 10Hz
-params.T = 1;       % Total simulation time (seconds)
+params.T = 10;       % Total simulation time (seconds)
 
 % Motion type selection
 params.motion_type = 'circular';  % 'circular' or 'random_walk'
