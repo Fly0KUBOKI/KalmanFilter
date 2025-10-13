@@ -149,7 +149,8 @@ for i = 1:N
     % rotation world -> body
     R = eul2rotm([yaw, pitch, roll], 'ZYX');
 
-    % Accelerometer: per-spec, acceleration is derivative of velocity (world) mapped to body frame
+    % Accelerometer (specific force): IMU measures acceleration minus gravity
+    % Compute world-frame acceleration from finite differences
     if i == 1
         a_world = [0,0,0];
     else
@@ -161,7 +162,12 @@ for i = 1:N
         end
         a_world = dv / dt;
     end
-    accel_body(i,:) = (R' * a_world')';
+    % gravity in world frame (Up positive): [0,0,-9.81]
+    g_world = [0,0,-9.81];
+    % specific force (what accelerometer measures) in world frame
+    specific_force_world = a_world - g_world;
+    % map to body frame
+    accel_body(i,:) = (R' * specific_force_world')';
 
     % Gyroscope: compute angular velocity from change in velocity direction (axis-angle)
     if i > 1
@@ -184,7 +190,7 @@ for i = 1:N
             end
         end
         % rotate angular velocity into body frame
-        gyro_body(i,:) = (R' * omega_world')';
+        gyro_body(i,:) = rad2deg(R' * omega_world')';
     else
         gyro_body(i,:) = [0,0,0];
     end
@@ -195,7 +201,13 @@ for i = 1:N
     mag_body(i,:) = (R' * mag_world')';
 
     % Barometer: altitude is pos_world z (Up). Use initial alt0 as reference.
-    baro(i) = alt0 + pos_world(i,3);
+    % Barometer: output pressure [Pa] corresponding to altitude (alt0 + pos_world.z)
+    % Use standard barometric formula inverse: P = P0 * (1 - alt/44330)^(1/0.1903)
+    alt = alt0 + pos_world(i,3);
+    P0 = 101325; % sea-level standard pressure [Pa]
+    % guard against negative alt > 44330 which would give complex
+    alt_clip = min(alt, 44330 - eps);
+    baro(i) = P0 * (1 - (alt_clip / 44330))^(1/0.1903);
 
     % GPS: convert pos_world (East,North) in meters to lat/lon
     % Use conversion: lat = lat0 + north_m * 9.0e-6; lon = lon_prev + east_m * 9.0e-6 / cos(lat_prev)
@@ -210,11 +222,10 @@ for i = 1:N
     dlon = east_m * (9.0e-6 / max(cosd(lat_prev), 1e-6));
     gps_lat(i) = lat0 + dlat;
     gps_lon(i) = lon0 + dlon;
-    gps_alt(i) = baro(i);
+    % GPS altitude should be altitude in meters (not barometer pressure)
+    gps_alt(i) = alt;
 end
 
-% Convert gyro to deg/s for output
-gyro_body = rad2deg(gyro_body);
 
 % Add sensor noise if provided
 if isfield(params, 'noise')

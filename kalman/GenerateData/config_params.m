@@ -8,7 +8,7 @@ params = struct();
 
 % Simulation timing
 params.dt = 0.0025;     % Sample period (seconds) - 10Hz
-params.T = 100;       % Total simulation time (seconds)
+params.T = 1;       % Total simulation time (seconds)
 
 % Motion type selection
 params.motion_type = 'circular';  % 'circular' or 'random_walk'
@@ -32,7 +32,7 @@ params.motion = struct();
 params.motion.circular = struct();
 params.motion.circular.radius = 50;       % Circular trajectory radius (meters)
 params.motion.circular.omega = 5;       % Angular velocity (deg/s)
-params.motion.circular.altitude = 100;    % Flight altitude (meters above sea level)
+params.motion.circular.altitude = 0;    % Flight altitude (meters above sea level)
 
 % Random walk parameters  
 params.motion.random_walk = struct();
