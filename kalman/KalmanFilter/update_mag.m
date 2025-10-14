@@ -7,8 +7,12 @@ function [q, P] = update_mag(q, P, m_meas)
     % predicted magnetic vector in body frame (from predicted attitude q)
     Rb = quat_lib('quat_to_rotm', q);
     h_mag = Rb' * m_world;
+    
 
-    q_obs = quat_lib('vector_to_quat', h_mag, m_meas);
+    q_obs = quat_lib('vector_to_quat', m_meas, h_mag);
+    angle = quat_lib('quat_to_euler', q_obs);
+    fprintf('h_mag: [%.2f, %.2f, %.2f], m_meas: [%.2f, %.2f, %.2f], angle: [%.2f, %.2f, %.2f]\n', ...
+        h_mag(1), h_mag(2), h_mag(3), m_meas(1), m_meas(2), m_meas(3), angle(1), angle(2), angle(3));
 
     % Convert observation quaternion to a small-angle vector (3x1)
     qw = q_obs(1);
@@ -45,7 +49,7 @@ function [q, P] = update_mag(q, P, m_meas)
 
     dx = K * y;
 
-    % apply full small-angle correction (on 3 orientation states)
+    % % apply full small-angle correction (on 3 orientation states)
     dtheta = dx(7:9);
     dq = quat_lib('small_angle_quat', dtheta);
     q = quat_lib('quatmultiply', q, dq);

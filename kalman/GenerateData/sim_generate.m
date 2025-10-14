@@ -96,21 +96,18 @@ end
 % Compute body velocities and attitudes according to heading_mode
 for i = 1:N
     vx = vel_world(i,1); vy = vel_world(i,2);
+
     if strcmp(heading_mode, 'fixed_north')
         yaw = 0;
     else
-        speed = hypot(vx,vy);
-        if speed < 1e-8
-            yaw = 0;
-        else
-            % yaw = atan2(vx, vy) so that 0 rad => facing North (+Y)
-            yaw = atan2(vx, vy);
-        end
+    
+    yaw = mod(-atan2(vx, vy), 2*pi);
     end
     attitude(i,1:2) = [0,0];
     attitude(i,3) = yaw;
-    Rbw = eul2rotm([attitude(i,3), attitude(i,2), attitude(i,1)], 'ZYX');
-    Rwb = Rbw';
+
+    R = eul2rotm([attitude(i,3), attitude(i,2), attitude(i,1)], 'ZYX');
+    
     if strcmp(heading_mode, 'align_velocity')
         % Per spec: in align_velocity mode, body-frame velocity should have x=0, y=|v|, z=0.
         % Compute speed in horizontal plane and set body velocity accordingly.
@@ -119,7 +116,7 @@ for i = 1:N
         % store the desired body-frame vector directly so x component is 0 as requested.
         vel_body(i,:) = [0, speed, 0];
     else
-        vel_body(i,:) = (Rwb * vel_world(i,:)')';
+        vel_body(i,:) = (R' * vel_world(i,:)')';
     end
 end
 

@@ -55,9 +55,11 @@ for k = 1:N
     results.p(:,k) = p;
     results.v(:,k) = v;
     euler_angles = quat_lib('quat_to_euler', q);
-    roll = euler_angles(1);
-    pitch = euler_angles(2);
+    pitch = euler_angles(1);
+    roll = euler_angles(2);
     yaw = euler_angles(3);
+    % fprintf('P[%.2f, %.2f], V[%.2f, %.2f], Yaw: %.2f \n', ...
+    %     p(1), p(2), v(1), v(2), yaw);
     results.euler(:,k) = [roll; pitch; yaw];
 end
 

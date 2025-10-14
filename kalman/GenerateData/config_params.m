@@ -30,7 +30,7 @@ params.motion = struct();
 
 % Circular motion parameters
 params.motion.circular = struct();
-params.motion.circular.radius = 50;       % Circular trajectory radius (meters)
+params.motion.circular.radius = 10;       % Circular trajectory radius (meters)
 params.motion.circular.omega = 5;       % Angular velocity (deg/s)
 params.motion.circular.altitude = 0;    % Flight altitude (meters above sea level)
 

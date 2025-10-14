@@ -6,6 +6,9 @@ function varargout = quat_lib(action, varargin)
     %   q = quat_lib('quatmultiply', q1, q2)
     %   S = quat_lib('skew', v)
 
+    % Small-value threshold: treat values smaller than EPS as zero
+    EPS = 1.0e-9;
+
     switch lower(action)
         case 'quat_to_rotm'
             q = varargin{1}; q = q(:); q = quat_lib('quatnormalize', q);
@@ -13,6 +16,22 @@ function varargout = quat_lib(action, varargin)
             R = [1-2*(qy^2+qz^2), 2*(qx*qy-qz*qw),   2*(qx*qz+qy*qw);
                 2*(qx*qy+qz*qw),   1-2*(qx^2+qz^2), 2*(qy*qz-qx*qw);
                 2*(qx*qz-qy*qw),   2*(qy*qz+qx*qw), 1-2*(qx^2+qy^2)];
+            
+            for i=1:3
+                for j=1:3
+                    if abs(R(i,j)) < EPS
+                        R(i,j) = 0;
+                    end
+                    if abs(R(i,j)-1) < EPS
+                        if R(i,j) < 0
+                            R(i,j) = -1;
+                        else
+                            R(i,j) = 1;
+                        end
+                    end
+                end
+            end
+
             varargout{1} = R;
         case 'quatnormalize'
             q = varargin{1}; q = q(:);
@@ -22,10 +41,13 @@ function varargout = quat_lib(action, varargin)
                 q = [1;0;0;0];
             else
                 n = norm(q);
-                if n < eps
+                if n < EPS
+                    % norm too small -> reset to identity
                     q = [1;0;0;0];
                 else
                     q = q / n;
+                    % zero-out tiny elements for numerical cleanliness
+                    q(abs(q) < EPS) = 0;
                 end
             end
             varargout{1} = q;
@@ -47,7 +69,8 @@ function varargout = quat_lib(action, varargin)
             % convert small rotation vector theta (3x1) to quaternion approx
             th = varargin{1}(:);
             th2 = th'*th;
-            if th2 < 1e-8
+            % use EPS^2 as threshold for small-angle check
+            if th2 < EPS^2
                 q = [1; 0.5*th];
             else
                 angle = sqrt(th2);
@@ -83,17 +106,49 @@ function varargout = quat_lib(action, varargin)
             cosy_cosp = 1 - 2 * (qy^2 + qz^2);
             yaw = atan2(siny_cosp, cosy_cosp);
 
-            varargout{1} = [roll; pitch; yaw];
+            % Convert output to degrees (project uses degrees for euler outputs)
+            
+            pitch = pitch * 180 / pi;
+            roll = roll * 180 / pi;
+            yaw = yaw * 180 / pi;
+
+            if pitch < 0
+                pitch = pitch + 360;
+            end
+            if roll < 0
+                roll = roll + 360;
+            end
+            if yaw < 0
+                yaw = yaw + 360;
+            end
+
+            varargout{1} = [pitch; roll; yaw];
         case 'vector_to_quat'
             v1 = varargin{1}(:); % First vector
             v2 = varargin{2}(:); % Second vector
 
-            % Normalize the input vectors
-            v1 = v1 / norm(v1);
-            v2 = v2 / norm(v2);
+            % Normalize the input vectors, guard against near-zero norms
+            n1 = norm(v1);
+            n2 = norm(v2);
+            if n1 < EPS
+                warning('vector_to_quat: first input vector norm too small; using default [1;0;0]');
+                v1 = [1;0;0];
+            else
+                v1 = v1 / n1;
+            end
+            if n2 < EPS
+                warning('vector_to_quat: second input vector norm too small; using default [1;0;0]');
+                v2 = [1;0;0];
+            else
+                v2 = v2 / n2;
+            end
 
             % Compute the quaternion
-            dot_product = dot(v1, v2);
+            if abs(dot(v1, v2)) > EPS
+                dot_product = dot(v1, v2);
+            else
+                dot_product = 0;
+            end
             cross_product = cross(v1, v2);
 
             qw = 1 + dot_product;

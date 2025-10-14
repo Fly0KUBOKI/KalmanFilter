@@ -38,10 +38,10 @@ function [p, v, q, ba, bg, P] = update_accel(p, v, q, ba, bg, P, a_meas, dt)
     dx = K * y;
 
     % apply small corrections (roll/pitch only)
-    dtheta_rp = [dx(7); dx(8); 0];
-    dq = quat_lib('small_angle_quat', dtheta_rp);
-    q = quat_lib('quatmultiply', q, dq);
-    q = quat_lib('quatnormalize', q);
+    % dtheta_rp = [dx(7); dx(8); 0];
+    % dq = quat_lib('small_angle_quat', dtheta_rp);
+    % q = quat_lib('quatmultiply', q, dq);
+    % q = quat_lib('quatnormalize', q);
 
     % update accel bias
     ba = ba + dx(10:12);

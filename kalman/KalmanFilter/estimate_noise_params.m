@@ -9,6 +9,7 @@ function [Q, R_gps, R_mag, R_baro] = estimate_noise_params(obs)
         sigma_a = std(accel_norm(is_stationary));
         gyro_norm = sqrt(obs.wx.^2 + obs.wy.^2 + obs.wz.^2);
         sigma_g = std(gyro_norm(is_stationary));
+        % sigma_g = deg2rad(sigma_g);
         mag_norm = sqrt(obs.mx.^2 + obs.my.^2 + obs.mz.^2);
         sigma_m = std(mag_norm(is_stationary));
     else

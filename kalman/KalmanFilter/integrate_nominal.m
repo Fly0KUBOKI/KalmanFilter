@@ -15,8 +15,7 @@ w = w_meas - bg;
 Rb = quat_lib('quat_to_rotm', q);
 
 % 世界座標系での加速度
-% a_world = Rb * a;
-a_world = a;
+a_world = Rb * a;
 
 % integrate
 v = v + (a_world - g) * dt;

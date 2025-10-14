@@ -18,6 +18,8 @@ g = [0;0;9.81];
 % extract measurements at time k
 a = [obs.ax(k); obs.ay(k); obs.az(k)];
 w = [obs.wx(k); obs.wy(k); obs.wz(k)];
+% sensor CSV provides gyro in deg/s; convert to rad/s for internal use
+w = deg2rad(w);
 
 % nominal integration
 [p, v, q, ba, bg] = integrate_nominal(p, v, q, ba, bg, a, w, dt, g);
