@@ -7,9 +7,9 @@ a = a_meas - ba;
 w = w_meas - bg;
 
 % update quaternion
-% delta_q = quat_lib('small_angle_quat', w * dt);
-% q = quat_lib('quatmultiply', q, delta_q);
-% q = quat_lib('quatnormalize', q);
+delta_q = quat_lib('small_angle_quat', w * dt);
+q = quat_lib('quatmultiply', q, delta_q);
+q = quat_lib('quatnormalize', q);
 
 % rotation matrix body <- world
 Rb = quat_lib('quat_to_rotm', q);

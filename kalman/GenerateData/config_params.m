@@ -8,7 +8,7 @@ params = struct();
 
 % Simulation timing
 params.dt = 0.0025;     % Sample period (seconds) - 10Hz
-params.T = 10;       % Total simulation time (seconds)
+params.T = 60;       % Total simulation time (seconds)
 
 % Motion type selection
 params.motion_type = 'circular';  % 'circular' or 'random_walk'
@@ -19,11 +19,11 @@ params.heading_mode = 'align_velocity'; % 'fixed_north' or 'align_velocity'
 
 % Sensor noise parameters (1-sigma standard deviations)
 params.noise = struct();
-params.noise.accel_std = 0.0;   % Accelerometer noise (m/s^2)
+params.noise.accel_std = 0.1;   % Accelerometer noise (m/s^2)
 params.noise.gyro_std = 0.0;   % Gyroscope noise (deg/s)
 params.noise.mag_std = 0.0;      % Magnetometer noise (nT)
-params.noise.baro_std = 0.0;     % Barometer noise (meters)
-params.noise.gps_std = 0.0;      % GPS position noise (meters)
+params.noise.baro_std = 1.0;     % Barometer noise (meters)
+params.noise.gps_std = 1.0;      % GPS position noise (meters)
 
 % Motion parameters
 params.motion = struct();
