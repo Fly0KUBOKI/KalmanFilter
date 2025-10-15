@@ -8,7 +8,7 @@ params = struct();
 
 % Simulation timing
 params.dt = 0.0025;     % Sample period (seconds) - 10Hz
-params.T = 60;       % Total simulation time (seconds)
+params.T = 100;       % Total simulation time (seconds)
 
 % Motion type selection
 params.motion_type = 'circular';  % 'circular' or 'random_walk'
@@ -48,8 +48,8 @@ params.gps_origin.alt = 0;        % Sea level reference (meters)
 
 % Initial conditions (all in body frame except GPS position)
 params.initial = struct();
-params.initial.gps_position = [params.gps_origin.lat, params.gps_origin.lon, 100];  % Initial GPS [lat, lon, alt]
-params.initial.velocity = [5, 0, 0];       % Initial velocity [Forward, Right, Down] (m/s) - body frame
+params.initial.gps_position = [params.gps_origin.lat, params.gps_origin.lon, 0];  % Initial GPS [lat, lon, alt]
+params.initial.velocity = [0, 0, 0];       % Initial velocity [Forward, Right, Down] (m/s) - body frame
 params.initial.attitude = [0, 0, 0];       % Initial attitude [Roll, Pitch, Yaw] (degrees)
 
 % Output settings: directory and filenames for CSV outputs

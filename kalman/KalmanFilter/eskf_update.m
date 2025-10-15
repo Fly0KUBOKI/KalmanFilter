@@ -41,7 +41,9 @@ if isfield(settings,'freq_gps') && mod(k, settings.freq_gps) == 0 && ~isnan(obs.
     if ~isfield(settings,'gps_origin')
         settings.gps_origin = [obs.lat(1); obs.lon(1); obs.alt(1)];
     end
-    [p, v, q, ba, bg, P] = update_gps(p, v, q, ba, bg, P, obs.lat(k), obs.lon(k), obs.alt(k), settings.gps_origin);
+    
+    gps_dt = settings.dt * settings.freq_gps;
+    [p, v, q, ba, bg, P] = update_gps(p, v, q, ba, bg, P, obs.lat(k), obs.lon(k), obs.alt(k), settings.gps_origin, gps_dt);
 end
 
 status = struct('updated',true,'k',k);

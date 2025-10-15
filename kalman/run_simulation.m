@@ -65,6 +65,9 @@ for k = 1:N
     results.euler(:,k) = [roll; pitch; yaw];
     results.ba(:,k) = ba;
     results.bg(:,k) = bg;
+    if mod(k, 100) == 0
+        fprintf('Step %d / %d\n', k, N);
+    end
 end
 
 outDir = fullfile(projRoot, 'Results');
@@ -83,7 +86,7 @@ T.Properties.VariableNames = {'time','px','py','pz','vx','vy','vz','roll','pitch
 writetable(T, outFile);
 
 % 可視化
-plot_csv(outFile);
+plot_csv(outFile, 'time');
 
 fprintf('Estimation saved to %s\n', outFile);
 end

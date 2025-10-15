@@ -23,9 +23,28 @@ function [p, P] = update_baro(p, P, pressure)
     K = compute_kalman_gain(P, H, S);
 
     dx = K * y;
-    % update only pz
-    p(3) = p(3) + dx(3);
 
+    % apply significance threshold to altitude correction (meters)
+    % derive measurement std from R_used and enforce a minimum threshold
+    % so very small corrections are ignored
+   
+    
+    meas_var = max(R_used, eps);
+    meas_std = sqrt(meas_var);
+    user_min_m = 0.1; % meters (minimum threshold to apply baro correction)
+    apply_thresh = max(user_min_m, meas_std);
+
+    % only apply vertical position correction if it exceeds threshold
+    if abs(dx(3)) >= apply_thresh
+        p(3) = p(3) + dx(3);
+        fprintf('dz = %g m (thresh=%g)\n', dx(3), apply_thresh);
+    end
+
+    % prepare x_pred for covariance update (state after applying correction)
     x_pred = zeros(15,1);
+    x_pred(1:3) = p;
+
+    
+
     [~, P] = update_state_covariance(x_pred, P, K, H, y, R_used);
 end

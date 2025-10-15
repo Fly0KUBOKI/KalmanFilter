@@ -67,16 +67,17 @@ function [p, v, q, ba, bg, P] = update_accel(p, v, q, ba, bg, P, a_meas, dt)
         if abs(dtheta(i)) < apply_thresh_vec(i)
             dtheta(i) = 0;
         end
+        bias_idx = 9 + i; % 10,11,12
+        % use measurement std (meas_std_i) as a simple significance threshold
+        if abs(dx(bias_idx)) > meas_std_i
+            % ba(i) = ba(i) + dx(bias_idx);
+        end
     end
 
     dq = quat_lib('small_angle_quat', dtheta);
     q = quat_lib('quatmultiply', q, dq);
     q = quat_lib('quatnormalize', q);
-   
-    % update accel bias
-    % ba = ba + dx(10:12);
-    % fprintf('ba: [%f, %f, %f]\n', ba(1), ba(2), ba(3));
-
+    
     % update covariance
     x_pred = zeros(15,1);
     x_pred(1:3) = p; x_pred(4:6) = v; x_pred(7:9) = zeros(3,1);
