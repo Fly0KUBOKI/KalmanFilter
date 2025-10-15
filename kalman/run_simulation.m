@@ -40,6 +40,8 @@ results.time = obs.time(:)';
 results.p = zeros(3, N);
 results.v = zeros(3, N);
 results.euler = zeros(3, N);
+results.ba = zeros(3, N);
+results.bg = zeros(3, N);
 
 % initial nominal state
 p = zeros(3,1);
@@ -61,6 +63,8 @@ for k = 1:N
     % fprintf('P[%.2f, %.2f], V[%.2f, %.2f], Yaw: %.2f \n', ...
     %     p(1), p(2), v(1), v(2), yaw);
     results.euler(:,k) = [roll; pitch; yaw];
+    results.ba(:,k) = ba;
+    results.bg(:,k) = bg;
 end
 
 outDir = fullfile(projRoot, 'Results');
@@ -68,10 +72,14 @@ if ~exist(outDir,'dir'), mkdir(outDir); end
 outFile = fullfile(outDir, 'estimation.csv');
 
 % 保存
-T = table(results.time(:), results.p(1,:)', results.p(2,:)', results.p(3,:)', ...
+T = table(results.time(:), ...  
+    results.p(1,:)', results.p(2,:)', results.p(3,:)', ...
     results.v(1,:)', results.v(2,:)', results.v(3,:)', ...
-    results.euler(1,:)', results.euler(2,:)', results.euler(3,:)');
-T.Properties.VariableNames = {'time','px','py','pz','vx','vy','vz','roll','pitch','yaw'};
+    results.euler(1,:)', results.euler(2,:)', results.euler(3,:)', ...
+    results.ba(1,:)', results.ba(2,:)', results.ba(3,:)', ...
+    results.bg(1,:)', results.bg(2,:)', results.bg(3,:)');
+
+T.Properties.VariableNames = {'time','px','py','pz','vx','vy','vz','roll','pitch','yaw','ba_x','ba_y','ba_z','bg_x','bg_y','bg_z'};
 writetable(T, outFile);
 
 % 可視化

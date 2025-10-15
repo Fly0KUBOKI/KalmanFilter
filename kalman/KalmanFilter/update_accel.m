@@ -5,6 +5,15 @@ function [p, v, q, ba, bg, P] = update_accel(p, v, q, ba, bg, P, a_meas, dt)
     g_world = [0;0;9.81];
     Rb = quat_lib('quat_to_rotm', q);
 
+    % Only use accel gravity update when vehicle is approximately stationary.
+    % Prevents centripetal/linear accelerations from being absorbed into accel bias.
+    accel_norm = norm(a_meas);
+    stationary_thresh = 0.5; % m/s^2 tolerance around gravity magnitude
+    if abs(accel_norm - 9.81) > stationary_thresh
+        % skip accel-based update; return inputs unchanged
+        return;
+    end
+
     % predicted specific force in body frame (model)
     h_accel = Rb' * g_world;
 
@@ -37,14 +46,35 @@ function [p, v, q, ba, bg, P] = update_accel(p, v, q, ba, bg, P, a_meas, dt)
     K = compute_kalman_gain(P, H, S);
     dx = K * y;
 
-    % apply small corrections (roll/pitch only)
-    % dtheta_rp = [dx(7); dx(8); 0];
-    % dq = quat_lib('small_angle_quat', dtheta_rp);
-    % q = quat_lib('quatmultiply', q, dq);
-    % q = quat_lib('quatnormalize', q);
+    % apply small corrections (roll/pitch only) using Kalman correction dx
+    % dx(7:9) contains small-angle attitude error estimate (theta_x, theta_y, theta_z)
+    % For accel-based update only roll/pitch are observable; ignore yaw component.
+    dtheta = [dx(7); dx(8); 0];
+    
 
+    % derive per-axis angle threshold from measurement noise R_used
+    % Use Jacobian H_theta = -skew(h_accel) to map small-angle -> accel change
+    H_theta = -quat_lib('skew', h_accel);
+    user_min = 0.001; % radians (minimum threshold)
+    apply_thresh_vec = zeros(3,1);
+    for i = 1:3
+        noise_var = R_used(i,i);
+        meas_std_i = sqrt(max(noise_var, eps)); % m/s^2
+        sens_i = max(norm(H_theta(:,i)), eps);
+        theta_thresh_i = meas_std_i / sens_i;
+        apply_thresh_vec(i) = max(user_min, theta_thresh_i);
+        % zero out small corrections per-axis (compare absolute value)
+        if abs(dtheta(i)) < apply_thresh_vec(i)
+            dtheta(i) = 0;
+        end
+    end
+
+    dq = quat_lib('small_angle_quat', dtheta);
+    q = quat_lib('quatmultiply', q, dq);
+    q = quat_lib('quatnormalize', q);
+   
     % update accel bias
-    ba = ba + dx(10:12);
+    % ba = ba + dx(10:12);
     % fprintf('ba: [%f, %f, %f]\n', ba(1), ba(2), ba(3));
 
     % update covariance

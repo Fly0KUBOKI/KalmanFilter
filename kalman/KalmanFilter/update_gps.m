@@ -33,7 +33,10 @@ function [p, v, q, ba, bg, P] = update_gps(p, v, q, ba, bg, P, lat, lon, alt, or
     % % Apply corrections
     p = p + dx(1:3);
     v = v + dx(4:6);
+    % fprintf('P[%.2f, %.2f], V[%.2f, %.2f]\n', p(1), p(2), v(1), v(2));
 
+
+    % absorbing unmodelled motion into sensor biases.
     ba = ba + dx(10:12);
     % bg = bg + dx(13:15);
 

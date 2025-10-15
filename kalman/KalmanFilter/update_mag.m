@@ -12,8 +12,8 @@ function [q, P] = update_mag(q, P, m_meas)
     % measurement z and predicted measurement h
     z = m_meas;
     h = h_mag;
-    fprintf('Measured mag: [%.2f, %.2f, %.2f], Predicted mag: [%.2f, %.2f, %.2f]\n', ...
-        z(1), z(2), z(3), h(1), h(2), h(3));
+    % fprintf('Measured mag: [%.2f, %.2f, %.2f], Predicted mag: [%.2f, %.2f, %.2f]\n', ...
+    %     z(1), z(2), z(3), h(1), h(2), h(3));
 
     % measurement matrix: derivative of body-frame vector wrt small-angle orientation
     % Note: magnetic vector rotates opposite to the body rotation, so flip sign
@@ -40,9 +40,27 @@ function [q, P] = update_mag(q, P, m_meas)
 
     % apply small-angle correction (orientation states 7:9)
     dtheta = dx(7:9);
+
+    
+    user_min = 0.001; % radians
+
+    % Per-axis thresholding based on measurement std (sqrt of variance)
+    apply_thresh = zeros(3,1);
+    for i = 1:3
+        noise = R_used(i,i)*0.1;
+        meas_std_i = sqrt(max(noise, eps)); % units of measurement (nT)
+        % map measurement std to angle threshold approximately using overall |h|
+        theta_thresh_i = meas_std_i / max(norm(h), eps);
+        apply_thresh(i) = max(user_min, theta_thresh_i);
+        % zero out small corrections (compare absolute value)
+        if abs(dtheta(i)) < apply_thresh(i)
+            dtheta(i) = 0;
+        end
+    end
     dq = quat_lib('small_angle_quat', dtheta);
     q = quat_lib('quatmultiply', q, dq);
     q = quat_lib('quatnormalize', q);
+   
 
     % update covariance (x_pred is not used for nominal here)
     x_pred = zeros(15,1);

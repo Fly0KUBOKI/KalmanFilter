@@ -112,16 +112,6 @@ function varargout = quat_lib(action, varargin)
             roll = roll * 180 / pi;
             yaw = yaw * 180 / pi;
 
-            if pitch < 0
-                pitch = pitch + 360;
-            end
-            if roll < 0
-                roll = roll + 360;
-            end
-            if yaw < 0
-                yaw = yaw + 360;
-            end
-
             varargout{1} = [pitch; roll; yaw];
         case 'vector_to_quat'
             v1 = varargin{1}(:); % First vector
