@@ -91,6 +91,9 @@ for i = 1:N
             vel_world(i,:) = (pos_world(i,:) - pos_world(i-1,:)) / dt;
         end
     end
+    if mod(i, 100) == 0
+        fprintf('Generated step1 %d / %d\n', i, N);
+    end
 end
 
 % Compute body velocities and attitudes according to heading_mode
@@ -117,6 +120,9 @@ for i = 1:N
         vel_body(i,:) = [0, speed, 0];
     else
         vel_body(i,:) = (R' * vel_world(i,:)')';
+    end
+    if mod(i, 100) == 0
+        fprintf('Generated step2 %d / %d\n', i, N);
     end
 end
 
@@ -221,6 +227,9 @@ for i = 1:N
     gps_lon(i) = lon0 + dlon;
     % GPS altitude should be altitude in meters (not barometer pressure)
     gps_alt(i) = alt;
+    if mod(i, 100) == 0
+        fprintf('Generated step3 %d / %d\n', i, N);
+    end
 end
 
 

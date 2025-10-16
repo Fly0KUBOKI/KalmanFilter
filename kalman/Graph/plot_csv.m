@@ -6,7 +6,7 @@ function varargout = plot_csv(filePath, mode)
         filePath = fullfile(fileparts(mfilename('fullpath')),'..','Results','estimation.csv');
     end
     if nargin<2 || isempty(mode)
-        mode = 'time';
+        mode = 'pos';
     end
 
     T = readtable(filePath);
@@ -74,6 +74,9 @@ function varargout = plot_csv(filePath, mode)
                 set(hq, 'XData', 0, 'YData', 0, 'UData', U(i), 'VData', V(i));
                 drawnow limitrate
             end
+        
+        otherwise
+            error('Unknown mode: %s', mode);
     end
 
     if nargout>0
