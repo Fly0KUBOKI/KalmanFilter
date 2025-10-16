@@ -58,7 +58,7 @@ function [p, v, q, ba, bg, P] = update_accel(p, v, q, ba, bg, P, a_meas, dt)
     user_min = 0.001; % radians (minimum threshold)
     apply_thresh_vec = zeros(3,1);
     for i = 1:3
-        noise_var = R_used(i,i);
+        noise_var = R_used(i,i) * 2;
         meas_std_i = sqrt(max(noise_var, eps)); % m/s^2
         sens_i = max(norm(H_theta(:,i)), eps);
         theta_thresh_i = meas_std_i / sens_i;
@@ -74,7 +74,6 @@ function [p, v, q, ba, bg, P] = update_accel(p, v, q, ba, bg, P, a_meas, dt)
         end
     end
 
-    fprintf('dtheta: %f %f %f\n', dtheta(1), dtheta(2), dtheta(3));
     dq = quat_lib('small_angle_quat', dtheta);
     q = quat_lib('quatmultiply', q, dq);
     q = quat_lib('quatnormalize', q);
