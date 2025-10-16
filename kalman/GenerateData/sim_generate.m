@@ -14,7 +14,7 @@ T = params.T;
 N = floor(T/dt)+1;
 t = (0:N-1)' * dt;
 
-% --- Convert angle-configs provided in degrees (user-facing) into radians for internals ---
+%% --- Convert angle-configs provided in degrees (user-facing) into radians for internals ---
 if isfield(params, 'initial') && isfield(params.initial, 'attitude')
     % initial.attitude is specified in degrees in config; convert to radians for internal use
     params.initial.attitude = deg2rad(params.initial.attitude);
@@ -35,8 +35,7 @@ attitude = zeros(N,3);     % [alpha(roll), beta(pitch), gamma(yaw)]
 vel_body = zeros(N,3);     % body-frame velocity (alpha,beta,gamma naming)
 accel_body = zeros(N,3);
 
-% Initial conditions
-attitude(1,:) = params.initial.attitude; % radians
+%% Initial conditions
 pos_world(1,:) = [0, 0, 0];
 
 motion_type = params.motion_type;
@@ -80,7 +79,7 @@ else
     error('Unknown motion_type: %s. Use ''circular'' or ''random_walk''', motion_type);
 end
 
-% Finite difference velocities for any missing entries
+%% Finite difference velocities for any missing entries
 for i = 1:N
     if i == 1
         if all(vel_world(1,:) == 0) && N > 1
@@ -96,7 +95,7 @@ for i = 1:N
     end
 end
 
-% Compute body velocities and attitudes according to heading_mode
+%% Compute body velocities and attitudes according to heading_mode
 for i = 1:N
     vx = vel_world(i,1); vy = vel_world(i,2);
 
@@ -127,7 +126,7 @@ for i = 1:N
 end
 
 
-% Generate sensor observations
+%% Generate sensor observations
 gyro_body = zeros(N,3);
 mag_body = zeros(N,3);
 baro = zeros(N,1);
@@ -233,7 +232,7 @@ for i = 1:N
 end
 
 
-% Add sensor noise if provided
+%% Add sensor noise if provided
 if isfield(params, 'noise')
     accel_body = accel_body + randn(N,3) * params.noise.accel_std;
     gyro_body = gyro_body + randn(N,3) * params.noise.gyro_std;
@@ -245,7 +244,7 @@ if isfield(params, 'noise')
     gps_alt = gps_alt + randn(N,1) * params.noise.gps_std;
 end
 
-% Prepare truth data: time, world position (x,y,z), world velocity (vx,vy,vz), attitude (alpha,beta,gamma)
+%% Prepare truth data: time, world position (x,y,z), world velocity (vx,vy,vz), attitude (alpha,beta,gamma)
 % Convert attitude to degrees for readability
 att_deg = rad2deg(attitude);
 truth_data = [t, pos_world, vel_world, att_deg];
@@ -258,7 +257,7 @@ sensor_headers = {'time', 'accel_x', 'accel_y', 'accel_z', ...
                   'mag_x', 'mag_y', 'mag_z', ...
                   'baro', 'gps_lat', 'gps_lon', 'gps_alt'};
 
-% Save to CSV files (write into params.output if provided)
+%% Save to CSV files (write into params.output if provided)
 out_dir = '.';
 if isfield(params, 'output') && isfield(params.output, 'dir') && ~isempty(params.output.dir)
     out_dir = params.output.dir;

@@ -74,6 +74,7 @@ function [p, v, q, ba, bg, P] = update_accel(p, v, q, ba, bg, P, a_meas, dt)
         end
     end
 
+    fprintf('dtheta: %f %f %f\n', dtheta(1), dtheta(2), dtheta(3));
     dq = quat_lib('small_angle_quat', dtheta);
     q = quat_lib('quatmultiply', q, dq);
     q = quat_lib('quatnormalize', q);
