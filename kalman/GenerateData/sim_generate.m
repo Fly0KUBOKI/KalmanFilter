@@ -48,13 +48,50 @@ if strcmp(motion_type, 'circular')
     radius = params.motion.circular.radius;
     omega = params.motion.circular.omega;
     altitude = params.motion.circular.altitude;
+    
+    % Soft start parameters
+    accel_time = 5;  % Default acceleration time
+    if isfield(params.motion.circular, 'accel_time')
+        accel_time = params.motion.circular.accel_time;
+    end
+    
+    % Center of rotation at (-r, 0) so that start position is (0, 0)
+    % When angle=0: x = -r + r*cos(0) = 0, y = 0 + r*sin(0) = 0
+    center_x = -radius;
+    center_y = 0;
+    
+    % Initialize angle (theta) and angular rate (theta_dot)
+    theta = 0;            % [rad]
+    theta_dot = 0;        % [rad/s]
+    
     for i = 1:N
-        angle = omega * t(i);
-        pos_world(i,1) = radius * cos(angle);   % East
-        pos_world(i,2) = radius * sin(angle);   % North
-        pos_world(i,3) = altitude;               % Up
-        vel_world(i,1) = -radius * omega * sin(angle);
-        vel_world(i,2) =  radius * omega * cos(angle);
+        % Compute angular speed scaling factor for soft start (0 to 1)
+        if t(i) < accel_time
+            % Smooth acceleration using cosine function (zero jerk at ends)
+            omega_scale = 0.5 * (1 - cos(pi * t(i) / accel_time));
+        else
+            omega_scale = 1.0;
+        end
+
+        % Current angular velocity
+        theta_dot_cur = omega * omega_scale; % [rad/s]
+
+        % Integrate angle using trapezoidal rule to stay exactly on circle
+        if i == 1
+            theta = 0;
+        else
+            theta = theta + 0.5 * (theta_dot + theta_dot_cur) * dt;
+        end
+        theta_dot = theta_dot_cur;
+
+        % Position: always on the circle (center + r*[cos(theta), sin(theta)])
+        pos_world(i,1) = center_x + radius * cos(theta);   % East
+        pos_world(i,2) = center_y + radius * sin(theta);   % North
+        pos_world(i,3) = altitude;                          % Up
+        
+        % Velocity: derive from angular velocity (tangent to circle)
+        vel_world(i,1) = -radius * theta_dot * sin(theta);
+        vel_world(i,2) =  radius * theta_dot * cos(theta);
         vel_world(i,3) = 0;
     end
 
@@ -102,8 +139,9 @@ for i = 1:N
     if strcmp(heading_mode, 'fixed_north')
         yaw = 0;
     else
-    
-    yaw = mod(-atan2(vx, vy), 2*pi);
+        % Calculate yaw and wrap to [-pi, pi] range
+        yaw = -atan2(vx, vy);
+        yaw = atan2(sin(yaw), cos(yaw));  % Wrap to [-pi, pi]
     end
     attitude(i,1:2) = [0,0];
     attitude(i,3) = yaw;

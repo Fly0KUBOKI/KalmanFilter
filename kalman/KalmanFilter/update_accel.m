@@ -2,6 +2,27 @@ function [p, v, q, ba, bg, P] = update_accel(p, v, q, ba, bg, P, a_meas, dt)
     % UPDATE_ACCEL  加速度センサによる roll/pitch 補正（静止時のみ）
     % This function estimates measurement noise R from innovations using adaptive_R_update
 
+    persistent count accel_int dt_sum
+    if isempty(count)
+        count = 0;
+        accel_int = zeros(3,1);
+        dt_sum = 0;
+    end
+    
+    count = count + 1;
+    accel_int = accel_int + a_meas * dt;
+    dt_sum = dt_sum + dt;
+    
+    if count < 4
+        return;
+    end
+    
+    a_meas = accel_int / dt_sum;
+    dt = dt_sum;
+    count = 0;
+    accel_int = zeros(3,1);
+    dt_sum = 0;
+
     g_world = [0;0;9.81];
     Rb = quat_lib('quat_to_rotm', q);
 
@@ -74,7 +95,6 @@ function [p, v, q, ba, bg, P] = update_accel(p, v, q, ba, bg, P, a_meas, dt)
         end
     end
 
-    fprintf('dtheta: %f %f %f\n', dtheta(1), dtheta(2), dtheta(3));
     dq = quat_lib('small_angle_quat', dtheta);
     q = quat_lib('quatmultiply', q, dq);
     q = quat_lib('quatnormalize', q);

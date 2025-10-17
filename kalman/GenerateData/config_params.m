@@ -19,11 +19,11 @@ params.heading_mode = 'align_velocity'; % 'fixed_north' or 'align_velocity'
 
 % Sensor noise parameters (1-sigma standard deviations)
 params.noise = struct();
-params.noise.accel_std = 0.1;   % Accelerometer noise (m/s^2)
-params.noise.gyro_std = 0.5;   % Gyroscope noise (deg/s)
-params.noise.mag_std = 0.5;      % Magnetometer noise (nT)
-params.noise.baro_std = 1.0;     % Barometer noise (meters)
-params.noise.gps_std = 1.0;      % GPS position noise (meters)
+params.noise.accel_std = 0.0;   % Accelerometer noise (m/s^2)
+params.noise.gyro_std = 0.0;   % Gyroscope noise (deg/s)
+params.noise.mag_std = 0.0;      % Magnetometer noise (nT)
+params.noise.baro_std = 0.0;     % Barometer noise (meters)
+params.noise.gps_std = 0.0;      % GPS position noise (meters)
 
 % Motion parameters
 params.motion = struct();
@@ -31,8 +31,9 @@ params.motion = struct();
 % Circular motion parameters
 params.motion.circular = struct();
 params.motion.circular.radius = 10;       % Circular trajectory radius (meters)
-params.motion.circular.omega = 6;       % Angular velocity (deg/s)
+params.motion.circular.omega = 4;       % Angular velocity (deg/s)
 params.motion.circular.altitude = 0;    % Flight altitude (meters above sea level)
+params.motion.circular.accel_time = 3;  % Soft start acceleration time (seconds)
 
 % Random walk parameters  
 params.motion.random_walk = struct();
