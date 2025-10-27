@@ -39,7 +39,8 @@ accel_body = zeros(N,3);
 pos_world(1,:) = [0, 0, 0];
 
 motion_type = params.motion_type;
-heading_mode = 'fixed_north';
+% default: follow velocity (compute yaw from velocity). Use 'fixed_north' to lock yaw=0.
+heading_mode = 'follow_velocity';
 if isfield(params, 'heading_mode')
     heading_mode = params.heading_mode;
 end
@@ -55,14 +56,17 @@ if strcmp(motion_type, 'circular')
         accel_time = params.motion.circular.accel_time;
     end
     
-    % Center of rotation at (-r, 0) so that start position is (0, 0)
-    % When angle=0: x = -r + r*cos(0) = 0, y = 0 + r*sin(0) = 0
-    center_x = -radius;
+    % Center of rotation at (r, 0) so trajectory is (0,0)→(r,r)→(2r,0)→(r,-r)
+    % 時計回りが負の回転、北=0°、東=-90°、西=90°
+    center_x = radius;    % 要求軌道: 中心(r,0)
     center_y = 0;
     
     % Initialize angle (theta) and angular rate (theta_dot)
-    theta = 0;            % [rad]
+    % 初期位置(0,0)になるようθ=-π/2から開始（東向きスタート、-90°）
+    theta = -pi/2;        % [rad] 東=-90°
     theta_dot = 0;        % [rad/s]
+    % save initial theta for yaw reference
+    theta0 = theta;
     
     for i = 1:N
         % Compute angular speed scaling factor for soft start (0 to 1)
@@ -73,26 +77,36 @@ if strcmp(motion_type, 'circular')
             omega_scale = 1.0;
         end
 
-        % Current angular velocity
-        theta_dot_cur = omega * omega_scale; % [rad/s]
+    % Current angular velocity: use positive omega so theta increases from -pi/2
+    % (this makes the first motion increase y (north) as expected)
+    theta_dot_cur = omega * omega_scale; % [rad/s]
 
         % Integrate angle using trapezoidal rule to stay exactly on circle
         if i == 1
-            theta = 0;
+            % 初期角度はtheta=-π/2のまま（初期位置(0,0)、東向き-90°）
         else
             theta = theta + 0.5 * (theta_dot + theta_dot_cur) * dt;
         end
         theta_dot = theta_dot_cur;
 
-        % Position: always on the circle (center + r*[cos(theta), sin(theta)])
-        pos_world(i,1) = center_x + radius * cos(theta);   % East
-        pos_world(i,2) = center_y + radius * sin(theta);   % North
+        % Position: 時計回りが負、北=0°、東=-90°、西=90°の定義
+        % 中心(r,0)、初期θ=-π/2で軌道(0,0)→(r,r)→(2r,0)→(r,-r)
+        % θ=-π/2→π→π/2→0 の順で時計回りに進む（角度は減少、ただしラップあり）
+        pos_world(i,1) = center_x + radius * sin(theta);   % East
+        pos_world(i,2) = center_y + radius * cos(theta);   % North
         pos_world(i,3) = altitude;                          % Up
         
         % Velocity: derive from angular velocity (tangent to circle)
-        vel_world(i,1) = -radius * theta_dot * sin(theta);
-        vel_world(i,2) =  radius * theta_dot * cos(theta);
+        vel_world(i,1) =  radius * theta_dot * cos(theta);  % East
+        vel_world(i,2) = -radius * theta_dot * sin(theta);  % North
         vel_world(i,3) = 0;
+
+        % roll/pitch はゼロ
+        attitude(i,1:2) = [0,0];  % roll, pitch
+        % yaw は theta の変化量から計算して進行方向と一致させる
+        % yaw = -(theta - theta0), wrap to [-pi, pi]
+        yaw_c = -(theta - theta0);
+        attitude(i,3) = atan2(sin(yaw_c), cos(yaw_c));
     end
 
 elseif strcmp(motion_type, 'random_walk')
@@ -137,14 +151,18 @@ for i = 1:N
     vx = vel_world(i,1); vy = vel_world(i,2);
 
     if strcmp(heading_mode, 'fixed_north')
-        yaw = 0;
+        attitude(i,1:2) = [0,0];
+        attitude(i,3) = 0;  % yaw = 0 (fixed north)
+    elseif strcmp(motion_type, 'circular')
+        % 円運動の場合は既にattitudeが計算済み（上記で設定）    
     else
-        % Calculate yaw and wrap to [-pi, pi] range
-        yaw = -atan2(vx, vy);
+        % その他の場合（random_walk等）は速度から計算
+        % 初期yaw=0°、時計回りが負、反時計回りが正
+        yaw = atan2(-vx, vy);  % 時計回りが負になるよう調整
         yaw = atan2(sin(yaw), cos(yaw));  % Wrap to [-pi, pi]
+        attitude(i,1:2) = [0,0];
+        attitude(i,3) = yaw;
     end
-    attitude(i,1:2) = [0,0];
-    attitude(i,3) = yaw;
 
     R = eul2rotm([attitude(i,3), attitude(i,2), attitude(i,1)], 'ZYX');
     

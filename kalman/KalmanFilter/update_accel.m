@@ -35,14 +35,22 @@ function [p, v, q, ba, bg, P] = update_accel(p, v, q, ba, bg, P, a_meas, dt)
         return;
     end
 
-    % predicted specific force in body frame (model)
-    h_accel = Rb' * g_world;
+    % Convert body-frame acceleration to world frame
+    % 機体座標系の加速度測定値を世界座標系に変換
+    a_body_corrected = a_meas - ba; % バイアス補正
+    a_world = Rb * a_body_corrected; % 世界座標系に変換
+    
+    % predicted specific force in world frame (model)
+    % 世界座標系での予測加速度（重力のみ）
+    h_accel = g_world;
 
-    % measurement (bias removed)
-    z = a_meas - ba;
+    % measurement in world frame
+    z = a_world;
 
     % observation matrix (3 x 15)
-    H = [zeros(3,3), zeros(3,3), -quat_lib('skew', h_accel), -eye(3), zeros(3,3)];
+    % H_theta: da/dtheta in world frame = -R_b * skew(a_body_corrected)
+    H_theta = -Rb * quat_lib('skew', a_body_corrected);
+    H = [zeros(3,3), zeros(3,3), H_theta, -Rb, zeros(3,3)];
 
     % initial R guess
     R0 = eye(3) * (0.01 * sqrt(max(dt,eps)));
@@ -72,32 +80,33 @@ function [p, v, q, ba, bg, P] = update_accel(p, v, q, ba, bg, P, a_meas, dt)
     % For accel-based update only roll/pitch are observable; ignore yaw component.
     dtheta = [dx(7); dx(8); 0];
     
-
     % derive per-axis angle threshold from measurement noise R_used
-    % Use Jacobian H_theta = -skew(h_accel) to map small-angle -> accel change
-    H_theta = -quat_lib('skew', h_accel);
+    % Use Jacobian H_theta to map small-angle -> accel change in world frame
     user_min = 0.001; % radians (minimum threshold)
     apply_thresh_vec = zeros(3,1);
     for i = 1:3
-        noise_var = R_used(i,i) * 2;
+        noise_var = R_used(i,i);
         meas_std_i = sqrt(max(noise_var, eps)); % m/s^2
         sens_i = max(norm(H_theta(:,i)), eps);
         theta_thresh_i = meas_std_i / sens_i;
         apply_thresh_vec(i) = max(user_min, theta_thresh_i);
         % zero out small corrections per-axis (compare absolute value)
-        if abs(dtheta(i)) < apply_thresh_vec(i)
-            dtheta(i) = 0;
-        end
+        % if abs(dtheta(i)) < apply_thresh_vec(i)
+        %     dtheta(i) = 0;
+        % end
         bias_idx = 9 + i; % 10,11,12
         % use measurement std (meas_std_i) as a simple significance threshold
-        if abs(dx(bias_idx)) > meas_std_i
-            % ba(i) = ba(i) + dx(bias_idx);
+        if abs(dx(bias_idx)) < meas_std_i
+            dx(bias_idx) = 0;
         end
     end
 
-    dq = quat_lib('small_angle_quat', dtheta);
-    q = quat_lib('quatmultiply', q, dq);
-    q = quat_lib('quatnormalize', q);
+    fprintf('dtheta applied: [%.4f, %.4f, %.4f] \n', ...
+        dtheta(1), dtheta(2), dtheta(3));
+    % dq = quat_lib('small_angle_quat', dtheta);
+    % q = quat_lib('quatmultiply', q, dq);
+    % q = quat_lib('quatnormalize', q);
+    ba = ba + dx(10:12);
     
     % update covariance
     x_pred = zeros(15,1);
