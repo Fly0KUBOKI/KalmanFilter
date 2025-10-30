@@ -33,8 +33,8 @@ function [p, v, q, ba, bg, P] = update_gps(p, v, q, ba, bg, P, lat, lon, alt, or
     h = p;  % 予測位置
 
     % 観測ノイズ共分散行列の初期値(位置のみ、3x3)
-    % GPS精度に応じて調整(例: 水平5m, 垂直10m)
-    R0 = diag([5.0, 5.0, 10.0]);
+    % GPS精度に応じて調整(水平・垂直の精度を低めに設定して速度修正を促進)
+    R0 = diag([3.0, 3.0, 5.0]);
     y0 = z_meas - h;
 
     % 適応的R更新(オプション)
@@ -57,36 +57,18 @@ function [p, v, q, ba, bg, P] = update_gps(p, v, q, ba, bg, P, lat, lon, alt, or
     % 位置観測から、共分散P経由で速度誤差も推定される
     dx = K * yv;
 
-    % 状態の更新
-    % 位置の修正
+    % % 状態の更新
+    % % 位置の修正
     p = p + dx(1:3);
     
-    % 速度の修正(位置観測から間接的に推定された速度誤差)
+    % % 速度の修正(位置観測から間接的に推定された速度誤差)
     v = v + dx(4:6);
-    
-    % 姿勢の修正(クォータニオン更新)
-    dtheta = dx(7:9);
-    dq = [1; 0.5 * dtheta];  % 小角度近似
-    dq = dq / norm(dq);       % 正規化
-    q = quat_multiply(q, dq);
-    q = q / norm(q);          % 再正規化
-    
+  
     % バイアスの修正
     ba = ba + dx(10:12);
-    bg = bg + dx(13:15);
+    % bg = bg + dx(13:15);
 
     % 共分散行列の更新
     x_pred = zeros(15,1);
     [~, P] = update_state_covariance(x_pred, P, K, H, yv, R_used);
-end
-
-function q_out = quat_multiply(q1, q2)
-    % クォータニオンの乗算 q_out = q1 ⊗ q2
-    w1 = q1(1); v1 = q1(2:4);
-    w2 = q2(1); v2 = q2(2:4);
-    
-    w_out = w1*w2 - dot(v1, v2);
-    v_out = w1*v2 + w2*v1 + cross(v1, v2);
-    
-    q_out = [w_out; v_out];
 end

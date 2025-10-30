@@ -91,22 +91,24 @@ function [p, v, q, ba, bg, P] = update_accel(p, v, q, ba, bg, P, a_meas, dt)
         theta_thresh_i = meas_std_i / sens_i;
         apply_thresh_vec(i) = max(user_min, theta_thresh_i);
         % zero out small corrections per-axis (compare absolute value)
-        % if abs(dtheta(i)) < apply_thresh_vec(i)
-        %     dtheta(i) = 0;
-        % end
+        if abs(dtheta(i)) < apply_thresh_vec(i)*2
+            dtheta(i) = 0;
+        end
         bias_idx = 9 + i; % 10,11,12
         % use measurement std (meas_std_i) as a simple significance threshold
-        if abs(dx(bias_idx)) < meas_std_i
+        if abs(dx(bias_idx)) < meas_std_i*2
             dx(bias_idx) = 0;
         end
     end
 
-    fprintf('dtheta applied: [%.4f, %.4f, %.4f] \n', ...
-        dtheta(1), dtheta(2), dtheta(3));
+    % fprintf('dtheta applied: [%.4f, %.4f, %.4f] \n', ...
+    %     dtheta(1), dtheta(2), dtheta(3));
     % dq = quat_lib('small_angle_quat', dtheta);
     % q = quat_lib('quatmultiply', q, dq);
     % q = quat_lib('quatnormalize', q);
-    ba = ba + dx(10:12);
+    
+    % バイアス更新: dx(10:12)は世界座標系なので機体座標系に変換
+    ba = ba + Rb' * dx(10:12);
     
     % update covariance
     x_pred = zeros(15,1);

@@ -56,6 +56,24 @@ if strcmp(motion_type, 'circular')
         accel_time = params.motion.circular.accel_time;
     end
     
+    % Angular velocity fluctuation parameter
+    angular_std = 0.0;  % Default: no fluctuation
+    if isfield(params.motion.circular, 'angular_std')
+        angular_std = deg2rad(params.motion.circular.angular_std);
+    end
+    
+    % Time constant for low-frequency fluctuation (larger = slower changes)
+    angular_tau = 1.0;  % Default time constant (seconds)
+    if isfield(params.motion.circular, 'angular_tau')
+        angular_tau = params.motion.circular.angular_tau;
+    end
+    
+    % Low-pass filter coefficient for angular velocity fluctuation
+    % alpha = dt / (tau + dt) creates a 1st order low-pass filter
+    % smaller alpha = slower fluctuation
+    alpha = dt / (angular_tau + dt);
+    omega_fluctuation = 0;  % Initialize fluctuation state
+    
     % Center of rotation at (r, 0) so trajectory is (0,0)→(r,r)→(2r,0)→(r,-r)
     % 時計回りが負の回転、北=0°、東=-90°、西=90°
     center_x = radius;    % 要求軌道: 中心(r,0)
@@ -77,9 +95,15 @@ if strcmp(motion_type, 'circular')
             omega_scale = 1.0;
         end
 
-    % Current angular velocity: use positive omega so theta increases from -pi/2
-    % (this makes the first motion increase y (north) as expected)
-    theta_dot_cur = omega * omega_scale; % [rad/s]
+        % Current angular velocity: use positive omega so theta increases from -pi/2
+        % (this makes the first motion increase y (north) as expected)
+        % Add low-frequency angular velocity fluctuation using 1st order low-pass filter
+        if angular_std > 0
+            % Generate white noise and filter it to create slow fluctuation
+            white_noise = randn() * angular_std;
+            omega_fluctuation = (1 - alpha) * omega_fluctuation + alpha * white_noise;
+        end
+        theta_dot_cur = omega * omega_scale + omega_fluctuation; % [rad/s]
 
         % Integrate angle using trapezoidal rule to stay exactly on circle
         if i == 1
@@ -141,7 +165,7 @@ for i = 1:N
             vel_world(i,:) = (pos_world(i,:) - pos_world(i-1,:)) / dt;
         end
     end
-    if mod(i, 100) == 0
+    if mod(i, 1000) == 0
         fprintf('Generated step1 %d / %d\n', i, N);
     end
 end
@@ -176,7 +200,7 @@ for i = 1:N
     else
         vel_body(i,:) = (R' * vel_world(i,:)')';
     end
-    if mod(i, 100) == 0
+    if mod(i, 1000) == 0
         fprintf('Generated step2 %d / %d\n', i, N);
     end
 end
@@ -282,7 +306,7 @@ for i = 1:N
     gps_lon(i) = lon0 + dlon;
     % GPS altitude should be altitude in meters (not barometer pressure)
     gps_alt(i) = alt;
-    if mod(i, 100) == 0
+    if mod(i, 1000) == 0
         fprintf('Generated step3 %d / %d\n', i, N);
     end
 end
@@ -290,14 +314,48 @@ end
 
 %% Add sensor noise if provided
 if isfield(params, 'noise')
+    % White noise
     accel_body = accel_body + randn(N,3) * params.noise.accel_std;
     gyro_body = gyro_body + randn(N,3) * params.noise.gyro_std;
     mag_body = mag_body + randn(N,3) * params.noise.mag_std;
     baro = baro + randn(N,1) * params.noise.baro_std;
     gps_lat = gps_lat + randn(N,1) * params.noise.gps_std * 9.0e-6;
-    % longitude noise scaled by cos(lat)
     gps_lon = gps_lon + randn(N,1) .* (params.noise.gps_std * 9.0e-6 ./ max(cosd(gps_lat), 1e-6));
     gps_alt = gps_alt + randn(N,1) * params.noise.gps_std;
+    
+    % Pink noise (1/f noise)
+    if isfield(params.noise, 'accel_pink_std') && params.noise.accel_pink_std > 0
+        for j = 1:3
+            pink = generate_pink_noise(N);
+            accel_body(:,j) = accel_body(:,j) + pink * params.noise.accel_pink_std;
+        end
+    end
+    if isfield(params.noise, 'gyro_pink_std') && params.noise.gyro_pink_std > 0
+        for j = 1:3
+            pink = generate_pink_noise(N);
+            gyro_body(:,j) = gyro_body(:,j) + pink * params.noise.gyro_pink_std;
+        end
+    end
+    if isfield(params.noise, 'gps_pink_std') && params.noise.gps_pink_std > 0
+        pink = generate_pink_noise(N);
+        gps_lat = gps_lat + pink * params.noise.gps_pink_std * 9.0e-6;
+        pink = generate_pink_noise(N);
+        gps_lon = gps_lon + pink .* (params.noise.gps_pink_std * 9.0e-6 ./ max(cosd(gps_lat), 1e-6));
+        pink = generate_pink_noise(N);
+        gps_alt = gps_alt + pink * params.noise.gps_pink_std;
+    end
+    
+    % Allan deviation (bias instability - random walk)
+    if isfield(params.noise, 'gyro_allan_std') && params.noise.gyro_allan_std > 0
+        for j = 1:3
+            bias = cumsum(randn(N,1)) * params.noise.gyro_allan_std * sqrt(dt);
+            gyro_body(:,j) = gyro_body(:,j) + bias;
+        end
+    end
+    if isfield(params.noise, 'baro_allan_std') && params.noise.baro_allan_std > 0
+        bias = cumsum(randn(N,1)) * params.noise.baro_allan_std * sqrt(dt);
+        baro = baro + bias;
+    end
 end
 
 %% Prepare truth data: time, world position (x,y,z), world velocity (vx,vy,vz), attitude (alpha,beta,gamma)
@@ -335,4 +393,14 @@ writetable(sensor_table, sensor_path);
 
 fprintf('sim_generate: wrote %s and %s (%d samples)\n', truth_path, sensor_path, N);
 
+end
+
+function pink = generate_pink_noise(N)
+    % Generate pink noise (1/f noise) using Voss-McCartney algorithm
+    white = randn(N, 1);
+    pink = zeros(N, 1);
+    b = [0.049922035, -0.095993537, 0.050612699, -0.004408786];
+    a = 1;
+    pink = filter(b, a, white);
+    pink = pink / std(pink);
 end

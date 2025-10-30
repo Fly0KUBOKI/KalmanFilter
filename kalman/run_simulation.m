@@ -65,7 +65,7 @@ for k = 1:N
     results.euler(:,k) = [roll; pitch; yaw];
     results.ba(:,k) = ba;
     results.bg(:,k) = bg;
-    if mod(k, 100) == 0
+    if mod(k, 1000) == 0
         fprintf('Step %d / %d\n', k, N);
     end
 end

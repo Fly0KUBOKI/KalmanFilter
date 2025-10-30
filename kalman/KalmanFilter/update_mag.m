@@ -56,7 +56,10 @@ function [q, P] = update_mag(q, P, m_meas)
         if abs(dtheta(i)) < apply_thresh(i)
             dtheta(i) = 0;
         end
+        
     end
+    dtheta(1) = 0;
+    dtheta(2) = 0;
     dq = quat_lib('small_angle_quat', dtheta);
     q = quat_lib('quatmultiply', q, dq);
     q = quat_lib('quatnormalize', q);

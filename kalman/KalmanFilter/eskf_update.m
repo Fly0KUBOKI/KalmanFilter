@@ -35,7 +35,7 @@ if isfield(settings,'freq_mag') && mod(k, settings.freq_mag) == 0
     [q, P] = update_mag(q, P, [obs.mx(k); obs.my(k); obs.mz(k)]);
 end
 if isfield(settings,'freq_baro') && mod(k, settings.freq_baro) == 0
-    [p, P] = update_baro(p, P, obs.pressure(k));
+    % [p, P] = update_baro(p, P, obs.pressure(k));
 end
 if isfield(settings,'freq_gps') && mod(k, settings.freq_gps) == 0 && ~isnan(obs.lat(k)) && ~isnan(obs.lon(k))
     if ~isfield(settings,'gps_origin')

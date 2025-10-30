@@ -21,7 +21,7 @@ function [Q, R_gps, R_mag, R_baro] = estimate_noise_params(obs)
 
     % プロセスノイズ Q (15x15)
     Q = zeros(15);
-    Q(4:6,4:6) = eye(3) * (0.1^2);
+    Q(4:6,4:6) = eye(3) * (0.01^2);      % 速度のプロセスノイズを小さく（ドリフト抑制）
     Q(7:9,7:9) = eye(3) * (0.01^2);
     Q(10:12,10:12) = eye(3) * (sigma_a^2 * 1e-4);
     Q(13:15,13:15) = eye(3) * (sigma_g^2 * 1e-5);
