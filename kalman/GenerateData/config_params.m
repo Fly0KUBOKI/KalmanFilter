@@ -7,8 +7,9 @@ function params = config_params()
 params = struct();
 
 % Simulation timing
-params.dt = 0.0025;     % Sample period (seconds) - 10Hz
+params.dt = 0.0025;     % Sample period (seconds) - 400Hz
 params.T = 100;       % Total simulation time (seconds)
+params.static_time = 5; % Initial static period for calibration (seconds)
 
 % Motion type selection
 params.motion_type = 'circular';  % 'circular' or 'random_walk'
@@ -19,20 +20,20 @@ params.heading_mode = 'align_velocity'; % 'fixed_north' or 'align_velocity'
 
 % Sensor noise parameters (1-sigma standard deviations)
 params.noise = struct();
-params.noise.accel_std = 0.0;   % Accelerometer noise (m/s^2)
-params.noise.gyro_std = 0.1;   % Gyroscope noise (deg/s)
-params.noise.mag_std = 1;      % Magnetometer noise (nT)
-params.noise.baro_std = 0.1;     % Barometer noise (meters)
-params.noise.gps_std = 0.0;      % GPS position noise (meters)
+params.noise.accel_std = 0.05;   % Accelerometer noise (m/s^2)
+params.noise.gyro_std = 0.05;   % Gyroscope noise (deg/s)
+params.noise.mag_std = 5.0;      % Magnetometer noise (nT)
+params.noise.baro_std = 1.0;     % Barometer noise (meters)
+params.noise.gps_std = 2;      % GPS position noise (meters)
 
 % Pink noise parameters (1/f noise)
-params.noise.accel_pink_std = 0.0;   % Accelerometer pink noise (m/s^2)
+params.noise.accel_pink_std = 0.05;   % Accelerometer pink noise (m/s^2)
 params.noise.gyro_pink_std = 0.05;    % Gyroscope pink noise (deg/s)
 params.noise.gps_pink_std = 0.0;      % GPS pink noise (meters)
 
 % Allan deviation parameters (bias instability)
-params.noise.gyro_allan_std = 0.05;   % Gyroscope Allan deviation (deg/s)
-params.noise.baro_allan_std = 0.05;   % Barometer Allan deviation (meters)
+params.noise.gyro_allan_std = 0.1;   % Gyroscope Allan deviation (deg/s)
+params.noise.baro_allan_std = 0.1;   % Barometer Allan deviation (meters)
 
 % Motion parameters
 params.motion = struct();
@@ -42,7 +43,7 @@ params.motion.circular = struct();
 params.motion.circular.radius = 10;       % Circular trajectory radius (meters)
 params.motion.circular.omega = 4;       % Angular velocity (deg/s)
 params.motion.circular.altitude = 0;    % Flight altitude (meters above sea level)
-params.motion.circular.accel_time = 10;  % Soft start acceleration time (seconds)
+params.motion.circular.accel_time = 5;  % Soft start acceleration time (seconds) - after static period
 params.motion.circular.angular_std = 5.0;  % Angular velocity fluctuation std (deg/s)
 params.motion.circular.angular_tau = 5.0;  % Angular velocity fluctuation time constant (seconds) - larger = slower fluctuation
 

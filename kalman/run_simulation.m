@@ -1,16 +1,19 @@
 function run_simulation()
-% RUN_SIMULATION  メイン実行スクリプト（簡易ESKFデモ）
+% RUN_SIMULATION  メイン実行スクリプト（ESKF）
 %
-% このスクリプトは、GenerateData/observation.csv を読み込み、簡易的な
+% このスクリプトは、GenerateData/sensor_data.csv を読み込み、
 % ESKF フィルタを実行して Results/estimation.csv を出力し、グラフを表示します.
+
 
 projRoot = fileparts(mfilename('fullpath'));
 
-% MATLAB パスにサブフォルダを追加
-addpath(fullfile(projRoot, 'KalmanFilter'));
+% MATLAB パスにサブフォルダを追加（再帰的に追加）
+addpath(genpath(fullfile(projRoot, 'ESKF')));
 addpath(fullfile(projRoot, 'GenerateData'));
 addpath(fullfile(projRoot, 'Graph'));
-addpath(fullfile(projRoot, 'KalmanFilter', 'Common Calculations'));
+
+% パスキャッシュを更新
+rehash toolboxcache;
 
 dataDir = fullfile(projRoot, 'GenerateData');
 obsFile = fullfile(dataDir, 'sensor_data.csv');
@@ -20,21 +23,17 @@ end
 
 obs = read_csv(obsFile);
 
-% 推定ノイズパラメータ
-[Q, R_gps, R_mag, R_baro] = estimate_noise_params(obs);
+% 設定パラメータを読み込み
+params = config_params();
 
-% 設定
+% カルマンフィルタの初期化
 if length(obs.time) < 2
     error('観測データが短すぎます');
 end
-settings.dt = mean(diff(obs.time));
-settings.freq_mag = 4;   % 1/4ステップ
-settings.freq_baro = 8;  % 1/8ステップ
-settings.freq_gps = 40;  % 1/40ステップ
-settings.Q = Q; settings.R_gps = R_gps; settings.R_mag = R_mag; settings.R_baro = R_baro;
+dt = mean(diff(obs.time));
+kf = ESKF(obs, params.static_time, dt)
 
-% Delegate ESKF execution to eskf_update (keeping run_simulation for I/O & plotting)
-% Sequentially call eskf_update for each timestep
+% ESKFフィルタリング実行
 N = numel(obs.time);
 results.time = obs.time(:)';
 results.p = zeros(3, N);
@@ -43,29 +42,14 @@ results.euler = zeros(3, N);
 results.ba = zeros(3, N);
 results.bg = zeros(3, N);
 
-% initial nominal state
-p = zeros(3,1);
-v = zeros(3,1);
-q = quat_lib('quatnormalize', [1;0;0;0]);
-ba = zeros(3,1);
-bg = zeros(3,1);
-
-P = eye(15) * 0.01;
-
 for k = 1:N
-    [p, v, q, ba, bg, P, status] = eskf_update(p, v, q, ba, bg, P, obs, settings, k);
-    results.p(:,k) = p;
-    results.v(:,k) = v;
-    euler_angles = quat_lib('quat_to_euler', q);
-    pitch = euler_angles(1);
-    roll = euler_angles(2);
-    yaw = euler_angles(3);
-    % fprintf('P[%.2f, %.2f], V[%.2f, %.2f], Yaw: %.2f \n', ...
-    %     p(1), p(2), v(1), v(2), yaw);
-    results.euler(:,k) = [roll; pitch; yaw];
-    results.ba(:,k) = ba;
-    results.bg(:,k) = bg;
-    if mod(k, 1000) == 0
+    kf.updateFilter(obs, k);
+    results.p(:,k) = kf.p;
+    results.v(:,k) = kf.v;
+    results.euler(:,k) = kf.getEuler();
+    results.ba(:,k) = kf.ba;
+    results.bg(:,k) = kf.bg;
+    if mod(k, 10000) == 0
         fprintf('Step %d / %d\n', k, N);
     end
 end
