@@ -19,16 +19,16 @@ params.heading_mode = 'align_velocity'; % 'fixed_north' or 'align_velocity'
 
 % Sensor noise parameters (1-sigma standard deviations)
 params.noise = struct();
-params.noise.accel_std = 0.01;   % Accelerometer noise (m/s^2)
+params.noise.accel_std = 0.0;   % Accelerometer noise (m/s^2)
 params.noise.gyro_std = 0.1;   % Gyroscope noise (deg/s)
 params.noise.mag_std = 1;      % Magnetometer noise (nT)
 params.noise.baro_std = 0.1;     % Barometer noise (meters)
-params.noise.gps_std = 2;      % GPS position noise (meters)
+params.noise.gps_std = 0.0;      % GPS position noise (meters)
 
 % Pink noise parameters (1/f noise)
-params.noise.accel_pink_std = 0.01;   % Accelerometer pink noise (m/s^2)
+params.noise.accel_pink_std = 0.0;   % Accelerometer pink noise (m/s^2)
 params.noise.gyro_pink_std = 0.05;    % Gyroscope pink noise (deg/s)
-params.noise.gps_pink_std = 0.1;      % GPS pink noise (meters)
+params.noise.gps_pink_std = 0.0;      % GPS pink noise (meters)
 
 % Allan deviation parameters (bias instability)
 params.noise.gyro_allan_std = 0.05;   % Gyroscope Allan deviation (deg/s)

@@ -56,8 +56,38 @@ function varargout = plot_csv(filePath, mode)
         case 'pos'
             fh = figure;
             X = T.px; Y = T.py;
+            
+            % Load GPS observation data
+            sensorFile = fullfile(fileparts(mfilename('fullpath')),'..','GenerateData','sensor_data.csv');
+            try
+                SD = readtable(sensorFile);
+                % Convert GPS lat/lon to local coordinates (simplified conversion)
+                % Assuming the origin is at the first GPS point
+                if ~isempty(SD.gps_lat) && ~isempty(SD.gps_lon)
+                    lat0 = SD.gps_lat(1);
+                    lon0 = SD.gps_lon(1);
+                    % Approximate conversion: 1 degree lat ≈ 111320 m, lon depends on latitude
+                    R_earth = 6378137; % Earth radius in meters
+                    gps_x = (SD.gps_lon - lon0) * cos(lat0 * pi/180) * pi/180 * R_earth;
+                    gps_y = (SD.gps_lat - lat0) * pi/180 * R_earth;
+                else
+                    gps_x = [];
+                    gps_y = [];
+                end
+            catch
+                warning('Could not load GPS observation data');
+                gps_x = [];
+                gps_y = [];
+            end
+            
             % 固定された軸範囲（表示中に動かさない）
             xmin = min(X); xmax = max(X); ymin = min(Y); ymax = max(Y);
+            if ~isempty(gps_x)
+                xmin = min([xmin; gps_x]);
+                xmax = max([xmax; gps_x]);
+                ymin = min([ymin; gps_y]);
+                ymax = max([ymax; gps_y]);
+            end
             dx = max(xmax-xmin, 1e-3); dy = max(ymax-ymin, 1e-3);
             pad = 0.05 * max(dx, dy);
             axis([xmin-pad xmax+pad ymin-pad ymax+pad]);
@@ -68,10 +98,23 @@ function varargout = plot_csv(filePath, mode)
             plot(X(end), Y(end), 'ko'); % end (keep end marker)
             % Overlay truth trajectory (dashed)
             plot(TR.x, TR.y, '--', 'Color', [0.5 0.5 0.5]);
+            
+            % Initialize GPS plot handle (will be updated during animation)
+            hgps = plot(NaN, NaN, 'ro', 'MarkerSize', 2, 'DisplayName', 'GPS observations');
+            
             xlabel('x [m]'); ylabel('y [m]');
             for i = 1:numel(X)
                 set(hpath, 'XData', X(1:i), 'YData', Y(1:i));
                 set(hcur, 'XData', X(i), 'YData', Y(i));
+                
+                % Update GPS observations (every 40th point up to current time)
+                if ~isempty(gps_x)
+                    current_gps_indices = 1:40:min(i, length(gps_x));
+                    if ~isempty(current_gps_indices)
+                        set(hgps, 'XData', gps_x(current_gps_indices), 'YData', gps_y(current_gps_indices));
+                    end
+                end
+                
                 drawnow limitrate
             end
 
