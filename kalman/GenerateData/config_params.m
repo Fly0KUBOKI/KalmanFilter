@@ -9,7 +9,7 @@ function params = config_params()
     %% Simulation timing
     params.dt = 0.0025;     % Sample period (seconds) - 400Hz
     params.T = 100;       % Total simulation time (seconds)
-    params.static_time = 2; % Initial static period for calibration (seconds)
+    params.static_time = 0.5; % Initial static period for calibration (seconds)
 
     %% Motion type selection
     params.motion_type = 'circular';  % 'circular' or 'random_walk'

@@ -1,69 +1,104 @@
 classdef SensorFilter
-    % SENSORFILTER  センサー観測のフィルタリングクラス
+    % SENSORFILTER  センサー観測のフィルタリング共通クラス
     %
-    % イノベーションのゲーティング（外れ値除去）を行う
+    % σ閾値によるイノベーションフィルタリングを提供
     
     properties (Constant)
-        SIGMA_THRESHOLD = 1.0;  % σ閾値（1σでフィルタリング）
+        SIGMA_THRESHOLD = 1.0;  % σ閾値
     end
     
     methods (Static)
-        function [y_filtered, should_update] = filterInnovation(y, R)
-            % FILTERINNOVATION  イノベーションをフィルタリング
+        function [filtered_innovation, should_update] = filterInnovation(innovation, R_noise)
+            % FILTERINNOVATION  イノベーションをσ閾値でフィルタリング
             %
             % 入力:
-            %   y - イノベーション
-            %   R - 観測ノイズ共分散
+            %   innovation - イノベーションベクトル (nx1)
+            %   R_noise    - 観測ノイズ共分散の対角要素 (nx1) または (nxn)
             %
             % 出力:
-            %   y_filtered   - フィルタリング済みイノベーション
-            %   should_update - 更新すべきかどうか (true/false)
+            %   filtered_innovation - フィルタリング後のイノベーション
+            %   should_update       - 更新すべきかどうか (boolean)
             
-            % デフォルト
-            y_filtered = y;
-            should_update = true;
+            filtered_innovation = innovation;
+            n = length(innovation);
             
-            % R から標準偏差を計算
-            if isscalar(R)
-                sigma = sqrt(R);
+            % R_noiseが行列の場合は対角要素を取得
+            if size(R_noise, 1) == size(R_noise, 2) && size(R_noise, 1) > 1
+                R_diag = diag(R_noise);
             else
-                sigma = sqrt(diag(R));
+                R_diag = R_noise(:);
             end
             
-            % σ閾値を超えるイノベーションは棄却
-            threshold = SensorFilter.SIGMA_THRESHOLD * sigma;
+            % 各要素ごとにσ閾値でフィルタリング
+            for i = 1:n
+                noise_std = sqrt(max(R_diag(i), eps));
+                threshold = SensorFilter.SIGMA_THRESHOLD * noise_std;
+                
+                if abs(innovation(i)) < threshold
+                    filtered_innovation(i) = 0;
+                end
+            end
             
-            % 各成分をチェック
-            outlier_mask = abs(y) > threshold;
+            % 全てのイノベーションが0なら更新不要
+            should_update = (norm(filtered_innovation) > eps);
+        end
+        
+        function should_update = shouldUpdate(innovation, R_noise)
+            % SHOULDUPDATE  更新すべきかどうかを判定
+            %
+            % 入力:
+            %   innovation - イノベーションベクトル (nx1)
+            %   R_noise    - 観測ノイズ共分散の対角要素 (nx1)
+            %
+            % 出力:
+            %   should_update - 更新すべきかどうか (boolean)
             
-            % 一つでも外れ値があれば更新しない
-            if any(outlier_mask)
-                should_update = false;
+            [~, should_update] = SensorFilter.filterInnovation(innovation, R_noise);
+        end
+        
+        function filtered_dx = filterStateCorrection(dx, R_noise, H, component_indices)
+            % FILTERSTATECORRECTION  状態修正量をフィルタリング
+            %
+            % 入力:
+            %   dx                - 状態修正量ベクトル (15x1)
+            %   R_noise          - 観測ノイズ共分散
+            %   H                - 観測行列
+            %   component_indices - フィルタ対象の状態インデックス
+            %
+            % 出力:
+            %   filtered_dx - フィルタリング後の状態修正量
+            
+            filtered_dx = dx;
+            
+            if nargin < 4 || isempty(component_indices)
                 return;
             end
             
-            % すべて正常範囲内なら更新
-            y_filtered = y;
-        end
-        
-        function snr = computeSNR(y, R)
-            % COMPUTESNR  イノベーションのSNRを計算
-            %
-            % 入力:
-            %   y - イノベーション
-            %   R - 観測ノイズ共分散
-            %
-            % 出力:
-            %   snr - Signal-to-Noise Ratio
-            
-            if isscalar(R)
-                sigma = sqrt(R);
+            % R_noiseから標準偏差を取得
+            if size(R_noise, 1) == size(R_noise, 2)
+                R_diag = diag(R_noise);
             else
-                sigma = sqrt(diag(R));
+                R_diag = R_noise(:);
             end
             
-            % SNR = |signal| / noise
-            snr = abs(y) ./ sigma;
+            % 各成分について閾値判定
+            for i = 1:length(component_indices)
+                idx = component_indices(i);
+                
+                % 観測行列から感度を推定
+                if ~isempty(H) && size(H, 2) >= idx
+                    sensitivity = max(norm(H(:, idx)), eps);
+                    noise_std = sqrt(max(mean(R_diag), eps));
+                    threshold = SensorFilter.SIGMA_THRESHOLD * noise_std / sensitivity;
+                else
+                    % デフォルト閾値
+                    threshold = 0.001;
+                end
+                
+                if abs(filtered_dx(idx)) < threshold
+                    filtered_dx(idx) = 0;
+                end
+            end
         end
     end
 end

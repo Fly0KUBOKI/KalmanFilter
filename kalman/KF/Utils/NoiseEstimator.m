@@ -32,6 +32,7 @@ classdef NoiseEstimator < handle
     properties (Constant)
         R_ABS_MAX = 1e6;
         R_ABS_MIN = eps;
+        OUTLIER_FACTOR = 50;  % 外れ値判定係数（現在のR値のN倍まで許容）
     end
     
     methods
@@ -64,8 +65,8 @@ classdef NoiseEstimator < handle
             obj.R_gps = [3^2; 3^2; 5^2];
             obj.R_baro = 1.0^2;
             
-            % α値
-            obj.alpha = 0.1;
+            % α値（EMA更新率: 小さいほど滑らかで変動に鈍感）
+            obj.alpha = 0.01;  % 0.1 から 0.01 に変更（より滑らかな推定）
             obj.alpha_count = 0;
         end
         
@@ -127,11 +128,51 @@ classdef NoiseEstimator < handle
                     error('Unknown sensor type: %s', sensor_type);
             end
         end
+        
+        function [threshold_vec, threshold_scalar] = getThreshold(obj, sensor_type, sigma_multiplier)
+            % GETTHRESHOLD  閾値を取得（軸ごとのベクトルとスカラー）
+            %
+            % 入力:
+            %   sensor_type      - センサータイプ ('accel', 'gyro', etc.)
+            %   sigma_multiplier - σの倍数（デフォルト: 2.0）
+            %
+            % 出力:
+            %   threshold_vec    - 軸ごとの閾値ベクトル (nx1)
+            %   threshold_scalar - スカラー閾値（全軸の平均）
+            
+            if nargin < 3
+                sigma_multiplier = 2.0;
+            end
+            
+            switch sensor_type
+                case 'accel'
+                    R_var = obj.R_accel;
+                case 'gyro'
+                    R_var = obj.R_gyro;
+                case 'mag'
+                    R_var = obj.R_mag;
+                case 'gps'
+                    R_var = obj.R_gps;
+                case 'baro'
+                    R_var = obj.R_baro;
+                otherwise
+                    error('Unknown sensor type: %s', sensor_type);
+            end
+            
+            % 標準偏差を計算
+            std_vec = sqrt(max(R_var, eps));
+            
+            % 閾値 = σ × multiplier
+            threshold_vec = sigma_multiplier * std_vec;
+            threshold_scalar = mean(threshold_vec);
+        end
     end
     
     methods (Access = private)
         function updateNoise(obj, sensor_type, innov_var)
             % UPDATENOISE  ノイズ推定値を更新 (内部メソッド)
+            %
+            % 外れ値検出とクリッピングを実装
             
             % フィールド名を生成
             field_count = ['count_' sensor_type];
@@ -147,16 +188,20 @@ classdef NoiseEstimator < handle
                 obj.(field_sum) = obj.(field_sum) + innov_var;
                 obj.(field_R) = obj.(field_sum) / count;
             else
-                % EMAで逐次更新
-                alpha = obj.alpha;
+                % 外れ値検出: 現在のR値の OUTLIER_FACTOR 倍を超える場合はクリップ
                 R_prev = obj.(field_R);
-                obj.(field_R) = (1 - alpha) * R_prev + alpha * innov_var;
+                max_allowed = R_prev * obj.OUTLIER_FACTOR;
+                innov_var_clipped = min(innov_var, max_allowed);
                 
-                % α値の逐次更新(徐々に小さくする)
-                obj.alpha_count = obj.alpha_count + 1;
-                if obj.alpha_count > obj.warmup_samples
-                    obj.alpha = max(0.01, obj.alpha * 0.9995);
-                end
+                % EMAで逐次更新
+                alpha_val = obj.alpha;
+                obj.(field_R) = (1 - alpha_val) * R_prev + alpha_val * innov_var_clipped;
+                
+                % % α値の逐次更新(徐々に小さくする)
+                % obj.alpha_count = obj.alpha_count + 1;
+                % if obj.alpha_count > obj.warmup_samples
+                %     obj.alpha = max(0.01, obj.alpha * 0.9995);
+                % end
             end
             
             % 数値安定性のためのクランプ

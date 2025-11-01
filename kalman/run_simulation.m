@@ -14,6 +14,7 @@ addpath(genpath(fullfile(projRoot, 'ESKF')));     % ESKF/@ESKF, ESKF/Core を含
 addpath(genpath(fullfile(projRoot, 'UKF')));      % UKF/Core を含む
 addpath(genpath(fullfile(projRoot, 'EKF')));      % EKF を含む
 addpath(fullfile(projRoot, 'Graph'));
+addpath(fullfile(projRoot, 'GenerateData'));
 
 % パスキャッシュを更新
 rehash toolboxcache;
