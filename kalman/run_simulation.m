@@ -4,12 +4,15 @@ function run_simulation()
 % このスクリプトは、GenerateData/sensor_data.csv を読み込み、
 % ESKF フィルタを実行して Results/estimation.csv を出力し、グラフを表示します.
 
-
+clc;
+rehash;
 projRoot = fileparts(mfilename('fullpath'));
 
 % MATLAB パスにサブフォルダを追加（再帰的に追加）
-addpath(genpath(fullfile(projRoot, 'ESKF')));
-addpath(fullfile(projRoot, 'GenerateData'));
+addpath(genpath(fullfile(projRoot, 'KF')));       % KF/Core, KF/Utils を含む
+addpath(genpath(fullfile(projRoot, 'ESKF')));     % ESKF/@ESKF, ESKF/Core を含む
+addpath(genpath(fullfile(projRoot, 'UKF')));      % UKF/Core を含む
+addpath(genpath(fullfile(projRoot, 'EKF')));      % EKF を含む
 addpath(fullfile(projRoot, 'Graph'));
 
 % パスキャッシュを更新
@@ -31,7 +34,7 @@ if length(obs.time) < 2
     error('観測データが短すぎます');
 end
 dt = mean(diff(obs.time));
-kf = ESKF(obs, params.static_time, dt)
+kf = ESKF(obs, params.static_time, dt);
 
 % ESKFフィルタリング実行
 N = numel(obs.time);

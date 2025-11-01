@@ -1,15 +1,15 @@
 classdef SensorFilter
     % SENSORFILTER  センサー観測のフィルタリング共通クラス
     %
-    % 2σ閾値によるイノベーションフィルタリングを提供
+    % σ閾値によるイノベーションフィルタリングを提供
     
     properties (Constant)
-        SIGMA_THRESHOLD = 2.0;  % 2σ閾値
+        SIGMA_THRESHOLD = 1.0;  % σ閾値
     end
     
     methods (Static)
         function [filtered_innovation, should_update] = filterInnovation(innovation, R_noise)
-            % FILTERINNOVATION  イノベーションを2σ閾値でフィルタリング
+            % FILTERINNOVATION  イノベーションをσ閾値でフィルタリング
             %
             % 入力:
             %   innovation - イノベーションベクトル (nx1)
@@ -29,7 +29,7 @@ classdef SensorFilter
                 R_diag = R_noise(:);
             end
             
-            % 各要素ごとに2σ閾値でフィルタリング
+            % 各要素ごとにσ閾値でフィルタリング
             for i = 1:n
                 noise_std = sqrt(max(R_diag(i), eps));
                 threshold = SensorFilter.SIGMA_THRESHOLD * noise_std;
