@@ -80,17 +80,8 @@ function varargout = plot_csv(filePath, mode)
                 gps_y = [];
             end
             
-            % 固定された軸範囲（表示中に動かさない）
-            xmin = min(X); xmax = max(X); ymin = min(Y); ymax = max(Y);
-            if ~isempty(gps_x)
-                xmin = min([xmin; gps_x]);
-                xmax = max([xmax; gps_x]);
-                ymin = min([ymin; gps_y]);
-                ymax = max([ymax; gps_y]);
-            end
-            dx = max(xmax-xmin, 1e-3); dy = max(ymax-ymin, 1e-3);
-            pad = 0.05 * max(dx, dy);
-            axis([xmin-pad xmax+pad ymin-pad ymax+pad]);
+            % 固定された軸範囲（xyともに -15 から 15）
+            axis([-15 15 -15 15]);
             hold on; grid on; axis equal;
             hpath = plot(NaN, NaN, '-b');
             hcur = plot(NaN, NaN, 'ro');

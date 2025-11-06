@@ -43,7 +43,23 @@ a_world = Rb * a;
 % 比力から真の加速度を復元: a_true = f + g
 % したがって: v_dot = a_world + g
 v_prev = v;
-v = v + (a_world + g) * dt;
+v_candidate = v + (a_world + g) * dt;
+
+% 速度発散防止: 加速度（速度変化率）を制限
+% Note: この制限はDivergenceGuardで管理されますが、積分レベルでも最低限の保護を提供
+max_accel = 2.0; % m/s^2 - DivergenceGuard.max_accelerationと同期させること
+dv = v_candidate - v;
+dv_norm = norm(dv);
+max_dv = max_accel * dt;
+if dv_norm > max_dv
+    dv = dv * (max_dv / dv_norm);
+end
+v = v + dv;
+
+% 速度発散防止: 各軸の速度を物理的な上限でクリップ（例: ±50 m/s）
+% Note: より厳密な制限はDivergenceGuard.check_and_clip_velocityで実施
+max_velocity = 50; % m/s - 極端な値のみをここでクリップ
+v = max(min(v, max_velocity), -max_velocity);
 
 % 位置更新（台形則、平均速度を使用）
 p = p + (v_prev + v) * 0.5 * dt;

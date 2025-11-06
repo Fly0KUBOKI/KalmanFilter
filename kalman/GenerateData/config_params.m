@@ -8,7 +8,7 @@ function params = config_params()
 
     %% Simulation timing
     params.dt = 0.0025;     % Sample period (seconds) - 400Hz
-    params.T = 100;       % Total simulation time (seconds)
+    params.T = 150;       % Total simulation time (seconds)
     params.static_time = 0.5; % Initial static period for calibration (seconds)
 
     %% Motion type selection
@@ -26,6 +26,19 @@ function params = config_params()
     params.noise.mag_std = 2.0;      % Magnetometer noise (nT)
     params.noise.baro_std = 1.0;     % Barometer noise (meters)
     params.noise.gps_std = 2.0;      % GPS position noise (meters)
+    % Outlier (spike) settings
+    % .prob  - 各サンプルが外れ値となる確率 (0..1)。デフォルト 0 = 無効
+    % .range - 外れ値の振幅を指定（スカラーで全センサー共通、または構造体で個別指定）
+    %          GPS の値はメートル単位で指定（経度/緯度に変換して適用されます）
+    params.noise.outlier = struct();
+    params.noise.outlier.prob = 0.01; 
+    params.noise.outlier.range = struct( ...
+        'accel', 1.0, ...  % m/s^2
+        'gyro', 0.5, ...   % deg/s
+        'mag', 30, ...    % nT
+        'baro', 1.0, ...   % meters
+        'gps', 20.0 ...    % meters
+    );
 
     %% Pink noise parameters (1/f noise)
     params.noise.accel_pink_std = 0.05;   % Accelerometer pink noise (m/s^2)

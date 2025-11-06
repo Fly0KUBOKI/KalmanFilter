@@ -32,7 +32,7 @@ classdef NoiseEstimator < handle
     properties (Constant)
         R_ABS_MAX = 1e6;
         R_ABS_MIN = eps;
-        OUTLIER_FACTOR = 50;  % 外れ値判定係数（現在のR値のN倍まで許容）
+        OUTLIER_FACTOR = 20;  % 外れ値判定係数（現在のR値のN倍まで許容）
     end
     
     methods
@@ -119,7 +119,10 @@ classdef NoiseEstimator < handle
                 case 'gyro'
                     R = diag(obj.R_gyro);
                 case 'mag'
-                    R = diag(obj.R_mag);
+                    % Enforce a sensible lower bound for magnetometer variance to
+                    % avoid near-zero R causing ill-conditioned innovation covariances.
+                    mag_min_var = 1e-2; % (magnitude units^2) floor for mag variance (raised for robustness)
+                    R = diag(max(obj.R_mag, mag_min_var));
                 case 'gps'
                     R = diag(obj.R_gps);
                 case 'baro'

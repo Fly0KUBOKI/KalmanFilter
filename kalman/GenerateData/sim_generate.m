@@ -4,6 +4,7 @@
 %   Geographic: GPS coordinates only (lat, lon, alt)
 function sim_generate(params)
 
+    clear; close all;
     % パラメータ設定
     if nargin < 1 || isempty(params)
         params = config_params();

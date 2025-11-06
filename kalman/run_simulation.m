@@ -7,17 +7,15 @@ function run_simulation()
 clc;
 rehash;
 projRoot = fileparts(mfilename('fullpath'));
+sim_generate();  % データ生成を呼び出し
 
-% MATLAB パスにサブフォルダを追加（再帰的に追加）
+% MATLAB パスにサブフォルダを追加
 addpath(genpath(fullfile(projRoot, 'KF')));       % KF/Core, KF/Utils を含む
 addpath(genpath(fullfile(projRoot, 'ESKF')));     % ESKF/@ESKF, ESKF/Core を含む
 addpath(genpath(fullfile(projRoot, 'UKF')));      % UKF/Core を含む
 addpath(genpath(fullfile(projRoot, 'EKF')));      % EKF を含む
 addpath(fullfile(projRoot, 'Graph'));
 addpath(fullfile(projRoot, 'GenerateData'));
-
-% パスキャッシュを更新
-rehash toolboxcache;
 
 dataDir = fullfile(projRoot, 'GenerateData');
 obsFile = fullfile(dataDir, 'sensor_data.csv');
@@ -36,6 +34,24 @@ if length(obs.time) < 2
 end
 dt = mean(diff(obs.time));
 kf = ESKF(obs, params.static_time, dt);
+    % --- reproducibility: fix RNG seed for deterministic runs during diagnosis ---
+    seed = 0; rng(seed);
+
+    % --- enable detailed debug dump at the suspected problematic index ---
+    kf.debugDumpK = 2410;
+
+    % --- set up per-step debug logging callback (writes debug_step_log_<ts>.csv) ---
+    ts = datestr(now,'yyyymmdd_HHMMSS');
+    logFile = fullfile(fileparts(mfilename('fullpath')), 'Results', sprintf('debug_step_log_%s.csv', ts));
+    % prepare file and header
+    fid = fopen(logFile, 'w');
+    if fid > 0
+        fprintf(fid, 'k,stage,traceP,rcondP,K_norm,y_norm\n');
+    else
+        warning('Could not open debug log file: %s', logFile);
+    end
+    % attach callback
+    kf.debugCallback = @(info) debug_logger(info);
 
 % ESKFフィルタリング実行
 N = numel(obs.time);
@@ -61,6 +77,37 @@ end
 outDir = fullfile(projRoot, 'Results');
 if ~exist(outDir,'dir'), mkdir(outDir); end
 outFile = fullfile(outDir, 'estimation.csv');
+
+% finalize log file
+try
+    if exist('fid','var') && fid > 0
+        fclose(fid);
+        fprintf('Debug step log written to %s\n', logFile);
+    end
+catch
+end
+
+% nested function: debug logger uses parent fid
+function debug_logger(info)
+    try
+        if ~exist('fid','var') || fid <= 0
+            return;
+        end
+        kx = NaN; st = ''; traceP = NaN; rcondP = NaN; K_norm = NaN; y_norm = NaN;
+        if isfield(info,'k'), kx = info.k; end
+        if isfield(info,'stage'), st = info.stage; end
+        if isfield(info,'P')
+            try, traceP = trace(info.P); catch, traceP = NaN; end
+            try, rcondP = rcond(info.P); catch, rcondP = NaN; end
+        end
+        if isfield(info,'K_norm'), K_norm = info.K_norm; end
+        if isfield(info,'y')
+            try, y_norm = norm(info.y); catch, y_norm = NaN; end
+        end
+    fprintf(fid, '%d,%s,%.12g,%.12g,%.12g,%.12g\n', kx, st, traceP, rcondP, K_norm, y_norm);
+    catch
+    end
+end
 
 % 保存
 T = table(results.time(:), ...  

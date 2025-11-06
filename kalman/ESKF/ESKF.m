@@ -34,6 +34,16 @@ classdef ESKF < handle
         
         % ノイズ判定閾値
         gyro_noise_threshold    % ジャイロノイズ閾値
+        
+        % 発散対策
+        divergence_guard    % DivergenceGuardインスタンス
+    % 状態修正量(dx)の最大ノルム（これを超えるdxはスケールダウンされる）
+    max_dx_norm
+        % デバッグ用コールバック (関数ハンドル)。存在する場合、各ステップで
+        % 情報構造体を渡して呼び出す。例: cb(info)
+        debugCallback
+        % 詳細ダンプを取得したい時刻インデックス (空 = 無効)
+        debugDumpK
     end
 
     methods
@@ -172,6 +182,20 @@ classdef ESKF < handle
             fprintf('  初期バイアス - 加速度: [%.4f, %.4f, %.4f], ジャイロ: [%.4f, %.4f, %.4f]\n', ...
                     obj.ba(1), obj.ba(2), obj.ba(3), obj.bg(1), obj.bg(2), obj.bg(3));
             fprintf('  推定ノイズレベル - 加速度: %.4f, ジャイロ: %.4f 地磁気: %.4f 気圧: %.4f GPS: %.4f\n', sigma_a, sigma_g, sigma_mag, sigma_press, sigma_gps);
+            
+            % 発散対策の初期化
+            config = struct();
+            config.max_velocity = 2.0;
+            config.max_acceleration = 2.0;
+            config.max_allowed_innov = 50.0;
+            % イノベーションを limit/2 に縮小して更新する
+            config.max_innov_cap_fraction = 0.5;
+            config.max_gain_norm = 100; % clamp Kalman gain Frobenius norm to this value (Inf = no clamp)
+            config.innov_change_ratio_threshold = 2.0;
+            config.attenuation_factor = 0.5;
+            obj.divergence_guard = DivergenceGuard(config);
+            % dx の安全上限（magnitude）。必要に応じて調整してください。
+            obj.max_dx_norm = 5.0;
         end
         
         function updateFilter(obj, obs, k)
@@ -189,6 +213,15 @@ classdef ESKF < handle
             % 予測ステップ
             obj.predict(a, w);
 
+            % デバッグコール: 予測直後の P を渡す
+            info = struct(); info.k = k; info.stage = 'post_predict'; info.P = obj.P; info.p = obj.p; info.v = obj.v;
+            obj.callDebug(info);
+
+            % (no per-step dump here)
+
+            % (no per-step dump here)
+            
+
             % === 加速度・磁気計更新を無効化（純粋な積分のみ） ===
             obj.updateAccel(a);
             
@@ -200,7 +233,18 @@ classdef ESKF < handle
                 obj.updateBaro(obs.pressure(k));
             end
             if mod(k, obj.freq_gps) == 0 && ~isnan(obs.lat(k)) && ~isnan(obs.lon(k))
-                obj.updateGPS(obs.lat(k), obs.lon(k), obs.alt(k));
+                obj.updateGPS(obs.lat(k), obs.lon(k), obs.alt(k), k);
+            end
+        end
+
+        function callDebug(obj, info)
+            % callDebug - debugCallback が設定されていれば安全に呼び出す
+            try
+                if ~isempty(obj.debugCallback) && isa(obj.debugCallback, 'function_handle')
+                    obj.debugCallback(info);
+                end
+            catch e
+                warning('ESKF:debugCallback', 'debugCallback failed: %s', e.message);
             end
         end
         
@@ -230,6 +274,12 @@ classdef ESKF < handle
 
             % 共分散の予測
             obj.P = kalman_filter_core('predict_step', obj.P, obj.q, a_meas, obj.ba, w_meas, obj.bg, obj.Q, obj.dt);
+            
+            % 共分散行列の正則化
+            obj.P = obj.divergence_guard.regularize_covariance(obj.P);
+            
+            % 速度チェックとクリッピング
+            [obj.v, obj.P, ~] = obj.divergence_guard.check_and_clip_velocity(obj.v, obj.P, 4:6);
         end
         
         function updateAccel(obj, a_meas)
@@ -287,32 +337,74 @@ classdef ESKF < handle
             % イノベーション計算
             [y, S, R_used] = kalman_filter_core('compute_innovation_and_S', z, h, H, obj.P, R_est, struct());
 
-            % フィルタリング（外れ値判定）
-            [y_filtered, should_update] = SensorFilter.filterInnovation(y, R_used);
+            % --- 統合外れ値判定/発散防止を実行 ---
+            try
+                K_prop = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
+            catch
+                K_prop = [];
+            end
+            ctx = struct(); ctx.k = NaN; ctx.z = z; ctx.h = h; ctx.P_diag = diag(obj.P); ctx.R_diag = diag(R_used);
+            [should_update, y_used, K_used, dx_used, diag_info] = OutlierGuard.checkAndApply('accel', z, h, H, obj.P, R_used, K_prop, [], obj.divergence_guard, obj.noiseEstimator, ctx);
             if ~should_update
                 return;
             end
 
-            % --- 外れ値でない場合のみノイズ推定を更新 ---
-            obj.noiseEstimator.estimate('accel', y_filtered, H, obj.P);
+            % ノイズ推定は更新（外れ値でない場合のみ）
+            obj.noiseEstimator.estimate('accel', y_used, H, obj.P);
 
-            % カルマンゲインと更新
-            K = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
-            dx = K * y_filtered;
+            % もし K_used があれば共分散更新に使用、なければ従来どおり計算
+            if isempty(K_used)
+                K = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
+                K = obj.divergence_guard.clamp_gain(K);
+            else
+                K = K_used;
+            end
 
-            % dx(7:9) = δθ (姿勢誤差)
-            % delta_theta = dx(7:9);
-            % delta_q = quat_lib('small_angle_quat', delta_theta);
-            % obj.q = quat_lib('quatmultiply', obj.q, delta_q);
-            % obj.q = quat_lib('quatnormalize', obj.q);
-        
+            if isempty(dx_used)
+                dx = K * y_used;
+            else
+                dx = dx_used;
+            end
+
+            % --- 状態修正量のクリッピング ---
+            try
+                % component-wise clipping (position/velocity/attitude/ba/bg)
+                dx = obj.divergence_guard.clip_state_change(dx);
+                % global norm cap
+                if isfield(obj, 'max_dx_norm') && ~isempty(obj.max_dx_norm) && obj.max_dx_norm > 0
+                    dn = norm(dx);
+                    if dn > obj.max_dx_norm
+                        dx = dx * (obj.max_dx_norm / dn);
+                    end
+                end
+            catch
+                % 何らかの理由で clip が失敗しても処理を継続
+            end
+
             obj.ba = obj.ba + dx(10:12);
 
             % 共分散更新
             x_pred = zeros(15,1);
             x_pred(1:3) = obj.p; x_pred(4:6) = obj.v; x_pred(7:9) = zeros(3,1);
             x_pred(10:12) = obj.ba; x_pred(13:15) = obj.bg;
-            [~, obj.P] = kalman_filter_core('update_state_covariance', x_pred, obj.P, K, H, y_filtered, R_used);
+            [~, obj.P] = kalman_filter_core('update_state_covariance', x_pred, obj.P, K, H, y_used, R_used);
+
+            % debug: accel post-update
+            info = struct(); info.stage = 'accel_post'; info.k = NaN; info.P = obj.P; info.z = z; info.h = h; info.y = y_used; info.P_diag = diag(obj.P);
+            try
+                info.K_norm = norm(K, 'fro');
+            catch
+                info.K_norm = NaN;
+            end
+            obj.callDebug(info);
+            % debug: mag post-update (kept for compatibility)
+            info = struct(); info.stage = 'mag_post'; info.k = NaN; info.P = obj.P; info.z = z; info.h = h; info.y = y_used; info.P_diag = diag(obj.P);
+            try
+                info.K_norm = norm(K, 'fro');
+            catch
+                info.K_norm = NaN;
+            end
+            obj.callDebug(info);
         end
         
         function updateMag(obj, m_meas)
@@ -333,32 +425,51 @@ classdef ESKF < handle
             R_est = obj.noiseEstimator.getRnoise('mag');
             
             [y, S, R_used] = kalman_filter_core('compute_innovation_and_S', z, h, H, obj.P, R_est, struct());
-            
-            % フィルタリング（外れ値判定）
-            [y_filtered, should_update] = SensorFilter.filterInnovation(y, R_used);
+
+            % Use OutlierGuard to unify checks
+            try
+                K_prop = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
+            catch
+                K_prop = [];
+            end
+            ctx = struct(); ctx.k = NaN; ctx.z = z; ctx.h = h; ctx.P_diag = diag(obj.P); ctx.R_diag = diag(R_used);
+            [should_update, y_used, K_used, dx_used, diag_info] = OutlierGuard.checkAndApply('mag', z, h, H, obj.P, R_used, K_prop, [], obj.divergence_guard, obj.noiseEstimator, ctx);
             if ~should_update
                 return;
             end
-            
-            % --- 外れ値でない場合のみノイズ推定を更新 ---
-            obj.noiseEstimator.estimate('mag', y_filtered, H, obj.P);
-            
-            K = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
-            dx = K * y_filtered;
-            
-            % 姿勢更新 (yawのみ)
+
+            obj.noiseEstimator.estimate('mag', y_used, H, obj.P);
+
+            if isempty(K_used)
+                K = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
+                K = obj.divergence_guard.clamp_gain(K);
+            else
+                K = K_used;
+            end
+            if isempty(dx_used)
+                dx = K * y_used;
+            else
+                dx = dx_used;
+            end
+
             dtheta = [0; 0; dx(9)];
             dq = quat_lib('small_angle_quat', dtheta);
             obj.q = quat_lib('quatmultiply', obj.q, dq);
             obj.q = quat_lib('quatnormalize', obj.q);
-            
-            % 共分散更新
+
             x_pred = zeros(15,1);
-            [~, obj.P] = kalman_filter_core('update_state_covariance', x_pred, obj.P, K, H, y_filtered, R_used);
+            [~, obj.P] = kalman_filter_core('update_state_covariance', x_pred, obj.P, K, H, y_used, R_used);
+            info = struct(); info.stage = 'baro_post'; info.k = NaN; info.P = obj.P; info.z = z; info.h = h; info.y = y_used; info.P_diag = diag(obj.P);
+            try
+                info.K_norm = norm(K, 'fro');
+            catch
+                info.K_norm = NaN;
+            end
+            obj.callDebug(info);
         end
         
-        function updateGPS(obj, lat, lon, alt)
-            % UPDATEGPS  GPS位置観測による更新 (UKF)
+    function updateGPS(obj, lat, lon, alt, k)
+            % UPDATEGPS  GPS位置観測による更新 (UKF with adaptive gain)
             %
             % 入力:
             %   lat, lon, alt - GPS観測値
@@ -373,30 +484,90 @@ classdef ESKF < handle
             z_m = alt - alt0;
             
             z_gps = [x_m; y_m; z_m];
-            
+
             R = obj.noiseEstimator.getRnoise('gps');
+            
+            % GPS更新前にPを正則化（UKFのシグマポイント生成の安定性向上）
+            obj.P = obj.divergence_guard.regularize_for_ukf(obj.P);
             
             x_err = zeros(15, 1);
             h_func = @(dx) obj.p + dx(1:3);
             
             [dx, P_upd, ~, ~, y_innov] = ukf_update(x_err, obj.P, z_gps, h_func, R);
-            
-            % フィルタリング（外れ値判定）
+
+            % Build context for dump/diagnostics
+            H_gps = [eye(3), zeros(3, 12)];
+            S = H_gps * obj.P * H_gps' + R;
+            ctx = struct();
+            ctx.k = k;
+            ctx.z = z_gps;
+            ctx.h = obj.p; % predicted measurement for dx=0
+            ctx.y = y_innov;
+            ctx.P_diag = diag(obj.P);
+            ctx.R_diag = diag(R);
+            ctx.S_rcond = rcond(S);
+
+            % --- 自動ダンプ: GPS pre のタイミングでフル内部状態を安全に保存 ---
+            if ~isempty(obj.debugDumpK) && isequal(k, obj.debugDumpK)
+                try
+                    try
+                        K_approx = obj.P * H_gps' / S;
+                    catch
+                        K_approx = NaN;
+                    end
+                    dump = struct('k',k,'sensor','gps','z',z_gps,'h',obj.p,'y',y_innov,'P',obj.P,'R',R,'S',S,'K_approx',K_approx,'time',datestr(now,'yyyymmdd_HHMMSS'));
+                    obj.saveDebugDump(dump);
+                catch e
+                    warning('ESKF:saveDebugDump','Could not auto-save debug dump: %s', e.message);
+                end
+            end
+
+            % デバッグ: GPS 更新前情報
+            info = struct(); info.k = k; info.stage = 'gps_pre'; info.P = obj.P; info.z = z_gps; info.h = obj.p; info.y = y_innov; info.S_rcond = ctx.S_rcond;
+            % Kalman gain approximate (pre-update) for diagnostics: K = P*H' * inv(S)
+            try
+                H_gps = [eye(3), zeros(3, 12)];
+                K_approx = obj.P * H_gps' / S; %#ok<NASGU>
+                info.K_norm = norm(K_approx, 'fro');
+            catch
+                info.K_norm = NaN;
+            end
+            obj.callDebug(info);
+
+            % Use OutlierGuard to handle SensorFilter + Divergence checks
             R_updated = obj.noiseEstimator.getRnoise('gps');
-            [~, should_update] = SensorFilter.filterInnovation(y_innov, R_updated);
+            ctx.gps = ctx;
+            [should_update, y_used, K_used, dx_used, diag_info] = OutlierGuard.checkAndApply('gps', z_gps, obj.p, H_gps, obj.P, R_updated, [], dx, obj.divergence_guard, obj.noiseEstimator, ctx);
             if ~should_update
                 return;
             end
-            
-            % --- 外れ値でない場合のみノイズ推定を更新 ---
-            H_gps = [eye(3), zeros(3, 12)];
-            obj.noiseEstimator.estimate('gps', y_innov, H_gps, obj.P);
-            
+
+            % ノイズ推定を更新
+            obj.noiseEstimator.estimate('gps', y_used, H_gps, obj.P);
+
+            % クリップ済み dx があれば使う
+            if ~isempty(dx_used)
+                dx = dx_used;
+            end
+
             % 状態更新
             obj.p = obj.p + dx(1:3);
             obj.v = obj.v + dx(4:6);
             obj.ba = obj.ba + dx(10:12);
             obj.P = P_upd;
+            % debug: gps post-update
+            info = struct(); info.k = k; info.stage = 'gps_post'; info.P = obj.P; info.z = z_gps; info.h = obj.p; info.y = y_innov; info.P_diag = diag(obj.P);
+            try
+                H_gps = [eye(3), zeros(3, 12)];
+                K_approx = (P_upd) * H_gps' / S;
+                info.K_norm = norm(K_approx, 'fro');
+            catch
+                info.K_norm = NaN;
+            end
+            obj.callDebug(info);
+            
+            % 速度チェックとクリッピング
+            [obj.v, obj.P, ~] = obj.divergence_guard.check_and_clip_velocity(obj.v, obj.P, 4:6);
         end
         
         function updateBaro(obj, pressure)
@@ -427,6 +598,7 @@ classdef ESKF < handle
             obj.noiseEstimator.estimate('baro', y_filtered, H, obj.P);
             
             K = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
+            K = obj.divergence_guard.clamp_gain(K);
             dx = K * y_filtered;
             
             % 高度更新
@@ -448,6 +620,35 @@ classdef ESKF < handle
             
             euler_angles = quat_lib('quat_to_euler', obj.q);
             euler = [euler_angles(2); euler_angles(1); euler_angles(3)];
+        end
+
+        function saveDebugDump(obj, dump)
+            % saveDebugDump  指定されたダンプ構造体を Results フォルダに保存
+            try
+                % mfilename('fullpath') -> .../kalman/ESKF/ESKF.m
+                classPath = mfilename('fullpath');
+                base = fileparts(fileparts(classPath)); % .../kalman
+                resultsDir = fullfile(base, 'Results');
+                if ~exist(resultsDir, 'dir')
+                    mkdir(resultsDir);
+                end
+                tstr = datestr(now,'yyyymmdd_HHMMSS');
+                if isfield(dump,'k')
+                    kstr = sprintf('k%u',dump.k);
+                else
+                    kstr = 'kNaN';
+                end
+                if isfield(dump,'sensor')
+                    sname = dump.sensor;
+                else
+                    sname = 'unknown';
+                end
+                fname = fullfile(resultsDir, sprintf('divergence_full_dump_%s_%s_%s.mat', sname, kstr, tstr));
+                save(fname, 'dump');
+                fprintf('ESKF: saved debug dump to %s\n', fname);
+            catch e
+                warning('ESKF:saveDebugDump', 'Failed to save debug dump: %s', e.message);
+            end
         end
     end
 end

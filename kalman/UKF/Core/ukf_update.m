@@ -60,7 +60,9 @@ function [x_upd, P_upd, K, S, y] = ukf_update(x, P, z, h_func, R, alpha, beta, k
     x_upd = x + K * y;
     P_upd = P - K * S * K';
 
-    % 共分散の対称性を保証
+    % 共分散の対称性を保証と正則化
+    % Note: DivergenceGuardを使用する場合は、呼び出し側で正則化を適用してください
+    % 例: P_upd = divergence_guard.regularize_covariance(P_upd);
     P_upd = (P_upd + P_upd') / 2;
 
 end

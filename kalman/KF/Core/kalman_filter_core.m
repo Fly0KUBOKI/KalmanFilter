@@ -37,6 +37,8 @@ function P = predict_step_impl(P, q, a_meas, ba, w_meas, bg, Q, dt)
         disp(tmp);
     end
     P = F * P * F' + Q * dt;
+    % enforce symmetry and positive-definiteness to avoid divergence
+    P = regularize_covariance(P);
 end
 
 function K = compute_kalman_gain_impl(P_pred, H, S)
@@ -51,7 +53,21 @@ end
 
 function [x_upd, P_upd] = update_state_covariance_impl(x_pred, P_pred, K, H, y, R)
     % Standard update with Joseph form for P for numerical stability
-    x_upd = x_pred + K * y;
+    % Apply state change clipping to prevent divergence from large Kalman gain
+    dx = K * y;
+    
+    % Clip state changes to prevent unrealistic jumps (especially in velocity)
+    % Position: max ±10m per update, Velocity: max ±5 m/s per update, Attitude: max ±0.5 rad per update
+    max_delta = [10; 10; 10; 5; 5; 5; 0.5; 0.5; 0.5; 1; 1; 1; 0.1; 0.1; 0.1];
+    if numel(dx) == 15
+        for i = 1:15
+            if abs(dx(i)) > max_delta(i)
+                dx(i) = sign(dx(i)) * max_delta(i);
+            end
+        end
+    end
+    
+    x_upd = x_pred + dx;
     I = eye(size(P_pred));
     % If R provided, use full Joseph form
     if exist('R','var') && ~isempty(R)
@@ -61,6 +77,8 @@ function [x_upd, P_upd] = update_state_covariance_impl(x_pred, P_pred, K, H, y, 
     end
     % enforce symmetry
     P_upd = (P_upd + P_upd') / 2;
+    % ensure P_upd is positive-definite / well-conditioned
+    P_upd = regularize_covariance(P_upd);
 end
 
 function [y, S, R_out] = compute_innovation_and_S_impl(z, h, H, P_pred, R, params)
@@ -69,6 +87,20 @@ function [y, S, R_out] = compute_innovation_and_S_impl(z, h, H, P_pred, R, param
     % Includes adaptive gating for outlier rejection.
 
     y = z - h;
+
+    % Zero-out very small innovations to avoid numerical noise-driven updates
+    zero_thresh = 0;
+    if isfield(params,'kf') && isfield(params.kf,'zero_innovation_threshold')
+        zero_thresh = params.kf.zero_innovation_threshold;
+    else
+        zero_thresh = 1e-8;
+    end
+    if ~isempty(y)
+        small_idx = abs(y) < zero_thresh;
+        if any(small_idx)
+            y(small_idx) = 0;
+        end
+    end
 
     % initial S
     S = H * P_pred * H' + R;
@@ -153,18 +185,21 @@ function [y, S, R_out] = compute_innovation_and_S_impl(z, h, H, P_pred, R, param
         r = rcond(S);
         reg_scale = 1e-8; iter = 0;
         base = max(eps, trace(S)/n);
-        while (isnan(r) || r < 1e-12) && iter < 8
+        % More aggressive regularization if H has low rank (e.g., mag update with skew matrix)
+        if rank(H) < min(size(H))
+            reg_scale = 1e-6;  % stronger regularization for rank-deficient H
+        end
+        while (isnan(r) || r < 1e-10) && iter < 10
             reg = (10^iter) * reg_scale * base;
             S = S + reg * eye(n);
             r = rcond(S);
             iter = iter + 1;
         end
-        if isnan(r) || r < 1e-12
+        if isnan(r) || r < 1e-10
             warning('compute_innovation_and_S:IllConditionedS','S is ill-conditioned. rcond=%g', r);
         end
-        if isfield(params,'kf') && isfield(params.kf,'debug') && params.kf.debug
-            fprintf('compute_innovation_and_S: rcond after reg = %g (iter=%d)\n', r, iter);
-        end
+        % Debug printing for S conditioning was removed to avoid noisy logs during
+        % long simulations. Keep the gating / regularization behavior unchanged.
     end
 
     R_out = R;
@@ -193,4 +228,109 @@ function F = compute_jacobian_impl(q, a_meas, ba, dt)
     F(7:9,13:15) = -eye(3) * dt;
     F(10:12,10:12) = eye(3);
     F(13:15,13:15) = eye(3);
+end
+
+function P = regularize_covariance(P)
+    % Ensure covariance matrix is symmetric and positive definite (or at least numerically stable)
+    % Minimal changes: enforce symmetry, then attempt Cholesky; if it fails add small diagonal jitter
+    P = (P + P') / 2;
+    n = size(P,1);
+    if n == 0
+        return;
+    end
+
+    % quick guard for NaN/Inf
+    if any(~isfinite(P(:)))
+        d = diag(P);
+        d(~isfinite(d) | d<=0) = eps;
+        P = diag(d);
+    end
+
+    % attempt Cholesky; if it fails, add increasing jitter on diagonal
+    max_iter = 12;
+    iter = 0;
+    base = max(eps, trace(P)/n);
+    ok = false;
+    while iter <= max_iter
+        [R, pflag] = chol(P);
+        if pflag == 0
+            ok = true; break;
+        end
+        % jitter scale grows by factor 10 each iteration
+        % use a slightly larger initial jitter to be more robust to near-singular P
+        jitter = (10^iter) * 1e-6 * base + eps;
+        P = P + jitter * eye(n);
+        iter = iter + 1;
+    end
+
+    if ~ok
+        % fallback: force-diagonal covariance (conservative) to avoid NaN propagation
+        d = diag(P);
+        d(~isfinite(d) | d <= 0) = max(eps, mean(d(d>0)));
+        P = diag(d);
+    end
+
+    % final symmetry
+    P = (P + P') / 2;
+
+    % Cap diagonal (variance) to avoid unbounded growth which indicates divergence.
+    % Use a relative cap based on the trace of P so it scales with the problem.
+    d = diag(P);
+    base = max(eps, trace(P)/n);
+    max_factor = 1e6; % allowed multiple of base
+    max_allowed = max_factor * base;
+    d(d > max_allowed) = max_allowed;
+    P(1:n+1:end) = d;
+
+    % --- Absolute per-state caps (safety net) ---
+    % If state dimension is 15 (standard ESKF), enforce conservative absolute caps
+    if n == 15
+        % indices: pos 1:3, vel 4:6, att 7:9, ba 10:12, bg 13:15
+        pos_cap = 1e6;    % var (m^2) ~ std 1e3 m
+        vel_cap = 1e4;    % var (m^2/s^2) ~ std 100 m/s
+        att_cap = 100;    % var (rad^2) ~ std 10 rad
+        bias_a_cap = 1e2; % var (m^2/s^4?) conservative
+        bias_g_cap = 1e-1; % var (rad^2/s^2?) conservative
+
+        P(1:3+0,1:3+0) = min(diag(P(1:3,1:3)), pos_cap) .* eye(3);
+        P(4:6,4:6) = min(diag(P(4:6,4:6)), vel_cap) .* eye(3);
+        P(7:9,7:9) = min(diag(P(7:9,7:9)), att_cap) .* eye(3);
+        P(10:12,10:12) = min(diag(P(10:12,10:12)), bias_a_cap) .* eye(3);
+        P(13:15,13:15) = min(diag(P(13:15,13:15)), bias_g_cap) .* eye(3);
+    end
+
+    % Zero very small off-diagonal elements to reduce numerical noise
+    tol = 1e-12 * base;
+    if n > 1
+        off_mask = ~eye(n);
+        small_off = abs(P) < tol;
+        mask = off_mask & small_off;
+        P(mask) = 0;
+    end
+
+    % enforce a minimum eigenvalue to avoid near-singular / slightly negative eigenvalues
+    % This is a conservative fix: if any eigenvalue is below floor, lift them to the floor
+    % Use a floor high enough to avoid machine-precision edge cases (2.22e-16)
+    min_eig_floor = 1e-8 * base;
+    try
+        [V, D] = eig((P + P')/2);
+        dvals = diag(D);
+        if any(dvals < min_eig_floor)
+            dvals(dvals < min_eig_floor) = min_eig_floor;
+            P = V * diag(dvals) * V';
+        end
+    catch
+        % if eig fails for some reason, fall back to previous P
+    end
+    
+    % Additional guard: if rcond is still below threshold, add a small multiple of identity
+    % This handles edge cases where eigenvalue decomposition alone is not sufficient
+    current_rcond = rcond(P);
+    if isnan(current_rcond) || current_rcond < 1e-10
+        reg_boost = 1e-7 * base;
+        P = P + reg_boost * eye(n);
+    end
+
+    % ensure symmetry after modifications
+    P = (P + P') / 2;
 end
