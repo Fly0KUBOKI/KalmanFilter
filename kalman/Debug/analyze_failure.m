@@ -80,11 +80,12 @@ fprintf('======================================================\n\n');
 diagnosis_report(bias_stats, sensor_noise, bias_error, init_errors, error_evolution, divergence_info);
 
 %% 7. 結果のプロット
-if plot_results
-    fprintf('\n結果をプロット中...\n');
-    plot_error_evolution(error_evolution, divergence_info);
-    plot_trajectory(truth, estimation);
-    plot_yaw(truth, estimation, static_samples);
-    plot_velocity(truth, estimation, static_samples);
+% プロットは一時的に無効化（デバッグ呼び出しをコメントアウト）
+if false % plot_results
+    % fprintf('\n結果をプロット中...\n');
+    % plot_error_evolution(error_evolution, divergence_info);
+    % plot_trajectory(truth, estimation);
+    % plot_yaw(truth, estimation, static_samples);
+    % plot_velocity(truth, estimation, static_samples);
 end
 end

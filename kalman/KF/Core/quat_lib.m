@@ -85,15 +85,16 @@ function varargout = quat_lib(action, varargin)
                 -v(2) v(1)    0 ];
             varargout{1} = S;
         case 'quat_to_euler'
+            % Return Euler angles in degrees in standard order: [roll; pitch; yaw]
             q = varargin{1}; q = q(:); q = quat_lib('quatnormalize', q);
             qw = q(1); qx = q(2); qy = q(3); qz = q(4);
 
-            % Calculate roll (x-axis rotation)
+            % roll (x-axis rotation)
             sinr_cosp = 2 * (qw * qx + qy * qz);
             cosr_cosp = 1 - 2 * (qx^2 + qy^2);
             roll = atan2(sinr_cosp, cosr_cosp);
 
-            % Calculate pitch (y-axis rotation)
+            % pitch (y-axis rotation)
             sinp = 2 * (qw * qy - qz * qx);
             if abs(sinp) >= 1
                 pitch = sign(sinp) * pi / 2; % Use 90 degrees if out of range
@@ -101,18 +102,42 @@ function varargout = quat_lib(action, varargin)
                 pitch = asin(sinp);
             end
 
-            % Calculate yaw (z-axis rotation)
+            % yaw (z-axis rotation)
             siny_cosp = 2 * (qw * qz + qx * qy);
             cosy_cosp = 1 - 2 * (qy^2 + qz^2);
             yaw = atan2(siny_cosp, cosy_cosp);
 
-            % Convert output to degrees (project uses degrees for euler outputs)
-            
-            pitch = pitch * 180 / pi;
+            % Convert output to degrees and return as [roll; pitch; yaw]
             roll = roll * 180 / pi;
+            pitch = pitch * 180 / pi;
             yaw = yaw * 180 / pi;
 
-            varargout{1} = [pitch; roll; yaw];
+            varargout{1} = [roll; pitch; yaw];
+        case 'euler_to_quat'
+            % Convert euler angles (roll; pitch; yaw) in degrees back to quaternion
+            e = varargin{1}(:);
+            if numel(e) ~= 3
+                error('euler_to_quat: input must be 3-element vector [roll; pitch; yaw] in degrees');
+            end
+            % Interpret e as [roll; pitch; yaw] in degrees
+            roll  = e(1) * pi / 180;
+            pitch = e(2) * pi / 180;
+            yaw   = e(3) * pi / 180;
+
+            cy = cos(yaw * 0.5);
+            sy = sin(yaw * 0.5);
+            cp = cos(pitch * 0.5);
+            sp = sin(pitch * 0.5);
+            cr = cos(roll * 0.5);
+            sr = sin(roll * 0.5);
+
+            qw = cr * cp * cy + sr * sp * sy;
+            qx = sr * cp * cy - cr * sp * sy;
+            qy = cr * sp * cy + sr * cp * sy;
+            qz = cr * cp * sy - sr * sp * cy;
+
+            q = [qw; qx; qy; qz];
+            varargout{1} = quat_lib('quatnormalize', q);
         case 'vector_to_quat'
             v1 = varargin{1}(:); % First vector
             v2 = varargin{2}(:); % Second vector

@@ -52,14 +52,39 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
     gps_lon = zeros(N,1);
     gps_alt = zeros(N,1);
 
+    % pitch/rollの角速度を姿勢角の時間微分から直接計算
+    pitch_rate = zeros(N,1);
+    roll_rate = zeros(N,1);
+    
+    for i = 1:N
+        if i == 1
+            % 前進差分
+            if N > 1
+                roll_rate(i) = (attitude(2,1) - attitude(1,1)) / dt;
+                pitch_rate(i) = (attitude(2,2) - attitude(1,2)) / dt;
+            else
+                roll_rate(i) = 0;
+                pitch_rate(i) = 0;
+            end
+        elseif i == N
+            % 後退差分
+            roll_rate(i) = (attitude(N,1) - attitude(N-1,1)) / dt;
+            pitch_rate(i) = (attitude(N,2) - attitude(N-1,2)) / dt;
+        else
+            % 中央差分（より正確）
+            roll_rate(i) = (attitude(i+1,1) - attitude(i-1,1)) / (2*dt);
+            pitch_rate(i) = (attitude(i+1,2) - attitude(i-1,2)) / (2*dt);
+        end
+    end
+
     % 各時刻でセンサー観測を生成
     for i = 1:N
         roll = attitude(i,1);
         pitch = attitude(i,2);
         yaw = attitude(i,3);
 
-        % 回転行列（世界→ボディ）
-        R = eul2rotm([yaw, pitch, roll], 'ZYX');
+    % 回転行列（世界→ボディ）: pitch=x軸, roll=y軸, yaw=z軸周り
+    R = eul2rotm([yaw, pitch, roll], 'ZXY');
 
         % 加速度計（比力 = 加速度 - 重力）
         if strcmp(motion_type, 'circular')
@@ -70,16 +95,53 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
         
         g_world = [0, 0, -9.81];
         specific_force_world = a_world - g_world;
-        accel_body(i,:) = (R' * specific_force_world')';
+    % 機体軸: x=roll, y=pitch, z=down となるように列を配置（直接マップ）
+    accel_tmp = (R' * specific_force_world')';
+    % x軸をroll方向、y軸をpitch方向としてそのまま割り当てる
+    accel_body(i,1) = accel_tmp(1); % x: roll方向
+    accel_body(i,2) = accel_tmp(2); % y: pitch方向
+    accel_body(i,3) = accel_tmp(3); % z: down
 
         % ジャイロスコープ（角速度）
+        % pitch/rollは姿勢角の時間微分から直接計算
+        % yawは運動モデルから取得（位置・速度に依存）
+        
+        % yaw角速度を運動モデルから計算
         if strcmp(motion_type, 'circular')
-            omega_world = compute_circular_angular_velocity(i, t, static_time, accel_time, omega);
-            gyro_body(i,:) = rad2deg(R' * omega_world')';
+            omega_yaw_world = compute_circular_yaw_rate(i, t, static_time, accel_time, omega);
         else
-            omega_world = compute_general_angular_velocity(i, vel_world, dt, params);
-            gyro_body(i,:) = rad2deg(R' * omega_world')';
+            omega_yaw_world = compute_general_yaw_rate(i, vel_world, dt, params);
         end
+        
+        % 体軸角速度：[p, q, r] = [roll_rate, pitch_rate, yaw_rate]
+        % Euler角微分から体軸角速度への変換
+        roll = attitude(i,1);
+        pitch = attitude(i,2);
+        
+        cos_pitch = cos(pitch);
+        sin_pitch = sin(pitch);
+        cos_roll = cos(roll);
+        sin_roll = sin(roll);
+        
+        % 体軸角速度計算（Euler角微分→体軸角速度変換）
+        if abs(cos_pitch) > params.thresholds  % 特異点回避
+            p = roll_rate(i) - sin_pitch * omega_yaw_world;
+            q = cos_roll * pitch_rate(i) + sin_roll * cos_pitch * omega_yaw_world;
+            r = -sin_roll * pitch_rate(i) + cos_roll * cos_pitch * omega_yaw_world;
+        else
+            % 特異点近傍では近似
+            p = roll_rate(i);
+            q = pitch_rate(i);
+            r = omega_yaw_world;
+        end
+        
+    % x=pitch(アップ正/ダウン負), y=roll(右回り正/左回り負), z=ヨー
+    % pitch: q, roll: p, yaw: r
+    % pitch(アップ正/ダウン負)はq, roll(右回り正/左回り負)はp
+    gyro_tmp = rad2deg([p, q, r]);
+    gyro_body(i,1) = gyro_tmp(2); % x: pitch (アップ正/ダウン負)
+    gyro_body(i,2) = gyro_tmp(1); % y: roll (右回り正/左回り負)
+    gyro_body(i,3) = gyro_tmp(3); % z: yaw
 
         % 磁気計
         mag_world = [0, mag_strength, 0];
@@ -164,8 +226,8 @@ function a_world = compute_general_acceleration(i, vel_world, dt, params)
     end
 end
 
-function omega_world = compute_circular_angular_velocity(i, t, static_time, accel_time, omega)
-    % 円運動の角速度計算
+function yaw_rate = compute_circular_yaw_rate(i, t, static_time, accel_time, omega)
+    % 円運動のyaw角速度計算
     if t(i) < static_time
         omega_scale = 0.0;
     elseif t(i) < static_time + accel_time
@@ -175,12 +237,11 @@ function omega_world = compute_circular_angular_velocity(i, t, static_time, acce
         omega_scale = 1.0;
     end
 
-    theta_dot_gyro = -omega * omega_scale;
-    omega_world = [0, 0, theta_dot_gyro];
+    yaw_rate = -omega * omega_scale;  % 時計回り
 end
 
-function omega_world = compute_general_angular_velocity(i, vel_world, dt, params)
-    % 一般的な運動の角速度計算
+function yaw_rate = compute_general_yaw_rate(i, vel_world, dt, params)
+    % 一般的な運動のyaw角速度計算（速度ベクトルの変化から）
     if i > 1
         u = vel_world(i-1,:); 
         v = vel_world(i,:);
@@ -188,7 +249,7 @@ function omega_world = compute_general_angular_velocity(i, vel_world, dt, params
         nv = norm(v);
         
         if nu < params.thresholds || nv < params.thresholds
-            omega_world = [0,0,0];
+            yaw_rate = 0;
         else
             u_n = u / nu; 
             v_n = v / nv;
@@ -198,13 +259,17 @@ function omega_world = compute_general_angular_velocity(i, vel_world, dt, params
             axis = cross(u_n, v_n);
             an = norm(axis);
             if an < params.thresholds
-                omega_world = [0,0,0];
+                yaw_rate = 0;
             else
-                axis_n = axis / an;
-                omega_world = (axis_n * (angle / dt));
+                % ヨー成分のみ抽出（Z軸周りの回転）
+                if axis(3) > 0
+                    yaw_rate = angle / dt;
+                else
+                    yaw_rate = -angle / dt;
+                end
             end
         end
     else
-        omega_world = [0,0,0];
+        yaw_rate = 0;
     end
 end

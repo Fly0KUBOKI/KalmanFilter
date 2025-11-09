@@ -207,7 +207,10 @@ classdef ESKF < handle
 
             % センサーデータの取得
             a = [obs.ax(k); obs.ay(k); obs.az(k)];
-            w = [obs.wx(k); obs.wy(k); obs.wz(k)];
+            % 生成データの角速度: x=pitch, y=roll, z=yaw
+            % ESKF内部: x=roll, y=pitch, z=yaw なので入れ替え
+            w_raw = [obs.wx(k); obs.wy(k); obs.wz(k)];
+            w = [w_raw(2); w_raw(1); w_raw(3)];
             w = deg2rad(w);
 
             % 予測ステップ
@@ -310,104 +313,90 @@ classdef ESKF < handle
             dt_sum = 0;
 
             % 静止判定
-            accel_norm = norm(a_meas);
-            if abs(accel_norm - 9.81) > 0.5
-                return;
-            end
+            % accel_norm = norm(a_meas);
+            % if abs(accel_norm - 9.81) > 0.5
+            %     return;
+            % end
 
-            % 観測モデル（静止時）
-            % 測定: z = a_meas（ボディフレームの比力測定値）
-            % 期待値: h = ba + Rb' * (-g)（静止時のボディフレーム比力）
-            %         = ba + Rb' * [0; 0; 9.81]
-            Rb = quat_lib('quat_to_rotm', obj.q);
-            g_up = -obj.g;  % [0; 0; 9.81] 上向きの比力
+            % 加速度による姿勢補正（小角近似使用）
+            a_corrected = a_meas - obj.ba;
+            a_corrected_norm = norm(a_corrected);
             
-            z = a_meas;
-            h = obj.ba + Rb' * g_up;
-
-            % ヤコビアン H = ∂h/∂x
-            % ∂h/∂θ = ∂(Rb' * g_up)/∂θ = -Rb' * [g_up]×
-            % ∂h/∂ba = I
-            H_theta = -Rb' * quat_lib('skew', g_up);
-            H = [zeros(3,3), zeros(3,3), H_theta, zeros(3,3), zeros(3,3)];
-
-            % 現在のノイズ推定値を使用
-            R_est = obj.noiseEstimator.getRnoise('accel');
-
-            % イノベーション計算
-            [y, S, R_used] = kalman_filter_core('compute_innovation_and_S', z, h, H, obj.P, R_est, struct());
-
-            % --- 統合外れ値判定/発散防止を実行 ---
-            try
-                K_prop = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
-            catch
-                K_prop = [];
-            end
-            ctx = struct(); ctx.k = NaN; ctx.z = z; ctx.h = h; ctx.P_diag = diag(obj.P); ctx.R_diag = diag(R_used);
-            [should_update, y_used, K_used, dx_used, diag_info] = OutlierGuard.checkAndApply('accel', z, h, H, obj.P, R_used, K_prop, [], obj.divergence_guard, obj.noiseEstimator, ctx);
-            if ~should_update
+            % ノルムが小さすぎる場合は更新しない
+            if a_corrected_norm < 0.1
                 return;
             end
-
-            % ノイズ推定は更新（外れ値でない場合のみ）
-            obj.noiseEstimator.estimate('accel', y_used, H, obj.P);
-
-            % もし K_used があれば共分散更新に使用、なければ従来どおり計算
-            if isempty(K_used)
-                K = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
-                K = obj.divergence_guard.clamp_gain(K);
-            else
-                K = K_used;
+            
+            % 現在の姿勢を取得
+            euler_current = quat_lib('quat_to_euler', obj.q);  % [roll; pitch; yaw]
+            
+            % 加速度から直接 roll, pitch を計算（小角近似）
+            % 座標系: body x=roll方向, y=pitch方向, z=down
+            % roll: Y軸まわりの回転 = atan2(a_x, a_z)
+            % pitch: X軸まわりの回転 = atan2(-a_y, a_z)
+            ax = a_corrected(1);
+            ay = a_corrected(2); 
+            az = a_corrected(3);
+            
+            % Z成分が小さすぎる場合は更新を控える（特異点回避）
+            if abs(az) < 0.1
+                return;
             end
-
-            if isempty(dx_used)
-                dx = K * y_used;
-            else
-                dx = dx_used;
+            
+            % 加速度から角度を計算
+            roll_from_accel = atan2(ax, az);     % X軸（roll方向）の傾斜
+            pitch_from_accel = atan2(ay, az);   % Y軸（pitch方向）の傾斜
+            
+            % 角度を度に変換
+            roll_from_accel = rad2deg(roll_from_accel);
+            pitch_from_accel = rad2deg(pitch_from_accel);
+            
+            % 現在の角度との差分（補正量）
+            roll_current = euler_current(1);
+            pitch_current = euler_current(2);
+            yaw_current = euler_current(3);
+            
+            roll_error = roll_from_accel - roll_current;
+            pitch_error = pitch_from_accel - pitch_current;
+            
+            % 角度差を[-180, 180]に正規化
+            roll_error = mod(roll_error + 180, 360) - 180;
+            pitch_error = mod(pitch_error + 180, 360) - 180;
+            
+            % 補正量を制限（最大5度）
+            max_correction = 5.0;  % degrees
+            roll_error = max(-max_correction, min(max_correction, roll_error));
+            pitch_error = max(-max_correction, min(max_correction, pitch_error));
+            
+            % 最小補正閾値
+            min_correction = 0.1;  % degrees
+            if abs(roll_error) < min_correction && abs(pitch_error) < min_correction
+                return;
             end
+            
+            % 補正適用（ゲインを追加して急激な変化を抑制）
+            correction_gain = 0.1;  % 10%ずつ補正
+            roll_corrected = roll_current + correction_gain * roll_error;
+            pitch_corrected = pitch_current + correction_gain * pitch_error;
+            
+            % 新しい姿勢を設定（yawは保持）
+            euler_new = [roll_corrected; pitch_corrected; yaw_current];
+            obj.q = quat_lib('euler_to_quat', euler_new);
+            obj.q = quat_lib('quatnormalize', obj.q);
 
-            % --- 状態修正量のクリッピング ---
-            try
-                % component-wise clipping (position/velocity/attitude/ba/bg)
-                dx = obj.divergence_guard.clip_state_change(dx);
-                % global norm cap
-                if isfield(obj, 'max_dx_norm') && ~isempty(obj.max_dx_norm) && obj.max_dx_norm > 0
-                    dn = norm(dx);
-                    if dn > obj.max_dx_norm
-                        dx = dx * (obj.max_dx_norm / dn);
-                    end
-                end
-            catch
-                % 何らかの理由で clip が失敗しても処理を継続
-            end
-
-            obj.ba = obj.ba + dx(10:12);
-
-            % 共分散更新
-            x_pred = zeros(15,1);
-            x_pred(1:3) = obj.p; x_pred(4:6) = obj.v; x_pred(7:9) = zeros(3,1);
-            x_pred(10:12) = obj.ba; x_pred(13:15) = obj.bg;
-            [~, obj.P] = kalman_filter_core('update_state_covariance', x_pred, obj.P, K, H, y_used, R_used);
-
+            
+            % デバッグ情報
+            correction_info = struct();
+            correction_info.roll_error_deg = roll_error;
+            correction_info.pitch_error_deg = pitch_error;
+            correction_info.roll_from_accel = roll_from_accel;
+            correction_info.pitch_from_accel = pitch_from_accel;
+            
             % debug: accel post-update
-            info = struct(); info.stage = 'accel_post'; info.k = NaN; info.P = obj.P; info.z = z; info.h = h; info.y = y_used; info.P_diag = diag(obj.P);
-            try
-                info.K_norm = norm(K, 'fro');
-            catch
-                info.K_norm = NaN;
-            end
+            info = struct(); info.stage = 'accel_post'; info.k = NaN; info.P = obj.P; 
+            info.roll_correction = roll_error; info.pitch_correction = pitch_error; info.P_diag = diag(obj.P);
             obj.callDebug(info);
-            % debug: mag post-update (kept for compatibility)
-            info = struct(); info.stage = 'mag_post'; info.k = NaN; info.P = obj.P; info.z = z; info.h = h; info.y = y_used; info.P_diag = diag(obj.P);
-            try
-                info.K_norm = norm(K, 'fro');
-            catch
-                info.K_norm = NaN;
-            end
-            obj.callDebug(info);
-        end
-        
-        function updateMag(obj, m_meas)
+        end        function updateMag(obj, m_meas)
             % UPDATEMAG  磁気計による姿勢更新
             %
             % 入力:
@@ -551,10 +540,10 @@ classdef ESKF < handle
             end
 
             % 状態更新
-            obj.p = obj.p + dx(1:3);
-            obj.v = obj.v + dx(4:6);
-            obj.ba = obj.ba + dx(10:12);
-            obj.P = P_upd;
+            % obj.p = obj.p + dx(1:3);
+            % obj.v = obj.v + dx(4:6);
+            % obj.ba = obj.ba + dx(10:12);
+            % obj.P = P_upd;
             % debug: gps post-update
             info = struct(); info.k = k; info.stage = 'gps_post'; info.P = obj.P; info.z = z_gps; info.h = obj.p; info.y = y_innov; info.P_diag = diag(obj.P);
             try
@@ -616,10 +605,8 @@ classdef ESKF < handle
             % GETEULER  オイラー角を取得
             %
             % 出力:
-            %   euler - [roll; pitch; yaw]
-            
-            euler_angles = quat_lib('quat_to_euler', obj.q);
-            euler = [euler_angles(2); euler_angles(1); euler_angles(3)];
+            %   euler - [roll; pitch; yaw] (度)
+            euler = quat_lib('quat_to_euler', obj.q);  % now returns [roll; pitch; yaw]
         end
 
         function saveDebugDump(obj, dump)

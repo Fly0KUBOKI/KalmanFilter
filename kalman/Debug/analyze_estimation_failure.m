@@ -157,10 +157,11 @@ generate_diagnosis_report(bias_stats, sensor_noise, bias_error, ...
                          init_errors, error_evolution, divergence_info);
 
 %% 7. 結果のプロット
-if plot_results
-    fprintf('\n結果をプロット中...\n');
-    plot_analysis_results(obs, truth, estimation, static_samples, ...
-                         analysis_samples, error_evolution, divergence_info);
+% プロットは一時的に無効化（デバッグ呼び出しをコメントアウト）
+if false % plot_results
+    % fprintf('\n結果をプロット中...\n');
+    % plot_analysis_results(obs, truth, estimation, static_samples, ...
+    %                      analysis_samples, error_evolution, divergence_info);
 end
 end
 

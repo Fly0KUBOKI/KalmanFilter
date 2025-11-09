@@ -32,6 +32,14 @@ function sim_generate(params)
         [pos_world, vel_world, attitude] = generate_random_walk(params, t, N);
     end
 
+    % NOTE: don't apply apply_random_walk_overlay here — it may overwrite
+    % the intended oscillatory attitude generation. Previously this helper
+    % could replace roll/pitch with a smooth random walk; keep it disabled
+    % to preserve the sinusoidal pitch/roll behavior.
+    % if exist('apply_random_walk_overlay', 'file') == 2
+    %     [pos_world, vel_world, attitude] = apply_random_walk_overlay(pos_world, vel_world, attitude, params, t);
+    % end
+
     %% 速度補完とボディフレーム速度計算
     [vel_world, vel_body] = compute_body_velocities(pos_world, vel_world, attitude, params, heading_mode);
 
@@ -58,5 +66,18 @@ function params = convert_angle_units(params)
     end
     if isfield(params, 'motion') && isfield(params.motion, 'random_walk') && isfield(params.motion.random_walk, 'angular_std')
         params.motion.random_walk.angular_std = deg2rad(params.motion.random_walk.angular_std);
+    end
+    % convert oscillation amplitudes (degrees -> radians) if provided
+    if isfield(params, 'motion') && isfield(params.motion, 'oscillation')
+        if isfield(params.motion.oscillation, 'roll_amplitude_deg')
+            params.motion.oscillation.roll_amplitude = deg2rad(params.motion.oscillation.roll_amplitude_deg);
+        end
+        if isfield(params.motion.oscillation, 'pitch_amplitude_deg')
+            params.motion.oscillation.pitch_amplitude = deg2rad(params.motion.oscillation.pitch_amplitude_deg);
+        end
+        % ensure soft_start_time exists
+        if ~isfield(params.motion.oscillation, 'soft_start_time')
+            params.motion.oscillation.soft_start_time = 3;
+        end
     end
 end

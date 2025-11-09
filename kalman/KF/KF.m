@@ -42,7 +42,8 @@ classdef KF < handle
         function [roll,pitch,yaw] = getEulerFromQuat(~, q)
             % GETEULERFROMQUAT  与えられたクォータニオンからオイラー角を返すヘルパ
             e = quat_lib('quat_to_euler', q);
-            roll = e(2); pitch = e(1); yaw = e(3);
+            % quat_lib now returns [roll; pitch; yaw]
+            roll = e(1); pitch = e(2); yaw = e(3);
         end
     end
 end

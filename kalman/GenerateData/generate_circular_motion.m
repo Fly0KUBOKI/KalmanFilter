@@ -37,6 +37,23 @@ function [pos_world, vel_world, attitude] = generate_circular_motion(params, t, 
     center_y = 0;
     theta = pi;  % 初期角度（西方向）
     theta_dot = 0;  % 初期角速度
+    % --- 単振動でロール・ピッチを生成（ソフトスタート対応） ---
+    if isfield(params.motion, 'oscillation')
+        roll_amp = params.motion.oscillation.roll_amplitude;
+        roll_period = params.motion.oscillation.roll_period;
+        pitch_amp = params.motion.oscillation.pitch_amplitude;
+        pitch_period = params.motion.oscillation.pitch_period;
+        soft_start_time = params.motion.oscillation.soft_start_time;
+    else
+        roll_amp = deg2rad(15);
+        roll_period = 10;
+        pitch_amp = deg2rad(10);
+        pitch_period = 8;
+        soft_start_time = 3;
+    end
+
+    roll_seq = generate_sinusoidal_oscillation_with_soft_start(t, roll_amp, roll_period, static_time, soft_start_time);
+    pitch_seq = generate_sinusoidal_oscillation_with_soft_start(t, pitch_amp, pitch_period, static_time, soft_start_time);
 
     %% 円運動生成
     for i = 1:N
@@ -69,12 +86,36 @@ function [pos_world, vel_world, attitude] = generate_circular_motion(params, t, 
         vel_world(i,2) =  radius * theta_dot * cos(theta);  % North
         vel_world(i,3) = 0;
 
-        % 姿勢計算
-        attitude(i,1:2) = [0,0];  % roll, pitch = 0
+        % 姿勢計算：roll/pitchは単振動、yawは円運動に従う
+        if t(i) < static_time
+            attitude(i,1) = 0;
+            attitude(i,2) = 0;
+        else
+            attitude(i,1) = roll_seq(i);
+            attitude(i,2) = pitch_seq(i);
+        end
         attitude(i,3) = wrapToPi(theta - pi);  % yaw（時計回り）
         if mod(i, 10000) == 0
             fprintf('Motion step %d / %d\n', i, N);
         end
     end
 
+end
+
+function seq = generate_sinusoidal_oscillation_with_soft_start(t, amplitude, period, static_time, soft_start_time)
+    omega = 2 * pi / period;
+    seq = zeros(size(t));
+    for i = 1:length(t)
+        if t(i) < static_time
+            seq(i) = 0;
+        elseif t(i) < static_time + soft_start_time
+            t_soft = t(i) - static_time;
+            amplitude_scale = 0.5 * (1 - cos(pi * t_soft / soft_start_time));
+            t_phase = t(i) - static_time;
+            seq(i) = amplitude * amplitude_scale * sin(omega * t_phase);
+        else
+            t_phase = t(i) - static_time;
+            seq(i) = amplitude * sin(omega * t_phase);
+        end
+    end
 end

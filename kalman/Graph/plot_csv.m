@@ -17,41 +17,57 @@ function varargout = plot_csv(filePath, mode)
 
     switch mode
         case 'time'
+            % 時系列比較をそれぞれ独立した figure に分ける
             time = T.time;
-            fh = figure;
-            subplot(3,1,1);
-            plot(time, T.px, time, T.py, time, T.pz);
-            legend('px','py','pz'); title('Position [m]'); grid on;
 
-            % Overlay truth (dashed). Interpolate truth to estimation time.
-            hold on
+            % Position (px, py, pz)
+            fh_pos = figure('Name', 'Position [m]');
+            plot(time, T.px, '-','Color',[0 0 1],'LineWidth',1.5); hold on; % x: blue
+            plot(time, T.py, '-','Color',[1 0 0],'LineWidth',1.5);           % y: red
+            plot(time, T.pz, '-','Color',[1 0.75 0],'LineWidth',1.5);        % z: yellow-ish
+            % Overlay truth (dashed) with same colors
             tx = interp1(TR.time, TR.x, time, 'linear', NaN);
             ty = interp1(TR.time, TR.y, time, 'linear', NaN);
             tz = interp1(TR.time, TR.z, time, 'linear', NaN);
-            plot(time, tx, '--r'); plot(time, ty, '--g'); plot(time, tz, '--k');
-            legend('px','py','pz','px_truth','py_truth','pz_truth');
+            plot(time, tx, '--','Color',[0 0 1],'LineWidth',1.2);
+            plot(time, ty, '--','Color',[1 0 0],'LineWidth',1.2);
+            plot(time, tz, '--','Color',[1 0.75 0],'LineWidth',1.2);
+            hold off; grid on; xlabel('時刻 [s]'); ylabel('Position [m]');
+            legend('px','py','pz','px\_truth','py\_truth','pz\_truth','Location','best');
 
-            subplot(3,1,2);
-            plot(time, T.vx, time, T.vy, time, T.vz);
-            legend('vx','vy','vz'); title('Velocity [m/s]'); grid on;
-
-            hold on
+            % Velocity (vx, vy, vz)
+            fh_vel = figure('Name', 'Velocity [m/s]');
+            plot(time, T.vx, '-','Color',[0 0 1],'LineWidth',1.5); hold on; % x: blue
+            plot(time, T.vy, '-','Color',[1 0 0],'LineWidth',1.5);           % y: red
+            plot(time, T.vz, '-','Color',[1 0.75 0],'LineWidth',1.5);        % z: yellow-ish
             tvx = interp1(TR.time, TR.vx, time, 'linear', NaN);
             tvy = interp1(TR.time, TR.vy, time, 'linear', NaN);
             tvz = interp1(TR.time, TR.vz, time, 'linear', NaN);
-            plot(time, tvx, '--r'); plot(time, tvy, '--g'); plot(time, tvz, '--k');
-            legend('vx','vy','vz','vx_truth','vy_truth','vz_truth');
+            plot(time, tvx, '--','Color',[0 0 1],'LineWidth',1.2);
+            plot(time, tvy, '--','Color',[1 0 0],'LineWidth',1.2);
+            plot(time, tvz, '--','Color',[1 0.75 0],'LineWidth',1.2);
+            hold off; grid on; xlabel('時刻 [s]'); ylabel('Velocity [m/s]');
+            legend('vx','vy','vz','vx\_truth','vy\_truth','vz\_truth','Location','best');
 
-            subplot(3,1,3);
-            plot(time, T.roll, time, T.pitch, time, T.yaw);
-            legend('roll','pitch','yaw'); title('Attitude [rad]'); grid on;
-
-            hold on
+            % Attitude: roll と pitch を専用 figure に表示（推定: 実線、真値: 点線）
             tr_roll = interp1(TR.time, TR.roll, time, 'linear', NaN);
             tr_pitch = interp1(TR.time, TR.pitch, time, 'linear', NaN);
             tr_yaw = interp1(TR.time, TR.yaw, time, 'linear', NaN);
-            plot(time, tr_roll, '--r'); plot(time, tr_pitch, '--g'); plot(time, tr_yaw, '--k');
-            legend('roll','pitch','yaw','roll_truth','pitch_truth','yaw_truth');
+
+            fh_att = figure('Name', 'Attitude (roll, pitch) [deg]');
+            plot(time, T.roll, '-','Color',[0 0 1],'LineWidth',1.5); hold on; % roll: blue
+            plot(time, T.pitch, '-','Color',[1 0 0],'LineWidth',1.5);        % pitch: red
+            plot(time, tr_roll, '--','Color',[0 0 1],'LineWidth',1.2);
+            plot(time, tr_pitch, '--','Color',[1 0 0],'LineWidth',1.2);
+            hold off; grid on; xlabel('時刻 [s]'); ylabel('Angle [deg]');
+            legend('roll','pitch','roll\_truth','pitch\_truth','Location','best');
+
+            % Yaw の専用 figure（推定: 実線、真値: 点線）
+            fh_yaw = figure('Name', 'Yaw [deg]');
+            plot(time, T.yaw, '-k','LineWidth',1.5); hold on; % estimation: black solid
+            plot(time, tr_yaw, '--k','LineWidth',1.2); % truth: black dashed
+            hold off; grid on; xlabel('時刻 [s]'); ylabel('Yaw [deg]');
+            legend('yaw','yaw\_truth','Location','best');
 
         case 'pos'
             fh = figure;

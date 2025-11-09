@@ -26,7 +26,8 @@ function save_simulation_data(t, pos_world, vel_world, attitude, accel_body, gyr
     % 真値データの準備（姿勢を度に変換）
     att_deg = rad2deg(attitude);
     truth_data = [t, pos_world, vel_world, att_deg];
-    truth_headers = {'time', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'pitch', 'roll', 'yaw'};
+    % attitude 内部配列は [roll, pitch, yaw] のため、ヘッダはそれに合わせる
+    truth_headers = {'time', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'roll', 'pitch', 'yaw'};
 
     % センサーデータの準備
     sensor_data = [t, accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt];
