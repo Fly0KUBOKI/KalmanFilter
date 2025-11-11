@@ -7,7 +7,6 @@ function run_simulation()
 clc;
 rehash;
 projRoot = fileparts(mfilename('fullpath'));
-sim_generate();  % データ生成を呼び出し
 
 % MATLAB パスにサブフォルダを追加
 addpath(genpath(fullfile(projRoot, 'KF')));       % KF/Core, KF/Utils を含む
@@ -16,6 +15,8 @@ addpath(genpath(fullfile(projRoot, 'UKF')));      % UKF/Core を含む
 addpath(genpath(fullfile(projRoot, 'EKF')));      % EKF を含む
 addpath(fullfile(projRoot, 'Graph'));
 addpath(fullfile(projRoot, 'GenerateData'));
+
+sim_generate();  % データ生成を呼び出し
 
 dataDir = fullfile(projRoot, 'GenerateData');
 obsFile = fullfile(dataDir, 'sensor_data.csv');
