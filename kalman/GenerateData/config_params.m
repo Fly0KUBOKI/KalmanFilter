@@ -21,11 +21,11 @@ function params = config_params()
 
     % Sensor noise parameters (1-sigma standard deviations) - 全てのノイズを無効化
     params.noise = struct();
-    params.noise.accel_std = 0.01;   % Accelerometer noise (m/s^2)
-    params.noise.gyro_std = 0.10;    % Gyroscope noise (deg/s)
+    params.noise.accel_std = 0.1;   % Accelerometer noise (m/s^2)
+    params.noise.gyro_std = 0.5;    % Gyroscope noise (deg/s)
     params.noise.mag_std = 5;     % Magnetometer noise (nT)
-    params.noise.baro_std = 1.0;    % Barometer noise (meters)
-    params.noise.gps_std = 2.0;     % GPS position noise (meters)
+    params.noise.baro_std = 0.0;    % Barometer noise (meters)
+    params.noise.gps_std = 0.0;     % GPS position noise (meters)
     % Outlier (spike) settings
     % .prob  - 各サンプルが外れ値となる確率 (0..1)。デフォルト 0 = 無効
     % .range - 外れ値の振幅を指定（スカラーで全センサー共通、または構造体で個別指定）
@@ -36,14 +36,14 @@ function params = config_params()
         'accel', 2.0, ...  % m/s^2
         'gyro', 1.0, ...   % deg/s
         'mag', 10.0, ...    % nT
-        'baro', 2.0, ...   % meters
-        'gps', 5.0 ...     % meters
+        'baro', 0.0, ...   % meters
+        'gps', 0.0 ...     % meters
     );
 
     % Pink noise parameters (1/f noise)
     params.noise.accel_pink_std = 0.05;   % Accelerometer pink noise (m/s^2)
     params.noise.gyro_pink_std = 0.10;    % Gyroscope pink noise (deg/s)
-    params.noise.gps_pink_std = 1.0;     % GPS pink noise (meters)
+    params.noise.gps_pink_std = 0.0;     % GPS pink noise (meters)
 
     % Allan deviation parameters (bias instability)
     params.noise.gyro_allan_std = 0.0;   % Gyroscope Allan deviation (deg/s)
@@ -62,10 +62,10 @@ function params = config_params()
     params.motion.circular.angular_tau = 5.0;  % Angular velocity fluctuation time constant (seconds) - larger = slower fluctuation
     %% Pitch/Roll oscillation parameters (common for both motion types)
     params.motion.oscillation = struct();
-    params.motion.oscillation.roll_amplitude_deg = 15;   % Roll oscillation amplitude (degrees) - 復元
-    params.motion.oscillation.roll_period = 10;          % Roll oscillation period (seconds)
-    params.motion.oscillation.pitch_amplitude_deg = 10;  % Pitch oscillation amplitude (degrees) - 復元
-    params.motion.oscillation.pitch_period = 10;         % Pitch oscillation period (seconds)
+    params.motion.oscillation.roll_amplitude_deg = 5;   % Roll oscillation amplitude (degrees) - 復元
+    params.motion.oscillation.roll_period = 5;          % Roll oscillation period (seconds)
+    params.motion.oscillation.pitch_amplitude_deg = 3;  % Pitch oscillation amplitude (degrees) - 復元
+    params.motion.oscillation.pitch_period = 5;         % Pitch oscillation period (seconds)
     params.motion.oscillation.soft_start_time = 5;       % Soft start time for pitch/roll oscillation (seconds)
     %% Random walk parameters
     params.motion.random_walk = struct();
