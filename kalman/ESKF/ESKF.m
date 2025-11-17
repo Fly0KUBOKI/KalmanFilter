@@ -59,7 +59,15 @@ classdef ESKF < handle
         prev_velocity            % 前ステップの速度 [vx; vy; vz]
         prev_euler               % 前ステップのEuler角 [roll; pitch; yaw]
         
-
+        % Yaw 角速度統合制御
+        gyro_filter_yaw_alpha    % Yaw 軸のEMA α値（デフォルト: 0.08 = 弱平滑化）
+        enable_yaw_raw_gyro      % true の場合、Yaw はフィルタリングなしで積分
+        
+        % 磁気計更新を一時無効化するフラグ
+        enable_mag_update        % true = 磁気計更新を行う, false = スキップ
+        
+        % 角速度フィルタの有効化フラグ
+        enable_gyro_filter       % true = ジャイロフィルタを使用, false = 生の角速度を使用
     end
 
     methods
@@ -240,7 +248,11 @@ classdef ESKF < handle
             obj.prev_velocity = [0; 0; 0];  % 初期速度
             obj.prev_euler = [0; 0; 0];     % 初期Euler角
             
-
+            % Yaw 角速度統合制御
+            obj.gyro_filter_yaw_alpha = 0.08;  % Yaw 用の弱い平滑化 (α=0.08)
+            obj.enable_yaw_raw_gyro = false;   % false: フィルタ適用, true: 生フィルタ
+            % 磁気計更新は一旦無効化
+            obj.enable_mag_update = false;
         end
         
         function updateFilter(obj, obs, k)
@@ -275,7 +287,10 @@ classdef ESKF < handle
             
             % 周期的更新
             if mod(k, obj.freq_mag) == 0
-                obj.updateMag([obs.mx(k); obs.my(k); obs.mz(k)]);
+                    % 磁気計更新はフラグで制御
+                    if isprop(obj, 'enable_mag_update') && obj.enable_mag_update
+                        obj.updateMag([obs.mx(k); obs.my(k); obs.mz(k)]);
+                    end
             end
             if mod(k, obj.freq_baro) == 0
                 obj.updateBaro(obs.pressure(k));
@@ -306,13 +321,24 @@ classdef ESKF < handle
             %   a_meas - 加速度測定値 (3x1)
             %   w_meas - 角速度測定値 (3x1, rad/s)
 
-            % ジャイロの外れ値検出のみ実行（EMA平滑化は廃止）
-            [~, w_is_outlier, ~] = obj.sensor_filters.gyro.apply(w_meas, obj.bg);
-            if w_is_outlier
-                % 外れ値の場合はバイアス推定値を使用
-                w_meas = obj.bg;
+            % ジャイロフィルタの有無に応じて処理
+            if isprop(obj, 'enable_gyro_filter') && ~isempty(obj.enable_gyro_filter) && obj.enable_gyro_filter
+                % フィルタを使用する場合は既存のセンサーフィルタを適用
+                [w_filtered, w_is_outlier, ~] = obj.sensor_filters.gyro.apply(w_meas, obj.bg);
+                if w_is_outlier
+                    % 外れ値の場合はバイアス（前回の推定）を使用
+                    w_meas = obj.bg;
+                else
+                    % Yaw 軸の個別処理（必要に応じて生値に戻す）
+                    if obj.enable_yaw_raw_gyro
+                        w_filtered(3) = w_meas(3);
+                    end
+                    w_meas = w_filtered;
+                end
+            else
+                % フィルタを無効にする場合: 生の角速度を使用（バイアス補正は integrate_nominal 内で行う）
+                % ここでは w_meas をそのまま渡す
             end
-            % w_meas はそのまま integrate_nominal に渡す（平滑化なし）
 
             % ノミナル状態の積分
             % --- NoiseEstimatorから閾値を取得 ---
