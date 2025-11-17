@@ -64,8 +64,8 @@ function varargout = plot_csv(filePath, mode)
 
             % Yaw の専用 figure（推定: 実線、真値: 点線）
             fh_yaw = figure('Name', 'Yaw [deg]');
-            plot(time, T.yaw, '-k','LineWidth',1.5); hold on; % estimation: black solid
-            plot(time, tr_yaw, '--k','LineWidth',1.2); % truth: black dashed
+            plot(time, T.yaw, '-r','LineWidth',1.5); hold on; % estimation: red solid
+            plot(time, tr_yaw, '--r','LineWidth',1.2); % truth: red dashed
             hold off; grid on; xlabel('時刻 [s]'); ylabel('Yaw [deg]');
             legend('yaw','yaw\_truth','Location','best');
 

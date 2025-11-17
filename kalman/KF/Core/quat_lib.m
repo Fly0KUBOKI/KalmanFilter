@@ -85,56 +85,88 @@ function varargout = quat_lib(action, varargin)
                 -v(2) v(1)    0 ];
             varargout{1} = S;
         case 'quat_to_euler'
-            % Return Euler angles in degrees in standard order: [roll; pitch; yaw]
+            % Return Euler angles in DEGREES in standard order: [roll; pitch; yaw]
+            % Supports optional parameter for rotation sequence (default: 'ZYX')
+            % Usage: euler = quat_lib('quat_to_euler', q [, sequence])
+            %   sequence: 'ZYX' (default, aerospace) or 'ZXY' or other
             q = varargin{1}; q = q(:); q = quat_lib('quatnormalize', q);
+            
+            % Optional rotation sequence parameter
+            if nargin >= 3 && ~isempty(varargin{2})
+                sequence = varargin{2};
+            else
+                sequence = 'ZYX';  % Default: aerospace standard (yaw-pitch-roll)
+            end
+            
             qw = q(1); qx = q(2); qy = q(3); qz = q(4);
 
-            % roll (x-axis rotation)
-            sinr_cosp = 2 * (qw * qx + qy * qz);
-            cosr_cosp = 1 - 2 * (qx^2 + qy^2);
-            roll = atan2(sinr_cosp, cosr_cosp);
+            % Compute Euler angles based on sequence
+            % ZYX sequence (aerospace standard): yaw(Z) -> pitch(Y) -> roll(X)
+            if strcmp(sequence, 'ZYX')
+                % roll (x-axis rotation)
+                sinr_cosp = 2 * (qw * qx + qy * qz);
+                cosr_cosp = 1 - 2 * (qx^2 + qy^2);
+                roll = atan2(sinr_cosp, cosr_cosp);
 
-            % pitch (y-axis rotation)
-            sinp = 2 * (qw * qy - qz * qx);
-            if abs(sinp) >= 1
-                pitch = sign(sinp) * pi / 2; % Use 90 degrees if out of range
+                % pitch (y-axis rotation)
+                sinp = 2 * (qw * qy - qz * qx);
+                if abs(sinp) >= 1
+                    pitch = sign(sinp) * pi / 2;
+                else
+                    pitch = asin(sinp);
+                end
+
+                % yaw (z-axis rotation)
+                siny_cosp = 2 * (qw * qz + qx * qy);
+                cosy_cosp = 1 - 2 * (qy^2 + qz^2);
+                yaw = atan2(siny_cosp, cosy_cosp);
             else
-                pitch = asin(sinp);
+                error('quat_to_euler: unsupported rotation sequence %s (only ZYX supported)', sequence);
             end
 
-            % yaw (z-axis rotation)
-            siny_cosp = 2 * (qw * qz + qx * qy);
-            cosy_cosp = 1 - 2 * (qy^2 + qz^2);
-            yaw = atan2(siny_cosp, cosy_cosp);
-
-            % Convert output to degrees and return as [roll; pitch; yaw]
-            roll = roll * 180 / pi;
-            pitch = pitch * 180 / pi;
-            yaw = yaw * 180 / pi;
-
-            varargout{1} = [roll; pitch; yaw];
+            % Convert to degrees and return in [roll; pitch; yaw] order
+            varargout{1} = ([roll; pitch; yaw] * 180/pi);
         case 'euler_to_quat'
-            % Convert euler angles (roll; pitch; yaw) in degrees back to quaternion
+            % Convert euler angles (roll; pitch; yaw) in DEGREES to quaternion
+            % Supports optional parameter for rotation sequence (default: 'ZYX')
+            % Usage: q = quat_lib('euler_to_quat', euler_deg [, sequence])
+            %   euler_deg: [roll; pitch; yaw] in degrees
+            %   sequence: 'ZYX' (default, aerospace) or 'ZXY' or other
             e = varargin{1}(:);
             if numel(e) ~= 3
                 error('euler_to_quat: input must be 3-element vector [roll; pitch; yaw] in degrees');
             end
-            % Interpret e as [roll; pitch; yaw] in degrees
-            roll  = e(1) * pi / 180;
-            pitch = e(2) * pi / 180;
-            yaw   = e(3) * pi / 180;
+            
+            % Optional rotation sequence parameter
+            if nargin >= 3 && ~isempty(varargin{2})
+                sequence = varargin{2};
+            else
+                sequence = 'ZYX';  % Default: aerospace standard
+            end
+            
+            % Convert degrees to radians for internal math
+            e_rad = deg2rad(e);
+            roll  = e_rad(1);
+            pitch = e_rad(2);
+            yaw   = e_rad(3);
 
-            cy = cos(yaw * 0.5);
-            sy = sin(yaw * 0.5);
-            cp = cos(pitch * 0.5);
-            sp = sin(pitch * 0.5);
-            cr = cos(roll * 0.5);
-            sr = sin(roll * 0.5);
+            % Compute quaternion based on sequence
+            % ZYX sequence (aerospace standard): R = Rz(yaw) * Ry(pitch) * Rx(roll)
+            if strcmp(sequence, 'ZYX')
+                cy = cos(yaw * 0.5);
+                sy = sin(yaw * 0.5);
+                cp = cos(pitch * 0.5);
+                sp = sin(pitch * 0.5);
+                cr = cos(roll * 0.5);
+                sr = sin(roll * 0.5);
 
-            qw = cr * cp * cy + sr * sp * sy;
-            qx = sr * cp * cy - cr * sp * sy;
-            qy = cr * sp * cy + sr * cp * sy;
-            qz = cr * cp * sy - sr * sp * cy;
+                qw = cr * cp * cy + sr * sp * sy;
+                qx = sr * cp * cy - cr * sp * sy;
+                qy = cr * sp * cy + sr * cp * sy;
+                qz = cr * cp * sy - sr * sp * cy;
+            else
+                error('euler_to_quat: unsupported rotation sequence %s (only ZYX supported)', sequence);
+            end
 
             q = [qw; qx; qy; qz];
             varargout{1} = quat_lib('quatnormalize', q);

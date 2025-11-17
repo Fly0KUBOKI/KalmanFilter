@@ -10,6 +10,15 @@ function [pos_world, vel_world, attitude] = generate_circular_motion(params, t, 
     %   vel_world - 世界座標系での速度 [N x 3] 
     %   attitude - 姿勢（ロール、ピッチ、ヨー） [N x 3]
 
+    % 完全静止モードの場合
+    if strcmp(params.motion_type, 'stationary')
+        % 全て零点で固定
+        pos_world = zeros(N,3);
+        vel_world = zeros(N,3);
+        attitude = zeros(N,3);
+        return;
+    end
+    
     % パラメータ取得
     radius = params.motion.circular.radius;
     omega = params.motion.circular.omega;

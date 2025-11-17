@@ -37,13 +37,29 @@ classdef ESKF < handle
         
         % 発散対策
         divergence_guard    % DivergenceGuardインスタンス
-    % 状態修正量(dx)の最大ノルム（これを超えるdxはスケールダウンされる）
-    max_dx_norm
+        % 状態修正量(dx)の最大ノルム（これを超えるdxはスケールダウンされる）
+        max_dx_norm
+        
+        % 加速度フィルタ
+        accel_filter        % AccelFilterインスタンス（レガシー）
+        
+        % 統一フィルタシステム
+        sensor_filters      % struct: 各センサーのフィルタインスタンス
         % デバッグ用コールバック (関数ハンドル)。存在する場合、各ステップで
         % 情報構造体を渡して呼び出す。例: cb(info)
         debugCallback
         % 詳細ダンプを取得したい時刻インデックス (空 = 無効)
         debugDumpK
+        
+        % パルス検知
+        pulse_detection_enabled  % パルス検知有効化フラグ
+        pulse_threshold          % パルス検知閾値 (degree/m/s)
+        pulse_log                % パルス検知ログ
+        prev_position            % 前ステップの位置 [x; y; z]
+        prev_velocity            % 前ステップの速度 [vx; vy; vz]
+        prev_euler               % 前ステップのEuler角 [roll; pitch; yaw]
+        
+
     end
 
     methods
@@ -193,9 +209,38 @@ classdef ESKF < handle
             config.max_gain_norm = 100; % clamp Kalman gain Frobenius norm to this value (Inf = no clamp)
             config.innov_change_ratio_threshold = 2.0;
             config.attenuation_factor = 0.5;
+            % P行列の姿勢部分（7-9行）の上限設定（rad^2）
+            config.max_attitude_variance = (deg2rad(10))^2;  % 10度の分散
+            % MAG更新時のカルマンゲイン制限（各要素の絶対値）
+            config.max_mag_gain_element = 0.15;  % 15%以下に制限
             obj.divergence_guard = DivergenceGuard(config);
             % dx の安全上限（magnitude）。必要に応じて調整してください。
             obj.max_dx_norm = 5.0;
+            
+            % 加速度フィルタの初期化
+            % ema_alpha=0.3（平滑化の強さ）, history_size=20
+            obj.accel_filter = AccelFilter(0.3, 20);
+            
+            % 統一フィルタシステムの初期化
+            obj.sensor_filters = struct();
+            obj.sensor_filters.accel = SensorFilter.createAccelFilter();
+            obj.sensor_filters.gyro = SensorFilter.createGyroFilter();
+            obj.sensor_filters.mag = SensorFilter.createMagFilter();
+            obj.sensor_filters.gps = SensorFilter.createGPSFilter();
+            obj.sensor_filters.baro = SensorFilter.createBaroFilter();
+            
+            % パルス検知の初期化
+            obj.pulse_detection_enabled = true;  % パルス検知を有効化
+            obj.pulse_threshold = 2.0;  % 2.0以上の急変をパルスとして検知（姿勢:度、位置:m、速度:m/s）
+            obj.pulse_log = struct('step', {}, 'time', {}, 'type', {}, ...
+                'roll_change', {}, 'pitch_change', {}, 'yaw_change', {}, ...
+                'px_change', {}, 'py_change', {}, 'pz_change', {}, ...
+                'vx_change', {}, 'vy_change', {}, 'vz_change', {});
+            obj.prev_position = [0; 0; 0];  % 初期位置
+            obj.prev_velocity = [0; 0; 0];  % 初期速度
+            obj.prev_euler = [0; 0; 0];     % 初期Euler角
+            
+
         end
         
         function updateFilter(obj, obs, k)
@@ -238,6 +283,9 @@ classdef ESKF < handle
             if mod(k, obj.freq_gps) == 0 && ~isnan(obs.lat(k)) && ~isnan(obs.lon(k))
                 obj.updateGPS(obs.lat(k), obs.lon(k), obs.alt(k), k);
             end
+            
+            % パルス検知（全ての推定値に対して）
+            obj.detectPulse(k, obs.time(k));
         end
 
         function callDebug(obj, info)
@@ -257,6 +305,14 @@ classdef ESKF < handle
             % 入力:
             %   a_meas - 加速度測定値 (3x1)
             %   w_meas - 角速度測定値 (3x1, rad/s)
+
+            % ジャイロの外れ値検出のみ実行（EMA平滑化は廃止）
+            [~, w_is_outlier, ~] = obj.sensor_filters.gyro.apply(w_meas, obj.bg);
+            if w_is_outlier
+                % 外れ値の場合はバイアス推定値を使用
+                w_meas = obj.bg;
+            end
+            % w_meas はそのまま integrate_nominal に渡す（平滑化なし）
 
             % ノミナル状態の積分
             % --- NoiseEstimatorから閾値を取得 ---
@@ -281,139 +337,125 @@ classdef ESKF < handle
             % 共分散行列の正則化
             obj.P = obj.divergence_guard.regularize_covariance(obj.P);
             
+            % P行列の姿勢部分（7-9行）に上限を適用
+            if isfield(obj.divergence_guard.config, 'max_attitude_variance')
+                max_var = obj.divergence_guard.config.max_attitude_variance;
+                for i = 7:9
+                    if obj.P(i,i) > max_var
+                        obj.P(i,i) = max_var;
+                    end
+                end
+            end
+            
             % 速度チェックとクリッピング
             [obj.v, obj.P, ~] = obj.divergence_guard.check_and_clip_velocity(obj.v, obj.P, 4:6);
         end
         
         function updateAccel(obj, a_meas)
             % UPDATEACCEL  加速度による姿勢更新
+            % 
+            % 修正履歴 (2025/11/17):
+            %   - SensorAccelFilterを使用した統一フィルタリング
+            %   - EMA平滑化 + 外れ値検出 + 大きな変化スケーリング
             %
             % 入力:
             %   a_meas - 加速度測定値 (3x1)
-
-            % 静止判定の持続処理
-            persistent count accel_int dt_sum
-            if isempty(count)
-                count = 0;
-                accel_int = zeros(3,1);
-                dt_sum = 0;
-            end
-
-            count = count + 1;
-            accel_int = accel_int + a_meas * obj.dt;
-            dt_sum = dt_sum + obj.dt;
-
-            if count < 4
-                return;
-            end
-
-            a_meas = accel_int / dt_sum;
-            count = 0;
-            accel_int = zeros(3,1);
-            dt_sum = 0;
-
-            % 静止判定
-            % accel_norm = norm(a_meas);
-            % if abs(accel_norm - 9.81) > 0.5
-            %     return;
-            % end
-
-            % 加速度による姿勢補正（小角近似使用）
-            a_corrected = a_meas - obj.ba;
-            a_corrected_norm = norm(a_corrected);
             
-            % ノルムが小さすぎる場合は更新しない
-            if a_corrected_norm < 0.1
+            persistent test_counter
+            if isempty(test_counter), test_counter = 0; end
+            test_counter = test_counter + 1;
+            
+            % 新しいセンサーフィルタを使用
+            [a_corrected, is_outlier, ~] = obj.sensor_filters.accel.apply(a_meas, zeros(3,1));
+            
+            if is_outlier
+                % 外れ値の場合は更新をスキップ
                 return;
             end
             
-            % 現在の姿勢を取得
-            euler_current = quat_lib('quat_to_euler', obj.q);  % [roll; pitch; yaw]
-            
-            % 加速度から直接 roll, pitch を計算（小角近似）
-            % 座標系: body x=roll方向, y=pitch方向, z=down
-            % roll: Y軸まわりの回転 = atan2(a_x, a_z)
-            % pitch: X軸まわりの回転 = atan2(-a_y, a_z)
-            ax = a_corrected(1);
-            ay = a_corrected(2); 
-            az = a_corrected(3);
-            
-            % Z成分が小さすぎる場合は更新を控える（特異点回避）
-            if abs(az) < 0.1
+            % 健全性チェック
+            a_norm = norm(a_corrected);
+            if a_norm < 0.1 || abs(a_norm - 9.81) > 3.0
                 return;
             end
             
-            % 加速度から角度を計算
-            roll_from_accel = atan2(ax, az);     % X軸（roll方向）の傾斜
-            pitch_from_accel = atan2(ay, az);   % Y軸（pitch方向）の傾斜
-            
-            % 角度を度に変換
-            roll_from_accel = rad2deg(roll_from_accel);
-            pitch_from_accel = rad2deg(pitch_from_accel);
-            
-            % 現在の角度との差分（補正量）
-            roll_current = euler_current(1);
-            pitch_current = euler_current(2);
+            % 現在のYawを取得（加速度計では観測不可能なため保持）
+            euler_current = quat_lib('quat_to_euler', obj.q);
             yaw_current = euler_current(3);
             
-            roll_error = roll_from_accel - roll_current;
-            pitch_error = pitch_from_accel - pitch_current;
+            % 加速度から直接Roll/Pitchを計算
+            ax = a_corrected(1);
+            ay = a_corrected(2);
+            az = a_corrected(3);
             
-            % 角度差を[-180, 180]に正規化
-            roll_error = mod(roll_error + 180, 360) - 180;
-            pitch_error = mod(pitch_error + 180, 360) - 180;
+            roll_measured = atan2d(ay, az);
+            pitch_measured = atan2d(-ax, sqrt(ay^2 + az^2));
             
-            % 補正量を制限（最大5度）
-            max_correction = 5.0;  % degrees
-            roll_error = max(-max_correction, min(max_correction, roll_error));
-            pitch_error = max(-max_correction, min(max_correction, pitch_error));
+            % 現在のRoll/Pitchを取得
+            euler_before = quat_lib('quat_to_euler', obj.q);
+            roll_current = euler_before(1);
+            pitch_current = euler_before(2);
             
-            % 最小補正閾値
-            min_correction = 0.1;  % degrees
-            if abs(roll_error) < min_correction && abs(pitch_error) < min_correction
-                return;
+            % 変化量を計算
+            roll_diff_raw = roll_measured - roll_current;
+            roll_diff = mod((roll_diff_raw + 180), 360) - 180;
+            roll_diff = abs(roll_diff);
+            
+            pitch_diff_raw = pitch_measured - pitch_current;
+            pitch_diff = mod((pitch_diff_raw + 180), 360) - 180;
+            pitch_diff = abs(pitch_diff);
+            
+            % 大きな変化をスケーリング
+            scale_factor = 1.0;
+            if roll_diff > 1.0 || pitch_diff > 1.0
+                scale_factor = 0.1;
+                if mod(test_counter, 500) == 0
+                    fprintf('  [ACCEL更新] 大きな変化を検出 - スケーリング適用: Roll差%.2f°, Pitch差%.2f° → 1/10\n', ...
+                        roll_diff, pitch_diff);
+                end
             end
             
-            % 補正適用（ゲインを追加して急激な変化を抑制）
-            correction_gain = 0.1;  % 10%ずつ補正
-            roll_corrected = roll_current + correction_gain * roll_error;
-            pitch_corrected = pitch_current + correction_gain * pitch_error;
+            % スケーリングを適用
+            roll_target = roll_current + roll_diff_raw * scale_factor;
+            pitch_target = pitch_current + pitch_diff_raw * scale_factor;
             
-            % 新しい姿勢を設定（yawは保持）
-            euler_new = [roll_corrected; pitch_corrected; yaw_current];
-            obj.q = quat_lib('euler_to_quat', euler_new);
+            % 適応的ゲイン制限
+            if roll_diff > 0.5 || pitch_diff > 0.5
+                adaptive_gain = 1.0 / (1.0 + max(roll_diff, pitch_diff) / 2.0);
+                roll_target = roll_current + (roll_target - roll_current) * adaptive_gain;
+                pitch_target = pitch_current + (pitch_target - pitch_current) * adaptive_gain;
+            end
+            
+            % 新しいEuler角からクォータニオンを生成
+            obj.q = quat_lib('euler_to_quat', [roll_target; pitch_target; yaw_current]);
             obj.q = quat_lib('quatnormalize', obj.q);
+        end
 
-            
-            % デバッグ情報
-            correction_info = struct();
-            correction_info.roll_error_deg = roll_error;
-            correction_info.pitch_error_deg = pitch_error;
-            correction_info.roll_from_accel = roll_from_accel;
-            correction_info.pitch_from_accel = pitch_from_accel;
-            
-            % debug: accel post-update
-            info = struct(); info.stage = 'accel_post'; info.k = NaN; info.P = obj.P; 
-            info.roll_correction = roll_error; info.pitch_correction = pitch_error; info.P_diag = diag(obj.P);
-            obj.callDebug(info);
-        end        function updateMag(obj, m_meas)
+        function updateMag(obj, m_meas)
             % UPDATEMAG  磁気計による姿勢更新
             %
             % 入力:
             %   m_meas - 磁気計測定値 (3x1)
             
+            % 新しいセンサーフィルタを使用
+            [m_filtered, is_outlier, ~] = obj.sensor_filters.mag.apply(m_meas);
+            
+            if is_outlier
+                return;  % 外れ値の場合は更新をスキップ
+            end
+            
             m_world = [0; 50; 0];
             Rb = quat_lib('quat_to_rotm', obj.q);
             h_mag = Rb' * m_world;
             
-            z = m_meas;
+            z = m_filtered;
             h = h_mag;
             H = [zeros(3,6), quat_lib('skew', h), zeros(3,6)];
             
             % 現在のノイズ推定値を使用
             R_est = obj.noiseEstimator.getRnoise('mag');
             
-            [y, S, R_used] = kalman_filter_core('compute_innovation_and_S', z, h, H, obj.P, R_est, struct());
+            [~, S, R_used] = kalman_filter_core('compute_innovation_and_S', z, h, H, obj.P, R_est, struct());
 
             % Use OutlierGuard to unify checks
             try
@@ -435,6 +477,14 @@ classdef ESKF < handle
             else
                 K = K_used;
             end
+            
+            % MAG更新専用のゲイン制限（姿勢部分のみ）
+            if isfield(obj.divergence_guard.config, 'max_mag_gain_element')
+                max_gain = obj.divergence_guard.config.max_mag_gain_element;
+                % K(7:9,:)の各要素を制限（姿勢部分）
+                K(7:9,:) = max(min(K(7:9,:), max_gain), -max_gain);
+            end
+            
             if isempty(dx_used)
                 dx = K * y_used;
             else
@@ -442,6 +492,18 @@ classdef ESKF < handle
             end
 
             dtheta = [0; 0; dx(9)];
+            
+            % デバッグ: 大きなYaw更新を検出
+            if abs(rad2deg(dx(9))) > 2.0
+                euler_before = quat_lib('quat_to_euler', obj.q);
+                fprintf('  [MAG更新] 大きなYaw補正: %.3f° (before Yaw=%.2f°)\n', ...
+                    rad2deg(dx(9)), euler_before(3));
+                fprintf('    イノベーション: [%.3f, %.3f, %.3f]\n', y_used(1), y_used(2), y_used(3));
+                fprintf('    K(9行): [%.4f, %.4f, %.4f]\n', K(9,1), K(9,2), K(9,3));
+                fprintf('    測定値: [%.2f, %.2f, %.2f], 予測: [%.2f, %.2f, %.2f]\n', ...
+                    z(1), z(2), z(3), h(1), h(2), h(3));
+            end
+            
             dq = quat_lib('small_angle_quat', dtheta);
             obj.q = quat_lib('quatmultiply', obj.q, dq);
             obj.q = quat_lib('quatnormalize', obj.q);
@@ -458,7 +520,7 @@ classdef ESKF < handle
         end
         
     function updateGPS(obj, lat, lon, alt, k)
-            % UPDATEGPS  GPS位置観測による更新 (UKF with adaptive gain)
+            % UPDATEGPS  GPS位置観測による更新
             %
             % 入力:
             %   lat, lon, alt - GPS観測値
@@ -473,6 +535,13 @@ classdef ESKF < handle
             z_m = alt - alt0;
             
             z_gps = [x_m; y_m; z_m];
+            
+            % 新しいセンサーフィルタを使用
+            [z_gps_filtered, is_outlier, ~] = obj.sensor_filters.gps.apply(z_gps);
+            
+            if is_outlier
+                return;  % 外れ値の場合は更新をスキップ
+            end
 
             R = obj.noiseEstimator.getRnoise('gps');
             
@@ -482,7 +551,7 @@ classdef ESKF < handle
             x_err = zeros(15, 1);
             h_func = @(dx) obj.p + dx(1:3);
             
-            [dx, P_upd, ~, ~, y_innov] = ukf_update(x_err, obj.P, z_gps, h_func, R);
+            [dx, P_upd, ~, ~, y_innov] = ukf_update(x_err, obj.P, z_gps_filtered, h_func, R);
 
             % Build context for dump/diagnostics
             H_gps = [eye(3), zeros(3, 12)];
@@ -540,10 +609,10 @@ classdef ESKF < handle
             end
 
             % 状態更新
-            % obj.p = obj.p + dx(1:3);
-            % obj.v = obj.v + dx(4:6);
+            obj.p = obj.p + dx(1:3);
+            obj.v = obj.v + dx(4:6);
             % obj.ba = obj.ba + dx(10:12);
-            % obj.P = P_upd;
+            obj.P = P_upd;
             % debug: gps post-update
             info = struct(); info.k = k; info.stage = 'gps_post'; info.P = obj.P; info.z = z_gps; info.h = obj.p; info.y = y_innov; info.P_diag = diag(obj.P);
             try
@@ -565,8 +634,12 @@ classdef ESKF < handle
             % 入力:
             %   pressure - 気圧測定値 (Pa)
             
-            P0 = 101325;
-            alt_baro = 44330 * (1 - (pressure / P0)^0.1903);
+            % 新しいセンサーフィルタを使用
+            [alt_baro, is_outlier, ~] = obj.sensor_filters.baro.apply(pressure);
+            
+            if is_outlier
+                return;  % 外れ値の場合は更新をスキップ
+            end
             
             H = [0,0,1, zeros(1,12)];
             z = alt_baro;
@@ -607,6 +680,104 @@ classdef ESKF < handle
             % 出力:
             %   euler - [roll; pitch; yaw] (度)
             euler = quat_lib('quat_to_euler', obj.q);  % now returns [roll; pitch; yaw]
+        end
+        
+        function log = getPulseLog(obj)
+            % GETPULSELOG  パルス検知ログを取得
+            %
+            % 出力:
+            %   log - パルス検知ログ (struct配列)
+            log = obj.pulse_log;
+        end
+        
+        function detectPulse(obj, step, time)
+            % DETECTPULSE  全ての推定値に対してパルス検知を実行
+            %
+            % 入力:
+            %   step - ステップ番号
+            %   time - 時刻 (秒)
+            
+            if ~obj.pulse_detection_enabled
+                return;
+            end
+            
+            % 現在の状態を取得
+            current_position = obj.p;
+            current_velocity = obj.v;
+            current_euler = obj.getEuler();
+            
+            % 変化量を計算（角度差はラップ処理を行う）
+            % wrapTo180 を使って角度差の最小代表を取得
+            d_euler = mod((current_euler - obj.prev_euler) + 180, 360) - 180;  % deg
+            roll_change = abs(d_euler(1));
+            pitch_change = abs(d_euler(2));
+            yaw_change = abs(d_euler(3));
+            
+            px_change = abs(current_position(1) - obj.prev_position(1));
+            py_change = abs(current_position(2) - obj.prev_position(2));
+            pz_change = abs(current_position(3) - obj.prev_position(3));
+            
+            vx_change = abs(current_velocity(1) - obj.prev_velocity(1));
+            vy_change = abs(current_velocity(2) - obj.prev_velocity(2));
+            vz_change = abs(current_velocity(3) - obj.prev_velocity(3));
+            
+            % 閾値判定（姿勢：度、位置：m、速度：m/s）
+            attitude_pulse = roll_change > obj.pulse_threshold || ...
+                             pitch_change > obj.pulse_threshold || ...
+                             yaw_change > obj.pulse_threshold;
+            position_pulse = px_change > obj.pulse_threshold || ...
+                             py_change > obj.pulse_threshold || ...
+                             pz_change > obj.pulse_threshold;
+            velocity_pulse = vx_change > obj.pulse_threshold || ...
+                             vy_change > obj.pulse_threshold || ...
+                             vz_change > obj.pulse_threshold;
+            
+            % パルス検知時にログに記録
+            if attitude_pulse || position_pulse || velocity_pulse
+                pulse_entry = struct();
+                pulse_entry.step = step;
+                pulse_entry.time = time;
+                
+                % どのタイプのパルスか記録
+                types = {};
+                if attitude_pulse, types{end+1} = 'attitude'; end
+                if position_pulse, types{end+1} = 'position'; end
+                if velocity_pulse, types{end+1} = 'velocity'; end
+                pulse_entry.type = strjoin(types, '+');
+                
+                % 各変化量を記録
+                pulse_entry.roll_change = roll_change;
+                pulse_entry.pitch_change = pitch_change;
+                pulse_entry.yaw_change = yaw_change;
+                pulse_entry.px_change = px_change;
+                pulse_entry.py_change = py_change;
+                pulse_entry.pz_change = pz_change;
+                pulse_entry.vx_change = vx_change;
+                pulse_entry.vy_change = vy_change;
+                pulse_entry.vz_change = vz_change;
+                
+                obj.pulse_log(end+1) = pulse_entry;
+                
+                % コンソール出力
+                fprintf('  ★ パルス検知 [Step %d, %.3fs] タイプ=%s\n', step, time, pulse_entry.type);
+                if attitude_pulse
+                    fprintf('     姿勢: Roll=%.3f° Pitch=%.3f° Yaw=%.3f°\n', ...
+                        roll_change, pitch_change, yaw_change);
+                end
+                if position_pulse
+                    fprintf('     位置: X=%.3fm Y=%.3fm Z=%.3fm\n', ...
+                        px_change, py_change, pz_change);
+                end
+                if velocity_pulse
+                    fprintf('     速度: VX=%.3fm/s VY=%.3fm/s VZ=%.3fm/s\n', ...
+                        vx_change, vy_change, vz_change);
+                end
+            end
+            
+            % 前回値を更新
+            obj.prev_position = current_position;
+            obj.prev_velocity = current_velocity;
+            obj.prev_euler = current_euler;
         end
 
         function saveDebugDump(obj, dump)

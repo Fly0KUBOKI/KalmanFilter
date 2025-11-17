@@ -19,35 +19,35 @@ function params = config_params()
     % 'align_velocity' => aircraft nose always aligned with velocity direction
     params.heading_mode = 'align_velocity'; % 'fixed_north' or 'align_velocity'
 
-    % Sensor noise parameters (1-sigma standard deviations)
+    % Sensor noise parameters (1-sigma standard deviations) - 全てのノイズを無効化
     params.noise = struct();
-    params.noise.accel_std = 0.05;   % Accelerometer noise (m/s^2)
-    params.noise.gyro_std = 0.05;   % Gyroscope noise (deg/s)
-    params.noise.mag_std = 2.0;      % Magnetometer noise (nT)
-    params.noise.baro_std = 1.0;     % Barometer noise (meters)
-    params.noise.gps_std = 2.0;      % GPS position noise (meters)
+    params.noise.accel_std = 0.01;   % Accelerometer noise (m/s^2)
+    params.noise.gyro_std = 0.10;    % Gyroscope noise (deg/s)
+    params.noise.mag_std = 5;     % Magnetometer noise (nT)
+    params.noise.baro_std = 1.0;    % Barometer noise (meters)
+    params.noise.gps_std = 2.0;     % GPS position noise (meters)
     % Outlier (spike) settings
     % .prob  - 各サンプルが外れ値となる確率 (0..1)。デフォルト 0 = 無効
     % .range - 外れ値の振幅を指定（スカラーで全センサー共通、または構造体で個別指定）
     %          GPS の値はメートル単位で指定（経度/緯度に変換して適用されます）
     params.noise.outlier = struct();
-    params.noise.outlier.prob = 0.01; 
+    params.noise.outlier.prob = 0.0;  % 外れ値を完全無効化
     params.noise.outlier.range = struct( ...
-        'accel', 1.0, ...  % m/s^2
-        'gyro', 0.5, ...   % deg/s
-        'mag', 30, ...    % nT
-        'baro', 1.0, ...   % meters
-        'gps', 20.0 ...    % meters
+        'accel', 2.0, ...  % m/s^2
+        'gyro', 1.0, ...   % deg/s
+        'mag', 10.0, ...    % nT
+        'baro', 2.0, ...   % meters
+        'gps', 5.0 ...     % meters
     );
 
     % Pink noise parameters (1/f noise)
     params.noise.accel_pink_std = 0.05;   % Accelerometer pink noise (m/s^2)
-    params.noise.gyro_pink_std = 0.05;    % Gyroscope pink noise (deg/s)
-    params.noise.gps_pink_std = 0.5;      % GPS pink noise (meters)
+    params.noise.gyro_pink_std = 0.10;    % Gyroscope pink noise (deg/s)
+    params.noise.gps_pink_std = 1.0;     % GPS pink noise (meters)
 
     % Allan deviation parameters (bias instability)
-    params.noise.gyro_allan_std = 0.1;   % Gyroscope Allan deviation (deg/s)
-    params.noise.baro_allan_std = 0.1;   % Barometer Allan deviation (meters)
+    params.noise.gyro_allan_std = 0.0;   % Gyroscope Allan deviation (deg/s)
+    params.noise.baro_allan_std = 0.0;   % Barometer Allan deviation (meters)
 
     %% Motion parameters
     params.motion = struct();
@@ -58,13 +58,13 @@ function params = config_params()
     params.motion.circular.omega = 4;       % Angular velocity (deg/s)
     params.motion.circular.altitude = 0;    % Flight altitude (meters above sea level)
     params.motion.circular.accel_time = 5;  % Soft start acceleration time (seconds) - after static period
-    params.motion.circular.angular_std = 5.0;  % Angular velocity fluctuation std (deg/s)
+    params.motion.circular.angular_std = 2.0;  % Angular velocity fluctuation std (deg/s) - 復元
     params.motion.circular.angular_tau = 5.0;  % Angular velocity fluctuation time constant (seconds) - larger = slower fluctuation
     %% Pitch/Roll oscillation parameters (common for both motion types)
     params.motion.oscillation = struct();
-    params.motion.oscillation.roll_amplitude_deg = 10;   % Roll oscillation amplitude (degrees)
+    params.motion.oscillation.roll_amplitude_deg = 15;   % Roll oscillation amplitude (degrees) - 復元
     params.motion.oscillation.roll_period = 10;          % Roll oscillation period (seconds)
-    params.motion.oscillation.pitch_amplitude_deg = 10;  % Pitch oscillation amplitude (degrees)
+    params.motion.oscillation.pitch_amplitude_deg = 10;  % Pitch oscillation amplitude (degrees) - 復元
     params.motion.oscillation.pitch_period = 10;         % Pitch oscillation period (seconds)
     params.motion.oscillation.soft_start_time = 5;       % Soft start time for pitch/roll oscillation (seconds)
     %% Random walk parameters

@@ -83,8 +83,8 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
         pitch = attitude(i,2);
         yaw = attitude(i,3);
 
-    % 回転行列（世界→ボディ）: pitch=x軸, roll=y軸, yaw=z軸周り
-    R = eul2rotm([yaw, pitch, roll], 'ZXY');
+    % 回転行列（世界→ボディ）: 標準的な航空機座標系 ZYX順序（yaw-pitch-roll）
+    R = eul2rotm([yaw, pitch, roll], 'ZYX');
 
         % 加速度計（比力 = 加速度 - 重力）
         if strcmp(motion_type, 'circular')
@@ -95,53 +95,33 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
         
         g_world = [0, 0, -9.81];
         specific_force_world = a_world - g_world;
-    % 機体軸: x=roll, y=pitch, z=down となるように列を配置（直接マップ）
+    % 機体軸: 標準航空機座標系 x=roll軸, y=pitch軸, z=down（直接マップ）
     accel_tmp = (R' * specific_force_world')';
-    % x軸をroll方向、y軸をpitch方向としてそのまま割り当てる
-    accel_body(i,1) = accel_tmp(1); % x: roll方向
-    accel_body(i,2) = accel_tmp(2); % y: pitch方向
-    accel_body(i,3) = accel_tmp(3); % z: down
+    % 標準的な航空機座標系の軸割り当て
+    accel_body(i,1) = accel_tmp(1); % x: roll軸方向（機体右向き）
+    accel_body(i,2) = accel_tmp(2); % y: pitch軸方向（機体前向き）
+    accel_body(i,3) = accel_tmp(3); % z: yaw軸方向（機体下向き）
 
         % ジャイロスコープ（角速度）
-        % pitch/rollは姿勢角の時間微分から直接計算
-        % yawは運動モデルから取得（位置・速度に依存）
+        % 各軸の角速度を姿勢角の時間微分から直接計算（簡略化）
         
         % yaw角速度を運動モデルから計算
         if strcmp(motion_type, 'circular')
-            omega_yaw_world = compute_circular_yaw_rate(i, t, static_time, accel_time, omega);
+            omega_yaw = compute_circular_yaw_rate(i, t, static_time, accel_time, omega);
         else
-            omega_yaw_world = compute_general_yaw_rate(i, vel_world, dt, params);
+            omega_yaw = compute_general_yaw_rate(i, vel_world, dt, params);
         end
         
-        % 体軸角速度：[p, q, r] = [roll_rate, pitch_rate, yaw_rate]
-        % Euler角微分から体軸角速度への変換
-        roll = attitude(i,1);
-        pitch = attitude(i,2);
+        % 体軸角速度：rollのみ振動、pitchは0、yawは円運動
+        p = roll_rate(i);    % roll軸角速度 (rad/s)
+        q = pitch_rate(i);   % pitch軸角速度 (rad/s)  
+        r = omega_yaw;       % yaw軸角速度 (rad/s)
         
-        cos_pitch = cos(pitch);
-        sin_pitch = sin(pitch);
-        cos_roll = cos(roll);
-        sin_roll = sin(roll);
-        
-        % 体軸角速度計算（Euler角微分→体軸角速度変換）
-        if abs(cos_pitch) > params.thresholds  % 特異点回避
-            p = roll_rate(i) - sin_pitch * omega_yaw_world;
-            q = cos_roll * pitch_rate(i) + sin_roll * cos_pitch * omega_yaw_world;
-            r = -sin_roll * pitch_rate(i) + cos_roll * cos_pitch * omega_yaw_world;
-        else
-            % 特異点近傍では近似
-            p = roll_rate(i);
-            q = pitch_rate(i);
-            r = omega_yaw_world;
-        end
-        
-    % x=pitch(アップ正/ダウン負), y=roll(右回り正/左回り負), z=ヨー
-    % pitch: q, roll: p, yaw: r
-    % pitch(アップ正/ダウン負)はq, roll(右回り正/左回り負)はp
-    gyro_tmp = rad2deg([p, q, r]);
-    gyro_body(i,1) = gyro_tmp(2); % x: pitch (アップ正/ダウン負)
-    gyro_body(i,2) = gyro_tmp(1); % y: roll (右回り正/左回り負)
-    gyro_body(i,3) = gyro_tmp(3); % z: yaw
+        % 【標準IMU仕様】航空機座標系: x軸周り = roll, y軸周り = pitch, z軸周り = yaw
+        % 標準的な定義に従い、ジャイロ出力 = [roll_rate, pitch_rate, yaw_rate]
+        gyro_body(i,1) = rad2deg(p);  % x軸周り: roll角速度 (度/秒)
+        gyro_body(i,2) = rad2deg(q);  % y軸周り: pitch角速度 (度/秒)
+        gyro_body(i,3) = rad2deg(r);  % z軸周り: yaw角速度 (度/秒)
 
         % 磁気計
         mag_world = [0, mag_strength, 0];
@@ -169,7 +149,8 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
 end
 
 function a_world = compute_circular_acceleration(i, t, pos_world, params, center_x, center_y, static_time, accel_time, omega, radius)
-    % 円運動の加速度計算
+    % ArduPilotスタイルの円運動加速度計算
+    % 遠心加速度とコリオリ加速度を正確にモデル化
     if i == 1
         a_world = [0,0,0];
     else
@@ -178,12 +159,13 @@ function a_world = compute_circular_acceleration(i, t, pos_world, params, center
         r_norm = sqrt(rel_x^2 + rel_y^2);
         
         if r_norm > params.thresholds
-            % 角速度スケーリングと角加速度
+            % 角速度のスムーズなランプアップ（ArduPilot風）
             if t(i) < static_time
                 omega_scale = 0.0;
                 alpha = 0;
             elseif t(i) < static_time + accel_time
                 t_motion = t(i) - static_time;
+                % S字カーブでスムーズに加速（ジャークを最小化）
                 omega_scale = 0.5 * (1 - cos(pi * t_motion / accel_time));
                 alpha = -omega * 0.5 * (pi / accel_time) * sin(pi * t_motion / accel_time);
             else
@@ -193,18 +175,21 @@ function a_world = compute_circular_acceleration(i, t, pos_world, params, center
             
             theta_dot_current = -omega * omega_scale;
             
-            % 向心加速度
-            a_centripetal_mag = theta_dot_current^2 * r_norm;
-            a_centripetal = [-rel_x/r_norm * a_centripetal_mag, -rel_y/r_norm * a_centripetal_mag, 0];
+            % ArduPilot風の遠心加速度モデル
+            % 向心加速度: a_c = -ω² × r (中心向き)
+            unit_r = [rel_x; rel_y] / r_norm;
+            a_centripetal_mag = omega_scale^2 * omega^2 * r_norm;
+            a_centripetal = [-unit_r(1) * a_centripetal_mag, -unit_r(2) * a_centripetal_mag, 0];
             
-            % 接線加速度
-            theta_angle = atan2(rel_y, rel_x);
-            tangent_x = -sin(theta_angle);
-            tangent_y = cos(theta_angle);
+            % 接線加速度: a_t = α × r (角加速度による）
+            unit_tangent = [-rel_y / r_norm, rel_x / r_norm];
             a_tangential_mag = alpha * r_norm;
-            a_tangential = [tangent_x * a_tangential_mag, tangent_y * a_tangential_mag, 0];
+            a_tangential = [unit_tangent(1) * a_tangential_mag, unit_tangent(2) * a_tangential_mag, 0];
             
+            % 合成加速度
             a_world = a_centripetal + a_tangential;
+            
+            % ArduPilotは風や外乱も考慮しますが、ここでは省略
         else
             a_world = [0,0,0];
         end

@@ -33,6 +33,10 @@ classdef DivergenceGuard < handle
         max_gain_norm
     end
     
+    properties (Access = public)
+        config  % 元の設定構造体を保持（ESKF.mからアクセス可能）
+    end
+    
     methods
         function obj = DivergenceGuard(config)
             %DivergenceGuard コンストラクタ
@@ -42,6 +46,9 @@ classdef DivergenceGuard < handle
             if nargin < 1 || isempty(config)
                 config = struct();
             end
+            
+            % 元の設定を保存
+            obj.config = config;
             
             % イノベーション関連
             obj.max_allowed_innov = get_field(config, 'max_allowed_innov', 50.0);

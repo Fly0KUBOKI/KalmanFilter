@@ -30,6 +30,13 @@ function sim_generate(params)
         [pos_world, vel_world, attitude] = generate_circular_motion(params, t, N);
     elseif strcmp(motion_type, 'random_walk')
         [pos_world, vel_world, attitude] = generate_random_walk(params, t, N);
+    elseif strcmp(motion_type, 'stationary')
+        % 完全静止状態
+        pos_world = zeros(N,3);
+        vel_world = zeros(N,3);
+        attitude = zeros(N,3);
+    else
+        error('未サポートの運動タイプ: %s', motion_type);
     end
 
     % NOTE: don't apply apply_random_walk_overlay here — it may overwrite
