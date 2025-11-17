@@ -35,13 +35,9 @@ if length(obs.time) < 2
 end
 dt = mean(diff(obs.time));
 kf = ESKF(obs, params.static_time, dt);
-% 一時的に磁気計更新とジャイロフィルタを無効化（デバッグ目的）
-if isprop(kf, 'enable_mag_update')
-    kf.enable_mag_update = false;
-end
-if isprop(kf, 'enable_gyro_filter')
-    kf.enable_gyro_filter = false;
-end
+
+% 磁気計更新を無効化（Yaw推定への干渉を回避）
+kf.enable_mag_update = false;
  
 % ESKFフィルタリング実行
 N = numel(obs.time);

@@ -248,11 +248,11 @@ classdef ESKF < handle
             obj.prev_velocity = [0; 0; 0];  % 初期速度
             obj.prev_euler = [0; 0; 0];     % 初期Euler角
             
-            % Yaw 角速度統合制御
-            obj.gyro_filter_yaw_alpha = 0.08;  % Yaw 用の弱い平滑化 (α=0.08)
-            obj.enable_yaw_raw_gyro = false;   % false: フィルタ適用, true: 生フィルタ
-            % 磁気計更新は一旦無効化
-            obj.enable_mag_update = false;
+            % ジャイロフィルタ設定（Biquad導入済み）
+            obj.gyro_filter_yaw_alpha = 0.08;  % 未使用（Biquadに移行）
+            obj.enable_yaw_raw_gyro = false;   % false: Biquadフィルタ適用
+            obj.enable_mag_update = false;     % 磁気計更新を無効化（Yaw干渉防止）
+            obj.enable_gyro_filter = true;     % Biquadフィルタを有効化
         end
         
         function updateFilter(obj, obs, k)
@@ -324,19 +324,21 @@ classdef ESKF < handle
             % ジャイロフィルタの有無に応じて処理
             if isprop(obj, 'enable_gyro_filter') && ~isempty(obj.enable_gyro_filter) && obj.enable_gyro_filter
                 % フィルタを使用する場合は既存のセンサーフィルタを適用
-                [w_filtered, w_is_outlier, ~] = obj.sensor_filters.gyro.apply(w_meas, obj.bg);
+                % w_expectedには前回のフィルタ済み値を使用（bgは静止時専用）
+                w_expected = obj.sensor_filters.gyro.w_filtered;
+                [w_filtered, w_is_outlier, ~] = obj.sensor_filters.gyro.apply(w_meas, w_expected);
                 if w_is_outlier
-                    % 外れ値の場合はバイアス（前回の推定）を使用
-                    w_meas = obj.bg;
+                    % 外れ値の場合は前回のフィルタ済み値を使用
+                    w_meas = w_expected;
                 else
-                    % Yaw 軸の個別処理（必要に応じて生値に戻す）
+                    % Yaw 軸の個別処理(必要に応じて生値に戻す)
                     if obj.enable_yaw_raw_gyro
                         w_filtered(3) = w_meas(3);
                     end
                     w_meas = w_filtered;
                 end
             else
-                % フィルタを無効にする場合: 生の角速度を使用（バイアス補正は integrate_nominal 内で行う）
+                % フィルタを無効にする場合: 生の角速度を使用(バイアス補正は integrate_nominal 内で行う)
                 % ここでは w_meas をそのまま渡す
             end
 
