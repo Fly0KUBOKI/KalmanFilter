@@ -1,97 +1,163 @@
-# KalmanFIlter_cpp
+# ESKF MEX高速化
 
-軽量な配列ベースのカルマンフィルタ実装（C++）。
-
-このリポジトリは、STM32 や組み込み用途を想定した最小限のカルマンフィルタ実装を含んでいます。
-ヘッダは固定最大サイズのバッファを使い、動的確保を避けることで小さな組み込み環境でも動作するように設計されています。
+ESKFシミュレーションの高速化のため、カルマンフィルタコア計算をC++/MEXで実装しました。
 
 ## 概要
 
-主なファイル:
-- `kalman_filter.hpp` - クラス定義、設定用マクロ、内部バッファの宣言
-- `kalman_filter.cpp` - フィルタ本体の実装（Init / Update / EstimateNoise / GetData）
+`kalman_filter_core.m`の主要な計算部分をC++で再実装し、MEX関数として呼び出すことで、ESKFシミュレーションを高速化します。
 
-特徴:
-- 配列のみで実装、動的メモリを使用しない（組み込み向け）
-- オンラインのノイズ推定（EWMA）機能を持つ
+### 高速化された関数
 
-## API（クラス: KalmanFilter）
+**KF/EKF用:**
+- `predict_step`: 共分散の予測ステップ (P = F*P*F' + Q*dt)
+- `compute_kalman_gain`: カルマンゲインの計算 (K = P*H' / S)
+- `update_state_covariance`: 状態と共分散の更新（Joseph形式）
+- `compute_jacobian`: ヤコビアン行列の計算
 
-公開メソッド:
-- `void Init(uint8_t state_size, uint8_t obs_size);`
-  - フィルタの実サイズを設定して内部バッファを初期化します
+**UKF用:**
+- `ukf_sigma_points`: シグマポイントと重みの生成
 
-- `void Update();`
-  - 現在の `prediction` / `system_matrix` / `observation_matrix` / `observation` を元に一ステップのフィルタ更新を行い、内部 `output` を更新します。
+## ビルド方法
 
-- `void EstimateNoise(float meas);`
-  - 測定値を与えて観測ノイズ（R）とプロセスノイズ（Q）を EWMA 法でオンライン推定します。シンプルな自己適応が欲しい場合に呼び出します。
+### 1. C++コンパイラの設定
 
-- `void GetData(float* out_states);`
-  - フィルタ出力（状態推定）をユーザ提供の配列に書き出します。配列長は `state_size` と同じにしてください。
+初回のみ、MATLABでC++コンパイラを設定します：
 
-主要メンバ（ユーザが設定/読み出しするもの）:
-- `float observation[OBS_SIZE_MAX]` - 観測値ベクトル（入力）
-- `float prediction[STATE_SIZE_MAX]` - 予測値ベクトル（予測ステップの入力）
-- `float system_matrix[...]` - システム遷移行列 F（row-major）
-- `float observation_matrix[...]` - 観測行列 H（row-major）
-
-マクロ（コンパイル時設定）:
-- `NOISE_ALPHA` - ノイズ推定の EWMA α（既定 0.02）
-- `KALMAN_USE_SMOOTHER` - スムーザーを有効化（true/false）
-- `SMOOTHER_ALPHA` / `SMOOTHER_WINDOW_SIZE` - スムーザー調整パラメータ
-
-
-## 使用例（単純な高度推定、状態 = [位置, 速度], 観測 = 位置）
-
-下記は本リポジトリに含まれているクラスを利用する最小の使用例です（`main.cpp` の例）。
-
-```cpp
-#include "kalman_filter.hpp"
-#include <iostream>
-
-int main() {
-    KalmanFilter kf;
-    const uint8_t state_size = 2; // 位置, 速度
-    const uint8_t obs_size = 1;   // 位置のみ観測
-    kf.Init(state_size, obs_size);
-
-    // 簡単な F (dt = 1)
-    float dt = 1.0f;
-    // F = [[1, dt],[0,1]] (row-major)
-    kf.system_matrix[0 * state_size + 0] = 1.0f;
-    kf.system_matrix[0 * state_size + 1] = dt;
-    kf.system_matrix[1 * state_size + 0] = 0.0f;
-    kf.system_matrix[1 * state_size + 1] = 1.0f;
-
-    // H = [1, 0] （観測は位置のみ）
-    kf.observation_matrix[0 * state_size + 0] = 1.0f;
-    kf.observation_matrix[0 * state_size + 1] = 0.0f;
-
-    // 初期予測（任意）
-    kf.prediction[0] = 0.0f; // 位置
-    kf.prediction[1] = 0.0f; // 速度
-
-    // ループ例（受信した観測値 z を処理）
-    float z = 10.0f; // 例: 受信した観測
-    for (int t = 0; t < 10; ++t) {
-        // 実運用ではここで kf.prediction をモデルに従って更新する（例えば運動方程式で予測）
-
-        // 観測をセット
-        kf.observation[0] = z + (float)t * 0.1f; // ダミー
-
-        // オンラインノイズ推定（任意）
-        kf.EstimateNoise(kf.observation[0]);
-
-        // カルマン更新
-        kf.Update();
-
-        // 出力を取り出す
-        float out[state_size];
-        kf.GetData(out);
-        std::cout << "t=" << t << " pos=" << out[0] << " vel=" << out[1] << "\n";
-    }
-
-    return 0;
-}
+```matlab
+mex -setup C++
 ```
+
+- Windows: Visual Studio または MinGW-w64が必要
+- Mac: Xcode Command Line Toolsが必要
+- Linux: gccが必要
+
+### 2. MEXファイルのビルド
+
+```matlab
+cd cpp
+build_mex()
+```
+
+ビルドが成功すると、`mex_kalman_filter_core.mexw64`（Windows）または対応する拡張子のファイルが生成されます。
+
+## 使用方法
+
+### 自動的にMEXを使用
+
+`kalman_filter_core.m`は自動的にMEX実装が利用可能かチェックし、存在すれば使用します：
+
+```matlab
+% 通常通りに呼び出すだけ
+P = kalman_filter_core('predict_step', P, q, a_meas, ba, w_meas, bg, Q, dt);
+```
+
+初回実行時に以下のメッセージが表示されます：
+- MEX使用時: `[kalman_filter_core] MEX acceleration enabled`
+- MATLAB実装使用時: `[kalman_filter_core] Using MATLAB implementation`
+
+### テスト
+
+MEX実装が正しく動作するか確認：
+
+```matlab
+cd ..
+check_mex_usage()  % MEXが使われているか確認
+cd cpp
+test_mex_kalman_filter_core()  % 詳細テスト
+```
+
+### ESKFシミュレーションの実行
+
+通常通りシミュレーションを実行するだけで、MEX高速化が適用されます：
+
+```matlab
+cd ..
+run_simulation()
+```
+
+## パフォーマンス
+
+予測されるパフォーマンス向上：
+- `predict_step`: 約5-10倍高速化
+- `compute_kalman_gain`: 約3-5倍高速化
+- `update_state_covariance`: 約3-5倍高速化
+
+実際の高速化率は、MATLABのバージョンやシステム構成によって異なります。
+
+## ファイル構成
+
+```
+cpp/
+├── build_mex.m                    # ビルドスクリプト
+├── test_mex_kalman_filter_core.m  # テストスクリプト
+├── README.md                      # このファイル
+├── mex_kalman_filter_core.mexw64  # コンパイル済みMEXファイル（Windows）
+├── KF/
+│   └── Core/
+│       ├── kalman_filter_core.hpp # C++ヘッダー
+│       └── kalman_filter_core.cpp # C++実装
+├── Common/
+│   └── Math/
+│       ├── fixed_matrix.hpp       # 固定サイズ行列ライブラリ
+│       └── quaternion.hpp         # クォータニオンユーティリティ
+└── MEX/
+    └── mex_kalman_filter_core.cpp # MEXラッパー
+```
+
+## トラブルシューティング
+
+### コンパイルエラー
+
+1. **コンパイラが見つからない**
+   ```matlab
+   mex -setup C++
+   ```
+   を実行し、表示される指示に従ってコンパイラをインストール/選択
+
+2. **ヘッダーファイルが見つからない**
+   - `cpp/KF/Core/`と`cpp/Common/Math/`にファイルが存在するか確認
+
+3. **リンクエラー**
+   - Visual Studioがインストールされているか確認（Windows）
+   - コンパイラのバージョンがMATLABと互換性があるか確認
+
+### 実行時エラー
+
+1. **MEXファイルが見つからない**
+   ```matlab
+   which mex_kalman_filter_core
+   ```
+   で場所を確認。パスが通っているか確認。
+
+2. **MEXファイルが動作しない**
+   - MATLABを再起動
+   - `clear mex`を実行
+   - `build_mex()`でリビルド
+
+3. **精度の問題**
+   - MEX実装はMATLAB実装と同じアルゴリズムを使用しています
+   - 数値誤差の蓄積が大きい場合は共分散の正則化パラメータを調整
+
+## 注意事項
+
+- `compute_innovation_and_S`は、paramsパラメータの複雑な処理があるため、MATLAB実装のままです
+- MEXファイルはプラットフォーム固有です（Windows用の.mexw64はMac/Linuxで動作しません）
+- MEXファイルが見つからない場合、自動的にMATLAB実装にフォールバックします
+
+## 削除されたファイル
+
+不要なファイルを整理しました：
+- `test_ekf.m`, `test_ukf.m`, `test_mex.m`: 古いテストファイル
+- `STRUCTURE.md`: 古いドキュメント
+- `mex_build_results.mat`, `mex_kf_core.exp`, `mex_kf_core.lib`: 古いビルド成果物
+- `build_all_cpp_mex.m`: 使用されていない古いビルドスクリプト
+
+## 今後の拡張
+
+- UKF/EKFの主要計算部分のMEX化
+- より高度な最適化（SIMD、並列化）
+- GPU対応（CUDA MEX）
+
+## ライセンス
+
+このプロジェクトと同じライセンスに従います。

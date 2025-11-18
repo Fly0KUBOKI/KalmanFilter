@@ -1,6 +1,8 @@
 function [sig, wm, wc] = ukf_sigma_points(x, P, alpha, beta, kappa)
     % UKF_SIGMA_POINTS  Unscented Kalman Filterのシグマポイントと重みを生成
     %
+    % MEX高速化対応: mex_ukf_sigma_pointsが利用可能な場合は自動的に使用
+    %
     % 入力:
     %   x     - 状態ベクトル (nx1)
     %   P     - 共分散行列 (nxn)
@@ -13,10 +15,32 @@ function [sig, wm, wc] = ukf_sigma_points(x, P, alpha, beta, kappa)
     %   wm    - 平均計算用の重み ((2n+1)x1)
     %   wc    - 共分散計算用の重み ((2n+1)x1)
 
+    persistent use_mex;
+    
     if nargin < 3, alpha = 1e-3; end
     if nargin < 4, beta = 2; end
     if nargin < 5, kappa = 0; end
 
+    % 初回呼び出し時にMEXファイルの存在をチェック
+    if isempty(use_mex)
+        use_mex = exist('mex_ukf_sigma_points', 'file') == 3;
+        if use_mex
+            fprintf('[ukf_sigma_points] MEX acceleration enabled\n');
+        end
+    end
+    
+    % MEX実装を使用
+    if use_mex
+        try
+            [sig, wm, wc] = mex_ukf_sigma_points(x, P, alpha, beta, kappa);
+            return;
+        catch ME
+            warning('ukf_sigma_points:mexFallback', 'MEX call failed, falling back to MATLAB: %s', ME.message);
+            use_mex = false;
+        end
+    end
+    
+    % MATLAB実装
     n = length(x);
     lambda = alpha^2 * (n + kappa) - n;
 

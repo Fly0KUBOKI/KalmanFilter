@@ -61,11 +61,6 @@ classdef ESKF < handle
         % コンストラクタ
         function obj = ESKF(obs, static_time, dt)
             % ESKF コンストラクタ
-            %
-            % 入力:
-            %   obs         - 観測データ構造体
-            %   static_time - 静止期間 (秒)
-            %   dt          - サンプリング周期 (秒)
             
             if nargin < 2
                 static_time = 5.0;
@@ -225,14 +220,10 @@ classdef ESKF < handle
             obj.enable_gyro_filter = true;     % Biquadフィルタを有効化
         end
         
-        function updateFilter(obj, obs, k)
-            % UPDATEFILTER  1ステップの更新を実行
-            %
-            % 入力:
-            %   obs - 観測データ構造体
-            %   k   - タイムインデックス
+        function update_filter(obj, obs, k)
+            % 1ステップ更新実行
 
-            % センサーデータの取得
+            % センサーデータ取得
             a = [obs.ax(k); obs.ay(k); obs.az(k)];
             % 生成データの角速度: x=pitch, y=roll, z=yaw
             % ESKF内部: x=roll, y=pitch, z=yaw なので入れ替え
@@ -244,31 +235,27 @@ classdef ESKF < handle
             obj.predict(a, w);
 
             % === 加速度・磁気計更新を無効化（純粋な積分のみ） ===
-            obj.updateAccel(a);
+            obj.update_accel(a);
             
             % 周期的更新
             if mod(k, obj.freq_mag) == 0
                     % 磁気計更新はフラグで制御
                     if isprop(obj, 'enable_mag_update') && obj.enable_mag_update
-                        obj.updateMag([obs.mx(k); obs.my(k); obs.mz(k)]);
+                        obj.update_mag([obs.mx(k); obs.my(k); obs.mz(k)]);
                     end
             end
             if mod(k, obj.freq_baro) == 0
-                obj.updateBaro(obs.pressure(k));
+                obj.update_baro(obs.pressure(k));
             end
             if mod(k, obj.freq_gps) == 0 && ~isnan(obs.lat(k)) && ~isnan(obs.lon(k))
-                obj.updateGPS(obs.lat(k), obs.lon(k), obs.alt(k), k);
+                obj.update_gps(obs.lat(k), obs.lon(k), obs.alt(k), k);
             end
         end
         
         function predict(obj, a_meas, w_meas)
-            % PREDICT  予測ステップ
-            %
-            % 入力:
-            %   a_meas - 加速度測定値 (3x1)
-            %   w_meas - 角速度測定値 (3x1, rad/s)
+            % 予測ステップ
 
-            % ジャイロフィルタの有無に応じて処理
+            % ジャイロフィルタ適用
             if isprop(obj, 'enable_gyro_filter') && ~isempty(obj.enable_gyro_filter) && obj.enable_gyro_filter
                 % フィルタを使用する場合は既存のセンサーフィルタを適用
                 % w_expectedには前回のフィルタ済み値を使用（bgは静止時専用）
@@ -303,11 +290,11 @@ classdef ESKF < handle
                 gyro_thr_vec = ones(3,1) * obj.gyro_noise_threshold;
             end
 
-            [obj.p, obj.v, obj.q, obj.ba, obj.bg] = integrate_nominal(...
+            [obj.p, obj.v, obj.q, obj.ba, obj.bg] = eskf_core_mex('integrate_nominal', ...
                 obj.p, obj.v, obj.q, obj.ba, obj.bg, a_meas, w_meas, obj.dt, obj.g, gyro_thr_vec, accel_thr_vec);
 
-            % 共分散の予測
-            obj.P = kalman_filter_core('predict_step', obj.P, obj.q, a_meas, obj.ba, w_meas, obj.bg, obj.Q, obj.dt);
+            % 共分散の予測（MEX化）
+            obj.P = eskf_core_mex('predict_covariance', obj.P, obj.q, a_meas, obj.ba, w_meas, obj.bg, obj.Q, obj.dt);
             
             % 共分散行列の正則化
             obj.P = obj.divergence_guard.regularize_covariance(obj.P);
@@ -326,17 +313,10 @@ classdef ESKF < handle
             [obj.v, obj.P, ~] = obj.divergence_guard.check_and_clip_velocity(obj.v, obj.P, 4:6);
         end
         
-        function updateAccel(obj, a_meas)
-            % UPDATEACCEL  加速度による姿勢更新
-            % 
-            % 修正履歴 (2025/11/17):
-            %   - SensorAccelFilterを使用した統一フィルタリング
-            %   - EMA平滑化 + 外れ値検出 + 大きな変化スケーリング
-            %
-            % 入力:
-            %   a_meas - 加速度測定値 (3x1)
+        function update_accel(obj, a_meas)
+            % 加速度による姿勢更新
             
-            % 新しいセンサーフィルタを使用
+            % センサーフィルタ適用
             [a_corrected, is_outlier, ~] = obj.sensor_filters.accel.apply(a_meas, zeros(3,1));
             
             if is_outlier
@@ -393,18 +373,18 @@ classdef ESKF < handle
                 pitch_target = pitch_current + (pitch_target - pitch_current) * adaptive_gain;
             end
             
-            % 新しいEuler角からクォータニオンを生成
-            obj.q = QuaternionLib.from_euler([roll_target; pitch_target; yaw_current]);
-            obj.q = QuaternionLib.normalize(obj.q);
+            % 新しいEuler角からクォータニオンを生成（MEX使用）
+            scale = 1.0;
+            if roll_diff > 0.5 || pitch_diff > 0.5
+                scale = adaptive_gain;
+            end
+            obj.q = eskf_core_mex('update_accel', obj.q, a_corrected, scale);
         end
 
-        function updateMag(obj, m_meas)
-            % UPDATEMAG  磁気計による姿勢更新
-            %
-            % 入力:
-            %   m_meas - 磁気計測定値 (3x1)
+        function update_mag(obj, m_meas)
+            % 磁気計による姿勢更新
             
-            % 新しいセンサーフィルタを使用
+            % センサーフィルタ適用
             [m_filtered, is_outlier, ~] = obj.sensor_filters.mag.apply(m_meas);
             
             if is_outlier
@@ -431,7 +411,7 @@ classdef ESKF < handle
                 K_prop = [];
             end
             ctx = struct(); ctx.k = NaN; ctx.z = z; ctx.h = h; ctx.P_diag = diag(obj.P); ctx.R_diag = diag(R_used);
-            [should_update, y_used, K_used, dx_used, diag_info] = OutlierGuard.checkAndApply('mag', z, h, H, obj.P, R_used, K_prop, [], obj.divergence_guard, obj.noiseEstimator, ctx);
+            [should_update, y_used, K_used, dx_used, ~] = OutlierGuard.checkAndApply('mag', z, h, H, obj.P, R_used, K_prop, [], obj.divergence_guard, obj.noiseEstimator, ctx);
             if ~should_update
                 return;
             end
@@ -457,6 +437,14 @@ classdef ESKF < handle
             else
                 dx = dx_used;
             end
+            
+            % dxのサイズ確認とベクトル化
+            if numel(dx) < 9
+                % dx が十分な要素を持っていない場合、ゼロパディング
+                dx_full = zeros(15, 1);
+                dx_full(1:numel(dx)) = dx(:);
+                dx = dx_full;
+            end
 
             dtheta = [0; 0; dx(9)];
             
@@ -468,11 +456,8 @@ classdef ESKF < handle
             [~, obj.P] = kalman_filter_core('update_state_covariance', x_pred, obj.P, K, H, y_used, R_used);
         end
         
-    function updateGPS(obj, lat, lon, alt, k)
-            % UPDATEGPS  GPS位置観測による更新
-            %
-            % 入力:
-            %   lat, lon, alt - GPS観測値
+    function update_gps(obj, lat, lon, alt, k)
+            % GPS位置更新
             
             lat0 = obj.gps_origin(1);
             lon0 = obj.gps_origin(2);
@@ -513,7 +498,7 @@ classdef ESKF < handle
             ctx.P_diag = diag(obj.P);
             ctx.R_diag = diag(R);
             ctx.gps = ctx;
-            [should_update, y_used, K_used, dx_used, diag_info] = OutlierGuard.checkAndApply('gps', z_gps, obj.p, H_gps, obj.P, R_updated, [], dx, obj.divergence_guard, obj.noiseEstimator, ctx);
+            [should_update, y_used, ~, dx_used, ~] = OutlierGuard.checkAndApply('gps', z_gps, obj.p, H_gps, obj.P, R_updated, [], dx, obj.divergence_guard, obj.noiseEstimator, ctx);
             if ~should_update
                 return;
             end
@@ -535,13 +520,10 @@ classdef ESKF < handle
             [obj.v, obj.P, ~] = obj.divergence_guard.check_and_clip_velocity(obj.v, obj.P, 4:6);
         end
         
-        function updateBaro(obj, pressure)
-            % UPDATEBARO  気圧計による高度更新
-            %
-            % 入力:
-            %   pressure - 気圧測定値 (Pa)
+        function update_baro(obj, pressure)
+            % 気圧計による高度更新
             
-            % 新しいセンサーフィルタを使用
+            % センサーフィルタ適用
             [alt_baro, is_outlier, ~] = obj.sensor_filters.baro.apply(pressure);
             
             if is_outlier
@@ -568,9 +550,19 @@ classdef ESKF < handle
             
             K = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
             K = obj.divergence_guard.clamp_gain(K);
+            
+            % dx計算: Kは15x1、y_filteredはスカラー
             dx = K * y_filtered;
             
-            % 高度更新
+            % dxのサイズ確認とベクトル化
+            if numel(dx) == 1
+                % スカラーの場合、位置の高度のみ更新
+                dz = dx;
+                dx = zeros(15, 1);
+                dx(3) = dz;
+            end
+            
+            % 高度更新（閾値チェック付き）
             if abs(dx(3)) >= 0.1
                 obj.p(3) = obj.p(3) + dx(3);
             end
@@ -581,12 +573,9 @@ classdef ESKF < handle
             [~, obj.P] = kalman_filter_core('update_state_covariance', x_pred, obj.P, K, H, y_filtered, R_used);
         end
         
-        function euler = getEuler(obj)
-            % GETEULER  オイラー角を取得
-            %
-            % 出力:
-            %   euler - [roll; pitch; yaw] (度)
-            euler = QuaternionLib.to_euler(obj.q);  % now returns [roll; pitch; yaw]
+        function euler = get_euler(obj)
+            % オイラー角取得
+            euler = QuaternionLib.to_euler(obj.q);
         end
     end
 end

@@ -1,84 +1,101 @@
 function run_simulation()
-% RUN_SIMULATION  メイン実行スクリプト（ESKF）
-%
-% このスクリプトは、GenerateData/sensor_data.csv を読み込み、
-% ESKF フィルタを実行して Results/estimation.csv を出力し、グラフを表示します.
+    % ESKF シミュレーション実行
 
-clc;
-rehash;
-projRoot = fileparts(mfilename('fullpath'));
+    clc;
+    rehash;
+    proj_root = fileparts(mfilename('fullpath'));
 
-% MATLAB パスにサブフォルダを追加
-addpath(genpath(fullfile(projRoot, 'KF')));       % KF/Core, KF/Utils を含む
-addpath(genpath(fullfile(projRoot, 'ESKF')));     % ESKF/@ESKF, ESKF/Core を含む
-addpath(genpath(fullfile(projRoot, 'UKF')));      % UKF/Core を含む
-addpath(genpath(fullfile(projRoot, 'EKF')));      % EKF を含む
-addpath(fullfile(projRoot, 'Graph'));
-addpath(fullfile(projRoot, 'GenerateData'));
+    add_paths(proj_root);
 
-sim_generate();  % データ生成を呼び出し
+    sim_generate();
 
-dataDir = fullfile(projRoot, 'GenerateData');
-obsFile = fullfile(dataDir, 'sensor_data.csv');
-if ~exist(obsFile, 'file')
-    error('sensor_data.csv が見つかりません: %s', obsFile);
+    obs = read_observation(proj_root);
+    params = config_params();
+
+    dt = calculate_dt(obs);
+    eskf = ESKF(obs, params.static_time, dt);
+    eskf.enable_mag_update = false;
+
+    results = run_filter(eskf, obs);
+
+    save_results(proj_root, results);
+    plot_results(proj_root);
+
+    fprintf('推定完了\n');
 end
 
-obs = read_csv(obsFile);
-
-% 設定パラメータを読み込み
-params = config_params();
-
-% カルマンフィルタの初期化
-if length(obs.time) < 2
-    error('観測データが短すぎます');
+function add_paths(proj_root)
+    % パス追加
+    addpath(genpath(fullfile(proj_root, 'KF')));
+    addpath(genpath(fullfile(proj_root, 'ESKF')));
+    addpath(genpath(fullfile(proj_root, 'UKF')));
+    addpath(genpath(fullfile(proj_root, 'EKF')));
+    addpath(fullfile(proj_root, 'Graph'));
+    addpath(fullfile(proj_root, 'GenerateData'));
+    addpath(genpath(fullfile(proj_root, 'Common')));
+    addpath(genpath(fullfile(proj_root, 'cpp'))); % MEXファイルのパス
 end
-dt = mean(diff(obs.time));
-kf = ESKF(obs, params.static_time, dt);
 
-% 磁気計更新を無効化（Yaw推定への干渉を回避）
-kf.enable_mag_update = false;
- 
-% ESKFフィルタリング実行
-N = numel(obs.time);
-results.time = obs.time(:)';
-results.p = zeros(3, N);
-results.v = zeros(3, N);
-results.euler = zeros(3, N);
-results.ba = zeros(3, N);
-results.bg = zeros(3, N);
+function obs = read_observation(proj_root)
+    % センサーデータ読み込み
+    data_dir = fullfile(proj_root, 'GenerateData');
+    obs_file = fullfile(data_dir, 'sensor_data.csv');
+    if ~exist(obs_file, 'file')
+        error('sensor_data.csv が見つかりません: %s', obs_file);
+    end
+    obs = read_csv(obs_file);
+end
 
-for k = 1:N
-    kf.updateFilter(obs, k);
-    results.p(:,k) = kf.p;
-    results.v(:,k) = kf.v;
-    results.euler(:,k) = kf.getEuler();
-    results.ba(:,k) = kf.ba;
-    results.bg(:,k) = kf.bg;
-    if mod(k, 10000) == 0
-        fprintf('Step %d / %d\n', k, N);
+function dt = calculate_dt(obs)
+    % サンプリング周期計算
+    if length(obs.time) < 2
+        error('観測データが短すぎます');
+    end
+    dt = mean(diff(obs.time));
+end
+
+function results = run_filter(eskf, obs)
+    % フィルタ実行
+    n_samples = numel(obs.time);
+    results.time = obs.time(:)';
+    results.p = zeros(3, n_samples);
+    results.v = zeros(3, n_samples);
+    results.euler = zeros(3, n_samples);
+    results.ba = zeros(3, n_samples);
+    results.bg = zeros(3, n_samples);
+
+    for k = 1:n_samples
+        eskf.update_filter(obs, k);
+        results.p(:,k) = eskf.p;
+        results.v(:,k) = eskf.v;
+        results.euler(:,k) = eskf.get_euler();
+        results.ba(:,k) = eskf.ba;
+        results.bg(:,k) = eskf.bg;
+        if mod(k, 10000) == 0
+            fprintf('Step %d / %d\n', k, n_samples);
+        end
     end
 end
 
-outDir = fullfile(projRoot, 'Results');
-if ~exist(outDir,'dir'), mkdir(outDir); end
-outFile = fullfile(outDir, 'estimation.csv');
+function save_results(proj_root, results)
+    % 結果保存
+    out_dir = fullfile(proj_root, 'Results');
+    if ~exist(out_dir,'dir'), mkdir(out_dir); end
+    out_file = fullfile(out_dir, 'estimation.csv');
 
-% 保存
-T = table(results.time(:), ...  
-    results.p(1,:)', results.p(2,:)', results.p(3,:)', ...
-    results.v(1,:)', results.v(2,:)', results.v(3,:)', ...
-    results.euler(1,:)', results.euler(2,:)', results.euler(3,:)', ...
-    results.ba(1,:)', results.ba(2,:)', results.ba(3,:)', ...
-    results.bg(1,:)', results.bg(2,:)', results.bg(3,:)');
+    T = table(results.time(:), ...  
+        results.p(1,:)', results.p(2,:)', results.p(3,:)', ...
+        results.v(1,:)', results.v(2,:)', results.v(3,:)', ...
+        results.euler(1,:)', results.euler(2,:)', results.euler(3,:)', ...
+        results.ba(1,:)', results.ba(2,:)', results.ba(3,:)', ...
+        results.bg(1,:)', results.bg(2,:)', results.bg(3,:)');
 
-T.Properties.VariableNames = {'time','px','py','pz','vx','vy','vz','roll','pitch','yaw','ba_x','ba_y','ba_z','bg_x','bg_y','bg_z'};
-writetable(T, outFile);
+    T.Properties.VariableNames = {'time','px','py','pz','vx','vy','vz','roll','pitch','yaw','ba_x','ba_y','ba_z','bg_x','bg_y','bg_z'};
+    writetable(T, out_file);
+end
 
-fprintf('\n✓ フィルタリング完了\n');
-
-% 可視化 (コメントアウト - テスト時はスキップ)
-% plot_csv(outFile, 'time');
-
-fprintf('Estimation saved to %s\n', outFile);
+function plot_results(proj_root)
+    % 結果プロット
+    out_file = fullfile(proj_root, 'Results', 'estimation.csv');
+    plot_csv(out_file, 'time');
 end

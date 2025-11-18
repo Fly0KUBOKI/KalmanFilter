@@ -1,16 +1,13 @@
 classdef QuaternionLib
-    % QUATERNIONLIB クォータニオン演算の静的メソッド集
-    % C++移行を想定した設計
+    % クォータニオン演算ライブラリ
     
     properties (Constant)
         EPS = 1.0e-9;  % 小さい値の閾値
     end
     
     methods (Static)
-        %% 基本演算
         function q_out = multiply(q1, q2)
-            % クォータニオン積 (Hamilton積)
-            % q_out = q1 * q2
+            % クォータニオン積
             a = q1(:); b = q2(:);
             
             if numel(a) ~= 4 || numel(b) ~= 4
@@ -29,13 +26,13 @@ classdef QuaternionLib
         end
         
         function q_out = conjugate(q)
-            % クォータニオン共役
+            % 共役
             q = q(:);
             q_out = [q(1); -q(2:4)];
         end
         
         function q_out = normalize(q)
-            % クォータニオン正規化
+            % 正規化
             q = q(:);
             
             if any(~isfinite(q))
@@ -54,16 +51,15 @@ classdef QuaternionLib
         end
         
         function q_out = inverse(q)
-            % クォータニオン逆元
+            % 逆元
             q = q(:);
             q_conj = QuaternionLib.conjugate(q);
             norm_sq = q' * q;
             q_out = q_conj / norm_sq;
         end
         
-        %% 変換
         function R = to_rotation_matrix(q)
-            % クォータニオンから回転行列への変換
+            % 回転行列へ変換
             q = q(:);
             q = QuaternionLib.normalize(q);
             
@@ -87,9 +83,7 @@ classdef QuaternionLib
         end
         
         function euler = to_euler(q, sequence)
-            % クォータニオンからオイラー角への変換 (度)
-            % euler = [roll; pitch; yaw] (度)
-            % sequence: 'ZYX' (デフォルト, aerospace)
+            % オイラー角へ変換 (度)
             if nargin < 2
                 sequence = 'ZYX';
             end
@@ -125,9 +119,7 @@ classdef QuaternionLib
         end
         
         function q = from_euler(euler, sequence)
-            % オイラー角からクォータニオンへの変換
-            % euler: [roll; pitch; yaw] (度)
-            % sequence: 'ZYX' (デフォルト)
+            % オイラー角から変換
             if nargin < 2
                 sequence = 'ZYX';
             end
@@ -156,11 +148,8 @@ classdef QuaternionLib
             q = QuaternionLib.normalize([qw; qx; qy; qz]);
         end
         
-        %% 積分・微分
         function q_new = integrate(q, omega, dt)
-            % クォータニオン積分
-            % omega: 角速度 [3x1] (rad/s)
-            % dt: 時間刻み (s)
+            % 積分
             q = q(:);
             omega = omega(:);
             
@@ -189,8 +178,7 @@ classdef QuaternionLib
         end
         
         function q = small_angle_quat(theta)
-            % 小角度回転ベクトルからクォータニオンへ
-            % theta: 回転ベクトル [3x1] (rad)
+            % 小角度回転ベクトルから変換
             th = theta(:);
             th2 = th' * th;
             EPS = QuaternionLib.EPS;
@@ -206,9 +194,8 @@ classdef QuaternionLib
             q = QuaternionLib.normalize(q);
         end
         
-        %% ユーティリティ
         function d = distance(q1, q2)
-            % クォータニオン間の角度距離 (rad)
+            % 角度距離計算
             q1 = QuaternionLib.normalize(q1(:));
             q2 = QuaternionLib.normalize(q2(:));
             
@@ -220,7 +207,6 @@ classdef QuaternionLib
         
         function q = slerp(q1, q2, t)
             % 球面線形補間
-            % t: 補間パラメータ [0, 1]
             q1 = QuaternionLib.normalize(q1(:));
             q2 = QuaternionLib.normalize(q2(:));
             
@@ -245,7 +231,7 @@ classdef QuaternionLib
         end
         
         function q = from_two_vectors(v1, v2)
-            % 2つのベクトルを対応させる回転クォータニオン
+            % 2ベクトル間の回転生成
             v1 = v1(:); v2 = v2(:);
             
             n1 = norm(v1); n2 = norm(v2);
