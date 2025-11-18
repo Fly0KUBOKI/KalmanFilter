@@ -23,13 +23,13 @@ function params = config_params()
     params.noise.gps_std = 1.0;
     % 外れ値設定
     params.noise.outlier = struct();
-    params.noise.outlier.prob = 0.0;
+    params.noise.outlier.prob = 0.01;
     params.noise.outlier.range = struct( ...
         'accel', 2.0, ...  % m/s^2
-        'gyro', 1.0, ...   % deg/s
-        'mag', 10.0, ...    % nT
+        'gyro', 2.0, ...   % deg/s
+        'mag', 50.0, ...    % nT
         'baro', 0.0, ...   % meters
-        'gps', 0.0 ...     % meters
+        'gps', 10.0 ...     % meters
     );
 
     % ピンクノイズ
