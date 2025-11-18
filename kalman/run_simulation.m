@@ -75,25 +75,10 @@ T = table(results.time(:), ...
 T.Properties.VariableNames = {'time','px','py','pz','vx','vy','vz','roll','pitch','yaw','ba_x','ba_y','ba_z','bg_x','bg_y','bg_z'};
 writetable(T, outFile);
 
-% パルス検知ログの取得と保存
-pulse_log = kf.getPulseLog();
-if ~isempty(pulse_log)
-    fprintf('\n★ 検知されたパルス: %d 箇所\n', length(pulse_log));
-    for i = 1:length(pulse_log)
-        fprintf('  [Step %d, %.3fs] Roll変化=%.3f°, Pitch変化=%.3f°\n', ...
-            pulse_log(i).step, pulse_log(i).time, ...
-            pulse_log(i).roll_change, pulse_log(i).pitch_change);
-    end
-    pulse_table = struct2table(pulse_log);
-    pulse_file = fullfile(outDir, 'pulse_log.csv');
-    writetable(pulse_table, pulse_file);
-    fprintf('Pulse log saved to %s\n', pulse_file);
-else
-    fprintf('\n✓ パルスは検知されませんでした\n');
-end
+fprintf('\n✓ フィルタリング完了\n');
 
-% 可視化
-plot_csv(outFile, 'time');
+% 可視化 (コメントアウト - テスト時はスキップ)
+% plot_csv(outFile, 'time');
 
 fprintf('Estimation saved to %s\n', outFile);
 end

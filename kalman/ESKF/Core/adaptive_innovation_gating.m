@@ -80,14 +80,4 @@ else
     should_accept = true;
 end
 
-% ログ出力（デバッグ用）
-persistent call_count
-if isempty(call_count), call_count = 0; end
-call_count = call_count + 1;
-
-if mod(call_count, 1000) == 0 && gain_scale < 1.0
-    fprintf('[AdaptiveGating] %s: mahal=%.2f (閾値=%.2f), ゲインスケール=%.3f\n', ...
-        sensor_type, mahal_dist_sq, chi2_threshold, gain_scale);
-end
-
 end

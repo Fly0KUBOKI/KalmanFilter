@@ -45,19 +45,6 @@ classdef ESKF < handle
         
         % 統一フィルタシステム
         sensor_filters      % struct: 各センサーのフィルタインスタンス
-        % デバッグ用コールバック (関数ハンドル)。存在する場合、各ステップで
-        % 情報構造体を渡して呼び出す。例: cb(info)
-        debugCallback
-        % 詳細ダンプを取得したい時刻インデックス (空 = 無効)
-        debugDumpK
-        
-        % パルス検知
-        pulse_detection_enabled  % パルス検知有効化フラグ
-        pulse_threshold          % パルス検知閾値 (degree/m/s)
-        pulse_log                % パルス検知ログ
-        prev_position            % 前ステップの位置 [x; y; z]
-        prev_velocity            % 前ステップの速度 [vx; vy; vz]
-        prev_euler               % 前ステップのEuler角 [roll; pitch; yaw]
         
         % Yaw 角速度統合制御
         gyro_filter_yaw_alpha    % Yaw 軸のEMA α値（デフォルト: 0.08 = 弱平滑化）
@@ -97,7 +84,7 @@ classdef ESKF < handle
             % 状態初期化
             obj.p = zeros(3, 1);
             obj.v = zeros(3, 1);
-            obj.q = quat_lib('quatnormalize', [1; 0; 0; 0]);
+            obj.q = QuaternionLib.normalize([1; 0; 0; 0]);
             
             % バイアスの初期推定
             % 静止時、センサーは比力 f = a_true - g を測定
@@ -199,13 +186,7 @@ classdef ESKF < handle
                 obj.gyro_noise_threshold = 2 * max([std_wx, std_wy, std_wz]);
             end
             
-            % 初期化情報表示
-            fprintf('ESKF 初期化:\n');
-            fprintf('  静止期間: %.1f秒 (%d サンプル)\n', static_time, length(static_idx));
-            fprintf('  GPS原点: [%.6f, %.6f, %.2f]\n', obj.gps_origin(1), obj.gps_origin(2), obj.gps_origin(3));
-            fprintf('  初期バイアス - 加速度: [%.4f, %.4f, %.4f], ジャイロ: [%.4f, %.4f, %.4f]\n', ...
-                    obj.ba(1), obj.ba(2), obj.ba(3), obj.bg(1), obj.bg(2), obj.bg(3));
-            fprintf('  推定ノイズレベル - 加速度: %.4f, ジャイロ: %.4f 地磁気: %.4f 気圧: %.4f GPS: %.4f\n', sigma_a, sigma_g, sigma_mag, sigma_press, sigma_gps);
+            % 初期化完了
             
             % 発散対策の初期化
             config = struct();
@@ -237,17 +218,6 @@ classdef ESKF < handle
             obj.sensor_filters.gps = SensorFilter.createGPSFilter();
             obj.sensor_filters.baro = SensorFilter.createBaroFilter();
             
-            % パルス検知の初期化
-            obj.pulse_detection_enabled = true;  % パルス検知を有効化
-            obj.pulse_threshold = 2.0;  % 2.0以上の急変をパルスとして検知（姿勢:度、位置:m、速度:m/s）
-            obj.pulse_log = struct('step', {}, 'time', {}, 'type', {}, ...
-                'roll_change', {}, 'pitch_change', {}, 'yaw_change', {}, ...
-                'px_change', {}, 'py_change', {}, 'pz_change', {}, ...
-                'vx_change', {}, 'vy_change', {}, 'vz_change', {});
-            obj.prev_position = [0; 0; 0];  % 初期位置
-            obj.prev_velocity = [0; 0; 0];  % 初期速度
-            obj.prev_euler = [0; 0; 0];     % 初期Euler角
-            
             % ジャイロフィルタ設定（Biquad導入済み）
             obj.gyro_filter_yaw_alpha = 0.08;  % 未使用（Biquadに移行）
             obj.enable_yaw_raw_gyro = false;   % false: Biquadフィルタ適用
@@ -273,15 +243,6 @@ classdef ESKF < handle
             % 予測ステップ
             obj.predict(a, w);
 
-            % デバッグコール: 予測直後の P を渡す
-            info = struct(); info.k = k; info.stage = 'post_predict'; info.P = obj.P; info.p = obj.p; info.v = obj.v;
-            obj.callDebug(info);
-
-            % (no per-step dump here)
-
-            % (no per-step dump here)
-            
-
             % === 加速度・磁気計更新を無効化（純粋な積分のみ） ===
             obj.updateAccel(a);
             
@@ -297,20 +258,6 @@ classdef ESKF < handle
             end
             if mod(k, obj.freq_gps) == 0 && ~isnan(obs.lat(k)) && ~isnan(obs.lon(k))
                 obj.updateGPS(obs.lat(k), obs.lon(k), obs.alt(k), k);
-            end
-            
-            % パルス検知（全ての推定値に対して）
-            obj.detectPulse(k, obs.time(k));
-        end
-
-        function callDebug(obj, info)
-            % callDebug - debugCallback が設定されていれば安全に呼び出す
-            try
-                if ~isempty(obj.debugCallback) && isa(obj.debugCallback, 'function_handle')
-                    obj.debugCallback(info);
-                end
-            catch e
-                warning('ESKF:debugCallback', 'debugCallback failed: %s', e.message);
             end
         end
         
@@ -389,10 +336,6 @@ classdef ESKF < handle
             % 入力:
             %   a_meas - 加速度測定値 (3x1)
             
-            persistent test_counter
-            if isempty(test_counter), test_counter = 0; end
-            test_counter = test_counter + 1;
-            
             % 新しいセンサーフィルタを使用
             [a_corrected, is_outlier, ~] = obj.sensor_filters.accel.apply(a_meas, zeros(3,1));
             
@@ -408,7 +351,7 @@ classdef ESKF < handle
             end
             
             % 現在のYawを取得（加速度計では観測不可能なため保持）
-            euler_current = quat_lib('quat_to_euler', obj.q);
+            euler_current = QuaternionLib.to_euler(obj.q);
             yaw_current = euler_current(3);
             
             % 加速度から直接Roll/Pitchを計算
@@ -420,7 +363,7 @@ classdef ESKF < handle
             pitch_measured = atan2d(-ax, sqrt(ay^2 + az^2));
             
             % 現在のRoll/Pitchを取得
-            euler_before = quat_lib('quat_to_euler', obj.q);
+            euler_before = QuaternionLib.to_euler(obj.q);
             roll_current = euler_before(1);
             pitch_current = euler_before(2);
             
@@ -437,10 +380,6 @@ classdef ESKF < handle
             scale_factor = 1.0;
             if roll_diff > 1.0 || pitch_diff > 1.0
                 scale_factor = 0.1;
-                if mod(test_counter, 500) == 0
-                    fprintf('  [ACCEL更新] 大きな変化を検出 - スケーリング適用: Roll差%.2f°, Pitch差%.2f° → 1/10\n', ...
-                        roll_diff, pitch_diff);
-                end
             end
             
             % スケーリングを適用
@@ -455,8 +394,8 @@ classdef ESKF < handle
             end
             
             % 新しいEuler角からクォータニオンを生成
-            obj.q = quat_lib('euler_to_quat', [roll_target; pitch_target; yaw_current]);
-            obj.q = quat_lib('quatnormalize', obj.q);
+            obj.q = QuaternionLib.from_euler([roll_target; pitch_target; yaw_current]);
+            obj.q = QuaternionLib.normalize(obj.q);
         end
 
         function updateMag(obj, m_meas)
@@ -473,12 +412,12 @@ classdef ESKF < handle
             end
             
             m_world = [0; 50; 0];
-            Rb = quat_lib('quat_to_rotm', obj.q);
+            Rb = QuaternionLib.to_rotation_matrix(obj.q);
             h_mag = Rb' * m_world;
             
             z = m_filtered;
             h = h_mag;
-            H = [zeros(3,6), quat_lib('skew', h), zeros(3,6)];
+            H = [zeros(3,6), RotationLib.skew_symmetric(h), zeros(3,6)];
             
             % 現在のノイズ推定値を使用
             R_est = obj.noiseEstimator.getRnoise('mag');
@@ -521,30 +460,12 @@ classdef ESKF < handle
 
             dtheta = [0; 0; dx(9)];
             
-            % デバッグ: 大きなYaw更新を検出
-            if abs(rad2deg(dx(9))) > 2.0
-                euler_before = quat_lib('quat_to_euler', obj.q);
-                fprintf('  [MAG更新] 大きなYaw補正: %.3f° (before Yaw=%.2f°)\n', ...
-                    rad2deg(dx(9)), euler_before(3));
-                fprintf('    イノベーション: [%.3f, %.3f, %.3f]\n', y_used(1), y_used(2), y_used(3));
-                fprintf('    K(9行): [%.4f, %.4f, %.4f]\n', K(9,1), K(9,2), K(9,3));
-                fprintf('    測定値: [%.2f, %.2f, %.2f], 予測: [%.2f, %.2f, %.2f]\n', ...
-                    z(1), z(2), z(3), h(1), h(2), h(3));
-            end
-            
-            dq = quat_lib('small_angle_quat', dtheta);
-            obj.q = quat_lib('quatmultiply', obj.q, dq);
-            obj.q = quat_lib('quatnormalize', obj.q);
+            dq = QuaternionLib.small_angle_quat(dtheta);
+            obj.q = QuaternionLib.multiply(obj.q, dq);
+            obj.q = QuaternionLib.normalize(obj.q);
 
             x_pred = zeros(15,1);
             [~, obj.P] = kalman_filter_core('update_state_covariance', x_pred, obj.P, K, H, y_used, R_used);
-            info = struct(); info.stage = 'baro_post'; info.k = NaN; info.P = obj.P; info.z = z; info.h = h; info.y = y_used; info.P_diag = diag(obj.P);
-            try
-                info.K_norm = norm(K, 'fro');
-            catch
-                info.K_norm = NaN;
-            end
-            obj.callDebug(info);
         end
         
     function updateGPS(obj, lat, lon, alt, k)
@@ -581,47 +502,16 @@ classdef ESKF < handle
             
             [dx, P_upd, ~, ~, y_innov] = ukf_update(x_err, obj.P, z_gps_filtered, h_func, R);
 
-            % Build context for dump/diagnostics
+            % Use OutlierGuard to handle SensorFilter + Divergence checks
             H_gps = [eye(3), zeros(3, 12)];
-            S = H_gps * obj.P * H_gps' + R;
+            R_updated = obj.noiseEstimator.getRnoise('gps');
             ctx = struct();
             ctx.k = k;
             ctx.z = z_gps;
-            ctx.h = obj.p; % predicted measurement for dx=0
+            ctx.h = obj.p;
             ctx.y = y_innov;
             ctx.P_diag = diag(obj.P);
             ctx.R_diag = diag(R);
-            ctx.S_rcond = rcond(S);
-
-            % --- 自動ダンプ: GPS pre のタイミングでフル内部状態を安全に保存 ---
-            if ~isempty(obj.debugDumpK) && isequal(k, obj.debugDumpK)
-                try
-                    try
-                        K_approx = obj.P * H_gps' / S;
-                    catch
-                        K_approx = NaN;
-                    end
-                    dump = struct('k',k,'sensor','gps','z',z_gps,'h',obj.p,'y',y_innov,'P',obj.P,'R',R,'S',S,'K_approx',K_approx,'time',datestr(now,'yyyymmdd_HHMMSS'));
-                    obj.saveDebugDump(dump);
-                catch e
-                    warning('ESKF:saveDebugDump','Could not auto-save debug dump: %s', e.message);
-                end
-            end
-
-            % デバッグ: GPS 更新前情報
-            info = struct(); info.k = k; info.stage = 'gps_pre'; info.P = obj.P; info.z = z_gps; info.h = obj.p; info.y = y_innov; info.S_rcond = ctx.S_rcond;
-            % Kalman gain approximate (pre-update) for diagnostics: K = P*H' * inv(S)
-            try
-                H_gps = [eye(3), zeros(3, 12)];
-                K_approx = obj.P * H_gps' / S; %#ok<NASGU>
-                info.K_norm = norm(K_approx, 'fro');
-            catch
-                info.K_norm = NaN;
-            end
-            obj.callDebug(info);
-
-            % Use OutlierGuard to handle SensorFilter + Divergence checks
-            R_updated = obj.noiseEstimator.getRnoise('gps');
             ctx.gps = ctx;
             [should_update, y_used, K_used, dx_used, diag_info] = OutlierGuard.checkAndApply('gps', z_gps, obj.p, H_gps, obj.P, R_updated, [], dx, obj.divergence_guard, obj.noiseEstimator, ctx);
             if ~should_update
@@ -639,18 +529,7 @@ classdef ESKF < handle
             % 状態更新
             obj.p = obj.p + dx(1:3);
             obj.v = obj.v + dx(4:6);
-            % obj.ba = obj.ba + dx(10:12);
             obj.P = P_upd;
-            % debug: gps post-update
-            info = struct(); info.k = k; info.stage = 'gps_post'; info.P = obj.P; info.z = z_gps; info.h = obj.p; info.y = y_innov; info.P_diag = diag(obj.P);
-            try
-                H_gps = [eye(3), zeros(3, 12)];
-                K_approx = (P_upd) * H_gps' / S;
-                info.K_norm = norm(K_approx, 'fro');
-            catch
-                info.K_norm = NaN;
-            end
-            obj.callDebug(info);
             
             % 速度チェックとクリッピング
             [obj.v, obj.P, ~] = obj.divergence_guard.check_and_clip_velocity(obj.v, obj.P, 4:6);
@@ -707,134 +586,7 @@ classdef ESKF < handle
             %
             % 出力:
             %   euler - [roll; pitch; yaw] (度)
-            euler = quat_lib('quat_to_euler', obj.q);  % now returns [roll; pitch; yaw]
-        end
-        
-        function log = getPulseLog(obj)
-            % GETPULSELOG  パルス検知ログを取得
-            %
-            % 出力:
-            %   log - パルス検知ログ (struct配列)
-            log = obj.pulse_log;
-        end
-        
-        function detectPulse(obj, step, time)
-            % DETECTPULSE  全ての推定値に対してパルス検知を実行
-            %
-            % 入力:
-            %   step - ステップ番号
-            %   time - 時刻 (秒)
-            
-            if ~obj.pulse_detection_enabled
-                return;
-            end
-            
-            % 現在の状態を取得
-            current_position = obj.p;
-            current_velocity = obj.v;
-            current_euler = obj.getEuler();
-            
-            % 変化量を計算（角度差はラップ処理を行う）
-            % wrapTo180 を使って角度差の最小代表を取得
-            d_euler = mod((current_euler - obj.prev_euler) + 180, 360) - 180;  % deg
-            roll_change = abs(d_euler(1));
-            pitch_change = abs(d_euler(2));
-            yaw_change = abs(d_euler(3));
-            
-            px_change = abs(current_position(1) - obj.prev_position(1));
-            py_change = abs(current_position(2) - obj.prev_position(2));
-            pz_change = abs(current_position(3) - obj.prev_position(3));
-            
-            vx_change = abs(current_velocity(1) - obj.prev_velocity(1));
-            vy_change = abs(current_velocity(2) - obj.prev_velocity(2));
-            vz_change = abs(current_velocity(3) - obj.prev_velocity(3));
-            
-            % 閾値判定（姿勢：度、位置：m、速度：m/s）
-            attitude_pulse = roll_change > obj.pulse_threshold || ...
-                             pitch_change > obj.pulse_threshold || ...
-                             yaw_change > obj.pulse_threshold;
-            position_pulse = px_change > obj.pulse_threshold || ...
-                             py_change > obj.pulse_threshold || ...
-                             pz_change > obj.pulse_threshold;
-            velocity_pulse = vx_change > obj.pulse_threshold || ...
-                             vy_change > obj.pulse_threshold || ...
-                             vz_change > obj.pulse_threshold;
-            
-            % パルス検知時にログに記録
-            if attitude_pulse || position_pulse || velocity_pulse
-                pulse_entry = struct();
-                pulse_entry.step = step;
-                pulse_entry.time = time;
-                
-                % どのタイプのパルスか記録
-                types = {};
-                if attitude_pulse, types{end+1} = 'attitude'; end
-                if position_pulse, types{end+1} = 'position'; end
-                if velocity_pulse, types{end+1} = 'velocity'; end
-                pulse_entry.type = strjoin(types, '+');
-                
-                % 各変化量を記録
-                pulse_entry.roll_change = roll_change;
-                pulse_entry.pitch_change = pitch_change;
-                pulse_entry.yaw_change = yaw_change;
-                pulse_entry.px_change = px_change;
-                pulse_entry.py_change = py_change;
-                pulse_entry.pz_change = pz_change;
-                pulse_entry.vx_change = vx_change;
-                pulse_entry.vy_change = vy_change;
-                pulse_entry.vz_change = vz_change;
-                
-                obj.pulse_log(end+1) = pulse_entry;
-                
-                % コンソール出力
-                fprintf('  ★ パルス検知 [Step %d, %.3fs] タイプ=%s\n', step, time, pulse_entry.type);
-                if attitude_pulse
-                    fprintf('     姿勢: Roll=%.3f° Pitch=%.3f° Yaw=%.3f°\n', ...
-                        roll_change, pitch_change, yaw_change);
-                end
-                if position_pulse
-                    fprintf('     位置: X=%.3fm Y=%.3fm Z=%.3fm\n', ...
-                        px_change, py_change, pz_change);
-                end
-                if velocity_pulse
-                    fprintf('     速度: VX=%.3fm/s VY=%.3fm/s VZ=%.3fm/s\n', ...
-                        vx_change, vy_change, vz_change);
-                end
-            end
-            
-            % 前回値を更新
-            obj.prev_position = current_position;
-            obj.prev_velocity = current_velocity;
-            obj.prev_euler = current_euler;
-        end
-
-        function saveDebugDump(obj, dump)
-            % saveDebugDump  指定されたダンプ構造体を Results フォルダに保存
-            try
-                % mfilename('fullpath') -> .../kalman/ESKF/ESKF.m
-                classPath = mfilename('fullpath');
-                base = fileparts(fileparts(classPath)); % .../kalman
-                resultsDir = fullfile(base, 'Results');
-                if ~exist(resultsDir, 'dir')
-                    mkdir(resultsDir);
-                end
-                tstr = datestr(now,'yyyymmdd_HHMMSS');
-                if isfield(dump,'k')
-                    kstr = sprintf('k%u',dump.k);
-                else
-                    kstr = 'kNaN';
-                end
-                if isfield(dump,'sensor')
-                    sname = dump.sensor;
-                else
-                    sname = 'unknown';
-                end
-                fname = fullfile(resultsDir, sprintf('divergence_full_dump_%s_%s_%s.mat', sname, kstr, tstr));
-                save(fname, 'dump');
-                fprintf('ESKF: saved debug dump to %s\n', fname);
-            catch e
-                warning('ESKF:saveDebugDump', 'Failed to save debug dump: %s', e.message);
-            end
+            euler = QuaternionLib.to_euler(obj.q);  % now returns [roll; pitch; yaw]
         end
     end
 end
