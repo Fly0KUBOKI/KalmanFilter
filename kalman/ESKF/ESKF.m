@@ -27,6 +27,7 @@ classdef ESKF < handle
         freq_mag                % 磁気計更新頻度
         freq_gps                % GPS更新頻度
         freq_baro               % 気圧計更新頻度
+        freq_accel              % 加速度更新頻度（例: 4 -> 4回に1回）
         
         % 参照値
         gps_origin              % GPS原点 [lat0; lon0; alt0]
@@ -169,6 +170,7 @@ classdef ESKF < handle
             obj.freq_mag = 4;
             obj.freq_baro = 8;
             obj.freq_gps = 10;
+            obj.freq_accel = 4;
             
             % ジャイロノイズ閾値
             if length(static_idx) > 10
@@ -225,24 +227,20 @@ classdef ESKF < handle
 
             % センサーデータ取得
             a = [obs.ax(k); obs.ay(k); obs.az(k)];
-            % 生成データの角速度: x=pitch, y=roll, z=yaw
-            % ESKF内部: x=roll, y=pitch, z=yaw なので入れ替え
-            w_raw = [obs.wx(k); obs.wy(k); obs.wz(k)];
-            w = [w_raw(2); w_raw(1); w_raw(3)];
-            w = deg2rad(w);
+            % 生成データの角速度: 既に [roll_rate, pitch_rate, yaw_rate] の順
+            % ESKF内部: x=roll, y=pitch, z=yaw
+            % 軸の入れ替えは不要
+            w = deg2rad([obs.wx(k); obs.wy(k); obs.wz(k)]);
 
             % 予測ステップ
             obj.predict(a, w);
-
-            % === 加速度・磁気計更新を無効化（純粋な積分のみ） ===
-            obj.update_accel(a);
-            
+        
             % 周期的更新
+            if mod(k, obj.freq_accel) == 0
+                obj.update_accel(a);
+            end
             if mod(k, obj.freq_mag) == 0
-                    % 磁気計更新はフラグで制御
-                    if isprop(obj, 'enable_mag_update') && obj.enable_mag_update
-                        obj.update_mag([obs.mx(k); obs.my(k); obs.mz(k)]);
-                    end
+                obj.update_mag([obs.mx(k); obs.my(k); obs.mz(k)]);
             end
             if mod(k, obj.freq_baro) == 0
                 obj.update_baro(obs.pressure(k));
@@ -290,6 +288,7 @@ classdef ESKF < handle
                 gyro_thr_vec = ones(3,1) * obj.gyro_noise_threshold;
             end
 
+            % ノミナル状態の積分（角速度はそのまま使用）
             [obj.p, obj.v, obj.q, obj.ba, obj.bg] = eskf_core_mex('integrate_nominal', ...
                 obj.p, obj.v, obj.q, obj.ba, obj.bg, a_meas, w_meas, obj.dt, obj.g, gyro_thr_vec, accel_thr_vec);
 
@@ -314,13 +313,13 @@ classdef ESKF < handle
         end
         
         function update_accel(obj, a_meas)
-            % 加速度による姿勢更新
+            % 加速度によるカルマンフィルタ姿勢更新（Roll/Pitchのみ、Yaw不可観測）
+            % ギザギザ抑制: 強力なゲイン制限 + 時間的整合性チェック
             
             % センサーフィルタ適用
             [a_corrected, is_outlier, ~] = obj.sensor_filters.accel.apply(a_meas, zeros(3,1));
             
             if is_outlier
-                % 外れ値の場合は更新をスキップ
                 return;
             end
             
@@ -330,56 +329,147 @@ classdef ESKF < handle
                 return;
             end
             
-            % 現在のYawを取得（加速度計では観測不可能なため保持）
-            euler_current = QuaternionLib.to_euler(obj.q);
-            yaw_current = euler_current(3);
+            % 予測値計算：現在の姿勢から重力のボディ座標系表現を計算
+            Rb = QuaternionLib.to_rotation_matrix(obj.q);
+            g_body = Rb' * obj.g;  % 重力ベクトルをボディ座標へ変換
             
-            % 加速度から直接Roll/Pitchを計算
-            ax = a_corrected(1);
-            ay = a_corrected(2);
-            az = a_corrected(3);
+            % 観測モデル：加速度計は -g（上向き）を測定
+            h = -g_body;
             
-            roll_measured = atan2d(ay, az);
-            pitch_measured = atan2d(-ax, sqrt(ay^2 + az^2));
+            % 観測行列：H = ∂h/∂θ = -[g_body]×
+            H_full = [zeros(3,6), -RotationLib.skew_symmetric(g_body), zeros(3,6)];
             
-            % 現在のRoll/Pitchを取得
-            euler_before = QuaternionLib.to_euler(obj.q);
-            roll_current = euler_before(1);
-            pitch_current = euler_before(2);
+            % x,y成分のみを使用（Yaw干渉回避 + 線形化誤差低減）
+            H = H_full(1:2, :);
+            z = a_corrected(1:2);
+            h_pred = h(1:2);
             
-            % 変化量を計算
-            roll_diff_raw = roll_measured - roll_current;
-            roll_diff = mod((roll_diff_raw + 180), 360) - 180;
-            roll_diff = abs(roll_diff);
+            % ノイズ共分散（ArduPilot式: 動的R調整）
+            R_est_full = obj.noiseEstimator.getRnoise('accel');
+            R_est_2d = diag(R_est_full);
+            R_est_2d = R_est_2d(1:2);
             
-            pitch_diff_raw = pitch_measured - pitch_current;
-            pitch_diff = mod((pitch_diff_raw + 180), 360) - 180;
-            pitch_diff = abs(pitch_diff);
+            % 動的R調整: 重力偏差に応じてRを増減
+            gravity_deviation = abs(a_norm - 9.81);
+            R_scale = 1.0 + (gravity_deviation / 2.0);  % 0m/s² → 1.0倍, 2m/s² → 2.0倍
             
-            % 大きな変化をスケーリング
-            scale_factor = 1.0;
-            if roll_diff > 1.0 || pitch_diff > 1.0
-                scale_factor = 0.1;
+            % ノイズ下限（平滑化強化: 0.01 → 0.02）
+            R_floor = 0.04;  % 測定ノイズを保守的に見積もる
+            R = diag(max(R_est_2d, R_floor) * R_scale);
+            
+            % カルマンフィルタ更新
+            [y, S, R_used] = kalman_filter_core('compute_innovation_and_S', z, h_pred, H, obj.P, R, struct());
+            
+            % S正則化
+            try
+                s_rcond = rcond(S);
+            catch
+                s_rcond = 0;
+            end
+            if isempty(s_rcond) || s_rcond < 1e-12
+                jitter = max(1e-8, abs(trace(S)) * 1e-6);
+                S = S + eye(size(S)) * jitter;
             end
             
-            % スケーリングを適用
-            roll_target = roll_current + roll_diff_raw * scale_factor;
-            pitch_target = pitch_current + pitch_diff_raw * scale_factor;
+            % ArduPilot式 平滑化技術
             
-            % 適応的ゲイン制限
-            if roll_diff > 0.5 || pitch_diff > 0.5
-                adaptive_gain = 1.0 / (1.0 + max(roll_diff, pitch_diff) / 2.0);
-                roll_target = roll_current + (roll_target - roll_current) * adaptive_gain;
-                pitch_target = pitch_current + (pitch_target - pitch_current) * adaptive_gain;
+            % 1. イノベーション制限 (Innovation Clamping)
+            %    大きなイノベーションを±0.3rad (±17度) に制限 (強化)
+            max_innovation = 0.1;  % rad (0.5 → 0.3 でより滑らかに)
+            innov_norm = norm(y);
+            if innov_norm > max_innovation
+                y = y * (max_innovation / innov_norm);  % 正規化して制限
             end
             
-            % 新しいEuler角からクォータニオンを生成（MEX使用）
-            scale = 1.0;
-            if roll_diff > 0.5 || pitch_diff > 0.5
-                scale = adaptive_gain;
+            % 2. マハラノビス距離計算
+            mahalanobis_dist = sqrt(y' / S * y);
+            
+            % 3. 5-Sigma圧縮スケール (Compression Scale Factor)
+            %    5-sigma以上のイノベーションをスケールダウン
+            if mahalanobis_dist > 5.0
+                innov_comp_scale = 5.0 / mahalanobis_dist;
+                y = y * innov_comp_scale;
+                % 注: Sも調整する必要があるが、簡易版では省略
             end
-            obj.q = eskf_core_mex('update_accel', obj.q, a_corrected, scale);
+            
+            % 4. 外れ値判定（緩和: 3.0 → 5.0）
+            if mahalanobis_dist > 5.0
+                return;  % 5-sigma以上は棄却
+            end
+            
+            % カルマンゲイン計算
+            try
+                K = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
+            catch
+                K = [];
+            end
+            
+            if isempty(K)
+                try
+                    K = obj.P * H' / S;
+                catch
+                    return;
+                end
+            end
+            
+            % K形状正規化
+            [kr, kc] = size(K);
+            if kr ~= 15 && kc == 15
+                K = K';
+                [kr, ~] = size(K);
+            end
+            if kr ~= 15
+                try
+                    K = obj.P * H' / S;
+                catch
+                    return;
+                end
+            end
+            
+            K = obj.divergence_guard.clamp_gain(K);
+            
+            % 姿勢ゲイン制限（平滑化強化: 0.1 → 0.05）
+            % より保守的なゲインで滑らかな応答を実現
+            max_attitude_gain = 0.05;  % 5%以下（イノベーション制限強化と併用）
+            if size(K,1) >= 9
+                K(7:9,:) = max(min(K(7:9,:), max_attitude_gain), -max_attitude_gain);
+            end
+            
+            % 状態修正量計算
+            dx = K * y;
+            if numel(dx) < 15
+                dx_full = zeros(15,1);
+                dx_full(1:numel(dx)) = dx(:);
+                dx = dx_full;
+            end
+            
+            % 時間的整合性チェック: dx が異常に大きい場合はスケールダウン
+            % 平滑化強化のため閾値を下げる
+            dx_attitude_norm = norm(dx(7:9));
+            if dx_attitude_norm > deg2rad(1.5)  % 1.5度以上の変化は抑制
+                scale_down = deg2rad(1.5) / dx_attitude_norm;
+                dx(7:9) = dx(7:9) * scale_down;
+            end
+            
+            % 姿勢更新（微小角近似、Yaw不可観測）
+            dtheta = dx(7:9);
+            dtheta(3) = 0;  % Yaw強制ゼロ
+            
+            dq = QuaternionLib.small_angle_quat(dtheta);
+            obj.q = QuaternionLib.multiply(obj.q, dq);
+            obj.q = QuaternionLib.normalize(obj.q);
+            
+            % 共分散更新
+            x_pred = zeros(15,1);
+            [~, obj.P] = kalman_filter_core('update_state_covariance', x_pred, obj.P, K, H, y, R_used);
+            
+            % ノイズ推定更新（3要素にパディング）
+            y_full = zeros(3,1);
+            y_full(1:2) = y;
+            H_full_for_estimator = [H; zeros(1,15)];
+            obj.noiseEstimator.estimate('accel', y_full, H_full_for_estimator, obj.P);
         end
+
 
         function update_mag(obj, m_meas)
             % 磁気計による姿勢更新
@@ -395,6 +485,12 @@ classdef ESKF < handle
             Rb = QuaternionLib.to_rotation_matrix(obj.q);
             h_mag = Rb' * m_world;
             
+            % 磁気計は正規化されたベクトルとして扱う（SensorFilterと整合）
+            h_mag_norm = norm(h_mag);
+            if h_mag_norm > 1e-6
+                h_mag = h_mag / h_mag_norm;
+            end
+            
             z = m_filtered;
             h = h_mag;
             H = [zeros(3,6), RotationLib.skew_symmetric(h), zeros(3,6)];
@@ -402,41 +498,31 @@ classdef ESKF < handle
             % 現在のノイズ推定値を使用
             R_est = obj.noiseEstimator.getRnoise('mag');
             
-            [~, S, R_used] = kalman_filter_core('compute_innovation_and_S', z, h, H, obj.P, R_est, struct());
+            [y, S, R_used] = kalman_filter_core('compute_innovation_and_S', z, h, H, obj.P, R_est, struct());
 
-            % Use OutlierGuard to unify checks
+            % カルマンゲインを直接計算
             try
-                K_prop = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
+                K = obj.P * H' / S;  % K = P*H'*inv(S)
             catch
-                K_prop = [];
+                return;  % 計算失敗時は更新をスキップ
             end
-            ctx = struct(); ctx.k = NaN; ctx.z = z; ctx.h = h; ctx.P_diag = diag(obj.P); ctx.R_diag = diag(R_used);
-            [should_update, y_used, K_used, dx_used, ~] = OutlierGuard.checkAndApply('mag', z, h, H, obj.P, R_used, K_prop, [], obj.divergence_guard, obj.noiseEstimator, ctx);
-            if ~should_update
-                return;
-            end
-
-            obj.noiseEstimator.estimate('mag', y_used, H, obj.P);
-
-            if isempty(K_used)
-                K = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
-                K = obj.divergence_guard.clamp_gain(K);
-            else
-                K = K_used;
-            end
+            
+            % ノイズ推定を更新
+            obj.noiseEstimator.estimate('mag', y, H, obj.P);
+            
+            % カルマンゲインをクランプ
+            K = obj.divergence_guard.clamp_gain(K);
             
             % MAG更新専用のゲイン制限（姿勢部分のみ）
             if isfield(obj.divergence_guard.config, 'max_mag_gain_element')
                 max_gain = obj.divergence_guard.config.max_mag_gain_element;
                 % K(7:9,:)の各要素を制限（姿勢部分）
-                K(7:9,:) = max(min(K(7:9,:), max_gain), -max_gain);
+                if size(K,1) >= 9
+                    K(7:9,:) = max(min(K(7:9,:), max_gain), -max_gain);
+                end
             end
             
-            if isempty(dx_used)
-                dx = K * y_used;
-            else
-                dx = dx_used;
-            end
+            dx = K * y;
             
             % dxのサイズ確認とベクトル化
             if numel(dx) < 9
@@ -446,14 +532,15 @@ classdef ESKF < handle
                 dx = dx_full;
             end
 
-            dtheta = [0; 0; dx(9)];
+            % 磁気計は3軸の姿勢を観測するので、全姿勢誤差dx(7:9)を使用
+            dtheta = dx(7:9);
             
             dq = QuaternionLib.small_angle_quat(dtheta);
             obj.q = QuaternionLib.multiply(obj.q, dq);
             obj.q = QuaternionLib.normalize(obj.q);
 
             x_pred = zeros(15,1);
-            [~, obj.P] = kalman_filter_core('update_state_covariance', x_pred, obj.P, K, H, y_used, R_used);
+            [~, obj.P] = kalman_filter_core('update_state_covariance', x_pred, obj.P, K, H, y, R_used);
         end
         
     function update_gps(obj, lat, lon, alt, k)

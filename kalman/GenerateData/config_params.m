@@ -18,7 +18,7 @@ function params = config_params()
     params.noise = struct();
     params.noise.accel_std = 0.1;
     params.noise.gyro_std = 0.5;
-    params.noise.mag_std = 5;
+    params.noise.mag_std = 10.0;
     params.noise.baro_std = 0.0;
     params.noise.gps_std = 1.0;
     % 外れ値設定
@@ -33,12 +33,12 @@ function params = config_params()
     );
 
     % ピンクノイズ
-    params.noise.accel_pink_std = 0.05;
-    params.noise.gyro_pink_std = 0.10;    % Gyroscope pink noise (deg/s)
+    params.noise.accel_pink_std = 0.1;
+    params.noise.gyro_pink_std = 0.1;    % Gyroscope pink noise (deg/s)
     params.noise.gps_pink_std = 1.0;     % GPS pink noise (meters)
 
     % Allan偏差
-    params.noise.gyro_allan_std = 0.0;
+    params.noise.gyro_allan_std = 0.5;
     params.noise.baro_allan_std = 0.0;   % Barometer Allan deviation (meters)
 
     % 運動パラメータ

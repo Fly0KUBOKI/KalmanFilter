@@ -14,8 +14,7 @@ function run_simulation()
 
     dt = calculate_dt(obs);
     eskf = ESKF(obs, params.static_time, dt);
-    eskf.enable_mag_update = false;
-
+    
     results = run_filter(eskf, obs);
 
     save_results(proj_root, results);

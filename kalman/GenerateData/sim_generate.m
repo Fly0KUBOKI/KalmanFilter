@@ -2,10 +2,13 @@
 % 座標系: Body: 前(+X), 右(+Y), 下(+Z), Geographic: GPS座標
 function sim_generate(params)
 
-    clear; close all;
+    % 引数チェック（clear前に実行）
     if nargin < 1 || isempty(params)
         params = config_params();
     end
+    
+    % clearはローカル変数のみ（paramsを保護）
+    close all;
 
     params = convert_angle_units(params);
 
