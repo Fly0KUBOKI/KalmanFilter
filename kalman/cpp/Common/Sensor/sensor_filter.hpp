@@ -27,9 +27,9 @@ public:
         }
         
         cm result;
-        result.resize(input.rows(), input.cols());
-        for (int i = 0; i < input.rows(); ++i) {
-            for (int j = 0; j < input.cols(); ++j) {
+        result.resize(input.rows, input.cols);
+        for (int i = 0; i < input.rows; ++i) {
+            for (int j = 0; j < input.cols; ++j) {
                 result(i,j) = alpha_ * input(i,j) + (1.0f - alpha_) * filtered_(i,j);
             }
         }
@@ -42,7 +42,7 @@ public:
     }
     
     void set_alpha(float alpha) {
-        alpha_ = std::fmaxf(0.0f, std::fminf(1.0f, alpha));
+        alpha_ = fmaxf(0.0f, fminf(1.0f, alpha));
     }
 };
 
@@ -64,7 +64,7 @@ public:
     void configure(float dt, float cutoff_freq) {
         // Biquad係数計算
         float omega = 2.0f * 3.14159265358979323846f * cutoff_freq;
-        float K = std::tanf(omega * dt / 2.0f);
+        float K = tanf(omega * dt / 2.0f);
         float norm = 1.0f / (1.0f + K / 0.7071f + K * K);
         
         b0_ = K * K * norm;
@@ -87,10 +87,10 @@ public:
         }
         
         cm result;
-        result.resize(input.rows(), input.cols());
+        result.resize(input.rows, input.cols);
         
-        for (int i = 0; i < input.rows(); ++i) {
-            for (int j = 0; j < input.cols(); ++j) {
+        for (int i = 0; i < input.rows; ++i) {
+            for (int j = 0; j < input.cols; ++j) {
                 result(i,j) = b0_ * input(i,j) + b1_ * x1_(i,j) + b2_ * x2_(i,j)
                             - a1_ * y1_(i,j) - a2_ * y2_(i,j);
             }
@@ -125,9 +125,9 @@ public:
     void filter(const cm& measurement, float dt, cm& pos_out, cm& vel_out) {
         if (!initialized_) {
             position_ = measurement;
-            velocity_.resize(measurement.rows(), measurement.cols());
-            for (int i = 0; i < velocity_.rows(); ++i) {
-                for (int j = 0; j < velocity_.cols(); ++j) {
+            velocity_.resize(measurement.rows, measurement.cols);
+            for (int i = 0; i < velocity_.rows; ++i) {
+                for (int j = 0; j < velocity_.cols; ++j) {
                     velocity_(i,j) = 0.0f;
                 }
             }
@@ -139,27 +139,27 @@ public:
         
         // 予測
         cm pos_pred;
-        pos_pred.resize(position_.rows(), position_.cols());
-        for (int i = 0; i < position_.rows(); ++i) {
-            for (int j = 0; j < position_.cols(); ++j) {
+        pos_pred.resize(position_.rows, position_.cols);
+        for (int i = 0; i < position_.rows; ++i) {
+            for (int j = 0; j < position_.cols; ++j) {
                 pos_pred(i,j) = position_(i,j) + velocity_(i,j) * dt;
             }
         }
         
         // 残差
         cm residual;
-        residual.resize(measurement.rows(), measurement.cols());
-        for (int i = 0; i < residual.rows(); ++i) {
-            for (int j = 0; j < residual.cols(); ++j) {
+        residual.resize(measurement.rows, measurement.cols);
+        for (int i = 0; i < residual.rows; ++i) {
+            for (int j = 0; j < residual.cols; ++j) {
                 residual(i,j) = measurement(i,j) - pos_pred(i,j);
             }
         }
         
         // 更新
-        pos_out.resize(position_.rows(), position_.cols());
-        vel_out.resize(velocity_.rows(), velocity_.cols());
-        for (int i = 0; i < position_.rows(); ++i) {
-            for (int j = 0; j < position_.cols(); ++j) {
+        pos_out.resize(position_.rows, position_.cols);
+        vel_out.resize(velocity_.rows, velocity_.cols);
+        for (int i = 0; i < position_.rows; ++i) {
+            for (int j = 0; j < position_.cols; ++j) {
                 pos_out(i,j) = pos_pred(i,j) + alpha_ * residual(i,j);
                 vel_out(i,j) = velocity_(i,j) + beta_ * residual(i,j) / dt;
             }
@@ -201,8 +201,8 @@ public:
                 sum_sq += history_[i] * history_[i];
             }
             float mean = sum / count_;
-            noise_std = std::sqrtf(sum_sq / count_ - mean * mean);
-            noise_std = std::fmaxf(noise_std, 0.1f);
+            noise_std = sqrtf(sum_sq / count_ - mean * mean);
+            noise_std = fmaxf(noise_std, 0.1f);
         }
         
         // 外れ値判定
@@ -257,7 +257,7 @@ public:
             float diff = a_meas(i,0) - a_expected(i,0);
             residual_norm += diff * diff;
         }
-        residual_norm = std::sqrtf(residual_norm);
+        residual_norm = sqrtf(residual_norm);
         
         // 外れ値検出
         is_outlier = accel_outlier.detect(residual_norm);
@@ -284,7 +284,7 @@ public:
             float diff = m_meas(i,0) - m_expected(i,0);
             residual_norm += diff * diff;
         }
-        residual_norm = std::sqrtf(residual_norm);
+        residual_norm = sqrtf(residual_norm);
         
         // 外れ値検出
         is_outlier = mag_outlier.detect(residual_norm);

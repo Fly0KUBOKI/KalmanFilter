@@ -22,7 +22,7 @@ static bool chol_lower(const float* A, int n, float* L) {
             if (i == j) {
                 float val = A[i * n + i] - sum;
                 if (val <= 0.0f) return false; // Not positive definite
-                L[i * n + i] = std::sqrtf(val);
+                L[i * n + i] = sqrtf(val);
             } else {
                 L[i * n + j] = (A[i * n + j] - sum) / L[j * n + j];
             }

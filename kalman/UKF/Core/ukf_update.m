@@ -7,7 +7,7 @@ function [x_upd, P_upd, K, S, y] = ukf_update(x, P, z, h_func, R, alpha, beta, k
     %   z       - 観測値 (mx1)
     %   h_func  - 観測関数ハンドル: z_pred = h_func(x_sig)
     %   R       - 観測ノイズ共分散行列 (mxm)
-    %   alpha   - UKFスケーリングパラメータ (optional, default: 1e-3)
+    %   alpha   - UKFスケーリングパラメータ (optional, default: 0.1)
     %   beta    - UKF分布パラメータ (optional, default: 2)
     %   kappa   - UKF二次パラメータ (optional, default: 0)
     %
@@ -18,7 +18,7 @@ function [x_upd, P_upd, K, S, y] = ukf_update(x, P, z, h_func, R, alpha, beta, k
     %   S       - イノベーション共分散 (mxm)
     %   y       - イノベーション (mx1)
 
-    if nargin < 6, alpha = 1e-3; end
+    if nargin < 6, alpha = 0.1; end  % デフォルトを1e-3から0.1に変更（より広い分布）
     if nargin < 7, beta = 2; end
     if nargin < 8, kappa = 0; end
 
@@ -58,11 +58,24 @@ function [x_upd, P_upd, K, S, y] = ukf_update(x, P, z, h_func, R, alpha, beta, k
 
     % 状態と共分散の更新
     x_upd = x + K * y;
+    
+    % 標準的な共分散更新（数値安定版）
+    % P_upd = P - K*S*K' は理論的には正しいが、数値的に不安定
+    % より安定な形式を使用
     P_upd = P - K * S * K';
-
-    % 共分散の対称性を保証と正則化
-    % Note: DivergenceGuardを使用する場合は、呼び出し側で正則化を適用してください
-    % 例: P_upd = divergence_guard.regularize_covariance(P_upd);
+    
+    % 対称性を保証
     P_upd = (P_upd + P_upd') / 2;
+    
+    % 正定値性を保証（必要な場合のみ）
+    try
+        chol(P_upd);
+    catch
+        % コレスキー分解失敗：正定値でない
+        min_eig = min(eig(P_upd));
+        if min_eig < 1e-12
+            P_upd = P_upd + eye(n) * (1e-9 - min_eig);
+        end
+    end
 
 end

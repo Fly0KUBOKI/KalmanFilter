@@ -181,8 +181,8 @@ void ESKFCore::update_accel(
     float ay = a_meas(1,0);
     float az = a_meas(2,0);
     
-    float roll_measured = std::atan2f(ay, az) * 180.0f / static_cast<float>(M_PI);
-    float pitch_measured = std::atan2f(-ax, std::sqrtf(ay*ay + az*az)) * 180.0f / static_cast<float>(M_PI);
+    float roll_measured = atan2f(ay, az) * 180.0f / static_cast<float>(M_PI);
+    float pitch_measured = atan2f(-ax, sqrtf(ay*ay + az*az)) * 180.0f / static_cast<float>(M_PI);
     
     float roll_current = euler_current(0,0);
     float pitch_current = euler_current(1,0);
@@ -460,7 +460,7 @@ void ESKFCore::update_baro(
 
 float ESKFCore::pressure_to_altitude(float pressure) {
     const float P0 = 101325.0f;
-    return 44330.0f * (1.0f - std::powf(pressure / P0, 0.1903f));
+    return 44330.0f * (1.0f - powf(pressure / P0, 0.1903f));
 }
 
 void ESKFCore::gps_to_local(const cm& gps_pos, const cm& origin, cm& local_pos) {
@@ -475,46 +475,150 @@ void ESKFCore::gps_to_local(const cm& gps_pos, const cm& origin, cm& local_pos) 
     float alt0 = origin(2,0);
     
     // 簡易変換（緯度経度->メートル）
-    float cos_lat0 = std::cosf(lat0 * static_cast<float>(M_PI) / 180.0f);
+    float cos_lat0 = cosf(lat0 * static_cast<float>(M_PI) / 180.0f);
     local_pos(1,0) = (lat - lat0) / 9.0e-6f;  // Y (North)
     local_pos(0,0) = (lon - lon0) / (9.0e-6f / cos_lat0);  // X (East)
     local_pos(2,0) = alt - alt0;  // Z (Up)
 }
 
-// 共分散予測
+// 共分散予測（ブロック化最適化版）
 void ESKFCore::predict_covariance(const cm& P, const cm& q, const cm& a_meas, const cm& ba,
                                   const cm& w_meas, const cm& bg, const cm& Q, float dt,
                                   cm& P_new) {
-    // 状態遷移行列F計算
-    cm F;
-    compute_F_matrix(q, a_meas, ba, w_meas, bg, dt, F);
-    
-    // P_new = F * P * F' + Q
-    cm FP, Ft, FPFt;
-    cmath_fx::multiply(F, P, FP);
-    cmath_fx::transpose(F, Ft);
-    cmath_fx::multiply(FP, Ft, FPFt);
-    
     P_new.resize(15, 15);
-    for (int i = 0; i < 15; ++i) {
-        for (int j = 0; j < 15; ++j) {
-            P_new(i,j) = FPFt(i,j) + Q(i,j);
+    
+    // 回転行列と中間変数を事前計算
+    cm R; R.resize(3,3);
+    cquat::quat_to_rotm(q, R);
+    
+    cm a_corrected; a_corrected.resize(3,1);
+    for (int i = 0; i < 3; ++i) a_corrected(i,0) = a_meas(i,0) - ba(i,0);
+    
+    // skew(a)
+    cm skew_a; skew_a.resize(3,3);
+    skew_a(0,0) = 0.0f;             skew_a(0,1) = -a_corrected(2,0); skew_a(0,2) = a_corrected(1,0);
+    skew_a(1,0) = a_corrected(2,0); skew_a(1,1) = 0.0f;              skew_a(1,2) = -a_corrected(0,0);
+    skew_a(2,0) = -a_corrected(1,0); skew_a(2,1) = a_corrected(0,0);  skew_a(2,2) = 0.0f;
+    
+    // R * skew(a)
+    cm R_skew; R_skew.resize(3,3);
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            R_skew(i,j) = 0.0f;
+            for (int k = 0; k < 3; ++k) R_skew(i,j) += R(i,k) * skew_a(k,j);
         }
     }
     
-    // 対称性強制
+    float dt2 = dt * dt;
+    
+    // ブロック(0:2, 0:2) 位置-位置
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            P_new(i,j) = P(i,j) + dt*(P(i,j+3) + P(i+3,j)) + dt2*P(i+3,j+3) + Q(i,j);
+        }
+    }
+    
+    // ブロック(0:2, 3:5) 位置-速度
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            P_new(i,j+3) = P(i,j+3) + dt*P(i+3,j+3);
+            for (int k = 0; k < 3; ++k) {
+                P_new(i,j+3) += dt*(-R_skew(j,k)*P(i,k+6)*dt - R(j,k)*P(i,k+9)*dt);
+            }
+        }
+    }
+    
+    // ブロック(3:5, 0:2) 速度-位置(対称)
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            P_new(i+3,j) = P_new(j,i+3);
+        }
+    }
+    
+    // ブロック(3:5, 3:5) 速度-速度
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            P_new(i+3,j+3) = P(i+3,j+3);
+            for (int k = 0; k < 3; ++k) {
+                for (int l = 0; l < 3; ++l) {
+                    P_new(i+3,j+3) += -R_skew(i,k)*P(k+6,j+3)*dt - R_skew(j,l)*P(i+3,l+6)*dt;
+                    P_new(i+3,j+3) += R_skew(i,k)*R_skew(j,l)*P(k+6,l+6)*dt2;
+                }
+            }
+            for (int k = 0; k < 3; ++k) {
+                for (int l = 0; l < 3; ++l) {
+                    P_new(i+3,j+3) += -R(i,k)*P(k+9,j+3)*dt - R(j,l)*P(i+3,l+9)*dt;
+                    P_new(i+3,j+3) += R(i,k)*R(j,l)*P(k+9,l+9)*dt2;
+                }
+            }
+            P_new(i+3,j+3) += Q(i+3,j+3);
+        }
+    }
+    
+    // ブロック(6:8, 6:8) 姿勢-姿勢
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            P_new(i+6,j+6) = P(i+6,j+6) + dt*(-P(i+6,j+12) - P(i+12,j+6)) + dt2*P(i+12,j+12) + Q(i+6,j+6);
+        }
+    }
+    
+    // ブロック(9:11, 9:11) 加速度バイアス
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            P_new(i+9,j+9) = P(i+9,j+9) + Q(i+9,j+9);
+        }
+    }
+    
+    // ブロック(12:14, 12:14) 角速度バイアス
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            P_new(i+12,j+12) = P(i+12,j+12) + Q(i+12,j+12);
+        }
+    }
+    
+    // クロス項
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            P_new(i,j+6) = P(i,j+6) + dt*P(i+3,j+6);
+            P_new(j+6,i) = P_new(i,j+6);
+            P_new(i,j+9) = P(i,j+9) + dt*P(i+3,j+9);
+            P_new(j+9,i) = P_new(i,j+9);
+            P_new(i,j+12) = P(i,j+12) + dt*P(i+3,j+12);
+            P_new(j+12,i) = P_new(i,j+12);
+            P_new(i+3,j+6) = P(i+3,j+6);
+            for (int k = 0; k < 3; ++k) {
+                P_new(i+3,j+6) += -R_skew(i,k)*P(k+6,j+6)*dt - R(i,k)*P(k+9,j+6)*dt;
+            }
+            P_new(j+6,i+3) = P_new(i+3,j+6);
+            P_new(i+3,j+9) = P(i+3,j+9);
+            for (int k = 0; k < 3; ++k) {
+                P_new(i+3,j+9) += -R_skew(i,k)*P(k+6,j+9)*dt - R(i,k)*P(k+9,j+9)*dt;
+            }
+            P_new(j+9,i+3) = P_new(i+3,j+9);
+            P_new(i+3,j+12) = P(i+3,j+12);
+            for (int k = 0; k < 3; ++k) {
+                P_new(i+3,j+12) += -R_skew(i,k)*P(k+6,j+12)*dt - R(i,k)*P(k+9,j+12)*dt;
+            }
+            P_new(j+12,i+3) = P_new(i+3,j+12);
+            P_new(i+6,j+9) = P(i+6,j+9) + dt*(-P(i+12,j+9));
+            P_new(j+9,i+6) = P_new(i+6,j+9);
+            P_new(i+6,j+12) = P(i+6,j+12) + dt*(-P(i+12,j+12));
+            P_new(j+12,i+6) = P_new(i+6,j+12);
+            P_new(i+9,j+12) = P(i+9,j+12);
+            P_new(j+12,i+9) = P_new(i+9,j+12);
+        }
+    }
+    
+    // 対称性強制と正定値保証
     for (int i = 0; i < 15; ++i) {
         for (int j = 0; j < 15; ++j) {
             P_new(i,j) = 0.5f * (P_new(i,j) + P_new(j,i));
         }
     }
     
-    // 対角成分の正値性保証
     const float min_var = 1.0e-9f;
     for (int i = 0; i < 15; ++i) {
-        if (P_new(i,i) < min_var) {
-            P_new(i,i) = min_var;
-        }
+        if (P_new(i,i) < min_var) P_new(i,i) = min_var;
     }
 }
 
@@ -589,7 +693,7 @@ void ESKFCore::inject_error_state(cm& p, cm& v, cm& q, cm& ba, cm& bg, const cm&
     }
     
     // 小角度近似: dq ≈ [1; dtheta/2]
-    float theta_norm = std::sqrtf(dtheta(0,0)*dtheta(0,0) + 
+    float theta_norm = sqrtf(dtheta(0,0)*dtheta(0,0) + 
                                    dtheta(1,0)*dtheta(1,0) + 
                                    dtheta(2,0)*dtheta(2,0));
     
@@ -603,8 +707,8 @@ void ESKFCore::inject_error_state(cm& p, cm& v, cm& q, cm& ba, cm& bg, const cm&
     } else {
         // 通常の小角度クォータニオン
         float half_theta = theta_norm * 0.5f;
-        float sin_half = std::sinf(half_theta);
-        float cos_half = std::cosf(half_theta);
+        float sin_half = sinf(half_theta);
+        float cos_half = cosf(half_theta);
         
         dq(0,0) = cos_half;
         dq(1,0) = sin_half * dtheta(0,0) / theta_norm;

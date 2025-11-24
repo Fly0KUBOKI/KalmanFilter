@@ -62,18 +62,72 @@ function results = run_filter(eskf, obs)
     results.euler = zeros(3, n_samples);
     results.ba = zeros(3, n_samples);
     results.bg = zeros(3, n_samples);
+    
+    % プロファイリング用タイマー
+    t_predict = 0; t_accel = 0; t_mag = 0; t_baro = 0; t_gps = 0;
+    n_accel = 0; n_mag = 0; n_baro = 0; n_gps = 0;
 
     for k = 1:n_samples
-        eskf.update_filter(obs, k);
+        % predict
+        tic;
+        a = [obs.ax(k); obs.ay(k); obs.az(k)];
+        w = deg2rad([obs.wx(k); obs.wy(k); obs.wz(k)]);
+        eskf.predict(a, w);
+        t_predict = t_predict + toc;
+        
+        % update_accel
+        if mod(k, eskf.freq_accel) == 0
+            tic;
+            eskf.update_accel(a);
+            t_accel = t_accel + toc;
+            n_accel = n_accel + 1;
+        end
+        
+        % update_mag
+        if mod(k, eskf.freq_mag) == 0
+            tic;
+            eskf.update_mag([obs.mx(k); obs.my(k); obs.mz(k)]);
+            t_mag = t_mag + toc;
+            n_mag = n_mag + 1;
+        end
+        
+        % update_baro
+        if mod(k, eskf.freq_baro) == 0
+            tic;
+            eskf.update_baro(obs.pressure(k));
+            t_baro = t_baro + toc;
+            n_baro = n_baro + 1;
+        end
+        
+        % update_gps
+        if mod(k, eskf.freq_gps) == 0 && ~isnan(obs.lat(k)) && ~isnan(obs.lon(k))
+            tic;
+            eskf.update_gps(obs.lat(k), obs.lon(k), obs.alt(k), k);
+            t_gps = t_gps + toc;
+            n_gps = n_gps + 1;
+        end
+        
+        % 状態記録
         results.p(:,k) = eskf.p;
         results.v(:,k) = eskf.v;
         results.euler(:,k) = eskf.get_euler();
         results.ba(:,k) = eskf.ba;
         results.bg(:,k) = eskf.bg;
+        
         if mod(k, 10000) == 0
             fprintf('Step %d / %d\n', k, n_samples);
         end
     end
+    
+    % プロファイリング結果表示
+    fprintf('\n=== 計算時間プロファイル ===\n');
+    fprintf('predict:      %.3f s (%.2f us/call)\n', t_predict, t_predict/n_samples*1e6);
+    fprintf('update_accel: %.3f s (%.2f us/call, %d calls)\n', t_accel, t_accel/max(n_accel,1)*1e6, n_accel);
+    fprintf('update_mag:   %.3f s (%.2f us/call, %d calls)\n', t_mag, t_mag/max(n_mag,1)*1e6, n_mag);
+    fprintf('update_baro:  %.3f s (%.2f us/call, %d calls)\n', t_baro, t_baro/max(n_baro,1)*1e6, n_baro);
+    fprintf('update_gps:   %.3f s (%.2f us/call, %d calls)\n', t_gps, t_gps/max(n_gps,1)*1e6, n_gps);
+    fprintf('Total:        %.3f s\n', t_predict + t_accel + t_mag + t_baro + t_gps);
+    fprintf('================================\n\n');
 end
 
 function save_results(proj_root, results)

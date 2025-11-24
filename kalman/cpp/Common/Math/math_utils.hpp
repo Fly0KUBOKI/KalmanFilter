@@ -18,14 +18,14 @@ public:
     
     // 角度を[-π, π]に正規化 (rad)
     static float wrap_to_pi(float angle) {
-        angle = std::fmodf(angle + PI, 2.0f * PI);
+        angle = fmodf(angle + PI, 2.0f * PI);
         if (angle < 0.0f) angle += 2.0f * PI;
         return angle - PI;
     }
     
     // 角度を[-180, 180]に正規化 (度)
     static float wrap_to_180(float angle) {
-        angle = std::fmodf(angle + 180.0f, 360.0f);
+        angle = fmodf(angle + 180.0f, 360.0f);
         if (angle < 0.0f) angle += 360.0f;
         return angle - 180.0f;
     }
@@ -41,17 +41,17 @@ public:
     static cm normalize_vector(const cm& v) {
         cm result = v;
         float n = 0.0f;
-        for (int i = 0; i < v.rows(); ++i) {
+        for (int i = 0; i < v.rows; ++i) {
             n += v(i,0) * v(i,0);
         }
-        n = std::sqrtf(n);
+        n = sqrtf(n);
         
         if (n < EPS) {
-            for (int i = 0; i < result.rows(); ++i) {
+            for (int i = 0; i < result.rows; ++i) {
                 result(i,0) = 0.0f;
             }
         } else {
-            for (int i = 0; i < result.rows(); ++i) {
+            for (int i = 0; i < result.rows; ++i) {
                 result(i,0) = v(i,0) / n;
             }
         }
@@ -62,14 +62,14 @@ public:
     static cm clip_vector(const cm& v, float max_norm, bool& clipped) {
         cm result = v;
         float n = 0.0f;
-        for (int i = 0; i < v.rows(); ++i) {
+        for (int i = 0; i < v.rows; ++i) {
             n += v(i,0) * v(i,0);
         }
-        n = std::sqrtf(n);
+        n = sqrtf(n);
         
         if (n > max_norm) {
             float scale = max_norm / n;
-            for (int i = 0; i < result.rows(); ++i) {
+            for (int i = 0; i < result.rows; ++i) {
                 result(i,0) = v(i,0) * scale;
             }
             clipped = true;
@@ -82,19 +82,32 @@ public:
     // 行列の対称性を強制
     static cm enforce_symmetry(const cm& M) {
         cm result = M;
-        for (int i = 0; i < M.rows(); ++i) {
-            for (int j = 0; j < M.cols(); ++j) {
+        for (int i = 0; i < M.rows; ++i) {
+            for (int j = 0; j < M.cols; ++j) {
                 result(i,j) = 0.5f * (M(i,j) + M(j,i));
             }
         }
         return result;
+    }
+
+    // 3x3 スキュ対称行列 (ベクトル v に対して)
+    static cm skew_symmetric(const cm& v) {
+        cm S; S.resize(3,3);
+        // v should be 3x1
+        float vx = v(0,0);
+        float vy = v(1,0);
+        float vz = v(2,0);
+        S(0,0) = 0.0f;  S(0,1) = -vz;   S(0,2) = vy;
+        S(1,0) = vz;    S(1,1) = 0.0f;  S(1,2) = -vx;
+        S(2,0) = -vy;   S(2,1) = vx;    S(2,2) = 0.0f;
+        return S;
     }
     
     // ========== 数値安定化 ==========
     
     // 安全な除算（ゼロ除算回避）
     static float safe_divide(float numerator, float denominator, float default_value = 0.0f) {
-        if (std::fabsf(denominator) < EPS) {
+        if (fabsf(denominator) < EPS) {
             return default_value;
         }
         return numerator / denominator;
@@ -102,29 +115,29 @@ public:
     
     // 安全な平方根（負数回避）
     static float safe_sqrt(float x) {
-        return std::sqrtf(std::fmaxf(x, 0.0f));
+        return sqrtf(fmaxf(x, 0.0f));
     }
     
     // 安全なasin（定義域制限）
     static float safe_asin(float x) {
-        x = std::fmaxf(std::fminf(x, 1.0f), -1.0f);
-        return std::asinf(x);
+        x = fmaxf(fminf(x, 1.0f), -1.0f);
+        return asinf(x);
     }
     
     // 安全なacos（定義域制限）
     static float safe_acos(float x) {
-        x = std::fmaxf(std::fminf(x, 1.0f), -1.0f);
-        return std::acosf(x);
+        x = fmaxf(fminf(x, 1.0f), -1.0f);
+        return acosf(x);
     }
     
     // ========== 統計 ==========
     
     // 中央値
     static float median(const cm& data) {
-        if (data.rows() == 0) return 0.0f;
+        if (data.rows == 0) return 0.0f;
         
         // データをコピーしてソート
-        int n = data.rows();
+        int n = data.rows;
         float* sorted = new float[n];
         for (int i = 0; i < n; ++i) {
             sorted[i] = data(i,0);
@@ -144,14 +157,14 @@ public:
     
     // MAD (Median Absolute Deviation)
     static float mad(const cm& data) {
-        if (data.rows() == 0) return 0.0f;
+        if (data.rows == 0) return 0.0f;
         
         float med = median(data);
         
         cm abs_dev;
-        abs_dev.resize(data.rows(), 1);
-        for (int i = 0; i < data.rows(); ++i) {
-            abs_dev(i,0) = std::fabsf(data(i,0) - med);
+        abs_dev.resize(data.rows, 1);
+        for (int i = 0; i < data.rows; ++i) {
+            abs_dev(i,0) = fabsf(data(i,0) - med);
         }
         
         return median(abs_dev);
@@ -160,7 +173,7 @@ public:
     // ロバストな統計（外れ値除外）
     static void robust_statistics(const cm& data, float& mean_val, float& std_val, 
                                   float outlier_threshold = 3.0f) {
-        if (data.rows() == 0) {
+        if (data.rows == 0) {
             mean_val = 0.0f;
             std_val = 0.0f;
             return;
@@ -175,8 +188,8 @@ public:
         float sum = 0.0f;
         float sum_sq = 0.0f;
         
-        for (int i = 0; i < data.rows(); ++i) {
-            float z_score = std::fabsf(data(i,0) - mu) / (sigma + EPS);
+        for (int i = 0; i < data.rows; ++i) {
+            float z_score = fabsf(data(i,0) - mu) / (sigma + EPS);
             if (z_score < outlier_threshold) {
                 sum += data(i,0);
                 sum_sq += data(i,0) * data(i,0);
@@ -186,7 +199,7 @@ public:
         
         if (n_inliers > 0) {
             mean_val = sum / n_inliers;
-            std_val = std::sqrtf(sum_sq / n_inliers - mean_val * mean_val);
+            std_val = sqrtf(sum_sq / n_inliers - mean_val * mean_val);
         } else {
             mean_val = mu;
             std_val = sigma;
@@ -201,7 +214,7 @@ public:
                           float& x_enu, float& y_enu, float& z_enu) {
         // 度からメートルへの変換係数
         float deg_to_m_lat = 1.0f / 9.0e-6f;
-        float cos_lat0 = std::cosf(lat0 * PI / 180.0f);
+        float cos_lat0 = cosf(lat0 * PI / 180.0f);
         float deg_to_m_lon = 1.0f / (9.0e-6f / cos_lat0);
         
         x_enu = (lon - lon0) * deg_to_m_lon;  // East
@@ -215,7 +228,7 @@ public:
                           float& lat, float& lon, float& alt) {
         // メートルから度への変換係数
         float m_to_deg_lat = 9.0e-6f;
-        float cos_lat0 = std::cosf(lat0 * PI / 180.0f);
+        float cos_lat0 = cosf(lat0 * PI / 180.0f);
         float m_to_deg_lon = 9.0e-6f / cos_lat0;
         
         lon = lon0 + x_enu * m_to_deg_lon;
@@ -227,7 +240,7 @@ public:
     
     // 線形補間
     static float linear_interpolate(float x, float x1, float y1, float x2, float y2) {
-        if (std::fabsf(x2 - x1) < EPS) {
+        if (fabsf(x2 - x1) < EPS) {
             return y1;
         }
         float t = (x - x1) / (x2 - x1);
@@ -238,9 +251,9 @@ public:
     
     // 安全なCholesky分解（正定値でない場合は正則化）
     static bool safe_cholesky(const cm& A, cm& L) {
-        if (A.rows() != A.cols()) return false;
+        if (A.rows != A.cols) return false;
         
-        int n = A.rows();
+        int n = A.rows;
         L.resize(n, n);
         
         // Cholesky分解を試行
@@ -262,9 +275,9 @@ public:
                         }
                         return false;
                     }
-                    L(i,j) = std::sqrtf(diag);
+                    L(i,j) = sqrtf(diag);
                 } else {
-                    if (std::fabsf(L(j,j)) < EPS) {
+                    if (fabsf(L(j,j)) < EPS) {
                         L(i,j) = 0.0f;
                     } else {
                         L(i,j) = (A(i,j) - sum) / L(j,j);

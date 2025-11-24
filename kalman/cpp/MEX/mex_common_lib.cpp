@@ -149,14 +149,12 @@ void handle_quat_to_euler(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
     cm q; q.resize(4,1);
     for (int i = 0; i < 4; ++i) q(i,0) = static_cast<float>(q_in[i]);
     
-    float roll, pitch, yaw;
-    cquat::to_euler_deg(q, roll, pitch, yaw);
+    cm euler_deg;
+    cquat::to_euler_deg(q, euler_deg);
     
     plhs[0] = mxCreateDoubleMatrix(3, 1, mxREAL);
     double* euler = mxGetPr(plhs[0]);
-    euler[0] = roll;
-    euler[1] = pitch;
-    euler[2] = yaw;
+    for (int i = 0; i < 3; ++i) euler[i] = euler_deg(i,0);
 }
 
 // ===== StateValidator Handlers =====
@@ -172,7 +170,7 @@ void handle_clip_velocity(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
     // ノルム計算
     float v_norm = 0.0f;
     for (int i = 0; i < 3; ++i) v_norm += v(i,0) * v(i,0);
-    v_norm = std::sqrtf(v_norm);
+    v_norm = sqrtf(v_norm);
     
     bool clipped = (v_norm > max_vel);
     cm v_clipped = v;
@@ -254,7 +252,7 @@ void handle_detect_outlier(int nlhs, mxArray* plhs[], int nrhs, const mxArray* p
         float diff = static_cast<float>(meas_in[i] - exp_in[i]);
         diff_norm += diff * diff;
     }
-    diff_norm = std::sqrtf(diff_norm);
+    diff_norm = sqrtf(diff_norm);
     
     bool is_outlier = (diff_norm > threshold);
     plhs[0] = mxCreateLogicalScalar(is_outlier);

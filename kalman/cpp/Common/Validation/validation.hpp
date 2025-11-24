@@ -18,9 +18,9 @@ public:
     
     // 共分散行列の正則化
     static cm regularize(const cm& P) {
-        if (P.rows() != P.cols()) return P;
+        if (P.rows != P.cols) return P;
         
-        int n = P.rows();
+        int n = P.rows;
         cm P_reg = P;
         
         // 1. 対称性の強制
@@ -44,7 +44,7 @@ public:
             float row_sum = 0.0f;
             for (int j = 0; j < n; ++j) {
                 if (i != j) {
-                    row_sum += std::fabsf(P_reg(i,j));
+                    row_sum += fabsf(P_reg(i,j));
                 }
             }
             if (P_reg(i,i) < row_sum) {
@@ -58,8 +58,8 @@ public:
     // Joseph形式の共分散更新（数値安定性向上）
     static cm joseph_form_update(const cm& P_pred, const cm& K, const cm& H, const cm& R) {
         // P = (I - K*H) * P_pred * (I - K*H)' + K*R*K'
-        int n = P_pred.rows();
-        int m = H.rows();
+        int n = P_pred.rows;
+        int m = H.rows;
         
         // I - K*H
         cm KH, IKH;
@@ -109,12 +109,12 @@ public:
         
         // イノベーション共分散行列の対角成分から閾値計算
         float max_var = 0.0f;
-        for (int i = 0; i < S.rows(); ++i) {
+        for (int i = 0; i < S.rows; ++i) {
             if (S(i,i) > max_var) max_var = S(i,i);
         }
         
         float innovation_norm_sq = 0.0f;
-        for (int i = 0; i < innovation.rows(); ++i) {
+        for (int i = 0; i < innovation.rows; ++i) {
             innovation_norm_sq += innovation(i,0) * innovation(i,0);
         }
         
@@ -127,17 +127,17 @@ public:
     // シンプルな外れ値検出（閾値ベース）
     static bool detect_threshold(const cm& innovation, float threshold) {
         float norm_sq = 0.0f;
-        for (int i = 0; i < innovation.rows(); ++i) {
+        for (int i = 0; i < innovation.rows; ++i) {
             norm_sq += innovation(i,0) * innovation(i,0);
         }
-        float norm = std::sqrtf(norm_sq);
+        float norm = sqrtf(norm_sq);
         return (norm > threshold);
     }
     
     // Chi-square検定による外れ値検出
     static bool detect_chi_square(const cm& innovation, const cm& S, float alpha = 0.05f) {
         // 簡易版: 3σ基準を使用
-        int dof = innovation.rows();
+        int dof = innovation.rows;
         float threshold = 3.0f * dof;  // 保守的な閾値
         
         return detect_mahalanobis(innovation, S, threshold);
@@ -156,7 +156,7 @@ public:
     static bool validate_position(const cm& p) {
         for (int i = 0; i < 3; ++i) {
             if (!std::isfinite(p(i,0))) return false;
-            if (std::fabsf(p(i,0)) > MAX_POSITION) return false;
+                if (fabsf(p(i,0)) > MAX_POSITION) return false;
         }
         return true;
     }
@@ -165,7 +165,7 @@ public:
     static bool validate_velocity(const cm& v) {
         for (int i = 0; i < 3; ++i) {
             if (!std::isfinite(v(i,0))) return false;
-            if (std::fabsf(v(i,0)) > MAX_VELOCITY) return false;
+                if (fabsf(v(i,0)) > MAX_VELOCITY) return false;
         }
         return true;
     }
@@ -174,7 +174,7 @@ public:
     static bool validate_acceleration(const cm& a) {
         for (int i = 0; i < 3; ++i) {
             if (!std::isfinite(a(i,0))) return false;
-            if (std::fabsf(a(i,0)) > MAX_ACCELERATION) return false;
+                if (fabsf(a(i,0)) > MAX_ACCELERATION) return false;
         }
         return true;
     }
@@ -183,14 +183,14 @@ public:
     static bool validate_angular_rate(const cm& w) {
         for (int i = 0; i < 3; ++i) {
             if (!std::isfinite(w(i,0))) return false;
-            if (std::fabsf(w(i,0)) > MAX_ANGULAR_RATE) return false;
+                if (fabsf(w(i,0)) > MAX_ANGULAR_RATE) return false;
         }
         return true;
     }
     
     // クォータニオンの妥当性チェック
     static bool validate_quaternion(const cm& q) {
-        if (q.rows() < 4) return false;
+        if (q.rows < 4) return false;
         
         // 有限性チェック
         for (int i = 0; i < 4; ++i) {
@@ -202,7 +202,7 @@ public:
         for (int i = 0; i < 4; ++i) {
             norm_sq += q(i,0) * q(i,0);
         }
-        float norm = std::sqrtf(norm_sq);
+        float norm = sqrtf(norm_sq);
         
         // ノルムが1に近いかチェック（±10%の許容範囲）
         if (norm < 0.9f || norm > 1.1f) return false;
@@ -212,9 +212,9 @@ public:
     
     // 共分散行列の妥当性チェック
     static bool validate_covariance(const cm& P) {
-        if (P.rows() != P.cols()) return false;
+        if (P.rows != P.cols) return false;
         
-        int n = P.rows();
+        int n = P.rows;
         
         // 1. 有限性チェック
         for (int i = 0; i < n; ++i) {
@@ -226,7 +226,7 @@ public:
         // 2. 対称性チェック
         for (int i = 0; i < n; ++i) {
             for (int j = i+1; j < n; ++j) {
-                if (std::fabsf(P(i,j) - P(j,i)) > 1e-6f) return false;
+                    if (fabsf(P(i,j) - P(j,i)) > 1e-6f) return false;
             }
         }
         
@@ -265,10 +265,10 @@ public:
     // イノベーションからノイズを推定
     float estimate(const cm& innovation) {
         float norm_sq = 0.0f;
-        for (int i = 0; i < innovation.rows(); ++i) {
+        for (int i = 0; i < innovation.rows; ++i) {
             norm_sq += innovation(i,0) * innovation(i,0);
         }
-        float norm = std::sqrtf(norm_sq);
+            float norm = sqrtf(norm_sq);
         
         // 履歴追加
         if (count_ < WINDOW_SIZE) {
@@ -293,7 +293,7 @@ public:
         float mean = sum / count_;
         float variance = sum_sq / count_ - mean * mean;
         
-        return std::sqrtf(std::fmaxf(variance, 0.0f));
+            return sqrtf(fmaxf(variance, 0.0f));
     }
     
     void reset() {

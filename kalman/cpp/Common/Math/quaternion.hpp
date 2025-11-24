@@ -14,7 +14,7 @@ using cm = cmath_fx::FixedMatrix;
 inline void normalize_quat(cm& q) {
     float n = 0.0f;
     for (int i = 0; i < 4; ++i) n += q(i,0) * q(i,0);
-    n = std::sqrt(n);
+    n = sqrtf(n);
     if (n < 1e-12f) { q(0,0)=1; q(1,0)=0; q(2,0)=0; q(3,0)=0; return; }
     for (int i = 0; i < 4; ++i) q(i,0) /= n;
 }
@@ -69,16 +69,16 @@ inline void to_euler_deg(const cm& q, cmath_fx::FixedMatrix& euler_deg) {
     float qw=q(0,0), qx=q(1,0), qy=q(2,0), qz=q(3,0);
     float sinr_cosp = 2.f * (qw * qx + qy * qz);
     float cosr_cosp = 1.f - 2.f * (qx*qx + qy*qy);
-    float roll = std::atan2f(sinr_cosp, cosr_cosp);
+    float roll = atan2f(sinr_cosp, cosr_cosp);
     float sinp = 2.f * (qw * qy - qz * qx);
     float pitch;
-    if (std::abs(sinp) >= 1.f)
-        pitch = std::copysignf(static_cast<float>(M_PI)/2.0f, sinp);
+    if (fabsf(sinp) >= 1.f)
+        pitch = copysignf(static_cast<float>(M_PI)/2.0f, sinp);
     else
         pitch = asinf(sinp);
     float siny_cosp = 2.f * (qw * qz + qx * qy);
     float cosy_cosp = 1.f - 2.f * (qy*qy + qz*qz);
-    float yaw = std::atan2f(siny_cosp, cosy_cosp);
+    float yaw = atan2f(siny_cosp, cosy_cosp);
     euler_deg.resize(3,1);
     euler_deg(0,0) = roll * 180.0f / static_cast<float>(M_PI);
     euler_deg(1,0) = pitch * 180.0f / static_cast<float>(M_PI);
