@@ -23,7 +23,8 @@ function [sig, wm, wc] = ukf_sigma_points(x, P, alpha, beta, kappa)
 
     % 初回呼び出し時にMEXファイルの存在をチェック
     if isempty(use_mex)
-        use_mex = exist('mex_ukf_sigma_points', 'file') == 3;
+        % use_mex = exist('mex_ukf_sigma_points', 'file') == 3;
+        use_mex = false; % 強制的にMATLAB実装を使用
         if use_mex
             fprintf('[ukf_sigma_points] MEX acceleration enabled\n');
         end

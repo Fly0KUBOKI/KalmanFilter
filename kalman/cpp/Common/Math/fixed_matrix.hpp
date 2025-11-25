@@ -1,182 +1,282 @@
 #pragma once
-// fixed_matrix.hpp
-// 動的確保を行わない固定長行列/ベクトルライブラリ
-// 設計: 最大次元をコンパイル時に定義し、内部は固定配列で保持する
-
 #include <cmath>
 #include <cstring>
 #include <cassert>
 #include <algorithm>
+#include <iostream>
 
 namespace cmath_fx {
 
-static const int MAX_N = 15; // 最大状態次元（ESKF 用）
-static const int MAX_M = 15; // 最大観測次元（必要に応じて調整）
+// 固定サイズ行列クラス
+template <int R, int C, typename T = float>
+struct Matrix {
+    static const int Rows = R;
+    static const int Cols = C;
+    T data[R * C];
+
+    Matrix() {
+        std::memset(data, 0, sizeof(data));
+    }
+
+    static Matrix Zero() {
+        Matrix m;
+        return m;
+    }
+
+    static Matrix Identity() {
+        static_assert(R == C, "Identity matrix must be square");
+        Matrix m;
+        for (int i = 0; i < R; ++i) m(i, i) = static_cast<T>(1);
+        return m;
+    }
+
+    inline T& operator()(int r, int c) {
+        assert(r >= 0 && r < R && c >= 0 && c < C);
+        return data[r * C + c];
+    }
+
+    inline const T& operator()(int r, int c) const {
+        assert(r >= 0 && r < R && c >= 0 && c < C);
+        return data[r * C + c];
+    }
+
+    // 加算
+    Matrix<R, C, T> operator+(const Matrix<R, C, T>& other) const {
+        Matrix<R, C, T> res;
+        for (int i = 0; i < R * C; ++i) res.data[i] = data[i] + other.data[i];
+        return res;
+    }
+
+    // 減算
+    Matrix<R, C, T> operator-(const Matrix<R, C, T>& other) const {
+        Matrix<R, C, T> res;
+        for (int i = 0; i < R * C; ++i) res.data[i] = data[i] - other.data[i];
+        return res;
+    }
+
+    // スカラー倍
+    Matrix<R, C, T> operator*(T scalar) const {
+        Matrix<R, C, T> res;
+        for (int i = 0; i < R * C; ++i) res.data[i] = data[i] * scalar;
+        return res;
+    }
+
+    // 行列積
+    template <int K>
+    Matrix<R, K, T> operator*(const Matrix<C, K, T>& other) const {
+        Matrix<R, K, T> res;
+        for (int i = 0; i < R; ++i) {
+            for (int j = 0; j < K; ++j) {
+                T sum = 0;
+                for (int k = 0; k < C; ++k) {
+                    sum += (*this)(i, k) * other(k, j);
+                }
+                res(i, j) = sum;
+            }
+        }
+        return res;
+    }
+
+    // 転置
+    Matrix<C, R, T> transpose() const {
+        Matrix<C, R, T> res;
+        for (int i = 0; i < R; ++i) {
+            for (int j = 0; j < C; ++j) {
+                res(j, i) = (*this)(i, j);
+            }
+        }
+        return res;
+    }
+    
+    // 逆行列 (Gauss-Jordan) - 正方行列のみ
+    bool inverse(Matrix<R, C, T>& inv) const {
+        static_assert(R == C, "Inverse requires square matrix");
+        Matrix<R, R * 2, T> aug;
+        
+        // 拡大係数行列 [A | I]
+        for(int i=0; i<R; ++i) {
+            for(int j=0; j<R; ++j) aug(i, j) = (*this)(i, j);
+            aug(i, R+i) = static_cast<T>(1);
+        }
+
+        for(int i=0; i<R; ++i) {
+            // ピボット選択
+            int pivot = i;
+            T max_val = std::abs(aug(i, i));
+            for(int k=i+1; k<R; ++k) {
+                if(std::abs(aug(k, i)) > max_val) {
+                    max_val = std::abs(aug(k, i));
+                    pivot = k;
+                }
+            }
+            
+            if(max_val < static_cast<T>(1e-12)) return false; // 特異行列
+
+            // 行入れ替え
+            if(pivot != i) {
+                for(int j=0; j<2*R; ++j) std::swap(aug(i, j), aug(pivot, j));
+            }
+
+            // 正規化
+            T div = aug(i, i);
+            for(int j=i; j<2*R; ++j) aug(i, j) /= div;
+
+            // 消去
+            for(int k=0; k<R; ++k) {
+                if(k != i) {
+                    T factor = aug(k, i);
+                    for(int j=i; j<2*R; ++j) aug(k, j) -= factor * aug(i, j);
+                }
+            }
+        }
+
+        // 結果の取り出し
+        for(int i=0; i<R; ++i) {
+            for(int j=0; j<R; ++j) inv(i, j) = aug(i, R+j);
+        }
+        return true;
+    }
+};
+
+// ベクトル型定義
+template <int N, typename T = float>
+using Vector = Matrix<N, 1, T>;
+
+// Runtime-sized matrix with fixed maximum capacity (for MEX interfacing)
+const int MAX_N = 20;
 
 struct FixedMatrix {
     int rows;
     int cols;
-    float data[MAX_N * MAX_N]; // 使用しない領域は0にする
+    float data[MAX_N * MAX_N];
 
-    FixedMatrix() : rows(0), cols(0) { std::memset(data, 0, sizeof(data)); }
+    FixedMatrix() : rows(0), cols(0) {
+        std::memset(data, 0, sizeof(data));
+    }
 
     FixedMatrix(int r, int c) : rows(r), cols(c) {
         assert(r <= MAX_N && c <= MAX_N);
         std::memset(data, 0, sizeof(data));
     }
 
-    inline float& operator()(int i, int j) {
-        assert(i >= 0 && i < rows && j >= 0 && j < cols);
-        return data[i * MAX_N + j];
-    }
-    inline float operator()(int i, int j) const {
-        assert(i >= 0 && i < rows && j >= 0 && j < cols);
-        return data[i * MAX_N + j];
-    }
-
-    void setZero() {
-        for (int i = 0; i < MAX_N * MAX_N; ++i) data[i] = 0.0f;
-        rows = cols = 0;
-    }
-
     void resize(int r, int c) {
         assert(r <= MAX_N && c <= MAX_N);
-        if (rows == r && cols == c) return;
-        // preserve nothing; just set sizes and zero used part
-        rows = r; cols = c;
-        for (int i = 0; i < rows; ++i)
-            for (int j = 0; j < cols; ++j)
-                (*this)(i,j) = 0.0f;
+        rows = r;
+        cols = c;
+        std::memset(data, 0, sizeof(data));
     }
 
-    static FixedMatrix Identity(int n) {
-        assert(n <= MAX_N);
-        FixedMatrix I(n,n);
-        for (int i = 0; i < n; ++i) I(i,i) = 1.0f;
-        return I;
+    inline float& operator()(int r, int c) {
+        return data[r * cols + c];
     }
 
-    // copy assignment
-    FixedMatrix& operator=(const FixedMatrix& other) {
-        if (this == &other) return *this;
-        rows = other.rows; cols = other.cols;
-        std::memcpy(data, other.data, sizeof(data));
-        return *this;
+    inline const float& operator()(int r, int c) const {
+        return data[r * cols + c];
     }
 
-};
-
-// ベクトルは列ベクトルとして扱う
-inline FixedMatrix make_vector(int n) {
-    FixedMatrix v(n, 1);
-    return v;
-}
-
-// 基本演算: C = A * B (A: r x k, B: k x c)
-inline void multiply(const FixedMatrix& A, const FixedMatrix& B, FixedMatrix& C) {
-    assert(A.cols == B.rows);
-    int r = A.rows; int k = A.cols; int c = B.cols;
-    C.resize(r, c);
-    for (int i = 0; i < r; ++i) {
-        for (int j = 0; j < c; ++j) {
-            float s = 0.0f;
-            for (int t = 0; t < k; ++t) s += A(i,t) * B(t,j);
-            C(i,j) = s;
-        }
-    }
-}
-
-inline void add(const FixedMatrix& A, const FixedMatrix& B, FixedMatrix& C) {
-    assert(A.rows == B.rows && A.cols == B.cols);
-    C.resize(A.rows, A.cols);
-    for (int i = 0; i < A.rows; ++i)
-        for (int j = 0; j < A.cols; ++j)
-            C(i,j) = A(i,j) + B(i,j);
-}
-
-inline void sub(const FixedMatrix& A, const FixedMatrix& B, FixedMatrix& C) {
-    assert(A.rows == B.rows && A.cols == B.cols);
-    C.resize(A.rows, A.cols);
-    for (int i = 0; i < A.rows; ++i)
-        for (int j = 0; j < A.cols; ++j)
-            C(i,j) = A(i,j) - B(i,j);
-}
-
-inline void transpose(const FixedMatrix& A, FixedMatrix& At) {
-    At.resize(A.cols, A.rows);
-    for (int i = 0; i < A.rows; ++i)
-        for (int j = 0; j < A.cols; ++j)
-            At(j,i) = A(i,j);
-}
-
-// Solve S * X = B for X where S is square (n x n), B is (n x m)
-// Uses Gaussian elimination with partial pivoting, operates on local copies (stack arrays)
-// No heap allocation used; temporary arrays bounded by MAX_N
-inline bool solve_linear_system(const FixedMatrix& S, const FixedMatrix& B, FixedMatrix& X) {
-    int n = S.rows;
-    int m = B.cols;
-    assert(S.rows == S.cols);
-    assert(B.rows == n);
-
-    // local augmented matrix for each RHS or do elimination once and apply to all RHS
-    float A[MAX_N][2*MAX_N]; // we'll create augmented matrix [S | B] with up to n+m <= 2*MAX_N
-    if (n > MAX_N || m > MAX_N) return false;
-
-    // initialize augmented
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) A[i][j] = S(i,j);
-        for (int j = 0; j < m; ++j) A[i][n + j] = B(i,j);
+    // Conversion to Template Matrix
+    template <int R, int C>
+    Matrix<R, C, float> toMatrix() const {
+        assert(rows == R && cols == C);
+        Matrix<R, C, float> m;
+        for(int i=0; i<R; ++i)
+            for(int j=0; j<C; ++j)
+                m(i,j) = (*this)(i,j);
+        return m;
     }
 
-    // Gaussian elimination with partial pivoting
-    for (int col = 0; col < n; ++col) {
-        // pivot
-        int piv = col;
-        float maxv = std::abs(A[col][col]);
-        for (int r = col+1; r < n; ++r) {
-            float val = std::abs(A[r][col]);
-            if (val > maxv) { maxv = val; piv = r; }
-        }
-        if (maxv < 1e-12f) return false; // singular
-        if (piv != col) {
-            for (int c = col; c < n + m; ++c) std::swap(A[col][c], A[piv][c]);
-        }
-        // normalize row
-        float diag = A[col][col];
-        for (int c = col; c < n + m; ++c) A[col][c] /= diag;
-        // eliminate below
-        for (int r = 0; r < n; ++r) {
-            if (r == col) continue;
-            float factor = A[r][col];
-            if (factor == 0.0) continue;
-            for (int c = col; c < n + m; ++c) A[r][c] -= factor * A[col][c];
-        }
+    // Assignment from Template Matrix
+    template <int R, int C>
+    void fromMatrix(const Matrix<R, C, float>& m) {
+        rows = R;
+        cols = C;
+        for(int i=0; i<R; ++i)
+            for(int j=0; j<C; ++j)
+                (*this)(i,j) = m(i,j);
     }
-
-    // copy solution
-    X.resize(n, m);
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < m; ++j) {
-            X(i,j) = A[i][n + j];
-        }
+    
+    // Basic operations needed for MEX
+    FixedMatrix transpose() const {
+        FixedMatrix res(cols, rows);
+        for(int i=0; i<rows; ++i)
+            for(int j=0; j<cols; ++j)
+                res(j,i) = (*this)(i,j);
+        return res;
     }
-    return true;
-}
-
-// Compute determinant (simple LU-like elimination) and check positive-definiteness
-inline bool is_positive_definite(FixedMatrix A) {
-    int n = A.rows;
-    // attempt Cholesky-like (Doolittle) without allocations
-    for (int k = 0; k < n; ++k) {
-        if (A(k,k) <= 0.f) return false;
-        for (int i = k+1; i < n; ++i) {
-            A(i,k) /= A(k,k);
-            for (int j = k+1; j < n; ++j) {
-                A(i,j) -= A(i,k) * A(k,j);
+    
+    FixedMatrix operator+(const FixedMatrix& other) const {
+        assert(rows == other.rows && cols == other.cols);
+        FixedMatrix res(rows, cols);
+        for(int i=0; i<rows*cols; ++i) res.data[i] = data[i] + other.data[i];
+        return res;
+    }
+    
+    FixedMatrix operator-(const FixedMatrix& other) const {
+        assert(rows == other.rows && cols == other.cols);
+        FixedMatrix res(rows, cols);
+        for(int i=0; i<rows*cols; ++i) res.data[i] = data[i] - other.data[i];
+        return res;
+    }
+    
+    FixedMatrix operator*(const FixedMatrix& other) const {
+        assert(cols == other.rows);
+        FixedMatrix res(rows, other.cols);
+        for(int i=0; i<rows; ++i) {
+            for(int j=0; j<other.cols; ++j) {
+                float sum = 0;
+                for(int k=0; k<cols; ++k) {
+                    sum += (*this)(i,k) * other(k,j);
+                }
+                res(i,j) = sum;
             }
         }
+        return res;
     }
-    return true;
-}
+    
+    bool inverse(FixedMatrix& inv) const {
+        assert(rows == cols);
+        int n = rows;
+        inv.resize(n, n);
+        
+        // Simple Gauss-Jordan (copy-paste logic adapted for runtime size)
+        float aug[MAX_N][MAX_N * 2];
+        for(int i=0; i<n; ++i) {
+            for(int j=0; j<n; ++j) aug[i][j] = (*this)(i,j);
+            for(int j=n; j<2*n; ++j) aug[i][j] = (j-n == i) ? 1.0f : 0.0f;
+        }
+        
+        for(int i=0; i<n; ++i) {
+            int pivot = i;
+            float max_val = std::abs(aug[i][i]);
+            for(int k=i+1; k<n; ++k) {
+                if(std::abs(aug[k][i]) > max_val) {
+                    max_val = std::abs(aug[k][i]);
+                    pivot = k;
+                }
+            }
+            if(max_val < 1e-12f) return false;
+            
+            if(pivot != i) {
+                for(int j=0; j<2*n; ++j) std::swap(aug[i][j], aug[pivot][j]);
+            }
+            
+            float div = aug[i][i];
+            for(int j=i; j<2*n; ++j) aug[i][j] /= div;
+            
+            for(int k=0; k<n; ++k) {
+                if(k != i) {
+                    float factor = aug[k][i];
+                    for(int j=i; j<2*n; ++j) aug[k][j] -= factor * aug[i][j];
+                }
+            }
+        }
+        
+        for(int i=0; i<n; ++i)
+            for(int j=0; j<n; ++j)
+                inv(i,j) = aug[i][n+j];
+                
+        return true;
+    }
+};
 
-} // namespace cmath_fx
+}

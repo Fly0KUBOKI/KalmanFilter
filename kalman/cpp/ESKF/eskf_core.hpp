@@ -5,78 +5,82 @@
 
 namespace eskf {
 
-using cm = cmath_fx::FixedMatrix;
+using Vector3 = cmath_fx::Vector<3, float>;
+using Vector4 = cmath_fx::Vector<4, float>;
+using Matrix3x3 = cmath_fx::Matrix<3, 3, float>;
+using Matrix15x15 = cmath_fx::Matrix<15, 15, float>;
+using Vector15 = cmath_fx::Vector<15, float>;
 
 class ESKFCore {
 public:
     // ノミナル状態積分（RK2/台形則）
     static void integrate_nominal(
-        cm& p, cm& v, cm& q, cm& ba, cm& bg,
-        const cm& a_meas, const cm& w_meas,
-        float dt, const cm& g,
-        const cm& gyro_noise_threshold,
-        const cm& accel_noise_threshold
+        Vector3& p, Vector3& v, Vector4& q, Vector3& ba, Vector3& bg,
+        const Vector3& a_meas, const Vector3& w_meas,
+        float dt, const Vector3& g,
+        const Vector3& gyro_noise_threshold,
+        const Vector3& accel_noise_threshold
     );
     
     // 加速度更新（Roll/Pitch）
     static void update_accel(
-        cm& q,
-        const cm& a_meas,
+        Vector4& q,
+        const Vector3& a_meas,
         float scale_factor = 1.0f
     );
     
     // 磁気計更新
     static void update_mag(
-        cm& q, cm& P,
-        const cm& m_meas,
-        const cm& m_world,
-        const cm& R_mag,
-        cm& K_out,
-        cm& dx_out
+        Vector4& q, Matrix15x15& P,
+        const Vector3& m_meas,
+        const Vector3& m_world,
+        const Matrix3x3& R_mag,
+        cmath_fx::Matrix<15, 3, float>& K_out,
+        Vector15& dx_out
     );
     
     // GPS更新
     static void update_gps(
-        cm& p, cm& v, cm& P,
-        const cm& gps_pos,
-        const cm& gps_origin,
-        const cm& R_gps,
-        cm& K_out,
-        cm& dx_out
+        Vector3& p, Vector3& v, Matrix15x15& P,
+        const Vector3& gps_pos,
+        const Vector3& gps_origin,
+        const Matrix3x3& R_gps,
+        cmath_fx::Matrix<15, 3, float>& K_out,
+        Vector15& dx_out
     );
     
     // 気圧計更新
     static void update_baro(
-        cm& p, cm& P,
+        Vector3& p, Matrix15x15& P,
         float pressure,
-        const cm& gps_origin,
+        const Vector3& gps_origin,
         float R_baro,
-        cm& K_out,
-        cm& dx_out
+        cmath_fx::Matrix<15, 1, float>& K_out,
+        Vector15& dx_out
     );
     
     // 共分散予測
-    static void predict_covariance(const cm& P, const cm& q, const cm& a_meas, const cm& ba,
-                                   const cm& w_meas, const cm& bg, const cm& Q, float dt,
-                                   cm& P_new);
+    static void predict_covariance(const Matrix15x15& P, const Vector4& q, const Vector3& a_meas, const Vector3& ba,
+                                   const Vector3& w_meas, const Vector3& bg, const Matrix15x15& Q, float dt,
+                                   Matrix15x15& P_new);
     
     // 状態遷移行列計算
-    static void compute_F_matrix(const cm& q, const cm& a_meas, const cm& ba,
-                                 const cm& w_meas, const cm& bg, float dt,
-                                 cm& F);
+    static void compute_F_matrix(const Vector4& q, const Vector3& a_meas, const Vector3& ba,
+                                 const Vector3& w_meas, const Vector3& bg, float dt,
+                                 Matrix15x15& F);
     
     // 誤差状態注入
-    static void inject_error_state(cm& p, cm& v, cm& q, cm& ba, cm& bg, const cm& dx);
+    static void inject_error_state(Vector3& p, Vector3& v, Vector4& q, Vector3& ba, Vector3& bg, const Vector15& dx);
 
 private:
     // AB2積分用の静的バッファ
-    static cm prev_a_world;
-    static cm prev_v;
+    static Vector3 prev_a_world;
+    static Vector3 prev_v;
     static bool prev_initialized;
     
     // ヘルパー関数
     static float pressure_to_altitude(float pressure);
-    static void gps_to_local(const cm& gps_pos, const cm& origin, cm& local_pos);
+    static void gps_to_local(const Vector3& gps_pos, const Vector3& origin, Vector3& local_pos);
 };
 
 } // namespace eskf

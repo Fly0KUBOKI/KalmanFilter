@@ -63,10 +63,14 @@ function varargout = plot_csv(filePath, mode)
             legend('roll','pitch','roll\_truth','pitch\_truth','Location','best');
 
             % Yaw の専用 figure（推定: 実線、真値: 点線）
-            fh_yaw = figure('Name', 'Yaw [deg]');
-            plot(time, T.yaw, '-r','LineWidth',1.5); hold on; % estimation: red solid
-            plot(time, tr_yaw, '--r','LineWidth',1.2); % truth: red dashed
-            hold off; grid on; xlabel('時刻 [s]'); ylabel('Yaw [deg]');
+            % ジンバルロック対策: unwrapで連続化
+            fh_yaw = figure('Name', 'Yaw [deg] (unwrapped)');
+            ax = axes('Parent', fh_yaw, 'XColor', 'k', 'YColor', 'k');
+            yaw_unwrapped = unwrap(T.yaw * pi/180) * 180/pi;
+            tr_yaw_unwrapped = unwrap(tr_yaw * pi/180) * 180/pi;
+            plot(time, yaw_unwrapped, '-r','LineWidth',1.5); hold on; % estimation: red solid
+            plot(time, tr_yaw_unwrapped, '--r','LineWidth',1.2); % truth: red dashed
+            hold off; grid on; xlabel('時刻 [s]'); ylabel('Yaw [deg] (unwrapped)');
             legend('yaw','yaw\_truth','Location','best');
 
         case 'pos'

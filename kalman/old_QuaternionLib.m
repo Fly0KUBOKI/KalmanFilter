@@ -1,21 +1,11 @@
 classdef QuaternionLib
     % クォータニオン演算ライブラリ
-    % C++実装が利用可能な場合は自動的にMEXを使用
     
     properties (Constant)
         EPS = 1.0e-9;  % 小さい値の閾値
     end
     
     methods (Static)
-        function use_mex = check_mex_available()
-            % MEX実装の利用可能性をチェック
-            persistent mex_available;
-            if isempty(mex_available)
-                mex_available = exist('mex_quaternion_lib', 'file') == 3;
-            end
-            use_mex = mex_available;
-        end
-        
         function q_out = multiply(q1, q2)
             % クォータニオン積
             a = q1(:); b = q2(:);

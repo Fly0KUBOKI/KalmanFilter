@@ -68,6 +68,7 @@ function results = run_filter(eskf, obs)
     n_accel = 0; n_mag = 0; n_baro = 0; n_gps = 0;
 
     for k = 1:n_samples
+        if k == 1, fprintf('Start loop\n'); end
         % predict
         tic;
         a = [obs.ax(k); obs.ay(k); obs.az(k)];
@@ -114,7 +115,7 @@ function results = run_filter(eskf, obs)
         results.ba(:,k) = eskf.ba;
         results.bg(:,k) = eskf.bg;
         
-        if mod(k, 10000) == 0
+        if mod(k, 1000) == 0
             fprintf('Step %d / %d\n', k, n_samples);
         end
     end

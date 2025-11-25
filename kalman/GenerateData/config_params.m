@@ -16,30 +16,73 @@ function params = config_params()
 
     % センサーノイズ (1σ)
     params.noise = struct();
-    params.noise.accel_std = 0.1;
-    params.noise.gyro_std = 0.5;
-    params.noise.mag_std = 10.0;
-    params.noise.baro_std = 0.0;
-    params.noise.gps_std = 1.0;
+    
+    % ノイズ有効/無効フラグ
+    params.noise.enable = struct();
+    params.noise.enable.accel = true;
+    params.noise.enable.gyro = true;
+    params.noise.enable.mag = true;
+    params.noise.enable.baro = false;
+    params.noise.enable.gps = true;
+    params.noise.enable.outlier = true;
+    params.noise.enable.pink = true;
+    params.noise.enable.allan = true;
+    
+    % ベースノイズレベル (フラグがtrueの場合のみ適用)
+    params.noise.base = struct();
+    params.noise.base.accel_std = 0.1;
+    params.noise.base.gyro_std = 0.5;
+    params.noise.base.mag_std = 10.0;
+    params.noise.base.baro_std = 1.0;
+    params.noise.base.gps_std = 1.0;
+    
+    % 実際のノイズ設定 (フラグに基づいて決定)
+    params.noise.accel_std = params.noise.enable.accel * params.noise.base.accel_std;
+    params.noise.gyro_std = params.noise.enable.gyro * params.noise.base.gyro_std;
+    params.noise.mag_std = params.noise.enable.mag * params.noise.base.mag_std;
+    params.noise.baro_std = params.noise.enable.baro * params.noise.base.baro_std;
+    params.noise.gps_std = params.noise.enable.gps * params.noise.base.gps_std;
     % 外れ値設定
     params.noise.outlier = struct();
-    params.noise.outlier.prob = 0.01;
-    params.noise.outlier.range = struct( ...
-        'accel', 2.0, ...  % m/s^2
-        'gyro', 2.0, ...   % deg/s
-        'mag', 50.0, ...    % nT
-        'baro', 0.0, ...   % meters
-        'gps', 10.0 ...     % meters
-    );
+    if params.noise.enable.outlier
+        params.noise.outlier.prob = 0.01;
+        params.noise.outlier.range = struct( ...
+            'accel', 2.0, ...  % m/s^2
+            'gyro', 2.0, ...   % deg/s
+            'mag', 50.0, ...    % nT
+            'baro', 5.0, ...   % meters
+            'gps', 10.0 ...     % meters
+        );
+    else
+        params.noise.outlier.prob = 0.0;
+        params.noise.outlier.range = struct( ...
+            'accel', 0.0, ...
+            'gyro', 0.0, ...
+            'mag', 0.0, ...
+            'baro', 0.0, ...
+            'gps', 0.0 ...
+        );
+    end
 
     % ピンクノイズ
-    params.noise.accel_pink_std = 0.1;
-    params.noise.gyro_pink_std = 0.1;    % Gyroscope pink noise (deg/s)
-    params.noise.gps_pink_std = 1.0;     % GPS pink noise (meters)
+    if params.noise.enable.pink
+        params.noise.accel_pink_std = 0.1;
+        params.noise.gyro_pink_std = 0.1;    % Gyroscope pink noise (deg/s)
+        params.noise.gps_pink_std = 1.0;     % GPS pink noise (meters)
+    else
+        params.noise.accel_pink_std = 0.0;
+        params.noise.gyro_pink_std = 0.0;
+        params.noise.gps_pink_std = 0.0;
+    end
 
     % Allan偏差
-    params.noise.gyro_allan_std = 0.5;
-    params.noise.baro_allan_std = 0.0;   % Barometer Allan deviation (meters)
+    if params.noise.enable.allan
+        params.noise.gyro_allan_std = 0.5;
+        params.noise.baro_allan_std = 1.0;   % Barometer Allan deviation (meters)
+    else
+        params.noise.gyro_allan_std = 0.0;
+        params.noise.baro_allan_std = 0.0;
+    end
 
     % 運動パラメータ
     params.motion = struct();

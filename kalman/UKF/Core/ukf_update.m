@@ -1,5 +1,6 @@
 function [x_upd, P_upd, K, S, y] = ukf_update(x, P, z, h_func, R, alpha, beta, kappa)
     % UKF_UPDATE  Unscented Kalman Filterによる観測更新
+    % C++実装が利用可能な場合は自動的にMEXを使用
     %
     % 入力:
     %   x       - 事前推定状態ベクトル (nx1)
@@ -18,9 +19,27 @@ function [x_upd, P_upd, K, S, y] = ukf_update(x, P, z, h_func, R, alpha, beta, k
     %   S       - イノベーション共分散 (mxm)
     %   y       - イノベーション (mx1)
 
-    if nargin < 6, alpha = 0.1; end  % デフォルトを1e-3から0.1に変更（より広い分布）
+    if nargin < 6, alpha = 1e-3; end
     if nargin < 7, beta = 2; end
     if nargin < 8, kappa = 0; end
+    
+    % C++実装を優先的に使用
+    persistent use_mex;
+    if isempty(use_mex)
+        use_mex = exist('mex_ukf_update', 'file') == 3;
+    end
+    
+    if use_mex
+        try
+            [x_upd, P_upd, K, S, y] = mex_ukf_update(x, P, z, h_func, R, alpha, beta, kappa);
+            return;
+        catch ME
+            warning('ukf_update:MEXFailed', 'MEX failed: %s. Falling back to MATLAB', ME.message);
+            use_mex = false;
+        end
+    end
+    
+    % MATLAB実装（フォールバック）
 
     % シグマポイントと重みの生成
     [sig, wm, wc] = ukf_sigma_points(x, P, alpha, beta, kappa);

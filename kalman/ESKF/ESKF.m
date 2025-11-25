@@ -62,10 +62,7 @@ classdef ESKF < handle
             % default nominal states
             obj.p = zeros(3,1);
             obj.v = zeros(3,1);
-            obj.q = [1;0;0;0];
-            obj.ba = zeros(3,1);
-            obj.bg = zeros(3,1);
-
+            
             % gravity
             obj.g = [0;0;-9.80665];
 
@@ -75,6 +72,26 @@ classdef ESKF < handle
                 accel_static = [obs.accel_x(static_idx), obs.accel_y(static_idx), obs.accel_z(static_idx)];
                 accel_mean = mean(accel_static, 1);
                 sigma_a = mean(std(accel_static - accel_mean, [], 1));
+                
+                % 初期姿勢の推定 (加速度平均から)
+                % 加速度計は上向きの力を測定するため、静止時は [0, 0, g] (上向き) を指す
+                % 重力ベクトルは [0, 0, -g] (下向き)
+                % したがって、加速度計の出力ベクトルを正規化して、それが [0, 0, 1] になるような回転を求める
+                % ただし、ここでは簡易的に Roll/Pitch を計算する
+                % ax = g * sin(pitch)
+                % ay = -g * cos(pitch) * sin(roll)
+                % az = -g * cos(pitch) * cos(roll)
+                % (NED座標系、重力下向き、加速度計出力 = -g_body)
+                % g_body = R' * [0;0;-g] = R' * g_ned
+                % a_meas = -g_body = -R' * [0;0;-g] = R' * [0;0;g]
+                % a_meas = [  g * sin(theta)            ]
+                %          [ -g * cos(theta) * sin(phi) ]
+                %          [ -g * cos(theta) * cos(phi) ]
+                
+                phi = atan2(-accel_mean(2), -accel_mean(3));
+                theta = atan2(accel_mean(1), sqrt(accel_mean(2)^2 + accel_mean(3)^2));
+                
+                obj.q = QuaternionLib.from_euler([phi; theta; 0]);
                 
                 gyro_static = [obs.gyro_x(static_idx), obs.gyro_y(static_idx), obs.gyro_z(static_idx)];
                 sigma_g = mean(std(gyro_static, [], 1));
@@ -127,20 +144,25 @@ classdef ESKF < handle
                 sigma_press = 1.0;
                 sigma_gps = 1.0;
                 obj.gyro_noise_threshold = deg2rad(0.1);
+                obj.q = [1;0;0;0]; % 静止データがない場合は水平と仮定
             end
+            
+            obj.ba = zeros(3,1);
+            obj.bg = zeros(3,1);
 
             % Process noise Q
             obj.Q = zeros(15);
-            obj.Q(4:6, 4:6) = eye(3) * (0.01^2);
-            obj.Q(7:9, 7:9) = eye(3) * (0.01^2);
-            obj.Q(10:12, 10:12) = eye(3) * (sigma_a^2 * 1e-4);
-            obj.Q(13:15, 13:15) = eye(3) * (sigma_g^2 * 1e-5);
+            obj.Q(4:6, 4:6) = eye(3) * (0.005^2); % 速度のランダムウォークを小さく (0.01 -> 0.005)
+            obj.Q(7:9, 7:9) = eye(3) * (0.005^2); % 姿勢のランダムウォークを小さく (0.01 -> 0.005)
+            obj.Q(10:12, 10:12) = eye(3) * (sigma_a^2 * 1e-5); % バイアス変動を小さく
+            obj.Q(13:15, 13:15) = eye(3) * (sigma_g^2 * 1e-6);
 
             % Initial covariance
             % 位置・速度の初期不確かさを大きく設定（GPS更新を効果的にするため）
             obj.P = eye(15) * 0.01;
             obj.P(1:3, 1:3) = eye(3) * 10.0;  % 位置の初期分散（10 m^2）
-            obj.P(4:6, 4:6) = eye(3) * 1.0;   % 速度の初期分散（1 m^2/s^2）
+            obj.P(4:6, 4:6) = eye(3) * 0.1;   % 速度の初期分散を小さく (1.0 -> 0.1) 初期は静止しているため
+            obj.P(10:12, 10:12) = eye(3) * 0.1; % 加速度バイアスの初期分散を少し大きくして収束を早める
 
             % Noise estimator
             try
@@ -181,7 +203,8 @@ classdef ESKF < handle
 
             % Accel filter
             try
-                obj.accel_filter = AccelFilter(0.3, 20);
+                % 速度推定用の強力なフィルタ (alpha=0.05: 非常に強い平滑化)
+                obj.accel_filter = AccelFilter(0.05, 50);
             catch
                 obj.accel_filter = [];
             end
@@ -281,6 +304,29 @@ classdef ESKF < handle
                 % フィルタを無効にする場合: 生の角速度を使用(バイアス補正は integrate_nominal 内で行う)
                 % ここでは w_meas をそのまま渡す
             end
+            
+            % 加速度フィルタ適用（速度推定用）
+            % ユーザー要望: 強めにフィルタリングをしてそれを積分する
+            if ~isempty(obj.accel_filter)
+                % 期待値として現在の推定加速度（重力除去前）を使用したいが、
+                % 簡易的に前回のフィルタ値を使用
+                a_expected = obj.accel_filter.a_filtered;
+                if norm(a_expected) < 1e-3
+                    a_expected = a_meas; % 初期化
+                end
+                
+                [a_filtered, is_outlier] = obj.accel_filter.filter(a_meas, a_expected);
+                
+                if is_outlier
+                    % 外れ値の場合は更新しない（前回の値を使うか、あるいは信頼度を下げる）
+                    % ここではフィルタ値をそのまま使う（filterメソッド内で前回値を返すようになっている）
+                end
+                
+                % 速度更新にはフィルタリングされた加速度を使用
+                a_for_vel = a_filtered;
+            else
+                a_for_vel = a_meas;
+            end
 
             % ノミナル状態の積分
             % --- NoiseEstimatorから閾値を取得 ---
@@ -296,12 +342,19 @@ classdef ESKF < handle
                 gyro_thr_vec = ones(3,1) * obj.gyro_noise_threshold;
             end
 
-            % ノミナル状態の積分（角速度はそのまま使用）
+            % ノミナル状態の積分
+            % 速度更新には a_for_vel を使用し、姿勢更新には w_meas を使用
+            % eskf_core_mex は単一の加速度入力を受け取るため、
+            % 姿勢更新にも a_for_vel が使われることになるが、
+            % 姿勢の予測ステップでは加速度は使われない（角速度のみ）ので問題ない。
+            % (加速度は update_accel で姿勢補正に使われる)
+            
             [obj.p, obj.v, obj.q, obj.ba, obj.bg] = eskf_core_mex('integrate_nominal', ...
-                obj.p, obj.v, obj.q, obj.ba, obj.bg, a_meas, w_meas, obj.dt, obj.g, gyro_thr_vec, accel_thr_vec);
+                obj.p, obj.v, obj.q, obj.ba, obj.bg, a_for_vel, w_meas, obj.dt, obj.g, gyro_thr_vec, accel_thr_vec);
 
             % 共分散の予測（MEX化）
-            obj.P = eskf_core_mex('predict_covariance', obj.P, obj.q, a_meas, obj.ba, w_meas, obj.bg, obj.Q, obj.dt);
+            % ここでも a_for_vel を使用
+            obj.P = eskf_core_mex('predict_covariance', obj.P, obj.q, a_for_vel, obj.ba, w_meas, obj.bg, obj.Q, obj.dt);
             
             % 共分散行列の正則化
             obj.P = obj.divergence_guard.regularize_covariance(obj.P);
@@ -362,10 +415,10 @@ classdef ESKF < handle
             
             % 動的R調整: 重力偏差に応じてRを増減
             gravity_deviation = abs(a_norm - 9.81);
-            R_scale = 1.0 + (gravity_deviation / 2.0);  % 0m/s² → 1.0倍, 2m/s² → 2.0倍
+            R_scale = 1.0 + (gravity_deviation / 1.0);  % 感度を下げる (2.0 -> 1.0)
             
-            % ノイズ下限（平滑化強化: 0.01 → 0.02）
-            R_floor = 0.04;  % 測定ノイズを保守的に見積もる
+            % ノイズ下限（平滑化強化: 0.05 → 0.1）
+            R_floor = 0.1;  % 測定ノイズをより保守的に見積もる
             R = diag(max(R_est_2d, R_floor) * R_scale);
             
             % --- ブロック化最適化: 非ゼロ列のみで計算 ---
@@ -441,9 +494,9 @@ classdef ESKF < handle
             
             K = obj.divergence_guard.clamp_gain(K);
             
-            % 姿勢ゲイン制限（平滑化強化: 0.1 → 0.05）
+            % 姿勢ゲイン制限（平滑化強化: 0.04 → 0.02）
             % より保守的なゲインで滑らかな応答を実現
-            max_attitude_gain = 0.05;  % 5%以下（イノベーション制限強化と併用）
+            max_attitude_gain = 0.02;  % 2%以下（イノベーション制限強化と併用）
             if size(K,1) >= 9
                 K(7:9,:) = max(min(K(7:9,:), max_attitude_gain), -max_attitude_gain);
             end
@@ -459,8 +512,8 @@ classdef ESKF < handle
             % 時間的整合性チェック: dx が異常に大きい場合はスケールダウン
             % 平滑化強化のため閾値を下げる
             dx_attitude_norm = norm(dx(7:9));
-            if dx_attitude_norm > deg2rad(1.5)  % 1.5度以上の変化は抑制
-                scale_down = deg2rad(1.5) / dx_attitude_norm;
+            if dx_attitude_norm > deg2rad(0.5)  % 0.5度以上の変化は抑制 (1.0 -> 0.5)
+                scale_down = deg2rad(0.5) / dx_attitude_norm;
                 dx(7:9) = dx(7:9) * scale_down;
             end
             
@@ -663,7 +716,8 @@ classdef ESKF < handle
             % UKF 更新を実行
             ukf_success = false;
             try
-                [x_sub_upd, P_sub_upd, K_ukf, S, y_innov] = ukf_update(x_sub, P_sub, z_gps_filtered, h_func, R);
+                % alpha=1e-3, beta=2, kappa=0 (標準設定)
+                [x_sub_upd, P_sub_upd, K_ukf, S, y_innov] = ukf_update(x_sub, P_sub, z_gps_filtered, h_func, R, 1e-3, 2, 0);
                 ukf_success = true;
             catch ME
                 % UKF失敗時はEKFにフォールバック
@@ -719,6 +773,12 @@ classdef ESKF < handle
                 should_update = true;
                 y_used = y_innov;
                 dx_used = [];
+                
+                % UKFの場合でも、イノベーションが大きすぎる場合は棄却する (外れ値対策強化)
+                % 位置のイノベーションが 5m 以上なら棄却
+                if norm(y_innov(1:3)) > 5.0
+                    should_update = false;
+                end
             else
                 % EKFフォールバック時のみOutlierGuardを使用
                 H_gps = [eye(3), zeros(3, 12)];

@@ -16,8 +16,7 @@ if isempty(use_mex)
     if use_mex
         fprintf('[eskf_core_mex] Using MEX acceleration\n');
     else
-        fprintf('[eskf_core_mex] MEX not found, using MATLAB implementation\n');
-        fprintf('  To enable MEX: cd cpp; build_mex;\n');
+        fprintf('[eskf_core_mex] MEX not found, using MATLAB fallback\n');
     end
 end
 
@@ -169,7 +168,59 @@ function [p, P, K, dx] = update_baro_matlab(p, P, pressure, gps_origin, R_baro)
 end
 
 function P_new = predict_covariance_matlab(P, q, a_meas, ba, w_meas, bg, Q, dt)
-    P_new = ESKFCovariancePrediction.predict(P, q, a_meas, ba, w_meas, bg, Q, dt);
+    % 回転行列
+    R = QuaternionLib.to_rotation_matrix(q);
+    
+    % 加速度補正
+    a_corrected = a_meas - ba;
+    
+    % 角速度補正
+    w_corrected = w_meas - bg;
+    
+    % skew(a)
+    skew_a = [0, -a_corrected(3), a_corrected(2);
+              a_corrected(3), 0, -a_corrected(1);
+              -a_corrected(2), a_corrected(1), 0];
+              
+    % skew(w)
+    skew_w = [0, -w_corrected(3), w_corrected(2);
+              w_corrected(3), 0, -w_corrected(1);
+              -w_corrected(2), w_corrected(1), 0];
+              
+    % R * skew(a)
+    R_skew = R * skew_a;
+    
+    % 状態遷移行列 F の構築 (15x15)
+    F = eye(15);
+    
+    % 位置-速度
+    F(1:3, 4:6) = eye(3) * dt;
+    
+    % 速度-姿勢
+    F(4:6, 7:9) = -R_skew * dt;
+    
+    % 速度-加速度バイアス
+    F(4:6, 10:12) = -R * dt;
+    
+    % 姿勢-姿勢 (回転項)
+    F(7:9, 7:9) = eye(3) - skew_w * dt;
+    
+    % 姿勢-角速度バイアス
+    F(7:9, 13:15) = -eye(3) * dt;
+    
+    % 共分散予測
+    P_new = F * P * F' + Q;
+    
+    % 対称化
+    P_new = (P_new + P_new') / 2;
+    
+    % 正定値保証
+    min_var = 1e-9;
+    for i = 1:15
+        if P_new(i,i) < min_var
+            P_new(i,i) = min_var;
+        end
+    end
 end
 
 function [p, v, q, ba, bg] = inject_error_state_matlab(p, v, q, ba, bg, dx)
