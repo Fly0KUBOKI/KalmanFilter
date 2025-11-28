@@ -1,0 +1,62 @@
+=== ノイズなしシミュレーション開始 ===
+Motion step 10000 / 36001
+Motion step 20000 / 36001
+Motion step 30000 / 36001
+Sensor step 10000 / 36001
+Sensor step 20000 / 36001
+Sensor step 30000 / 36001
+sim_generate: wrote C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\truth_data.csv and C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\sensor_data.csv (36001 samples)
+Start loop
+[eskf_core_mex] Using MEX acceleration
+[警告: MEX failed: Unsupported dimensions n=6, m=3. Falling back to MATLAB] 
+[> ukf_update (行 37) 内
+ESKF/update_gps (行 721) 内
+run_simulation>run_filter (行 106) 内
+run_simulation (行 18) 内
+analyze_performance (行 21) 内] 
+Step 1000 / 36001
+Step 2000 / 36001
+Step 3000 / 36001
+Step 4000 / 36001
+Step 5000 / 36001
+Step 6000 / 36001
+Step 7000 / 36001
+Step 8000 / 36001
+Step 9000 / 36001
+Step 10000 / 36001
+Step 11000 / 36001
+Step 12000 / 36001
+Step 13000 / 36001
+Step 14000 / 36001
+Step 15000 / 36001
+Step 16000 / 36001
+Step 17000 / 36001
+Step 18000 / 36001
+Step 19000 / 36001
+Step 20000 / 36001
+Step 21000 / 36001
+Step 22000 / 36001
+Step 23000 / 36001
+Step 24000 / 36001
+Step 25000 / 36001
+Step 26000 / 36001
+Step 27000 / 36001
+Step 28000 / 36001
+Step 29000 / 36001
+Step 30000 / 36001
+Step 31000 / 36001
+Step 32000 / 36001
+Step 33000 / 36001
+Step 34000 / 36001
+Step 35000 / 36001
+Step 36000 / 36001
+
+=== 計算時間プロファイル ===
+predict:      5.074 s (140.94 us/call)
+update_accel: 2.263 s (251.41 us/call, 9000 calls)
+update_mag:   1.910 s (212.25 us/call, 9000 calls)
+update_baro:  0.218 s (48.35 us/call, 4500 calls)
+update_gps:   0.984 s (273.41 us/call, 3600 calls)
+Total:        10.449 s
+================================
+
