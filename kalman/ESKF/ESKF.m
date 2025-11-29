@@ -275,7 +275,7 @@ classdef ESKF < handle
             obj.adaptive_q_enabled = true;
             
             % MEUKF初期化
-            obj.use_meukf = true;  % MEUKFを有効化 (ZUPT + Adaptive Q + MEUKF)
+            obj.use_meukf = false;  % MEUKFを有効化 (ZUPT + Adaptive Q + MEUKF)
         end
         
         function update_filter(obj, obs, k)
@@ -392,7 +392,7 @@ classdef ESKF < handle
                 
                 % 総合スケール (保守的: 大きい方を採用)
                 q_scale = max(accel_scale, gyro_scale);
-                q_scale = min(q_scale, 5.0);  % 上限5倍
+                q_scale = min(q_scale, 3.0);  % 上限3倍に削減して安定性向上
                 
                 Q_adapted = obj.Q_nominal * q_scale;
             end
@@ -994,7 +994,7 @@ classdef ESKF < handle
             % 動的R調整 (バランス調整)
             gravity_deviation = abs(a_norm - 9.81);
             R_scale = 1.0 + (gravity_deviation / 0.7);  % 感度を少し緩和 (0.5 -> 0.7)
-            R_floor = 0.15;  % ノイズフロアを下げて補正を強化 (0.2 -> 0.15)
+            R_floor = 0.25;  % ノイズフロアを上げて安定性向上 (0.15 -> 0.25)
             R = diag(max(R_est_2d, R_floor) * R_scale);
             
             % 観測値 (x, y成分のみ)
@@ -1011,17 +1011,17 @@ classdef ESKF < handle
                 return;
             end
             
-            % イノベーション制限 (緩和: 0.05rad -> 0.08rad ≈ 4.6度)
-            max_innovation = 0.08;
+            % イノベーション制限 (安定化: 0.05rad ≈ 2.9度)
+            max_innovation = 0.05;
             innov_norm = norm(y);
             if innov_norm > max_innovation
                 y = y * (max_innovation / innov_norm);
             end
             
-            % マハラノビス距離チェック (4-sigma棄却に緩和)
+            % マハラノビス距離チェック (3.5-sigma棄却で安定性向上)
             try
                 mahal_dist = sqrt(y' / S * y);
-                if mahal_dist > 4.0
+                if mahal_dist > 3.5
                     return;  % 外れ値として棄却
                 end
                 % 2.5-sigma以上は減衰
@@ -1037,10 +1037,10 @@ classdef ESKF < handle
             % dtheta再計算 (フィルタリング後のイノベーションで)
             dtheta = K * y;
             
-            % dthetaの大きさ制限 (0.8度以下に緩和)
+            % dthetaの大きさ制限 (0.6度で安定化)
             dtheta_norm = norm(dtheta(1:2));  % Roll/Pitchのみチェック
-            if dtheta_norm > deg2rad(0.8)
-                scale = deg2rad(0.8) / dtheta_norm;
+            if dtheta_norm > deg2rad(0.6)
+                scale = deg2rad(0.6) / dtheta_norm;
                 dtheta(1:2) = dtheta(1:2) * scale;
             end
             

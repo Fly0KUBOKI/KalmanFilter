@@ -20,7 +20,7 @@ function [dtheta, P_upd, K, S, y] = meukf_update_attitude(P_sub, q_nom, z, h_fun
     %   S       - イノベーション共分散 (mxm)
     %   y       - イノベーション (mx1)
 
-    if nargin < 6, alpha = 1e-3; end
+    if nargin < 6, alpha = 0.1; end
     if nargin < 7, beta = 2; end
     if nargin < 8, kappa = 0; end
     
