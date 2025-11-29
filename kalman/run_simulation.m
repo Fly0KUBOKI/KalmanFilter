@@ -76,6 +76,14 @@ function results = run_filter(eskf, obs)
         eskf.predict(a, w);
         t_predict = t_predict + toc;
         
+        % ZUPT (静止検出と速度更新)
+        is_stationary = eskf.check_stationary(a, w);
+        if is_stationary
+            tic;
+            eskf.update_zupt();
+            t_predict = t_predict + toc;  % ZUPTの時間をpredictに含める
+        end
+        
         % update_accel
         if mod(k, eskf.freq_accel) == 0
             tic;
@@ -115,7 +123,7 @@ function results = run_filter(eskf, obs)
         results.ba(:,k) = eskf.ba;
         results.bg(:,k) = eskf.bg;
         
-        if mod(k, 10000) == 0
+        if mod(k, 1000) == 0
             fprintf('Step %d / %d\n', k, n_samples);
         end
     end

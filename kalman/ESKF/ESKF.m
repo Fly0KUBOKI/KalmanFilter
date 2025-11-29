@@ -33,6 +33,17 @@ classdef ESKF < handle
         freq_accel
         gyro_noise_threshold
         gps_origin
+        % ZUPT関連
+        zupt_threshold_accel
+        zupt_threshold_gyro
+        zupt_min_duration
+        zupt_counter
+        is_stationary
+        % Adaptive Q関連
+        Q_nominal
+        adaptive_q_enabled
+        % MEUKF関連
+        use_meukf
     end
 
     methods
@@ -251,6 +262,20 @@ classdef ESKF < handle
             else
                 obj.gps_origin = [0;0;0];
             end
+            
+            % ZUPT初期化
+            obj.zupt_threshold_accel = 0.5;  % m/s^2 (静止判定の加速度閾値)
+            obj.zupt_threshold_gyro = deg2rad(2.0);  % rad/s (静止判定の角速度閾値)
+            obj.zupt_min_duration = 10;  % サンプル数 (最小静止期間)
+            obj.zupt_counter = 0;
+            obj.is_stationary = false;
+            
+            % Adaptive Q初期化
+            obj.Q_nominal = obj.Q;  % 名目Qを保存
+            obj.adaptive_q_enabled = true;
+            
+            % MEUKF初期化
+            obj.use_meukf = true;  % MEUKFを有効化 (ZUPT + Adaptive Q + MEUKF)
         end
         
         function update_filter(obj, obs, k)
@@ -353,9 +378,28 @@ classdef ESKF < handle
             [obj.p, obj.v, obj.q, obj.ba, obj.bg] = eskf_core_mex('integrate_nominal', ...
                 obj.p, obj.v, obj.q, obj.ba, obj.bg, a_for_vel, w_meas, obj.dt, obj.g, gyro_thr_vec, accel_thr_vec);
 
+            % Adaptive Q: IMU信号の安定性に基づいてQをスケーリング
+            Q_adapted = obj.Q;
+            if obj.adaptive_q_enabled
+                % 加速度ノルムが重力に近いほど信頼度が高い (スケール減少)
+                a_norm = norm(a_meas);
+                gravity_error = abs(a_norm - 9.81);
+                accel_scale = 1.0 + (gravity_error / 2.0);  % 重力から2m/s^2離れると2倍
+                
+                % 角速度が小さいほど信頼度が高い (スケール減少)
+                w_norm = norm(w_meas);
+                gyro_scale = 1.0 + (w_norm / deg2rad(10.0));  % 10deg/sで2倍
+                
+                % 総合スケール (保守的: 大きい方を採用)
+                q_scale = max(accel_scale, gyro_scale);
+                q_scale = min(q_scale, 5.0);  % 上限5倍
+                
+                Q_adapted = obj.Q_nominal * q_scale;
+            end
+            
             % 共分散の予測（MEX化）
             % ここでも a_for_vel を使用
-            obj.P = eskf_core_mex('predict_covariance', obj.P, obj.q, a_for_vel, obj.ba, w_meas, obj.bg, obj.Q, obj.dt);
+            obj.P = eskf_core_mex('predict_covariance', obj.P, obj.q, a_for_vel, obj.ba, w_meas, obj.bg, Q_adapted, obj.dt);
             
             % 共分散行列の正則化
             obj.P = obj.divergence_guard.regularize_covariance(obj.P);
@@ -376,6 +420,15 @@ classdef ESKF < handle
         
         function update_accel(obj, a_meas)
             % 加速度によるカルマンフィルタ姿勢更新（Roll/Pitchのみ、Yaw不可観測）
+            % use_meukf=true の場合はMEUKFを使用、falseの場合はEKFを使用
+            
+            % MEUKFモード
+            if obj.use_meukf
+                obj.update_accel_meukf(a_meas);
+                return;
+            end
+            
+            % 以下、EKFモード
             % ギザギザ抑制: 強力なゲイン制限 + 時間的整合性チェック
             
             % センサーフィルタ適用
@@ -559,7 +612,15 @@ classdef ESKF < handle
 
         function update_mag(obj, m_meas)
             % 磁気計による姿勢更新
+            % use_meukf=true の場合はMEUKFを使用
             
+            % MEUKFモード
+            if obj.use_meukf
+                obj.update_mag_meukf(m_meas);
+                return;
+            end
+            
+            % 以下、EKFモード
             % センサーフィルタ適用
             [m_filtered, is_outlier, ~] = obj.sensor_filters.mag.apply(m_meas);
             
@@ -903,6 +964,286 @@ classdef ESKF < handle
             x_pred = zeros(15,1);
             x_pred(1:3) = obj.p;
             [~, obj.P] = kalman_filter_core('update_state_covariance', x_pred, obj.P, K, H, y_filtered, R_used);
+        end
+        
+        function update_accel_meukf(obj, a_meas)
+            % MEUKF による加速度更新 (Roll/Pitchのみ)
+            % 外れ値パルス抑制強化版
+            
+            % センサーフィルタ適用
+            [a_corrected, is_outlier, ~] = obj.sensor_filters.accel.apply(a_meas, zeros(3,1));
+            
+            if is_outlier
+                return;
+            end
+            
+            % 健全性チェック
+            a_norm = norm(a_corrected);
+            if a_norm < 0.1 || abs(a_norm - 9.81) > 3.0
+                return;
+            end
+            
+            % 観測関数: クォータニオンから加速度予測値を計算
+            h_func = @(q) compute_accel_observation(q, obj.g);
+            
+            % ノイズ共分散 (動的R調整)
+            R_est_full = obj.noiseEstimator.getRnoise('accel');
+            R_est_2d = diag(R_est_full);
+            R_est_2d = R_est_2d(1:2);
+            
+            % 動的R調整 (バランス調整)
+            gravity_deviation = abs(a_norm - 9.81);
+            R_scale = 1.0 + (gravity_deviation / 0.7);  % 感度を少し緩和 (0.5 -> 0.7)
+            R_floor = 0.15;  % ノイズフロアを下げて補正を強化 (0.2 -> 0.15)
+            R = diag(max(R_est_2d, R_floor) * R_scale);
+            
+            % 観測値 (x, y成分のみ)
+            z = a_corrected(1:2);
+            
+            % 姿勢誤差の共分散 (3x3)
+            P_attitude = obj.P(7:9, 7:9);
+            
+            % MEUKF更新
+            try
+                [dtheta, P_attitude_upd, K, S, y] = meukf_update_attitude(P_attitude, obj.q, z, h_func, R);
+            catch ME
+                warning('ESKF:update_accel_meukf:Failed', 'MEUKF failed (%s), skipping', ME.message);
+                return;
+            end
+            
+            % イノベーション制限 (緩和: 0.05rad -> 0.08rad ≈ 4.6度)
+            max_innovation = 0.08;
+            innov_norm = norm(y);
+            if innov_norm > max_innovation
+                y = y * (max_innovation / innov_norm);
+            end
+            
+            % マハラノビス距離チェック (4-sigma棄却に緩和)
+            try
+                mahal_dist = sqrt(y' / S * y);
+                if mahal_dist > 4.0
+                    return;  % 外れ値として棄却
+                end
+                % 2.5-sigma以上は減衰
+                if mahal_dist > 2.5
+                    attenuation = 2.5 / mahal_dist;
+                    y = y * attenuation;
+                end
+            catch
+                % S が特異の場合はスキップ
+                return;
+            end
+            
+            % dtheta再計算 (フィルタリング後のイノベーションで)
+            dtheta = K * y;
+            
+            % dthetaの大きさ制限 (0.8度以下に緩和)
+            dtheta_norm = norm(dtheta(1:2));  % Roll/Pitchのみチェック
+            if dtheta_norm > deg2rad(0.8)
+                scale = deg2rad(0.8) / dtheta_norm;
+                dtheta(1:2) = dtheta(1:2) * scale;
+            end
+            
+            % Yaw成分を強制ゼロ
+            dtheta(3) = 0;
+            
+            % 姿勢更新
+            dq = QuaternionLib.small_angle_quat(dtheta);
+            obj.q = QuaternionLib.multiply(obj.q, dq);
+            obj.q = QuaternionLib.normalize(obj.q);
+            
+            % 共分散更新 (安定化)
+            P_attitude_upd = (P_attitude_upd + P_attitude_upd') / 2;
+            % 上限適用
+            max_var = (deg2rad(5))^2;
+            for i = 1:3
+                if P_attitude_upd(i,i) > max_var
+                    P_attitude_upd(i,i) = max_var;
+                end
+            end
+            obj.P(7:9, 7:9) = P_attitude_upd;
+            obj.P = (obj.P + obj.P') / 2;
+            
+            % ノイズ推定更新
+            y_full = zeros(3,1);
+            y_full(1:2) = y;
+            H_full = [zeros(3,6), eye(3), zeros(3,6)];
+            obj.noiseEstimator.estimate('accel', y_full, H_full, obj.P);
+        end
+        
+        function update_mag_meukf(obj, m_meas)
+            % MEUKF による磁気計更新
+            % 外れ値パルス抑制強化版
+            
+            % センサーフィルタ適用
+            [m_filtered, is_outlier, ~] = obj.sensor_filters.mag.apply(m_meas);
+            
+            if is_outlier
+                return;
+            end
+            
+            % 地磁気ベクトル (北向き)
+            m_world = [0; 50; 0];
+            
+            % 観測関数
+            h_func = @(q) compute_mag_observation(q, m_world);
+            
+            % ノイズ共分散 (保守的に)
+            R_est = obj.noiseEstimator.getRnoise('mag');
+            R_est = R_est * 1.5;  % 磁気計ノイズを増やして保守的に
+            
+            % 姿勢誤差の共分散 (3x3)
+            P_attitude = obj.P(7:9, 7:9);
+            
+            % MEUKF更新
+            try
+                [dtheta, P_attitude_upd, K, S, y] = meukf_update_attitude(P_attitude, obj.q, m_filtered, h_func, R_est);
+            catch ME
+                warning('ESKF:update_mag_meukf:Failed', 'MEUKF failed (%s), skipping', ME.message);
+                return;
+            end
+            
+            % イノベーション制限 (0.1rad ≈ 6度)
+            max_innovation = 0.1;
+            innov_norm = norm(y);
+            if innov_norm > max_innovation
+                y = y * (max_innovation / innov_norm);
+            end
+            
+            % マハラノビス距離チェック (4-sigma棄却、磁気計は少し緩め)
+            try
+                mahal_dist = sqrt(y' / S * y);
+                if mahal_dist > 4.0
+                    return;
+                end
+                if mahal_dist > 2.5
+                    attenuation = 2.5 / mahal_dist;
+                    y = y * attenuation;
+                end
+            catch
+                return;
+            end
+            
+            % dtheta再計算
+            dtheta = K * y;
+            
+            % dthetaの大きさ制限 (Yaw含めて1.0度以下に)
+            dtheta_norm = norm(dtheta);
+            if dtheta_norm > deg2rad(1.0)
+                scale = deg2rad(1.0) / dtheta_norm;
+                dtheta = dtheta * scale;
+            end
+            
+            % 姿勢更新 (磁気計は全3軸更新可能)
+            dq = QuaternionLib.small_angle_quat(dtheta);
+            obj.q = QuaternionLib.multiply(obj.q, dq);
+            obj.q = QuaternionLib.normalize(obj.q);
+            
+            % 共分散更新 (安定化)
+            P_attitude_upd = (P_attitude_upd + P_attitude_upd') / 2;
+            max_var = (deg2rad(8))^2;  % 磁気計は少し緩め
+            for i = 1:3
+                if P_attitude_upd(i,i) > max_var
+                    P_attitude_upd(i,i) = max_var;
+                end
+            end
+            obj.P(7:9, 7:9) = P_attitude_upd;
+            obj.P = (obj.P + obj.P') / 2;
+            
+            % ノイズ推定更新
+            H = [zeros(3,6), eye(3), zeros(3,6)];
+            obj.noiseEstimator.estimate('mag', y, H, obj.P);
+        end
+        
+        function is_stat = check_stationary(obj, a_meas, w_meas)
+            % 静止判定: 加速度と角速度の大きさをチェック
+            % a_meas: 加速度測定値 [3x1]
+            % w_meas: 角速度測定値 [3x1] (rad/s)
+            
+            % 重力補正された加速度ノルム
+            a_norm = norm(a_meas);
+            gravity_deviation = abs(a_norm - 9.81);
+            
+            % 角速度ノルム
+            w_norm = norm(w_meas);
+            
+            % 静止判定
+            if gravity_deviation < obj.zupt_threshold_accel && w_norm < obj.zupt_threshold_gyro
+                obj.zupt_counter = obj.zupt_counter + 1;
+            else
+                obj.zupt_counter = 0;
+            end
+            
+            % 最小期間を満たしたら静止と判定
+            if obj.zupt_counter >= obj.zupt_min_duration
+                obj.is_stationary = true;
+            else
+                obj.is_stationary = false;
+            end
+            
+            is_stat = obj.is_stationary;
+        end
+        
+        function update_zupt(obj)
+            % ZUPT (Zero Velocity Update): 速度をゼロに補正
+            % 静止状態では速度がゼロであると仮定し、強力な更新を行う
+            
+            if ~obj.is_stationary
+                return;
+            end
+            
+            % 観測: 速度 = [0; 0; 0]
+            z_vel = [0; 0; 0];
+            h_vel = obj.v;  % 予測速度
+            
+            % 観測行列: H = [0_{3x3}, I_{3x3}, 0_{3x9}]
+            H = [zeros(3,3), eye(3), zeros(3,9)];
+            
+            % 観測ノイズ: 静止時は非常に小さい (強い確信)
+            R = eye(3) * (0.01^2);  % 1cm/s の標準偏差
+            
+            % イノベーション
+            y = z_vel - h_vel;
+            
+            % S = H * P * H' + R
+            S = H * obj.P * H' + R;
+            S = (S + S') / 2;  % 対称化
+            
+            % Cholesky安定化
+            try
+                s_rcond = rcond(S);
+            catch
+                s_rcond = 0;
+            end
+            if isempty(s_rcond) || s_rcond < 1e-12
+                jitter = max(1e-8, abs(trace(S)) * 1e-6);
+                S = S + eye(size(S)) * jitter;
+            end
+            
+            % カルマンゲイン
+            try
+                U = chol(S);
+                tmp = obj.P * H';
+                K = (U \ (U' \ tmp'))';
+            catch
+                K = obj.P * H' / S;
+            end
+            
+            % ゲインクリッピング
+            if ~isempty(obj.divergence_guard)
+                K = obj.divergence_guard.clamp_gain(K);
+            end
+            
+            % 状態更新
+            dx = K * y;
+            
+            % 速度更新
+            obj.v = obj.v + dx(4:6);
+            
+            % 共分散更新 (Joseph form)
+            I_KH = eye(15) - K * H;
+            obj.P = I_KH * obj.P * I_KH' + K * R * K';
+            obj.P = (obj.P + obj.P') / 2;  % 対称化
         end
         
         function euler = get_euler(obj)
