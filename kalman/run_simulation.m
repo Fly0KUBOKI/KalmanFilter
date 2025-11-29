@@ -115,7 +115,7 @@ function results = run_filter(eskf, obs)
         results.ba(:,k) = eskf.ba;
         results.bg(:,k) = eskf.bg;
         
-        if mod(k, 1000) == 0
+        if mod(k, 10000) == 0
             fprintf('Step %d / %d\n', k, n_samples);
         end
     end

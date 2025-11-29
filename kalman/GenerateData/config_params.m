@@ -32,7 +32,7 @@ function params = config_params()
     params.noise.base = struct();
     params.noise.base.accel_std = 0.1;
     params.noise.base.gyro_std = 0.5;
-    params.noise.base.mag_std = 10.0;
+    params.noise.base.mag_std = 5.0;
     params.noise.base.baro_std = 1.0;
     params.noise.base.gps_std = 1.0;
     

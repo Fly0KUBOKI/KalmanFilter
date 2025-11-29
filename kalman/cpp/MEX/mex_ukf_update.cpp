@@ -89,9 +89,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
                 for (int i = 0; i < N; ++i) { \
                     x_sig_data[i] = static_cast<double>(x_sig(i, 0)); \
                 } \
-                mxArray* mx_z_pred_args[1] = {mx_x_sig}; \
+                mxArray* mx_z_pred_args[2] = {const_cast<mxArray*>(mx_h_func), mx_x_sig}; \
                 mxArray* mx_z_pred = nullptr; \
-                if (mexCallMATLAB(1, &mx_z_pred, 1, mx_z_pred_args, "feval") != 0) { \
+                if (mexCallMATLAB(1, &mx_z_pred, 2, mx_z_pred_args, "feval") != 0) { \
                     mxDestroyArray(mx_x_sig); \
                     mexErrMsgIdAndTxt("mex_ukf_update:h_func", "Error calling h_func"); \
                 } \
@@ -153,7 +153,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             return; \
         }
     
-    // 一般的なUKF状態次元（15-21）と観測次元（1-6）をサポート
+    // 一般的なUKF状態次元（6-21）と観測次元（1-6）をサポート
+    HANDLE_CASE(6, 1)
+    HANDLE_CASE(6, 2)
+    HANDLE_CASE(6, 3)
+    HANDLE_CASE(6, 4)
+    HANDLE_CASE(6, 6)
     HANDLE_CASE(15, 1)
     HANDLE_CASE(15, 2)
     HANDLE_CASE(15, 3)

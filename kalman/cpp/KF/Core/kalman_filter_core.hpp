@@ -26,6 +26,55 @@ public:
         return (P * H.transpose()) * S_inv;
     }
 
+    // Innovation と S の計算
+    // y = z - h, S = H*P*H' + R
+    template <int N, int M, typename T>
+    static void compute_innovation_and_S(
+        const cmath_fx::Vector<M, T>& z,
+        const cmath_fx::Vector<M, T>& h,
+        const cmath_fx::Matrix<M, N, T>& H,
+        const cmath_fx::Matrix<N, N, T>& P_pred,
+        const cmath_fx::Matrix<M, M, T>& R,
+        cmath_fx::Vector<M, T>& y,
+        cmath_fx::Matrix<M, M, T>& S,
+        cmath_fx::Matrix<M, M, T>& R_out
+    ) {
+        // Innovation: y = z - h
+        y = z - h;
+        
+        // S = H*P*H' + R
+        S = H * P_pred * H.transpose() + R;
+        
+        // 対称化
+        S = (S + S.transpose()) * T(0.5);
+        
+        R_out = R;
+    }
+
+    // 状態と共分散の更新 (Joseph form)
+    template <int N, int M, typename T>
+    static void update_state_covariance(
+        const cmath_fx::Vector<N, T>& x_pred,
+        const cmath_fx::Matrix<N, N, T>& P_pred,
+        const cmath_fx::Matrix<N, M, T>& K,
+        const cmath_fx::Matrix<M, N, T>& H,
+        const cmath_fx::Vector<M, T>& y,
+        const cmath_fx::Matrix<M, M, T>& R,
+        cmath_fx::Vector<N, T>& x_upd,
+        cmath_fx::Matrix<N, N, T>& P_upd
+    ) {
+        // x_upd = x_pred + K * y
+        x_upd = x_pred + K * y;
+        
+        // P_upd = (I - K*H) * P_pred * (I - K*H)' + K*R*K' (Joseph form)
+        auto I = cmath_fx::Matrix<N, N, T>::Identity();
+        auto I_KH = I - K * H;
+        P_upd = I_KH * P_pred * I_KH.transpose() + K * R * K.transpose();
+        
+        // 対称化
+        P_upd = (P_upd + P_upd.transpose()) * T(0.5);
+    }
+
     // 歪対称行列
     template <typename T>
     static cmath_fx::Matrix<3, 3, T> skew_symmetric(const cmath_fx::Vector<3, T>& v) {

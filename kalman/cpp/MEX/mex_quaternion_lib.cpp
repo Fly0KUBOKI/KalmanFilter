@@ -45,9 +45,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         
         plhs[0] = mxCreateDoubleMatrix(3, 3, mxREAL);
         double* R_out = mxGetPr(plhs[0]);
-        for (int i = 0; i < 9; ++i) {
-            R_out[i] = static_cast<double>(R[i]);
-        }
+        // C++はrow-major、MATLABはcolumn-major → 転置が必要
+        R_out[0] = R[0]; R_out[3] = R[1]; R_out[6] = R[2];
+        R_out[1] = R[3]; R_out[4] = R[4]; R_out[7] = R[5];
+        R_out[2] = R[6]; R_out[5] = R[7]; R_out[8] = R[8];
         
     } else if (strcmp(action, "to_euler") == 0) {
         // [roll, pitch, yaw] = to_euler(q)

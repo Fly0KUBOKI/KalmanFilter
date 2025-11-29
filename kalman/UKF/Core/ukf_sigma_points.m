@@ -23,8 +23,7 @@ function [sig, wm, wc] = ukf_sigma_points(x, P, alpha, beta, kappa)
 
     % 初回呼び出し時にMEXファイルの存在をチェック
     if isempty(use_mex)
-        % use_mex = exist('mex_ukf_sigma_points', 'file') == 3;
-        use_mex = false; % 強制的にMATLAB実装を使用
+        use_mex = exist('mex_ukf_sigma_points', 'file') == 3;
         if use_mex
             fprintf('[ukf_sigma_points] MEX acceleration enabled\n');
         end
@@ -41,29 +40,37 @@ function [sig, wm, wc] = ukf_sigma_points(x, P, alpha, beta, kappa)
         end
     end
     
-    % MATLAB実装
+    % MATLAB実装（フォールバック）
     n = length(x);
     lambda = alpha^2 * (n + kappa) - n;
-
+    
     % 重みの計算
-    wm = [lambda/(n+lambda); repmat(1/(2*(n+lambda)), 2*n, 1)];
-    wc = wm;
-    wc(1) = wc(1) + (1 - alpha^2 + beta);
-
-    % シグマポイントの生成
-    try
-        sqrtP = chol((n + lambda) * P, 'lower');
-    catch
-        % Cholesky分解が失敗した場合、正則化して再試行
-        [sqrtP, p] = chol((n + lambda) * (P + eye(n)*1e-9), 'lower');
-        if p ~= 0
-            warning('ukf_sigma_points: Covariance matrix is not positive definite, using eigenvalue decomposition');
-            [V, D] = eig(P);
-            D = max(D, 0);  % 負の固有値をゼロに
-            sqrtP = V * sqrt((n + lambda) * D);
-        end
+    wm = zeros(2*n + 1, 1);
+    wc = zeros(2*n + 1, 1);
+    
+    wm(1) = lambda / (n + lambda);
+    wc(1) = lambda / (n + lambda) + (1 - alpha^2 + beta);
+    
+    for i = 2:(2*n + 1)
+        wm(i) = 1 / (2 * (n + lambda));
+        wc(i) = wm(i);
     end
-
-    sig = [x, repmat(x, 1, n) + sqrtP, repmat(x, 1, n) - sqrtP];
+    
+    % シグマポイントの生成
+    sig = zeros(n, 2*n + 1);
+    sig(:, 1) = x;
+    
+    try
+        L = chol((n + lambda) * P, 'lower');
+    catch
+        % コレスキー分解失敗時はSVDを使用
+        [U, S, ~] = svd(P);
+        L = U * sqrt(S) * sqrt(n + lambda);
+    end
+    
+    for i = 1:n
+        sig(:, i+1) = x + L(:, i);
+        sig(:, i+1+n) = x - L(:, i);
+    end
 
 end
