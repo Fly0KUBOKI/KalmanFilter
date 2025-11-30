@@ -20,7 +20,7 @@ function [dtheta, P_upd, K, S, y] = meukf_update_attitude(P_sub, q_nom, z, h_fun
     %   S       - イノベーション共分散 (mxm)
     %   y       - イノベーション (mx1)
 
-    if nargin < 6, alpha = 0.1; end
+    if nargin < 6, alpha = 1e-3; end
     if nargin < 7, beta = 2; end
     if nargin < 8, kappa = 0; end
     
@@ -129,10 +129,15 @@ function [dtheta, P_upd, K, S, y] = meukf_update_attitude(P_sub, q_nom, z, h_fun
     % 姿勢誤差修正量
     dtheta = K * y;
     
-    % 共分散更新 (Joseph form)
-    % 観測行列の近似: Pxz ≈ P_sub * H'より H ≈ inv(P_sub) * Pxz (近似)
-    % 簡略化: I - K*H ≈ I - K*(Pxz'/P_sub) だが、数値的に不安定
-    % 代わりに安定な形: P_upd = P_sub - K*S*K' + K*R*K'
-    P_upd = P_sub - K * S * K' + K * R * K';
+    % 共分散更新 (標準形: P_upd = P_sub - K*S*K')
+    % Joseph形式の簡略版（安定性向上）
+    P_upd = P_sub - K * S * K';
+    
+    % 正定値化: 対称化 + 小ジッタ追加
     P_upd = (P_upd + P_upd') / 2;
+    min_eig_upd = min(eig(P_upd));
+    if min_eig_upd <= 0
+        P_upd = P_upd + eye(n) * (abs(min_eig_upd) + 1e-8);
+        P_upd = (P_upd + P_upd') / 2;
+    end
 end

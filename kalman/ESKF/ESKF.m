@@ -275,7 +275,7 @@ classdef ESKF < handle
             obj.adaptive_q_enabled = true;
             
             % MEUKF初期化
-            obj.use_meukf = false;  % MEUKFを有効化 (ZUPT + Adaptive Q + MEUKF)
+            obj.use_meukf = true;  % MEUKFを有効化 (ZUPT + Adaptive Q + MEUKF)
         end
         
         function update_filter(obj, obs, k)
@@ -1052,16 +1052,64 @@ classdef ESKF < handle
             obj.q = QuaternionLib.multiply(obj.q, dq);
             obj.q = QuaternionLib.normalize(obj.q);
             
-            % 共分散更新 (安定化)
+            % 共分散更新: MEUKFで得られた姿勢ブロック + フルクロス項の更新
             P_attitude_upd = (P_attitude_upd + P_attitude_upd') / 2;
-            % 上限適用
             max_var = (deg2rad(5))^2;
             for i = 1:3
                 if P_attitude_upd(i,i) > max_var
                     P_attitude_upd(i,i) = max_var;
                 end
             end
-            obj.P(7:9, 7:9) = P_attitude_upd;
+            
+            % フル状態のクロス共分散を更新（EKFブランチと同様のロジック）
+            % 観測に関連するインデックス: 姿勢(7:9)のみ（加速度は姿勢のみ観測）
+            idx_obs = 7:9;
+            
+            % 観測行列の近似（線形化: 加速度のx,y成分に対する姿勢の感度）
+            % H_sub ≈ MEUKFのPxzから逆算するか、EKFと同じ線形化を使用
+            Rb = QuaternionLib.to_rotation_matrix(obj.q);
+            g_body = Rb' * obj.g;
+            H_attitude = -RotationLib.skew_symmetric(g_body);
+            H_sub = H_attitude(1:2, :);  % x,y成分のみ
+            
+            % フル状態に対するカルマンゲイン（EKFと整合的に計算）
+            P_cross = obj.P(:, idx_obs);  % 15x3
+            try
+                % K_full = P_cross * H_sub' / S
+                U = chol(S);
+                tmp = P_cross * H_sub';  % 15x2
+                K_full = (U \ (U' \ tmp'))';  % 15x2
+            catch
+                try
+                    K_full = P_cross * (H_sub' / S);
+                catch
+                    % フォールバック: 姿勢ブロックのみ更新
+                    obj.P(idx_obs, idx_obs) = P_attitude_upd;
+                    obj.P = (obj.P + obj.P') / 2;
+                    % ノイズ推定更新
+                    y_full = zeros(3,1);
+                    y_full(1:2) = y;
+                    H_full = [zeros(3,6), eye(3), zeros(3,6)];
+                    obj.noiseEstimator.estimate('accel', y_full, H_full, obj.P);
+                    return;
+                end
+            end
+            
+            % ゲインクリッピング
+            K_full = obj.divergence_guard.clamp_gain(K_full);
+            
+            % Joseph形式でフル共分散を更新
+            I_KH_block = eye(length(idx_obs)) - K_full(idx_obs,:) * H_sub;
+            obj.P(idx_obs, idx_obs) = I_KH_block * P_attitude_upd * I_KH_block' + K_full(idx_obs,:) * R * K_full(idx_obs,:)';
+            
+            % クロス項更新
+            for i = 1:15
+                if ~ismember(i, idx_obs)
+                    obj.P(i, idx_obs) = obj.P(i, idx_obs) - K_full(i,:) * (H_sub * obj.P(idx_obs, idx_obs));
+                    obj.P(idx_obs, i) = obj.P(i, idx_obs)';
+                end
+            end
+            
             obj.P = (obj.P + obj.P') / 2;
             
             % ノイズ推定更新
@@ -1139,15 +1187,69 @@ classdef ESKF < handle
             obj.q = QuaternionLib.multiply(obj.q, dq);
             obj.q = QuaternionLib.normalize(obj.q);
             
-            % 共分散更新 (安定化)
+            % 共分散更新: MEUKFで得られた姿勢ブロック + フルクロス項の更新
             P_attitude_upd = (P_attitude_upd + P_attitude_upd') / 2;
-            max_var = (deg2rad(8))^2;  % 磁気計は少し緩め
+            max_var = (deg2rad(8))^2;
             for i = 1:3
                 if P_attitude_upd(i,i) > max_var
                     P_attitude_upd(i,i) = max_var;
                 end
             end
-            obj.P(7:9, 7:9) = P_attitude_upd;
+            
+            % フル状態のクロス共分散を更新（EKFブランチと同様）
+            idx_obs = 7:9;
+            
+            % 観測行列（磁気計は全3軸）
+            Rb = QuaternionLib.to_rotation_matrix(obj.q);
+            h_mag = Rb' * m_world;
+            h_mag_norm = norm(h_mag);
+            if h_mag_norm > 1e-6
+                h_mag = h_mag / h_mag_norm;
+            end
+            H_sub = RotationLib.skew_symmetric(h_mag);  % 3x3
+            
+            % フル状態に対するカルマンゲイン
+            P_cross = obj.P(:, idx_obs);  % 15x3
+            try
+                U = chol(S);
+                tmp = P_cross * H_sub';  % 15x3
+                K_full = (U \ (U' \ tmp'))';  % 15x3
+            catch
+                try
+                    K_full = P_cross * (H_sub' / S);
+                catch
+                    % フォールバック
+                    obj.P(idx_obs, idx_obs) = P_attitude_upd;
+                    obj.P = (obj.P + obj.P') / 2;
+                    H = [zeros(3,6), eye(3), zeros(3,6)];
+                    obj.noiseEstimator.estimate('mag', y, H, obj.P);
+                    return;
+                end
+            end
+            
+            % ゲインクリッピング
+            K_full = obj.divergence_guard.clamp_gain(K_full);
+            
+            % MAG専用ゲイン制限
+            if isfield(obj.divergence_guard.config, 'max_mag_gain_element')
+                max_gain = obj.divergence_guard.config.max_mag_gain_element;
+                if size(K_full,1) >= 9
+                    K_full(7:9,:) = max(min(K_full(7:9,:), max_gain), -max_gain);
+                end
+            end
+            
+            % Joseph形式でフル共分散を更新
+            I_KH_block = eye(length(idx_obs)) - K_full(idx_obs,:) * H_sub;
+            obj.P(idx_obs, idx_obs) = I_KH_block * P_attitude_upd * I_KH_block' + K_full(idx_obs,:) * R_est * K_full(idx_obs,:)';
+            
+            % クロス項更新
+            for i = 1:15
+                if ~ismember(i, idx_obs)
+                    obj.P(i, idx_obs) = obj.P(i, idx_obs) - K_full(i,:) * (H_sub * obj.P(idx_obs, idx_obs));
+                    obj.P(idx_obs, i) = obj.P(i, idx_obs)';
+                end
+            end
+            
             obj.P = (obj.P + obj.P') / 2;
             
             % ノイズ推定更新

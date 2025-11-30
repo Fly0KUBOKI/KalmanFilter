@@ -26,7 +26,7 @@ function params = config_params()
     params.noise.enable.gps = true;
     params.noise.enable.outlier = true;
     params.noise.enable.pink = true;
-    params.noise.enable.allan = true;
+    params.noise.enable.allan = false;
     
     % ベースノイズレベル (フラグがtrueの場合のみ適用)
     params.noise.base = struct();
