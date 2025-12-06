@@ -32,8 +32,8 @@ function [pos_world, vel_world, attitude] = generate_random_walk(params, t, N)
     v_forward = params.initial.velocity(1);
     yaw = 0;
 
-    % ランダムシード設定（再現性）
-    rng(42);
+    % ランダムシード設定（再現性）- すでにrun_simulationで設定済み
+    % rng(42)を削除し、run_simulationからの継承を使用
 
     % --- 単振動でロール・ピッチを生成（ソフトスタート対応） ---
     if isfield(params.motion, 'oscillation')

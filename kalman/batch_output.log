@@ -1,0 +1,521 @@
+
+========================================
+=== Run 1/5 ===
+========================================
+Motion step 10000 / 80001
+Motion step 20000 / 80001
+Motion step 30000 / 80001
+Motion step 40000 / 80001
+Motion step 50000 / 80001
+Motion step 60000 / 80001
+Motion step 70000 / 80001
+Motion step 80000 / 80001
+Sensor step 10000 / 80001
+Sensor step 20000 / 80001
+Sensor step 30000 / 80001
+Sensor step 40000 / 80001
+Sensor step 50000 / 80001
+Sensor step 60000 / 80001
+Sensor step 70000 / 80001
+Sensor step 80000 / 80001
+sim_generate: wrote C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\truth_data.csv and C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\sensor_data.csv (80001 samples)
+初期化期間: 5.0秒 (2000 サンプル)
+Start loop
+Step 1000 / 80001
+Step 2000 / 80001
+[eskf_core_mex] MEX not found, using MATLAB fallback
+[kalman_filter_core] Using MATLAB implementation (MEX disabled)
+[GPS Update Debug] dx(10:15) = [-0.000002, 0.000002, 0.000001, -0.000000, -0.000000, 0.000000]
+Step 3000 / 80001
+Step 4000 / 80001
+Step 5000 / 80001
+Step 6000 / 80001
+Step 7000 / 80001
+Step 8000 / 80001
+Step 9000 / 80001
+Step 10000 / 80001
+Step 11000 / 80001
+Step 12000 / 80001
+Step 13000 / 80001
+Step 14000 / 80001
+Step 15000 / 80001
+Step 16000 / 80001
+Step 17000 / 80001
+Step 18000 / 80001
+Step 19000 / 80001
+Step 20000 / 80001
+Step 21000 / 80001
+Step 22000 / 80001
+Step 23000 / 80001
+Step 24000 / 80001
+Step 25000 / 80001
+Step 26000 / 80001
+Step 27000 / 80001
+Step 28000 / 80001
+Step 29000 / 80001
+Step 30000 / 80001
+Step 31000 / 80001
+Step 32000 / 80001
+Step 33000 / 80001
+Step 34000 / 80001
+Step 35000 / 80001
+Step 36000 / 80001
+Step 37000 / 80001
+Step 38000 / 80001
+Step 39000 / 80001
+Step 40000 / 80001
+Step 41000 / 80001
+Step 42000 / 80001
+Step 43000 / 80001
+Step 44000 / 80001
+Step 45000 / 80001
+Step 46000 / 80001
+Step 47000 / 80001
+Step 48000 / 80001
+Step 49000 / 80001
+Step 50000 / 80001
+Step 51000 / 80001
+Step 52000 / 80001
+Step 53000 / 80001
+Step 54000 / 80001
+Step 55000 / 80001
+Step 56000 / 80001
+Step 57000 / 80001
+Step 58000 / 80001
+Step 59000 / 80001
+Step 60000 / 80001
+Step 61000 / 80001
+Step 62000 / 80001
+Step 63000 / 80001
+Step 64000 / 80001
+Step 65000 / 80001
+Step 66000 / 80001
+Step 67000 / 80001
+Step 68000 / 80001
+Step 69000 / 80001
+Step 70000 / 80001
+Step 71000 / 80001
+Step 72000 / 80001
+Step 73000 / 80001
+Step 74000 / 80001
+Step 75000 / 80001
+Step 76000 / 80001
+Step 77000 / 80001
+Step 78000 / 80001
+Step 79000 / 80001
+Step 80000 / 80001
+
+=== 計算時間プロファイル ===
+predict:      13.505 s (168.81 us/call)
+update_accel: 7.199 s (184.59 us/call, 39000 calls)
+update_mag:   3.231 s (165.70 us/call, 19500 calls)
+update_baro:  0.386 s (39.62 us/call, 9750 calls)
+update_gps:   1.743 s (223.47 us/call, 7800 calls)
+Total:        26.065 s
+================================
+
+推定完了
+Run 1 Summary:
+  Position RMSE: 2.3757 m
+  Roll/Pitch/Yaw RMSE: 0.5409 / 0.3393 / 1.0601 deg
+  Gyro bias (final): [0.2208, 0.2642, -0.1763] deg/s
+  Status: SUCCESS
+
+========================================
+=== Run 2/5 ===
+========================================
+Motion step 10000 / 80001
+Motion step 20000 / 80001
+Motion step 30000 / 80001
+Motion step 40000 / 80001
+Motion step 50000 / 80001
+Motion step 60000 / 80001
+Motion step 70000 / 80001
+Motion step 80000 / 80001
+Sensor step 10000 / 80001
+Sensor step 20000 / 80001
+Sensor step 30000 / 80001
+Sensor step 40000 / 80001
+Sensor step 50000 / 80001
+Sensor step 60000 / 80001
+Sensor step 70000 / 80001
+Sensor step 80000 / 80001
+sim_generate: wrote C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\truth_data.csv and C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\sensor_data.csv (80001 samples)
+初期化期間: 5.0秒 (2000 サンプル)
+Start loop
+Step 1000 / 80001
+Step 2000 / 80001
+Step 3000 / 80001
+Step 4000 / 80001
+Step 5000 / 80001
+Step 6000 / 80001
+Step 7000 / 80001
+Step 8000 / 80001
+Step 9000 / 80001
+Step 10000 / 80001
+Step 11000 / 80001
+Step 12000 / 80001
+Step 13000 / 80001
+Step 14000 / 80001
+Step 15000 / 80001
+Step 16000 / 80001
+Step 17000 / 80001
+Step 18000 / 80001
+Step 19000 / 80001
+Step 20000 / 80001
+Step 21000 / 80001
+Step 22000 / 80001
+Step 23000 / 80001
+Step 24000 / 80001
+Step 25000 / 80001
+Step 26000 / 80001
+Step 27000 / 80001
+Step 28000 / 80001
+Step 29000 / 80001
+Step 30000 / 80001
+Step 31000 / 80001
+Step 32000 / 80001
+Step 33000 / 80001
+Step 34000 / 80001
+Step 35000 / 80001
+Step 36000 / 80001
+Step 37000 / 80001
+Step 38000 / 80001
+Step 39000 / 80001
+Step 40000 / 80001
+Step 41000 / 80001
+Step 42000 / 80001
+Step 43000 / 80001
+Step 44000 / 80001
+Step 45000 / 80001
+Step 46000 / 80001
+Step 47000 / 80001
+Step 48000 / 80001
+Step 49000 / 80001
+Step 50000 / 80001
+Step 51000 / 80001
+Step 52000 / 80001
+Step 53000 / 80001
+Step 54000 / 80001
+Step 55000 / 80001
+Step 56000 / 80001
+Step 57000 / 80001
+Step 58000 / 80001
+Step 59000 / 80001
+Step 60000 / 80001
+Step 61000 / 80001
+Step 62000 / 80001
+Step 63000 / 80001
+Step 64000 / 80001
+Step 65000 / 80001
+Step 66000 / 80001
+Step 67000 / 80001
+Step 68000 / 80001
+Step 69000 / 80001
+Step 70000 / 80001
+Step 71000 / 80001
+Step 72000 / 80001
+Step 73000 / 80001
+Step 74000 / 80001
+Step 75000 / 80001
+Step 76000 / 80001
+Step 77000 / 80001
+Step 78000 / 80001
+Step 79000 / 80001
+Step 80000 / 80001
+
+=== 計算時間プロファイル ===
+predict:      13.675 s (170.94 us/call)
+update_accel: 7.214 s (184.98 us/call, 39000 calls)
+update_mag:   3.195 s (163.85 us/call, 19500 calls)
+update_baro:  0.326 s (33.45 us/call, 9750 calls)
+update_gps:   1.749 s (224.17 us/call, 7800 calls)
+Total:        26.159 s
+================================
+
+推定完了
+Run 2 Summary:
+  Position RMSE: 1.3736 m
+  Roll/Pitch/Yaw RMSE: 0.7034 / 0.7909 / 1.0517 deg
+  Gyro bias (final): [-1.2118, -1.6090, 0.0516] deg/s
+  Status: SUCCESS
+
+========================================
+=== Run 3/5 ===
+========================================
+Motion step 10000 / 80001
+Motion step 20000 / 80001
+Motion step 30000 / 80001
+Motion step 40000 / 80001
+Motion step 50000 / 80001
+Motion step 60000 / 80001
+Motion step 70000 / 80001
+Motion step 80000 / 80001
+Sensor step 10000 / 80001
+Sensor step 20000 / 80001
+Sensor step 30000 / 80001
+Sensor step 40000 / 80001
+Sensor step 50000 / 80001
+Sensor step 60000 / 80001
+Sensor step 70000 / 80001
+Sensor step 80000 / 80001
+sim_generate: wrote C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\truth_data.csv and C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\sensor_data.csv (80001 samples)
+初期化期間: 5.0秒 (2000 サンプル)
+Start loop
+Step 1000 / 80001
+Step 2000 / 80001
+Step 3000 / 80001
+Step 4000 / 80001
+Step 5000 / 80001
+Step 6000 / 80001
+Step 7000 / 80001
+Step 8000 / 80001
+Step 9000 / 80001
+Step 10000 / 80001
+Step 11000 / 80001
+Step 12000 / 80001
+Step 13000 / 80001
+Step 14000 / 80001
+Step 15000 / 80001
+Step 16000 / 80001
+Step 17000 / 80001
+Step 18000 / 80001
+Step 19000 / 80001
+Step 20000 / 80001
+Step 21000 / 80001
+Step 22000 / 80001
+Step 23000 / 80001
+Step 24000 / 80001
+Step 25000 / 80001
+Step 26000 / 80001
+Step 27000 / 80001
+Step 28000 / 80001
+Step 29000 / 80001
+Step 30000 / 80001
+Step 31000 / 80001
+Step 32000 / 80001
+Step 33000 / 80001
+Step 34000 / 80001
+Step 35000 / 80001
+Step 36000 / 80001
+Step 37000 / 80001
+Step 38000 / 80001
+Step 39000 / 80001
+Step 40000 / 80001
+Step 41000 / 80001
+Step 42000 / 80001
+Step 43000 / 80001
+Step 44000 / 80001
+Step 45000 / 80001
+Step 46000 / 80001
+Step 47000 / 80001
+Step 48000 / 80001
+Step 49000 / 80001
+Step 50000 / 80001
+Step 51000 / 80001
+Step 52000 / 80001
+Step 53000 / 80001
+Step 54000 / 80001
+Step 55000 / 80001
+Step 56000 / 80001
+Step 57000 / 80001
+Step 58000 / 80001
+Step 59000 / 80001
+Step 60000 / 80001
+Step 61000 / 80001
+Step 62000 / 80001
+Step 63000 / 80001
+Step 64000 / 80001
+Step 65000 / 80001
+Step 66000 / 80001
+Step 67000 / 80001
+Step 68000 / 80001
+Step 69000 / 80001
+Step 70000 / 80001
+Step 71000 / 80001
+Step 72000 / 80001
+Step 73000 / 80001
+Step 74000 / 80001
+Step 75000 / 80001
+Step 76000 / 80001
+Step 77000 / 80001
+Step 78000 / 80001
+Step 79000 / 80001
+Step 80000 / 80001
+
+=== 計算時間プロファイル ===
+predict:      13.608 s (170.09 us/call)
+update_accel: 7.185 s (184.24 us/call, 39000 calls)
+update_mag:   3.208 s (164.53 us/call, 19500 calls)
+update_baro:  0.332 s (34.03 us/call, 9750 calls)
+update_gps:   1.735 s (222.47 us/call, 7800 calls)
+Total:        26.069 s
+================================
+
+推定完了
+Run 3 Summary:
+  Position RMSE: 2.6109 m
+  Roll/Pitch/Yaw RMSE: 0.3073 / 0.7507 / 1.0472 deg
+  Gyro bias (final): [1.4143, -0.5174, -0.7687] deg/s
+  Status: SUCCESS
+
+========================================
+=== Run 4/5 ===
+========================================
+Motion step 10000 / 80001
+Motion step 20000 / 80001
+Motion step 30000 / 80001
+Motion step 40000 / 80001
+Motion step 50000 / 80001
+Motion step 60000 / 80001
+Motion step 70000 / 80001
+Motion step 80000 / 80001
+Sensor step 10000 / 80001
+Sensor step 20000 / 80001
+Sensor step 30000 / 80001
+Sensor step 40000 / 80001
+Sensor step 50000 / 80001
+Sensor step 60000 / 80001
+Sensor step 70000 / 80001
+Sensor step 80000 / 80001
+sim_generate: wrote C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\truth_data.csv and C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\sensor_data.csv (80001 samples)
+初期化期間: 5.0秒 (2000 サンプル)
+Start loop
+Step 1000 / 80001
+Step 2000 / 80001
+Run 4 FAILED: エラー: イノベーションが継続的に大きいです (avg=2.00, t=5.88s)
+
+========================================
+=== Run 5/5 ===
+========================================
+Motion step 10000 / 80001
+Motion step 20000 / 80001
+Motion step 30000 / 80001
+Motion step 40000 / 80001
+Motion step 50000 / 80001
+Motion step 60000 / 80001
+Motion step 70000 / 80001
+Motion step 80000 / 80001
+Sensor step 10000 / 80001
+Sensor step 20000 / 80001
+Sensor step 30000 / 80001
+Sensor step 40000 / 80001
+Sensor step 50000 / 80001
+Sensor step 60000 / 80001
+Sensor step 70000 / 80001
+Sensor step 80000 / 80001
+sim_generate: wrote C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\truth_data.csv and C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\sensor_data.csv (80001 samples)
+初期化期間: 5.0秒 (2000 サンプル)
+Start loop
+Step 1000 / 80001
+Step 2000 / 80001
+Step 3000 / 80001
+Step 4000 / 80001
+Step 5000 / 80001
+Step 6000 / 80001
+Step 7000 / 80001
+Step 8000 / 80001
+Step 9000 / 80001
+Step 10000 / 80001
+Step 11000 / 80001
+Step 12000 / 80001
+Step 13000 / 80001
+Step 14000 / 80001
+Step 15000 / 80001
+Step 16000 / 80001
+Step 17000 / 80001
+Step 18000 / 80001
+Step 19000 / 80001
+Step 20000 / 80001
+Step 21000 / 80001
+Step 22000 / 80001
+Step 23000 / 80001
+Step 24000 / 80001
+Step 25000 / 80001
+Step 26000 / 80001
+Step 27000 / 80001
+Step 28000 / 80001
+Step 29000 / 80001
+Step 30000 / 80001
+Step 31000 / 80001
+Step 32000 / 80001
+Step 33000 / 80001
+Step 34000 / 80001
+Step 35000 / 80001
+Step 36000 / 80001
+Step 37000 / 80001
+Step 38000 / 80001
+Step 39000 / 80001
+Step 40000 / 80001
+Step 41000 / 80001
+Step 42000 / 80001
+Step 43000 / 80001
+Step 44000 / 80001
+Step 45000 / 80001
+Step 46000 / 80001
+Step 47000 / 80001
+Step 48000 / 80001
+Step 49000 / 80001
+Step 50000 / 80001
+Step 51000 / 80001
+Step 52000 / 80001
+Step 53000 / 80001
+Step 54000 / 80001
+Step 55000 / 80001
+Step 56000 / 80001
+Step 57000 / 80001
+Step 58000 / 80001
+Step 59000 / 80001
+Step 60000 / 80001
+Step 61000 / 80001
+Step 62000 / 80001
+Step 63000 / 80001
+Step 64000 / 80001
+Step 65000 / 80001
+Step 66000 / 80001
+Step 67000 / 80001
+Step 68000 / 80001
+Step 69000 / 80001
+Step 70000 / 80001
+Step 71000 / 80001
+Step 72000 / 80001
+Step 73000 / 80001
+Step 74000 / 80001
+Step 75000 / 80001
+Step 76000 / 80001
+Step 77000 / 80001
+Step 78000 / 80001
+Step 79000 / 80001
+Step 80000 / 80001
+
+=== 計算時間プロファイル ===
+predict:      13.460 s (168.25 us/call)
+update_accel: 7.125 s (182.69 us/call, 39000 calls)
+update_mag:   3.154 s (161.75 us/call, 19500 calls)
+update_baro:  0.323 s (33.10 us/call, 9750 calls)
+update_gps:   1.706 s (218.77 us/call, 7800 calls)
+Total:        25.768 s
+================================
+
+推定完了
+Run 5 Summary:
+  Position RMSE: 2.3518 m
+  Roll/Pitch/Yaw RMSE: 0.9288 / 0.8471 / 1.1437 deg
+  Gyro bias (final): [-1.0807, 2.3680, 0.0403] deg/s
+  Status: SUCCESS
+
+========================================
+=== Summary of All Runs ===
+========================================
+Position RMSE: Mean=NaN, Std=NaN, Max=2.6109 m
+Roll RMSE: Mean=0.6201, Std=0.2623, Max=0.9288 deg
+Pitch RMSE: Mean=0.6820, Std=0.2319, Max=0.8471 deg
+Yaw RMSE: Mean=1.0757, Std=0.0457, Max=1.1437 deg
+Run 1: FAILED
+Run 2: FAILED
+Run 3: FAILED
+Run 4: FAILED
+Run 5: FAILED
+
+=== OVERALL: SOME RUNS FAILED ===
+Results saved to Results/batch_results.mat

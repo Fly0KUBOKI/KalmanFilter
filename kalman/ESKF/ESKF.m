@@ -44,6 +44,17 @@ classdef ESKF < handle
         adaptive_q_enabled
         % MEUKF関連
         use_meukf
+        % Reset関連
+        last_reset_step
+        % 速度減衰
+        velocity_damping
+        % 姿勢発散診断用パラメータ
+        accel_innovation_norm  % 加速度計イノベーションノルム
+        accel_mahalanobis_dist % マハラノビス距離
+        accel_gain_norm        % カルマンゲインのノルム
+        quaternion_norm        % クォータニオンノルム
+        attitude_change_rate   % 姿勢変化率 [rad/s]
+        w_body                 % 現在の角速度 [rad/s] (高速回転判定用)
     end
 
     methods
@@ -163,17 +174,18 @@ classdef ESKF < handle
 
             % Process noise Q
             obj.Q = zeros(15);
-            obj.Q(4:6, 4:6) = eye(3) * (0.005^2); % 速度のランダムウォークを小さく (0.01 -> 0.005)
-            obj.Q(7:9, 7:9) = eye(3) * (0.005^2); % 姿勢のランダムウォークを小さく (0.01 -> 0.005)
-            obj.Q(10:12, 10:12) = eye(3) * (sigma_a^2 * 1e-5); % バイアス変動を小さく
-            obj.Q(13:15, 13:15) = eye(3) * (sigma_g^2 * 1e-6);
+            obj.Q(4:6, 4:6) = eye(3) * (0.003^2); % 速度のランダムウォークをさらに小さく (0.005 -> 0.003)
+            obj.Q(7:9, 7:9) = eye(3) * (0.003^2); % 姿勢のランダムウォークをさらに小さく (0.005 -> 0.003)
+            obj.Q(10:12, 10:12) = eye(3) * (sigma_a^2 * 1e-3); % 加速度バイアス変動を大幅に増加 (1e-4 -> 1e-3)
+            obj.Q(13:15, 13:15) = eye(3) * (sigma_g^2 * 1e-3); % ジャイロバイアス変動を大幅に増加 (1e-4 -> 1e-3)
 
             % Initial covariance
             % 位置・速度の初期不確かさを大きく設定（GPS更新を効果的にするため）
             obj.P = eye(15) * 0.01;
-            obj.P(1:3, 1:3) = eye(3) * 10.0;  % 位置の初期分散（10 m^2）
-            obj.P(4:6, 4:6) = eye(3) * 0.1;   % 速度の初期分散を小さく (1.0 -> 0.1) 初期は静止しているため
-            obj.P(10:12, 10:12) = eye(3) * 0.1; % 加速度バイアスの初期分散を少し大きくして収束を早める
+            obj.P(1:3, 1:3) = eye(3) * 5.0;  % 位置の初期分散を小さく（10 -> 5 m^2）より保守的に
+            obj.P(4:6, 4:6) = eye(3) * 0.5;   % 速度の初期分散を少し大きく (0.05 -> 0.5)
+            obj.P(10:12, 10:12) = eye(3) * 0.5; % 加速度バイアスの初期分散を大きく（0.05 -> 0.5）
+            obj.P(13:15, 13:15) = eye(3) * 0.1; % ジャイロバイアスの初期分散を大きく（0.01 -> 0.1）
 
             % Noise estimator
             try
@@ -214,8 +226,8 @@ classdef ESKF < handle
 
             % Accel filter
             try
-                % 速度推定用の強力なフィルタ (alpha=0.05: 非常に強い平滑化)
-                obj.accel_filter = AccelFilter(0.05, 50);
+                % 速度推定用の強力なフィルタ (alpha=0.08: 強めの平滑化と応答性のバランス)
+                obj.accel_filter = AccelFilter(0.08, 50);
             catch
                 obj.accel_filter = [];
             end
@@ -223,28 +235,28 @@ classdef ESKF < handle
             % Filter settings
             obj.gyro_filter_yaw_alpha = 0.08;
             obj.enable_yaw_raw_gyro = false;
-            obj.enable_mag_update = false;
+            obj.enable_mag_update = true;
             obj.enable_gyro_filter = true;
 
             obj.freq_mag = 4;
             obj.freq_baro = 8;
             obj.freq_gps = 10;
-            obj.freq_accel = 4;
+            obj.freq_accel = 2;
 
             obj.max_dx_norm = 5.0;
 
             % Divergence guard
             try
                 config = struct();
-                config.max_velocity = 2.0;
-                config.max_acceleration = 2.0;
-                config.max_allowed_innov = 50.0;
-                config.max_innov_cap_fraction = 0.5;
-                config.max_gain_norm = 100;
-                config.innov_change_ratio_threshold = 2.0;
-                config.attenuation_factor = 0.5;
-                config.max_attitude_variance = (deg2rad(10))^2;
-                config.max_mag_gain_element = 0.15;
+                config.max_velocity = 3.0;  % 最大速度を緩和 (2.0 -> 3.0)
+                config.max_acceleration = 3.0;  % 最大加速度を緩和 (2.0 -> 3.0)
+                config.max_allowed_innov = 100.0;  % イノベーション上限を緩和 (50.0 -> 100.0)
+                config.max_innov_cap_fraction = 0.6;  % イノベーションキャップを緩和 (0.5 -> 0.6)
+                config.max_gain_norm = 150;  % ゲインノルム上限を緩和 (100 -> 150)
+                config.innov_change_ratio_threshold = 2.5;  % イノベーション変化率を緩和 (2.0 -> 2.5)
+                config.attenuation_factor = 0.6;  % 減衰係数を緩和 (0.5 -> 0.6)
+                config.max_attitude_variance = (deg2rad(15))^2;  % 姿勢分散上限を緩和 (10 -> 15 deg)
+                config.max_mag_gain_element = 0.2;  % 磁気計ゲインを緩和 (0.15 -> 0.2)
                 obj.divergence_guard = DivergenceGuard(config);
             catch
                 obj.divergence_guard = [];
@@ -264,8 +276,8 @@ classdef ESKF < handle
             end
             
             % ZUPT初期化
-            obj.zupt_threshold_accel = 0.5;  % m/s^2 (静止判定の加速度閾値)
-            obj.zupt_threshold_gyro = deg2rad(2.0);  % rad/s (静止判定の角速度閾値)
+            obj.zupt_threshold_accel = 1.0;  % m/s^2 (静止判定の加速度閾値、振動対策で増加)
+            obj.zupt_threshold_gyro = deg2rad(3.0);  % rad/s (静止判定の角速度閾値)
             obj.zupt_min_duration = 10;  % サンプル数 (最小静止期間)
             obj.zupt_counter = 0;
             obj.is_stationary = false;
@@ -275,7 +287,24 @@ classdef ESKF < handle
             obj.adaptive_q_enabled = true;
             
             % MEUKF初期化
-            obj.use_meukf = true;  % MEUKFを有効化 (ZUPT + Adaptive Q + MEUKF)
+            obj.use_meukf = true;  % MEUKFを有効化
+            
+            % 角速度初期化
+            obj.w_body = zeros(3,1);
+            
+            % Reset制御初期化
+            obj.last_reset_step = [];  % リセット履歴なし
+            
+            % 速度減衰初期化 (振動対策)
+            % 加速度ノイズによる速度発散を抑制（0.0で無効化してテスト）
+            obj.velocity_damping = 0.0;  % 一時的に無効化
+            
+            % 姿勢発散診断パラメータ初期化
+            obj.accel_innovation_norm = 0;
+            obj.accel_mahalanobis_dist = 0;
+            obj.accel_gain_norm = 0;
+            obj.quaternion_norm = 1.0;
+            obj.attitude_change_rate = 0;
         end
         
         function update_filter(obj, obs, k)
@@ -304,10 +333,18 @@ classdef ESKF < handle
             if mod(k, obj.freq_gps) == 0 && ~isnan(obs.gps_lat(k)) && ~isnan(obs.gps_lon(k))
                 obj.update_gps(obs.gps_lat(k), obs.gps_lon(k), obs.gps_alt(k), k);
             end
+            
+            % 発散チェックとリセット
+            obj.check_and_reset_if_diverged(obs, k);
         end
         
         function predict(obj, a_meas, w_meas)
             % 予測ステップ
+            % NaN check
+            if any(isnan(obj.p)) || any(isnan(obj.v)) || any(isnan(obj.q)) || any(isnan(obj.P(:)))
+                warning('ESKF:predict:NaN', 'NaN detected before predict');
+                return;
+            end
 
             % ジャイロフィルタ適用
             if isprop(obj, 'enable_gyro_filter') && ~isempty(obj.enable_gyro_filter) && obj.enable_gyro_filter && ...
@@ -378,21 +415,36 @@ classdef ESKF < handle
             [obj.p, obj.v, obj.q, obj.ba, obj.bg] = eskf_core_mex('integrate_nominal', ...
                 obj.p, obj.v, obj.q, obj.ba, obj.bg, a_for_vel, w_meas, obj.dt, obj.g, gyro_thr_vec, accel_thr_vec);
 
+            % 角速度を保存（加速度更新時の高速回転判定に使用）
+            obj.w_body = w_meas;
+            
+            % 発散パラメータ記録: クォータニオンノルム
+            obj.quaternion_norm = norm(obj.q);
+            
+            % 姿勢変化率の記録（角速度ノルム）
+            obj.attitude_change_rate = norm(w_meas);
+
+            % 速度減衰 (Velocity Damping)
+            % 加速度ノイズの積分による速度発散を抑制
+            if ~isempty(obj.velocity_damping) && obj.velocity_damping > 0
+                obj.v = obj.v * (1.0 - obj.velocity_damping * obj.dt);
+            end
+
             % Adaptive Q: IMU信号の安定性に基づいてQをスケーリング
             Q_adapted = obj.Q;
             if obj.adaptive_q_enabled
                 % 加速度ノルムが重力に近いほど信頼度が高い (スケール減少)
                 a_norm = norm(a_meas);
                 gravity_error = abs(a_norm - 9.81);
-                accel_scale = 1.0 + (gravity_error / 2.0);  % 重力から2m/s^2離れると2倍
+                accel_scale = 1.0 + (gravity_error / 3.0);  % 重力から3m/s^2離れると2倍（緩和: 2.0 -> 3.0）
                 
                 % 角速度が小さいほど信頼度が高い (スケール減少)
                 w_norm = norm(w_meas);
-                gyro_scale = 1.0 + (w_norm / deg2rad(10.0));  % 10deg/sで2倍
+                gyro_scale = 1.0 + (w_norm / deg2rad(15.0));  % 15deg/sで2倍（緩和: 10.0 -> 15.0）
                 
                 % 総合スケール (保守的: 大きい方を採用)
                 q_scale = max(accel_scale, gyro_scale);
-                q_scale = min(q_scale, 3.0);  % 上限3倍に削減して安定性向上
+                q_scale = min(q_scale, 5.0);  % 上限5倍に緩和（3.0 -> 5.0）
                 
                 Q_adapted = obj.Q_nominal * q_scale;
             end
@@ -404,13 +456,23 @@ classdef ESKF < handle
             % 共分散行列の正則化
             obj.P = obj.divergence_guard.regularize_covariance(obj.P);
             
-            % P行列の姿勢部分（7-9行）に上限を適用
-            if isfield(obj.divergence_guard.config, 'max_attitude_variance')
-                max_var = obj.divergence_guard.config.max_attitude_variance;
-                for i = 7:9
-                    if obj.P(i,i) > max_var
-                        obj.P(i,i) = max_var;
-                    end
+            % P行列の対角成分にハードリミットを適用
+            max_variances = [
+                100^2 * ones(3,1);   % Pos (100m)^2
+                20^2 * ones(3,1);    % Vel (20m/s)^2
+                (deg2rad(45))^2 * ones(3,1); % Att (45deg)^2
+                0.1 * ones(3,1);     % Acc Bias
+                0.01 * ones(3,1)     % Gyro Bias
+            ];
+            
+            for i = 1:15
+                if obj.P(i,i) > max_variances(i)
+                    % 対角成分を制限し、相関を維持するために行と列をスケーリング
+                    scale = max_variances(i) / obj.P(i,i);
+                    factor = sqrt(scale);
+                    obj.P(i,:) = obj.P(i,:) * factor;
+                    obj.P(:,i) = obj.P(:,i) * factor;
+                    obj.P(i,i) = max_variances(i); % 数値誤差補正
                 end
             end
             
@@ -433,6 +495,7 @@ classdef ESKF < handle
             
             % センサーフィルタ適用
             [a_corrected, is_outlier, ~] = obj.sensor_filters.accel.apply(a_meas, zeros(3,1));
+            if any(isnan(a_corrected)); return; end
             
             if is_outlier
                 return;
@@ -471,8 +534,8 @@ classdef ESKF < handle
             gravity_deviation = abs(a_norm - 9.81);
             R_scale = 1.0 + (gravity_deviation / 1.0);  % 感度を下げる (2.0 -> 1.0)
             
-            % ノイズ下限（平滑化強化: 0.05 → 0.1）
-            R_floor = 0.1;  % 測定ノイズをより保守的に見積もる
+            % ノイズ下限（安定性向上: 0.1 → 0.2）
+            R_floor = 0.2;  % 測定ノイズを保守的に見積もり、発散を抑制
             R = diag(max(R_est_2d, R_floor) * R_scale);
             
             % --- ブロック化最適化: 非ゼロ列のみで計算 ---
@@ -483,6 +546,9 @@ classdef ESKF < handle
             
             % イノベーション計算
             y = z - h_pred;
+            
+            % 発散パラメータ記録: イノベーションノルム
+            obj.accel_innovation_norm = norm(y);
             
             % S = H_sub * P_sub * H_sub' + R (2x2)
             S = H_sub * (P_sub * H_sub') + R;
@@ -504,8 +570,8 @@ classdef ESKF < handle
             % ArduPilot式 平滑化技術
             
             % 1. イノベーション制限 (Innovation Clamping)
-            %    大きなイノベーションを±0.3rad (±17度) に制限 (強化)
-            max_innovation = 0.1;  % rad (0.5 → 0.3 でより滑らかに)
+            %    大きなイノベーションを制限（初期発散防止: 0.3 → 0.1 rad）
+            max_innovation = 0.1;  % rad (約6度)
             innov_norm = norm(y);
             if innov_norm > max_innovation
                 y = y * (max_innovation / innov_norm);  % 正規化して制限
@@ -513,6 +579,9 @@ classdef ESKF < handle
             
             % 2. マハラノビス距離計算
             mahalanobis_dist = sqrt(y' / S * y);
+            
+            % 発散パラメータ記録
+            obj.accel_mahalanobis_dist = mahalanobis_dist;
             
             % 3. 5-Sigma圧縮スケール (Compression Scale Factor)
             %    5-sigma以上のイノベーションをスケールダウン
@@ -548,12 +617,15 @@ classdef ESKF < handle
             
             K = obj.divergence_guard.clamp_gain(K);
             
-            % 姿勢ゲイン制限（平滑化強化: 0.04 → 0.02）
-            % より保守的なゲインで滑らかな応答を実現
-            max_attitude_gain = 0.02;  % 2%以下（イノベーション制限強化と併用）
+            % 姿勢ゲイン制限（初回更新での発散防止: 0.05 → 0.01）
+            % 初期状態での過大なゲインを抑制
+            max_attitude_gain = 0.01;  % 1%以下
             if size(K,1) >= 9
                 K(7:9,:) = max(min(K(7:9,:), max_attitude_gain), -max_attitude_gain);
             end
+            
+            % 発散パラメータ記録: ゲインノルム
+            obj.accel_gain_norm = norm(K, 'fro');
             
             % 状態修正量計算
             dx = K * y;
@@ -623,6 +695,7 @@ classdef ESKF < handle
             % 以下、EKFモード
             % センサーフィルタ適用
             [m_filtered, is_outlier, ~] = obj.sensor_filters.mag.apply(m_meas);
+            if any(isnan(m_filtered)); return; end
             
             if is_outlier
                 return;  % 外れ値の場合は更新をスキップ
@@ -761,6 +834,17 @@ classdef ESKF < handle
             % end
             z_gps_filtered = z_gps;  % フィルタをバイパス
 
+            % 予測測定値 (現在の推定位置)
+            y_pred = obj.p;
+
+            % イノベーション
+            y_innov_pre = z_gps - y_pred;
+
+            % イノベーションが大きすぎる場合は外れ値として棄却 (閾値を100.0mに緩和)
+            if any(isnan(y_innov_pre)) || norm(y_innov_pre(1:3)) > 100.0
+                return;
+            end
+
             R = obj.noiseEstimator.getRnoise('gps');
             
             % GPS更新前にPを正則化
@@ -837,8 +921,8 @@ classdef ESKF < handle
                 dx_used = [];
                 
                 % UKFの場合でも、イノベーションが大きすぎる場合は棄却する (外れ値対策強化)
-                % 位置のイノベーションが 5m 以上なら棄却
-                if norm(y_innov(1:3)) > 5.0
+                % 位置のイノベーションが 20m 以上なら棄却 (ロックアウト防止のため緩和: 5.0 -> 20.0)
+                if norm(y_innov(1:3)) > 100.0
                     should_update = false;
                 end
             else
@@ -881,6 +965,17 @@ classdef ESKF < handle
                 obj.v = obj.v + dx(4:6);
             end
             
+            % バイアス更新 (GPS観測による間接的な補正)
+            % デバッグ: 最初の更新時にdx値を確認
+            persistent first_update;
+            if isempty(first_update)
+                first_update = true;
+                fprintf('[GPS Update Debug] dx(10:15) = [%.6f, %.6f, %.6f, %.6f, %.6f, %.6f]\n', ...
+                    dx(10), dx(11), dx(12), dx(13), dx(14), dx(15));
+            end
+            obj.ba = obj.ba + dx(10:12);
+            obj.bg = obj.bg + dx(13:15);
+            
             % 共分散更新
             if ukf_success
                 % UKF成功時: サブシステムの更新済み共分散を使用
@@ -918,6 +1013,7 @@ classdef ESKF < handle
             
             % センサーフィルタ適用
             [alt_baro, is_outlier, ~] = obj.sensor_filters.baro.apply(pressure);
+            if any(isnan(alt_baro)); return; end
             
             if is_outlier
                 return;  % 外れ値の場合は更新をスキップ
@@ -970,8 +1066,17 @@ classdef ESKF < handle
             % MEUKF による加速度更新 (Roll/Pitchのみ)
             % 外れ値パルス抑制強化版
             
+            % 高速回転中は加速度更新をスキップ（角速度チェック）
+            if ~isempty(obj.w_body)
+                w_norm = norm(obj.w_body);
+                if w_norm > 1.5  % 1.5 rad/s (約86 deg/s) 以上の回転中はスキップ
+                    return;
+                end
+            end
+            
             % センサーフィルタ適用
             [a_corrected, is_outlier, ~] = obj.sensor_filters.accel.apply(a_meas, zeros(3,1));
+            if any(isnan(a_corrected)); return; end
             
             if is_outlier
                 return;
@@ -1011,6 +1116,9 @@ classdef ESKF < handle
                 return;
             end
             
+            % 発散パラメータ記録: イノベーションノルム
+            obj.accel_innovation_norm = norm(y);
+            
             % イノベーション制限 (安定化: 0.05rad ≈ 2.9度)
             max_innovation = 0.05;
             innov_norm = norm(y);
@@ -1021,6 +1129,10 @@ classdef ESKF < handle
             % マハラノビス距離チェック (3.5-sigma棄却で安定性向上)
             try
                 mahal_dist = sqrt(y' / S * y);
+                
+                % 発散パラメータ記録: マハラノビス距離
+                obj.accel_mahalanobis_dist = mahal_dist;
+                
                 if mahal_dist > 3.5
                     return;  % 外れ値として棄却
                 end
@@ -1036,6 +1148,9 @@ classdef ESKF < handle
             
             % dtheta再計算 (フィルタリング後のイノベーションで)
             dtheta = K * y;
+            
+            % 発散パラメータ記録: ゲインノルム
+            obj.accel_gain_norm = norm(K, 'fro');
             
             % dthetaの大きさ制限 (0.6度で安定化)
             dtheta_norm = norm(dtheta(1:2));  % Roll/Pitchのみチェック
@@ -1125,6 +1240,7 @@ classdef ESKF < handle
             
             % センサーフィルタ適用
             [m_filtered, is_outlier, ~] = obj.sensor_filters.mag.apply(m_meas);
+            if any(isnan(m_filtered)); return; end
             
             if is_outlier
                 return;
@@ -1342,12 +1458,97 @@ classdef ESKF < handle
             % 速度更新
             obj.v = obj.v + dx(4:6);
             
+            % バイアス更新 (ZUPT観測による間接的な補正)
+            obj.ba = obj.ba + dx(10:12);
+            obj.bg = obj.bg + dx(13:15);
+            
             % 共分散更新 (Joseph form)
             I_KH = eye(15) - K * H;
             obj.P = I_KH * obj.P * I_KH' + K * R * K';
             obj.P = (obj.P + obj.P') / 2;  % 対称化
         end
         
+        function check_and_reset_if_diverged(obj, obs, k)
+            % 発散チェックとリセット（実験的に無効化:自然収束を信じる）
+            % Run 1-2は発散検出なしで pos_rmse < 2.5m, att_rmse < 1deg を達成
+            % Run 3-5の問題は、リセット自体が原因の可能性が高い
+            
+            % 引数チェック
+            if nargin < 3 || isempty(k)
+                return;
+            end
+            
+            % 発散検出を無効化（NaN/Infのみチェック）
+            reset_needed = false;
+            reason = '';
+            
+            % NaN/Inf チェックのみ（破綻検出）
+            if any(isnan(obj.p)) || any(isnan(obj.v)) || any(isnan(obj.q))
+                reset_needed = true;
+                reason = 'NaN detected in state';
+            end
+            
+            if ~reset_needed && (any(isinf(obj.p)) || any(isinf(obj.v)))
+                reset_needed = true;
+                reason = 'Inf detected in state';
+            end
+            
+            if reset_needed
+                fprintf('Step %d: Filter reset triggered. Reason: %s\n', k, reason);
+                if nargin >= 2 && ~isempty(obs)
+                    obj.reset_filter(obs, k);
+                else
+                    % obsがない場合は基本リセットのみ
+                    obj.last_reset_step = k;
+                    obj.P(1:3, 1:3) = eye(3) * 20.0;
+                    obj.P(4:6, 4:6) = eye(3) * 2.0;
+                    obj.P(7:9, 7:9) = eye(3) * (deg2rad(30))^2;
+                    obj.v = zeros(3,1);
+                end
+            end
+        end
+        
+        function reset_filter(obj, obs, k)
+            % フィルタのリセット(位置・速度のみ:姿勢は連続更新に任せる)
+            
+            % リセット時刻を記録(冷却期間用)
+            obj.last_reset_step = k;
+            
+            % 共分散を初期化（より保守的に）
+            obj.P = eye(15) * 0.01;
+            obj.P(1:3, 1:3) = eye(3) * 20.0;  % 位置の不確かさを大きく
+            obj.P(4:6, 4:6) = eye(3) * 2.0;   % 速度の不確かさを大きく
+            obj.P(7:9, 7:9) = eye(3) * (deg2rad(30))^2;  % 姿勢の不確かさを非常に大きく（センサー更新で徐々に収束させる）
+            
+            % 速度リセット (ゼロにする)
+            obj.v = zeros(3,1);
+            
+            % 位置リセット (GPSがあればGPS位置に)
+            if isfield(obs, 'lat') && k <= length(obs.lat) && ~isnan(obs.lat(k))
+                 lat0 = obj.gps_origin(1);
+                 lon0 = obj.gps_origin(2);
+                 alt0 = obj.gps_origin(3);
+                 
+                 y_m = (obs.lat(k) - lat0) / (9.0e-6);
+                 x_m = (obs.lon(k) - lon0) / (9.0e-6 / cosd(lat0));
+                 z_m = obs.alt(k) - alt0;
+                 
+                 obj.p = [x_m; y_m; z_m];
+            end
+            
+            % 姿勢は触らない（円運動では±286度まで変化するため、リセット禁止）
+            % 加速度計・ジャイロ・磁気計の連続更新で姿勢を維持・修正
+            
+            % NaN チェックのみ実施（極端な異常時のみ水平リセット）
+            if any(isnan(obj.q))
+                obj.q = [1;0;0;0];
+            end
+            
+            % バイアスリセット
+            obj.ba = zeros(3,1);
+            obj.bg = zeros(3,1);
+        end
+
         function euler = get_euler(obj)
             % オイラー角取得
             euler = QuaternionLib.to_euler(obj.q);

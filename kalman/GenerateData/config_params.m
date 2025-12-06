@@ -6,7 +6,7 @@ function params = config_params()
     % タイミング
     params.dt = 0.0025;
     params.T = 200;
-    params.static_time = 0.5;
+    params.static_time = 5;
 
     % 運動タイプ
     params.motion_type = 'circular';
@@ -26,7 +26,7 @@ function params = config_params()
     params.noise.enable.gps = true;
     params.noise.enable.outlier = true;
     params.noise.enable.pink = true;
-    params.noise.enable.allan = false;
+    params.noise.enable.allan = true;
     
     % ベースノイズレベル (フラグがtrueの場合のみ適用)
     params.noise.base = struct();
@@ -77,7 +77,7 @@ function params = config_params()
 
     % Allan偏差
     if params.noise.enable.allan
-        params.noise.gyro_allan_std = 0.5;
+        params.noise.gyro_allan_std = 0.2;
         params.noise.baro_allan_std = 1.0;   % Barometer Allan deviation (meters)
     else
         params.noise.gyro_allan_std = 0.0;
