@@ -55,6 +55,10 @@ classdef ESKF < handle
         quaternion_norm        % クォータニオンノルム
         attitude_change_rate   % 姿勢変化率 [rad/s]
         w_body                 % 現在の角速度 [rad/s] (高速回転判定用)
+        % 変化量クラッピング関連
+        prev_dx                % 前回の状態変化量 (15x1)
+        dx_clipping_ratio      % クラッピング倍率（前回のn倍まで許容）
+        dx_history             % 変化量履歴（デバッグ用）
     end
 
     methods
@@ -305,6 +309,11 @@ classdef ESKF < handle
             obj.accel_gain_norm = 0;
             obj.quaternion_norm = 1.0;
             obj.attitude_change_rate = 0;
+            
+            % 変化量クラッピング初期化
+            obj.prev_dx = zeros(15, 1);
+            obj.dx_clipping_ratio = 3.0;  % 前回の3倍まで許容
+            obj.dx_history = [];
         end
         
         function update_filter(obj, obs, k)
@@ -635,6 +644,9 @@ classdef ESKF < handle
                 dx = dx_full;
             end
             
+            % 変化量クラッピング適用（発散防止）
+            dx = obj.clip_state_change(dx);
+            
             % 時間的整合性チェック: dx が異常に大きい場合はスケールダウン
             % 平滑化強化のため閾値を下げる
             dx_attitude_norm = norm(dx(7:9));
@@ -777,6 +789,9 @@ classdef ESKF < handle
             end
             
             dx = K * y;
+            
+            % 変化量クラッピング適用（発散防止）
+            dx = obj.clip_state_change(dx);
             
             % dxのサイズ確認とベクトル化
             if numel(dx) < 9
@@ -951,6 +966,9 @@ classdef ESKF < handle
             if ~isempty(dx_used)
                 dx = dx_used;
             end
+            
+            % 変化量クラッピング適用（発散防止）
+            dx = obj.clip_state_change(dx);
 
             % 状態更新
             if ukf_success
@@ -1149,6 +1167,12 @@ classdef ESKF < handle
             % dtheta再計算 (フィルタリング後のイノベーションで)
             dtheta = K * y;
             
+            % 変化量クラッピング適用（発散防止）
+            dtheta_full = zeros(15, 1);
+            dtheta_full(7:9) = dtheta;
+            dtheta_full = obj.clip_state_change(dtheta_full);
+            dtheta = dtheta_full(7:9);
+            
             % 発散パラメータ記録: ゲインノルム
             obj.accel_gain_norm = norm(K, 'fro');
             
@@ -1290,6 +1314,12 @@ classdef ESKF < handle
             
             % dtheta再計算
             dtheta = K * y;
+            
+            % 変化量クラッピング適用（発散防止）
+            dtheta_full = zeros(15, 1);
+            dtheta_full(7:9) = dtheta;
+            dtheta_full = obj.clip_state_change(dtheta_full);
+            dtheta = dtheta_full(7:9);
             
             % dthetaの大きさ制限 (Yaw含めて1.0度以下に)
             dtheta_norm = norm(dtheta);
@@ -1455,6 +1485,9 @@ classdef ESKF < handle
             % 状態更新
             dx = K * y;
             
+            % 変化量クラッピング適用（発散防止）
+            dx = obj.clip_state_change(dx);
+            
             % 速度更新
             obj.v = obj.v + dx(4:6);
             
@@ -1552,6 +1585,55 @@ classdef ESKF < handle
         function euler = get_euler(obj)
             % オイラー角取得
             euler = QuaternionLib.to_euler(obj.q);
+        end
+        
+        function dx_clipped = clip_state_change(obj, dx)
+            % 状態変化量のクラッピング
+            % 前回の変化量のn倍以上の変化を抑制して発散を防止
+            %
+            % 入力:
+            %   dx - 今回の状態変化量 (15x1)
+            % 出力:
+            %   dx_clipped - クラッピング後の状態変化量 (15x1)
+            
+            % 初回または前回がゼロの場合はそのまま返す
+            if isempty(obj.prev_dx) || all(obj.prev_dx == 0)
+                obj.prev_dx = dx;
+                obj.dx_history = [obj.dx_history, dx];
+                dx_clipped = dx;
+                return;
+            end
+            
+            dx_clipped = dx;
+            
+            % 各要素ごとにクラッピング
+            for i = 1:length(dx)
+                prev_val = obj.prev_dx(i);
+                curr_val = dx(i);
+                
+                % 前回がほぼゼロの場合はスキップ
+                if abs(prev_val) < 1e-10
+                    continue;
+                end
+                
+                % 同符号かつ増加している場合のみクラッピング
+                if sign(curr_val) == sign(prev_val) && abs(curr_val) > abs(prev_val)
+                    % 前回のn倍を超えている場合
+                    max_allowed = abs(prev_val) * obj.dx_clipping_ratio;
+                    if abs(curr_val) > max_allowed
+                        dx_clipped(i) = sign(curr_val) * max_allowed;
+                    end
+                end
+            end
+            
+            % 履歴更新
+            obj.prev_dx = dx_clipped;
+            obj.dx_history = [obj.dx_history, dx_clipped];
+            
+            % 履歴が長くなりすぎないよう制限（最新100個のみ保持）
+            if size(obj.dx_history, 2) > 100
+                obj.dx_history = obj.dx_history(:, end-99:end);
+            end
         end
     end
 end
