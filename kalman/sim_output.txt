@@ -1,0 +1,521 @@
+Motion step 10000 / 80001
+Motion step 20000 / 80001
+Motion step 30000 / 80001
+Motion step 40000 / 80001
+Motion step 50000 / 80001
+Motion step 60000 / 80001
+Motion step 70000 / 80001
+Motion step 80000 / 80001
+Sensor step 10000 / 80001
+Sensor step 20000 / 80001
+Sensor step 30000 / 80001
+Sensor step 40000 / 80001
+Sensor step 50000 / 80001
+Sensor step 60000 / 80001
+Sensor step 70000 / 80001
+Sensor step 80000 / 80001
+sim_generate: wrote C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\truth_data.csv and C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\sensor_data.csv (80001 samples)
+初期化期間: 5.0秒 (2000 サンプル)
+Start loop
+Step 1000 / 80001
+Step 2000 / 80001
+Step 2080: Filter reset triggered. Reason: NaN detected in state
+Step 2494: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 2886: Filter reset triggered. Reason: NaN detected in state
+Step 3000 / 80001
+Step 3278: Filter reset triggered. Reason: NaN detected in state
+Step 3868: Filter reset triggered. Reason: NaN detected in state
+Step 4000 / 80001
+Step 4052: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 4482: Filter reset triggered. Reason: NaN detected in state
+Step 4884: Filter reset triggered. Reason: NaN detected in state
+Step 5000 / 80001
+Step 5450: Filter reset triggered. Reason: NaN detected in state
+Step 5816: Filter reset triggered. Reason: NaN detected in state
+Step 6000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 6198: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 6458: Filter reset triggered. Reason: NaN detected in state
+Step 7000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 7190: Filter reset triggered. Reason: NaN detected in state
+Step 7534: Filter reset triggered. Reason: NaN detected in state
+Step 8000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 8160: Filter reset triggered. Reason: NaN detected in state
+Step 8998: Filter reset triggered. Reason: NaN detected in state
+Step 9000 / 80001
+Step 9438: Filter reset triggered. Reason: NaN detected in state
+Step 10000 / 80001
+Step 10022: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 10116: Filter reset triggered. Reason: NaN detected in state
+Step 10452: Filter reset triggered. Reason: NaN detected in state
+Step 11000 / 80001
+Step 11398: Filter reset triggered. Reason: NaN detected in state
+Step 12000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 12134: Filter reset triggered. Reason: NaN detected in state
+Step 12258: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 12754: Filter reset triggered. Reason: NaN detected in state
+Step 13000 / 80001
+Step 13534: Filter reset triggered. Reason: NaN detected in state
+Step 14000 / 80001
+Step 14026: Filter reset triggered. Reason: NaN detected in state
+Step 14566: Filter reset triggered. Reason: NaN detected in state
+Step 14644: Filter reset triggered. Reason: NaN detected in state
+Step 15000 / 80001
+Step 15022: Filter reset triggered. Reason: NaN detected in state
+Step 15286: Filter reset triggered. Reason: NaN detected in state
+Step 16000 / 80001
+Step 16632: Filter reset triggered. Reason: NaN detected in state
+Step 16782: Filter reset triggered. Reason: NaN detected in state
+Step 16986: Filter reset triggered. Reason: NaN detected in state
+Step 17000 / 80001
+Step 17322: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 17662: Filter reset triggered. Reason: NaN detected in state
+Step 17930: Filter reset triggered. Reason: NaN detected in state
+Step 18000 / 80001
+Step 18420: Filter reset triggered. Reason: NaN detected in state
+Step 18648: Filter reset triggered. Reason: NaN detected in state
+Step 19000 / 80001
+Step 19170: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 19492: Filter reset triggered. Reason: NaN detected in state
+Step 20000 / 80001
+Step 20030: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 20602: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 20968: Filter reset triggered. Reason: NaN detected in state
+Step 21000 / 80001
+Step 21360: Filter reset triggered. Reason: NaN detected in state
+Step 21634: Filter reset triggered. Reason: NaN detected in state
+Step 22000 / 80001
+Step 22020: Filter reset triggered. Reason: NaN detected in state
+Step 22236: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 22508: Filter reset triggered. Reason: NaN detected in state
+Step 22954: Filter reset triggered. Reason: NaN detected in state
+Step 23000 / 80001
+Step 23370: Filter reset triggered. Reason: NaN detected in state
+Step 23618: Filter reset triggered. Reason: NaN detected in state
+Step 23950: Filter reset triggered. Reason: NaN detected in state
+Step 24000 / 80001
+Step 24422: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 24608: Filter reset triggered. Reason: NaN detected in state
+Step 24884: Filter reset triggered. Reason: NaN detected in state
+Step 25000 / 80001
+Step 25470: Filter reset triggered. Reason: NaN detected in state
+Step 25840: Filter reset triggered. Reason: NaN detected in state
+Step 25952: Filter reset triggered. Reason: NaN detected in state
+Step 26000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 26570: Filter reset triggered. Reason: NaN detected in state
+Step 26972: Filter reset triggered. Reason: NaN detected in state
+Step 27000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 27500: Filter reset triggered. Reason: NaN detected in state
+Step 27702: Filter reset triggered. Reason: NaN detected in state
+Step 27998: Filter reset triggered. Reason: NaN detected in state
+Step 28000 / 80001
+Step 28142: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 28640: Filter reset triggered. Reason: NaN detected in state
+Step 29000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 29160: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 29484: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 29768: Filter reset triggered. Reason: NaN detected in state
+Step 29862: Filter reset triggered. Reason: NaN detected in state
+Step 30000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 30338: Filter reset triggered. Reason: NaN detected in state
+Step 31000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 31062: Filter reset triggered. Reason: NaN detected in state
+Step 31232: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 31640: Filter reset triggered. Reason: NaN detected in state
+Step 32000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 32642: Filter reset triggered. Reason: NaN detected in state
+Step 33000 / 80001
+Step 33148: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 33590: Filter reset triggered. Reason: NaN detected in state
+Step 34000 / 80001
+Step 34060: Filter reset triggered. Reason: NaN detected in state
+Step 34570: Filter reset triggered. Reason: NaN detected in state
+Step 34836: Filter reset triggered. Reason: NaN detected in state
+Step 35000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 35284: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 35730: Filter reset triggered. Reason: NaN detected in state
+Step 36000 / 80001
+Step 36422: Filter reset triggered. Reason: NaN detected in state
+Step 36768: Filter reset triggered. Reason: NaN detected in state
+Step 37000 / 80001
+Step 37078: Filter reset triggered. Reason: NaN detected in state
+Step 37252: Filter reset triggered. Reason: NaN detected in state
+Step 37586: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 37954: Filter reset triggered. Reason: NaN detected in state
+Step 38000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 38462: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 38812: Filter reset triggered. Reason: NaN detected in state
+Step 39000 / 80001
+Step 39242: Filter reset triggered. Reason: NaN detected in state
+Step 39502: Filter reset triggered. Reason: NaN detected in state
+Step 39968: Filter reset triggered. Reason: NaN detected in state
+Step 40000 / 80001
+Step 40630: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 40954: Filter reset triggered. Reason: NaN detected in state
+Step 41000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 41102: Filter reset triggered. Reason: NaN detected in state
+Step 41468: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 41792: Filter reset triggered. Reason: NaN detected in state
+Step 42000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 42272: Filter reset triggered. Reason: NaN detected in state
+Step 42756: Filter reset triggered. Reason: NaN detected in state
+Step 43000 / 80001
+Step 43162: Filter reset triggered. Reason: NaN detected in state
+Step 43592: Filter reset triggered. Reason: NaN detected in state
+Step 43788: Filter reset triggered. Reason: NaN detected in state
+Step 44000 / 80001
+Step 44100: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 44452: Filter reset triggered. Reason: NaN detected in state
+Step 44940: Filter reset triggered. Reason: NaN detected in state
+Step 45000 / 80001
+Step 45194: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 45614: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 45880: Filter reset triggered. Reason: NaN detected in state
+Step 46000 / 80001
+Step 46282: Filter reset triggered. Reason: NaN detected in state
+Step 46792: Filter reset triggered. Reason: NaN detected in state
+Step 46998: Filter reset triggered. Reason: NaN detected in state
+Step 47000 / 80001
+Step 47558: Filter reset triggered. Reason: NaN detected in state
+Step 47768: Filter reset triggered. Reason: NaN detected in state
+Step 47880: Filter reset triggered. Reason: NaN detected in state
+Step 48000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 48284: Filter reset triggered. Reason: NaN detected in state
+Step 48678: Filter reset triggered. Reason: NaN detected in state
+Step 48898: Filter reset triggered. Reason: NaN detected in state
+Step 49000 / 80001
+Step 49586: Filter reset triggered. Reason: NaN detected in state
+Step 50000 / 80001
+Step 50316: Filter reset triggered. Reason: NaN detected in state
+Step 51000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 51516: Filter reset triggered. Reason: NaN detected in state
+Step 52000 / 80001
+Step 52042: Filter reset triggered. Reason: NaN detected in state
+Step 52332: Filter reset triggered. Reason: NaN detected in state
+Step 52840: Filter reset triggered. Reason: NaN detected in state
+Step 53000 / 80001
+Step 53440: Filter reset triggered. Reason: NaN detected in state
+Step 53692: Filter reset triggered. Reason: NaN detected in state
+Step 53880: Filter reset triggered. Reason: NaN detected in state
+Step 54000 / 80001
+Step 54382: Filter reset triggered. Reason: NaN detected in state
+Step 55000 / 80001
+Step 55516: Filter reset triggered. Reason: NaN detected in state
+Step 56000 / 80001
+Step 56276: Filter reset triggered. Reason: NaN detected in state
+Step 56534: Filter reset triggered. Reason: NaN detected in state
+Step 57000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 57380: Filter reset triggered. Reason: NaN detected in state
+Step 58000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 58082: Filter reset triggered. Reason: NaN detected in state
+Step 58592: Filter reset triggered. Reason: NaN detected in state
+Step 59000 / 80001
+Step 59178: Filter reset triggered. Reason: NaN detected in state
+Step 59464: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 59772: Filter reset triggered. Reason: NaN detected in state
+Step 60000 / 80001
+Step 60306: Filter reset triggered. Reason: NaN detected in state
+Step 60690: Filter reset triggered. Reason: NaN detected in state
+Step 61000 / 80001
+Step 61180: Filter reset triggered. Reason: NaN detected in state
+Step 61564: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 61994: Filter reset triggered. Reason: NaN detected in state
+Step 62000 / 80001
+Step 62378: Filter reset triggered. Reason: NaN detected in state
+Step 62750: Filter reset triggered. Reason: NaN detected in state
+Step 63000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 63698: Filter reset triggered. Reason: NaN detected in state
+Step 64000 / 80001
+Step 65000 / 80001
+Step 65500: Filter reset triggered. Reason: NaN detected in state
+Step 65672: Filter reset triggered. Reason: NaN detected in state
+Step 66000 / 80001
+Step 66006: Filter reset triggered. Reason: NaN detected in state
+Step 66272: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 66528: Filter reset triggered. Reason: NaN detected in state
+Step 66954: Filter reset triggered. Reason: NaN detected in state
+Step 67000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 67484: Filter reset triggered. Reason: NaN detected in state
+Step 67806: Filter reset triggered. Reason: NaN detected in state
+Step 68000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 68266: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 68728: Filter reset triggered. Reason: NaN detected in state
+Step 69000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 69218: Filter reset triggered. Reason: NaN detected in state
+Step 69562: Filter reset triggered. Reason: NaN detected in state
+Step 69838: Filter reset triggered. Reason: NaN detected in state
+Step 70000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 70646: Filter reset triggered. Reason: NaN detected in state
+Step 70960: Filter reset triggered. Reason: NaN detected in state
+Step 71000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 71108: Filter reset triggered. Reason: NaN detected in state
+Step 71336: Filter reset triggered. Reason: NaN detected in state
+Step 72000 / 80001
+Step 73000 / 80001
+Step 73006: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 73342: Filter reset triggered. Reason: NaN detected in state
+Step 74000 / 80001
+Step 74876: Filter reset triggered. Reason: NaN detected in state
+Step 75000 / 80001
+Step 75142: Filter reset triggered. Reason: NaN detected in state
+Step 75706: Filter reset triggered. Reason: NaN detected in state
+Step 76000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 76370: Filter reset triggered. Reason: NaN detected in state
+Step 77000 / 80001
+Step 77300: Filter reset triggered. Reason: NaN detected in state
+Step 77692: Filter reset triggered. Reason: NaN detected in state
+Step 78000 / 80001
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 78272: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 78920: Filter reset triggered. Reason: NaN detected in state
+Step 79000 / 80001
+Step 79178: Filter reset triggered. Reason: NaN detected in state
+[警告: NaN detected before predict] 
+[> ESKF/predict (行 357) 内
+run_simulation>run_filter (行 101) 内
+run_simulation (行 32) 内] 
+Step 79530: Filter reset triggered. Reason: NaN detected in state
+Step 79832: Filter reset triggered. Reason: NaN detected in state
+Step 80000 / 80001
+推定完了
+推定完了
+
+DONE

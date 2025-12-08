@@ -42,65 +42,30 @@ ZUPT (静止更新) 追加	誤差低減	update_zero_vel 関数を追加。静止
 適応型 Q (Adaptive Q)	滑らかさ	IMUの信号強度に基づき、予測ステップの Q を動的にスケーリングする処理を追加。
 SR形式 / 全体MEX化	高速化	共分散 P ではなく S を持ち回るように変更。可能ならループ全体をC++へ移植。
 
-Plan: ESKF Improvement (ZUPT, MEUKF, Adaptive Q, Full MEX)
-This plan outlines the steps to enhance the ESKF with Zero Velocity Update (ZUPT) for drift reduction, Manifold UKF (MEUKF) for stable attitude estimation, Adaptive Q for smoothness, and a Full MEX implementation for high-speed processing.
 
-Steps
-Implement ZUPT (Zero Velocity Update)
+## やること
+リアルタイム推定を行えるようにcpp化を段階的に行うための計画を作成する
 
-Add check_stationary method to ESKF.m (using accel variance/gyro magnitude).
-Add update_zupt to ESKF.m that calls a velocity update with zero observation.
-Integrate into run_simulation.m loop.
-Implement Adaptive Q
+## 目標
+リアルタイム推定を行うので推定の更新は1ms以内に終わらせないといけない
+センサーごとに更新周期が異なるため、値が更新されている状態量のみを更新する
+matlabのプログラムはcppのmeukf関数にセンサーデータを渡すと、推定が帰ってくる
+cpp側で値が前回の値と異なっていたら、その状態量が更新される
 
-Modify ESKF.m's predict method to accept an optional scaling factor.
-Calculate scaling factor 
-α
-α based on IMU stability (e.g., 
-∣
-∣
-a
-∣
-∣
-≈
-g
-∣∣a∣∣≈g) in run_simulation.m.
-Dynamically scale process noise covariance 
-Q
-t
-=
-α
-Q
-n
-o
-m
-i
-n
-a
-l
-Q 
-t
-​
- =αQ 
-nominal
-​
- .
-Develop MEUKF (Manifold Error UKF) for Attitude
+## 課題点
+現在はmatlabのプログラムにかなり依存しているので、完全なcpp化は因果関係が崩れる可能性がある
+まずは、計算処理を全てcppの関数に移行する
+同じまとまりをもった関数は一つのファイルで管理する
+例：カルマンフィルタの計算処理はkalman.cppにまとめる
+現在のcppフォルダ内のプログラムを読んで、cppファイルの構造を検討して
 
-Create mex_meukf_update.cpp to handle quaternion manifold operations.
-Implement sigma point generation in error space (3D rotation vector) and map to quaternion via exponential map.
-Replace update_accel/update_mag in ESKF.m to use this new MEX function.
-Full MEX Optimization (C++ Port)
 
-Create a stateful C++ class ESKF_CPP mirroring the MATLAB logic.
-Implement a "Batch MEX" driver (mex_run_eskf.cpp) that accepts all sensor arrays and runs the full loop in C++.
-(Optional) Implement Square Root (SR) form using Cholesky decomposition within the C++ class for numerical stability.
-Further Considerations
-MEUKF Complexity: MEUKF requires careful handling of the "mean" on the manifold (Karcher mean). A simplified approach (resetting error mean to zero after update) is often sufficient for ESKF.
-Full MEX Strategy: Instead of porting step-by-step, writing a single MEX function that takes all CSV data and returns all results is the fastest path to performance.
-SR Form: Implementing Square Root form (updating 
-S
-S instead of 
-P
-P) is best done during the Full MEX rewrite to avoid duplicate work in MATLAB.
-User Feedback**: Please confirm if you want to prioritize the Accuracy features (ZUPT, MEUKF) or the Speed features (Full MEX) first. I will proceed with the plan accordingly.******
+## 計算用の関数
+計算機としての関数は
+引数の一つ目が計算機に代入するデータをまとめた行列、引数の二つ目が計算機から出力される行列としたい
+必要に応じて、行列や構造体といった形を取る
+なるべく引数はinput outputのみにしたい
+
+## 注意事項
+floatを基本的に使用する
+100以下の整数はuint8_tを使用

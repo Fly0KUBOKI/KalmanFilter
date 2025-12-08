@@ -12,8 +12,8 @@ function varargout = eskf_core_mex(func_name, varargin)
 
 persistent use_mex
 if isempty(use_mex)
-    use_mex = false; % Forced disable for debugging
-    % use_mex = exist('mex_eskf_core', 'file') == 3;
+    % use_mex = false; % Forced disable for debugging
+    use_mex = exist('mex_eskf_core', 'file') == 3;
     if use_mex
         fprintf('[eskf_core_mex] Using MEX acceleration\n');
     else

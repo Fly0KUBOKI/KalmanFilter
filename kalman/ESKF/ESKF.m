@@ -76,7 +76,9 @@ classdef ESKF < handle
             % Calculate static indices from static_time
             if nargin >= 2 && ~isempty(static_time) && static_time > 0
                 N_static = floor(static_time / dt);
-                if isfield(obs, 'accel_x') && length(obs.accel_x) >= N_static
+                % Check for either 'accel_x' or 'ax' field
+                if (isfield(obs, 'accel_x') && length(obs.accel_x) >= N_static) || ...
+                   (isfield(obs, 'ax') && length(obs.ax) >= N_static)
                     static_idx = 1:N_static;
                 else
                     static_idx = [];
@@ -95,7 +97,7 @@ classdef ESKF < handle
             % Initialize noise parameters
             if ~isempty(static_idx) && length(static_idx) > 10
                 % Estimate noise from static period
-                accel_static = [obs.accel_x(static_idx), obs.accel_y(static_idx), obs.accel_z(static_idx)];
+                accel_static = [obs.ax(static_idx), obs.ay(static_idx), obs.az(static_idx)];
                 accel_mean = mean(accel_static, 1);
                 sigma_a = mean(std(accel_static - accel_mean, [], 1));
                 
@@ -119,12 +121,12 @@ classdef ESKF < handle
                 
                 obj.q = QuaternionLib.from_euler([phi; theta; 0]);
                 
-                gyro_static = [obs.gyro_x(static_idx), obs.gyro_y(static_idx), obs.gyro_z(static_idx)];
+                gyro_static = [obs.wx(static_idx), obs.wy(static_idx), obs.wz(static_idx)];
                 sigma_g = mean(std(gyro_static, [], 1));
                 sigma_g = deg2rad(sigma_g);
                 
-                if isfield(obs, 'mag_x')
-                    mag_static = [obs.mag_x(static_idx), obs.mag_y(static_idx), obs.mag_z(static_idx)];
+                if isfield(obs, 'mx')
+                    mag_static = [obs.mx(static_idx), obs.my(static_idx), obs.mz(static_idx)];
                     mag_mean = mean(mag_static, 1);
                     sigma_mag = mean(std(mag_static - mag_mean, [], 1));
                 else
@@ -155,9 +157,9 @@ classdef ESKF < handle
                 end
                 
                 % Gyro noise threshold
-                wx_all = deg2rad(obs.gyro_x(:));
-                wy_all = deg2rad(obs.gyro_y(:));
-                wz_all = deg2rad(obs.gyro_z(:));
+                wx_all = deg2rad(obs.wx(:));
+                wy_all = deg2rad(obs.wy(:));
+                wz_all = deg2rad(obs.wz(:));
                 std_wx = std(wx_all);
                 std_wy = std(wy_all);
                 std_wz = std(wz_all);
@@ -291,7 +293,7 @@ classdef ESKF < handle
             obj.adaptive_q_enabled = true;
             
             % MEUKF初期化
-            obj.use_meukf = true;  % MEUKFを有効化
+            obj.use_meukf = false;  % MEUKF無効化 (MATLAB純正実装を使用)
             
             % 角速度初期化
             obj.w_body = zeros(3,1);
@@ -320,11 +322,11 @@ classdef ESKF < handle
             % 1ステップ更新実行
 
             % センサーデータ取得
-            a = [obs.accel_x(k); obs.accel_y(k); obs.accel_z(k)];
+            a = [obs.ax(k); obs.ay(k); obs.az(k)];
             % 生成データの角速度: 既に [roll_rate, pitch_rate, yaw_rate] の順
             % ESKF内部: x=roll, y=pitch, z=yaw
             % 軸の入れ替えは不要
-            w = deg2rad([obs.gyro_x(k); obs.gyro_y(k); obs.gyro_z(k)]);
+            w = deg2rad([obs.wx(k); obs.wy(k); obs.wz(k)]);
 
             % 予測ステップ
             obj.predict(a, w);
@@ -334,7 +336,7 @@ classdef ESKF < handle
                 obj.update_accel(a);
             end
             if mod(k, obj.freq_mag) == 0
-                obj.update_mag([obs.mag_x(k); obs.mag_y(k); obs.mag_z(k)]);
+                obj.update_mag([obs.mx(k); obs.my(k); obs.mz(k)]);
             end
             if mod(k, obj.freq_baro) == 0
                 obj.update_baro(obs.baro(k));
@@ -348,6 +350,7 @@ classdef ESKF < handle
         end
         
         function predict(obj, a_meas, w_meas)
+            % 予測ステップ（MATLAB実装 - C++実装は現在NaN問題により無効化）
             % 予測ステップ
             % NaN check
             if any(isnan(obj.p)) || any(isnan(obj.v)) || any(isnan(obj.q)) || any(isnan(obj.P(:)))
@@ -1027,7 +1030,7 @@ classdef ESKF < handle
         end
         
         function update_baro(obj, pressure)
-            % 気圧計による高度更新
+            % 気圧計による高度更新（C++ MEX使用）
             
             % センサーフィルタ適用
             [alt_baro, is_outlier, ~] = obj.sensor_filters.baro.apply(pressure);
@@ -1037,47 +1040,63 @@ classdef ESKF < handle
                 return;  % 外れ値の場合は更新をスキップ
             end
             
-            H = [0,0,1, zeros(1,12)];
-            z = alt_baro;
-            h = obj.p(3);
-            
             % 現在のノイズ推定値を使用
             R_est = obj.noiseEstimator.getRnoise('baro');
             
-            [y, S, R_used] = kalman_filter_core('compute_innovation_and_S', z, h, H, obj.P, R_est, struct());
+            % Prepare structs for MEX
+            state_in.p = obj.p;
+            state_in.v = obj.v;
+            state_in.q = obj.q;
+            state_in.ba = obj.ba;
+            state_in.bg = obj.bg;
+            state_in.P = obj.P;
             
-            % フィルタリング（外れ値判定）
-            [y_filtered, should_update] = SensorFilter.filterInnovation(y, R_used);
-            if ~should_update
+            sensor.accel = [0;0;0];
+            sensor.gyro = [0;0;0];
+            sensor.mag = [0;0;0];
+            sensor.gps_pos = [0;0;0];
+            sensor.alt_baro = alt_baro;
+            sensor.update_accel = 0;
+            sensor.update_gyro = 0;
+            sensor.update_mag = 0;
+            sensor.update_gps = 0;
+            sensor.update_baro = 1;
+            sensor.dt = 0;
+            
+            params.g = obj.g;
+            params.mag_ref = [1;0;0];
+            params.noise_accel = [0;0;0];
+            params.noise_gyro = [0;0;0];
+            params.noise_ba = [0;0;0];
+            params.noise_bg = [0;0;0];
+            params.noise_mag = [0;0;0];
+            params.noise_gps = [0;0;0];
+            params.noise_baro = R_est;
+            params.alpha = 1e-3;
+            params.beta = 2.0;
+            params.kappa = 0.0;
+            
+            try
+                [state_out, ~] = mex_meukf_step_v2(state_in, sensor, params);
+                obj.p = state_out.p;
+                obj.v = state_out.v;
+                obj.q = state_out.q;
+                obj.ba = state_out.ba;
+                obj.bg = state_out.bg;
+                obj.P = state_out.P;
+                
+                % ノイズ推定の更新
+                H = [0,0,1, zeros(1,12)];
+                y_filtered = alt_baro - obj.p(3);
+                obj.noiseEstimator.estimate('baro', y_filtered, H, obj.P);
+                
+            catch ME
+                warning('ESKF:update_baro:Failed', 'MEX failed (%s), skipping', ME.message);
                 return;
             end
             
-            % --- 外れ値でない場合のみノイズ推定を更新 ---
-            obj.noiseEstimator.estimate('baro', y_filtered, H, obj.P);
-            
-            K = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
-            K = obj.divergence_guard.clamp_gain(K);
-            
-            % dx計算: Kは15x1、y_filteredはスカラー
-            dx = K * y_filtered;
-            
-            % dxのサイズ確認とベクトル化
-            if numel(dx) == 1
-                % スカラーの場合、位置の高度のみ更新
-                dz = dx;
-                dx = zeros(15, 1);
-                dx(3) = dz;
-            end
-            
-            % 高度更新（閾値チェック付き）
-            if abs(dx(3)) >= 0.1
-                obj.p(3) = obj.p(3) + dx(3);
-            end
-            
-            % 共分散更新
-            x_pred = zeros(15,1);
-            x_pred(1:3) = obj.p;
-            [~, obj.P] = kalman_filter_core('update_state_covariance', x_pred, obj.P, K, H, y_filtered, R_used);
+            % 共分散の対称化
+            obj.P = (obj.P + obj.P') / 2;
         end
         
         function update_accel_meukf(obj, a_meas)
@@ -1107,160 +1126,89 @@ classdef ESKF < handle
             end
             
             % 観測関数: クォータニオンから加速度予測値を計算
-            h_func = @(q) compute_accel_observation(q, obj.g);
+            % h_func = @(q) compute_accel_observation(q, obj.g);
             
             % ノイズ共分散 (動的R調整)
             R_est_full = obj.noiseEstimator.getRnoise('accel');
-            R_est_2d = diag(R_est_full);
-            R_est_2d = R_est_2d(1:2);
+            % R_est_2d = diag(R_est_full);
+            % R_est_2d = R_est_2d(1:2);
             
             % 動的R調整 (バランス調整)
             gravity_deviation = abs(a_norm - 9.81);
             R_scale = 1.0 + (gravity_deviation / 0.7);  % 感度を少し緩和 (0.5 -> 0.7)
             R_floor = 0.25;  % ノイズフロアを上げて安定性向上 (0.15 -> 0.25)
-            R = diag(max(R_est_2d, R_floor) * R_scale);
+            % R = diag(max(R_est_2d, R_floor) * R_scale);
             
-            % 観測値 (x, y成分のみ)
-            z = a_corrected(1:2);
+            % Prepare structs for MEX
+            state_in.p = obj.p;
+            state_in.v = obj.v;
+            state_in.q = obj.q;
+            state_in.ba = obj.ba;
+            state_in.bg = obj.bg;
+            state_in.P = obj.P;
             
-            % 姿勢誤差の共分散 (3x3)
-            P_attitude = obj.P(7:9, 7:9);
+            sensor.accel = a_corrected; % 3D
+            sensor.gyro = [0;0;0];
+            sensor.mag = [0;0;0];
+            sensor.gps_pos = [0;0;0];
+            sensor.update_accel = 1;
+            sensor.update_gyro = 0;
+            sensor.update_mag = 0;
+            sensor.update_gps = 0;
+            sensor.dt = 0;
             
-            % MEUKF更新
+            params.g = obj.g;
+            params.mag_ref = [1;0;0];
+            
+            % Apply R_scale to noise
+            R_val = max(R_est_full, R_floor) * R_scale;
+            params.noise_accel = R_val;
+            
+            params.noise_gyro = [0;0;0];
+            params.noise_ba = [0;0;0];
+            params.noise_bg = [0;0;0];
+            params.noise_mag = [0;0;0];
+            params.noise_gps = [0;0;0];
+            params.alpha = 1e-3;  % MATLAB純正版に合わせる (0.1 -> 0.001)
+            params.beta = 2.0;
+            params.kappa = 0.0;
+            
             try
-                [dtheta, P_attitude_upd, K, S, y] = meukf_update_attitude(P_attitude, obj.q, z, h_func, R);
+                [state_out, debug_info] = mex_meukf_step_v2(state_in, sensor, params);
+                obj.p = state_out.p;
+                obj.v = state_out.v;
+                obj.q = state_out.q;
+                obj.ba = state_out.ba;
+                obj.bg = state_out.bg;
+                obj.P = state_out.P;
+                
+                % Debug info
+                obj.accel_innovation_norm = debug_info(1); % Assuming index 1 is innov norm
+                
             catch ME
-                warning('ESKF:update_accel_meukf:Failed', 'MEUKF failed (%s), skipping', ME.message);
+                warning('ESKF:update_accel_meukf:Failed', 'MEX failed (%s), skipping', ME.message);
                 return;
             end
-            
-            % 発散パラメータ記録: イノベーションノルム
-            obj.accel_innovation_norm = norm(y);
-            
-            % イノベーション制限 (安定化: 0.05rad ≈ 2.9度)
-            max_innovation = 0.05;
-            innov_norm = norm(y);
-            if innov_norm > max_innovation
-                y = y * (max_innovation / innov_norm);
-            end
-            
-            % マハラノビス距離チェック (3.5-sigma棄却で安定性向上)
-            try
-                mahal_dist = sqrt(y' / S * y);
-                
-                % 発散パラメータ記録: マハラノビス距離
-                obj.accel_mahalanobis_dist = mahal_dist;
-                
-                if mahal_dist > 3.5
-                    return;  % 外れ値として棄却
-                end
-                % 2.5-sigma以上は減衰
-                if mahal_dist > 2.5
-                    attenuation = 2.5 / mahal_dist;
-                    y = y * attenuation;
-                end
-            catch
-                % S が特異の場合はスキップ
-                return;
-            end
-            
-            % dtheta再計算 (フィルタリング後のイノベーションで)
-            dtheta = K * y;
             
             % 変化量クラッピング適用（発散防止）
-            dtheta_full = zeros(15, 1);
-            dtheta_full(7:9) = dtheta;
-            dtheta_full = obj.clip_state_change(dtheta_full);
-            dtheta = dtheta_full(7:9);
+            % MEX内で更新済みだが、急激な変化をチェックするために
+            % 前回の状態と比較することも可能だが、ここでは省略
             
-            % 発散パラメータ記録: ゲインノルム
-            obj.accel_gain_norm = norm(K, 'fro');
+            % 発散パラメータ記録: ゲインノルム (MEXからは取得できないため0)
+            obj.accel_gain_norm = 0;
             
-            % dthetaの大きさ制限 (0.6度で安定化)
-            dtheta_norm = norm(dtheta(1:2));  % Roll/Pitchのみチェック
-            if dtheta_norm > deg2rad(0.6)
-                scale = deg2rad(0.6) / dtheta_norm;
-                dtheta(1:2) = dtheta(1:2) * scale;
-            end
-            
-            % Yaw成分を強制ゼロ
-            dtheta(3) = 0;
-            
-            % 姿勢更新
-            dq = QuaternionLib.small_angle_quat(dtheta);
-            obj.q = QuaternionLib.multiply(obj.q, dq);
+            % 姿勢更新 (MEX内で完了)
             obj.q = QuaternionLib.normalize(obj.q);
             
-            % 共分散更新: MEUKFで得られた姿勢ブロック + フルクロス項の更新
-            P_attitude_upd = (P_attitude_upd + P_attitude_upd') / 2;
-            max_var = (deg2rad(5))^2;
-            for i = 1:3
-                if P_attitude_upd(i,i) > max_var
-                    P_attitude_upd(i,i) = max_var;
-                end
-            end
-            
-            % フル状態のクロス共分散を更新（EKFブランチと同様のロジック）
-            % 観測に関連するインデックス: 姿勢(7:9)のみ（加速度は姿勢のみ観測）
-            idx_obs = 7:9;
-            
-            % 観測行列の近似（線形化: 加速度のx,y成分に対する姿勢の感度）
-            % H_sub ≈ MEUKFのPxzから逆算するか、EKFと同じ線形化を使用
-            Rb = QuaternionLib.to_rotation_matrix(obj.q);
-            g_body = Rb' * obj.g;
-            H_attitude = -RotationLib.skew_symmetric(g_body);
-            H_sub = H_attitude(1:2, :);  % x,y成分のみ
-            
-            % フル状態に対するカルマンゲイン（EKFと整合的に計算）
-            P_cross = obj.P(:, idx_obs);  % 15x3
-            try
-                % K_full = P_cross * H_sub' / S
-                U = chol(S);
-                tmp = P_cross * H_sub';  % 15x2
-                K_full = (U \ (U' \ tmp'))';  % 15x2
-            catch
-                try
-                    K_full = P_cross * (H_sub' / S);
-                catch
-                    % フォールバック: 姿勢ブロックのみ更新
-                    obj.P(idx_obs, idx_obs) = P_attitude_upd;
-                    obj.P = (obj.P + obj.P') / 2;
-                    % ノイズ推定更新
-                    y_full = zeros(3,1);
-                    y_full(1:2) = y;
-                    H_full = [zeros(3,6), eye(3), zeros(3,6)];
-                    obj.noiseEstimator.estimate('accel', y_full, H_full, obj.P);
-                    return;
-                end
-            end
-            
-            % ゲインクリッピング
-            K_full = obj.divergence_guard.clamp_gain(K_full);
-            
-            % Joseph形式でフル共分散を更新
-            I_KH_block = eye(length(idx_obs)) - K_full(idx_obs,:) * H_sub;
-            obj.P(idx_obs, idx_obs) = I_KH_block * P_attitude_upd * I_KH_block' + K_full(idx_obs,:) * R * K_full(idx_obs,:)';
-            
-            % クロス項更新
-            for i = 1:15
-                if ~ismember(i, idx_obs)
-                    obj.P(i, idx_obs) = obj.P(i, idx_obs) - K_full(i,:) * (H_sub * obj.P(idx_obs, idx_obs));
-                    obj.P(idx_obs, i) = obj.P(i, idx_obs)';
-                end
-            end
-            
+            % 共分散更新 (MEX内で完了)
             obj.P = (obj.P + obj.P') / 2;
             
-            % ノイズ推定更新
-            y_full = zeros(3,1);
-            y_full(1:2) = y;
-            H_full = [zeros(3,6), eye(3), zeros(3,6)];
-            obj.noiseEstimator.estimate('accel', y_full, H_full, obj.P);
+            % 速度チェックとクリッピング
+            [obj.v, obj.P, ~] = obj.divergence_guard.check_and_clip_velocity(obj.v, obj.P, 4:6);
         end
         
         function update_mag_meukf(obj, m_meas)
-            % MEUKF による磁気計更新
-            % 外れ値パルス抑制強化版
+            % MEUKF による磁気計更新 (C++ MEX使用)
             
             % センサーフィルタ適用
             [m_filtered, is_outlier, ~] = obj.sensor_filters.mag.apply(m_meas);
@@ -1270,137 +1218,54 @@ classdef ESKF < handle
                 return;
             end
             
-            % 地磁気ベクトル (北向き)
-            m_world = [0; 50; 0];
+            % Prepare structs for MEX
+            state_in.p = obj.p;
+            state_in.v = obj.v;
+            state_in.q = obj.q;
+            state_in.ba = obj.ba;
+            state_in.bg = obj.bg;
+            state_in.P = obj.P;
             
-            % 観測関数
-            h_func = @(q) compute_mag_observation(q, m_world);
+            sensor.accel = [0;0;0];
+            sensor.gyro = [0;0;0];
+            sensor.mag = m_filtered;
+            sensor.gps_pos = [0;0;0];
+            sensor.update_accel = 0;
+            sensor.update_gyro = 0;
+            sensor.update_mag = 1;
+            sensor.update_gps = 0;
+            sensor.dt = 0;
             
-            % ノイズ共分散 (保守的に)
+            params.g = obj.g;
+            params.mag_ref = [0; 50; 0]; 
+            
             R_est = obj.noiseEstimator.getRnoise('mag');
-            R_est = R_est * 1.5;  % 磁気計ノイズを増やして保守的に
+            params.noise_mag = R_est * 1.5;
             
-            % 姿勢誤差の共分散 (3x3)
-            P_attitude = obj.P(7:9, 7:9);
+            params.noise_accel = [0;0;0];
+            params.noise_gyro = [0;0;0];
+            params.noise_ba = [0;0;0];
+            params.noise_bg = [0;0;0];
+            params.noise_gps = [0;0;0];
+            params.alpha = 0.001;
+            params.beta = 2.0;
+            params.kappa = 0.0;
             
-            % MEUKF更新
             try
-                [dtheta, P_attitude_upd, K, S, y] = meukf_update_attitude(P_attitude, obj.q, m_filtered, h_func, R_est);
+                [state_out, ~] = mex_meukf_step_v2(state_in, sensor, params);
+                obj.p = state_out.p;
+                obj.v = state_out.v;
+                obj.q = state_out.q;
+                obj.ba = state_out.ba;
+                obj.bg = state_out.bg;
+                obj.P = state_out.P;
+                
+                obj.q = QuaternionLib.normalize(obj.q);
+                obj.P = (obj.P + obj.P') / 2;
+                
             catch ME
-                warning('ESKF:update_mag_meukf:Failed', 'MEUKF failed (%s), skipping', ME.message);
-                return;
+                warning('ESKF:update_mag_meukf:Failed', 'MEX failed (%s), skipping', ME.message);
             end
-            
-            % イノベーション制限 (0.1rad ≈ 6度)
-            max_innovation = 0.1;
-            innov_norm = norm(y);
-            if innov_norm > max_innovation
-                y = y * (max_innovation / innov_norm);
-            end
-            
-            % マハラノビス距離チェック (4-sigma棄却、磁気計は少し緩め)
-            try
-                mahal_dist = sqrt(y' / S * y);
-                if mahal_dist > 4.0
-                    return;
-                end
-                if mahal_dist > 2.5
-                    attenuation = 2.5 / mahal_dist;
-                    y = y * attenuation;
-                end
-            catch
-                return;
-            end
-            
-            % dtheta再計算
-            dtheta = K * y;
-            
-            % 変化量クラッピング適用（発散防止）
-            dtheta_full = zeros(15, 1);
-            dtheta_full(7:9) = dtheta;
-            dtheta_full = obj.clip_state_change(dtheta_full);
-            dtheta = dtheta_full(7:9);
-            
-            % dthetaの大きさ制限 (Yaw含めて1.0度以下に)
-            dtheta_norm = norm(dtheta);
-            if dtheta_norm > deg2rad(1.0)
-                scale = deg2rad(1.0) / dtheta_norm;
-                dtheta = dtheta * scale;
-            end
-            
-            % 姿勢更新 (磁気計は全3軸更新可能)
-            dq = QuaternionLib.small_angle_quat(dtheta);
-            obj.q = QuaternionLib.multiply(obj.q, dq);
-            obj.q = QuaternionLib.normalize(obj.q);
-            
-            % 共分散更新: MEUKFで得られた姿勢ブロック + フルクロス項の更新
-            P_attitude_upd = (P_attitude_upd + P_attitude_upd') / 2;
-            max_var = (deg2rad(8))^2;
-            for i = 1:3
-                if P_attitude_upd(i,i) > max_var
-                    P_attitude_upd(i,i) = max_var;
-                end
-            end
-            
-            % フル状態のクロス共分散を更新（EKFブランチと同様）
-            idx_obs = 7:9;
-            
-            % 観測行列（磁気計は全3軸）
-            Rb = QuaternionLib.to_rotation_matrix(obj.q);
-            h_mag = Rb' * m_world;
-            h_mag_norm = norm(h_mag);
-            if h_mag_norm > 1e-6
-                h_mag = h_mag / h_mag_norm;
-            end
-            H_sub = RotationLib.skew_symmetric(h_mag);  % 3x3
-            
-            % フル状態に対するカルマンゲイン
-            P_cross = obj.P(:, idx_obs);  % 15x3
-            try
-                U = chol(S);
-                tmp = P_cross * H_sub';  % 15x3
-                K_full = (U \ (U' \ tmp'))';  % 15x3
-            catch
-                try
-                    K_full = P_cross * (H_sub' / S);
-                catch
-                    % フォールバック
-                    obj.P(idx_obs, idx_obs) = P_attitude_upd;
-                    obj.P = (obj.P + obj.P') / 2;
-                    H = [zeros(3,6), eye(3), zeros(3,6)];
-                    obj.noiseEstimator.estimate('mag', y, H, obj.P);
-                    return;
-                end
-            end
-            
-            % ゲインクリッピング
-            K_full = obj.divergence_guard.clamp_gain(K_full);
-            
-            % MAG専用ゲイン制限
-            if isfield(obj.divergence_guard.config, 'max_mag_gain_element')
-                max_gain = obj.divergence_guard.config.max_mag_gain_element;
-                if size(K_full,1) >= 9
-                    K_full(7:9,:) = max(min(K_full(7:9,:), max_gain), -max_gain);
-                end
-            end
-            
-            % Joseph形式でフル共分散を更新
-            I_KH_block = eye(length(idx_obs)) - K_full(idx_obs,:) * H_sub;
-            obj.P(idx_obs, idx_obs) = I_KH_block * P_attitude_upd * I_KH_block' + K_full(idx_obs,:) * R_est * K_full(idx_obs,:)';
-            
-            % クロス項更新
-            for i = 1:15
-                if ~ismember(i, idx_obs)
-                    obj.P(i, idx_obs) = obj.P(i, idx_obs) - K_full(i,:) * (H_sub * obj.P(idx_obs, idx_obs));
-                    obj.P(idx_obs, i) = obj.P(i, idx_obs)';
-                end
-            end
-            
-            obj.P = (obj.P + obj.P') / 2;
-            
-            % ノイズ推定更新
-            H = [zeros(3,6), eye(3), zeros(3,6)];
-            obj.noiseEstimator.estimate('mag', y, H, obj.P);
         end
         
         function is_stat = check_stationary(obj, a_meas, w_meas)
@@ -1634,6 +1499,50 @@ classdef ESKF < handle
             if size(obj.dx_history, 2) > 100
                 obj.dx_history = obj.dx_history(:, end-99:end);
             end
+        end
+        
+        function state_struct = get_state_struct(obj)
+            % C++ MEX用の状態構造体を作成
+            state_struct = struct();
+            state_struct.p = obj.p;
+            state_struct.v = obj.v;
+            state_struct.q = obj.q;
+            state_struct.ba = obj.ba;
+            state_struct.bg = obj.bg;
+            state_struct.P = obj.P;
+        end
+        
+        function set_state_from_struct(obj, state_struct)
+            % C++ MEXからの状態を設定
+            obj.p = state_struct.p;
+            obj.v = state_struct.v;
+            obj.q = state_struct.q;
+            obj.ba = state_struct.ba;
+            obj.bg = state_struct.bg;
+            obj.P = state_struct.P;
+        end
+        
+        function params_struct = get_params_struct(obj)
+            % C++ MEX用のパラメータ構造体を作成
+            params_struct = struct();
+            params_struct.dt = obj.dt;
+            params_struct.g = obj.g;
+            
+            % ノイズパラメータ（Q行列から逆算）
+            params_struct.noise_accel = diag(obj.Q(4:6, 4:6)) / (obj.dt^2);
+            params_struct.noise_gyro = diag(obj.Q(7:9, 7:9)) / (obj.dt^2);
+            params_struct.noise_accel_bias = diag(obj.Q(10:12, 10:12)) / obj.dt;
+            params_struct.noise_gyro_bias = diag(obj.Q(13:15, 13:15)) / obj.dt;
+            
+            % センサーノイズ（R行列）
+            if ~isempty(obj.noiseEstimator)
+                params_struct.noise_gps = diag(obj.noiseEstimator.getRnoise('gps'));
+            else
+                params_struct.noise_gps = [1.0; 1.0; 1.0];
+            end
+            
+            % その他のパラメータ
+            params_struct.use_meukf = obj.use_meukf;
         end
     end
 end

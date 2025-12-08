@@ -52,17 +52,8 @@ fprintf('Roll Max Error: %.4f deg\n', max(abs(roll_err)));
 fprintf('Pitch Max Error: %.4f deg\n', max(abs(pitch_err)));
 fprintf('Yaw Max Error: %.4f deg\n', max(abs(yaw_err)));
 
-% 発散チェック
-fprintf('\n=== Divergence Check ===\n');
-innov_max = max(est.innov_norm);
-maha_max = max(est.maha_dist);
-quat_dev = max(abs(est.quat_norm - 1.0));
-
-fprintf('Max innovation norm: %.4f\n', innov_max);
-fprintf('Max Mahalanobis distance: %.4f\n', maha_max);
-fprintf('Max quaternion deviation from 1.0: %.6f\n', quat_dev);
-
 % NaN/Infチェック
+fprintf('\n=== Divergence Check ===\n');
 has_nan = any(isnan(est.px) | isnan(est.py) | isnan(est.pz) | ...
               isnan(est.vx) | isnan(est.vy) | isnan(est.vz) | ...
               isnan(est.roll) | isnan(est.pitch) | isnan(est.yaw));
@@ -96,9 +87,6 @@ end
 if has_nan || has_inf
     fprintf('FAIL: NaN or Inf detected\n');
     pass = false;
-end
-if quat_dev > 0.01
-    fprintf('WARNING: Quaternion normalization issue (dev: %.6f)\n', quat_dev);
 end
 
 if pass

@@ -55,7 +55,7 @@ if isempty(prev_initialized)
     v_candidate = v + (a_world + g) * dt;
     
     % 速度発散防止
-    max_accel = 2.0;
+    max_accel = 200.0;
     dv = v_candidate - v;
     dv_norm = norm(dv);
     max_dv = max_accel * dt;
@@ -65,7 +65,7 @@ if isempty(prev_initialized)
     v = v + dv;
     
     % 速度クリップ
-    max_velocity = 50;
+    max_velocity = 200;
     v = max(min(v, max_velocity), -max_velocity);
 
     % 位置更新
@@ -81,7 +81,7 @@ else
     v_new = v + dt * (1.5 * (a_world + g) - 0.5 * (a_prev + g));
 
     % 速度発散防止
-    max_accel = 2.0;
+    max_accel = 200.0;
     dv = v_new - v;
     dv_norm = norm(dv);
     max_dv = max_accel * dt;
@@ -91,7 +91,7 @@ else
     v = v + dv;
 
     % 速度クリップ
-    max_velocity = 50;
+    max_velocity = 200;
     v = max(min(v, max_velocity), -max_velocity);
 
     % 位置更新

@@ -79,7 +79,7 @@ void ESKFCore::integrate_nominal(
         Vector3 v_candidate = v + (a_world + g) * dt;
         
         // 速度発散防止
-        float max_accel = 2.0f;
+        float max_accel = 200.0f;
         Vector3 dv = v_candidate - v;
         
         float dv_norm = 0.0f;
@@ -95,7 +95,7 @@ void ESKFCore::integrate_nominal(
         v = v + dv;
         
         // 速度クリップ
-        float max_velocity = 50.0f;
+        float max_velocity = 200.0f;
         for (int i=0; i<3; ++i) {
             v(i,0) = std::max(std::min(v(i,0), max_velocity), -max_velocity);
         }
@@ -112,7 +112,7 @@ void ESKFCore::integrate_nominal(
         v = v + (a_world + g) * (1.5f * dt) - (prev_a_world + g) * (0.5f * dt);
         
         // 速度発散防止
-        float max_accel = 2.0f;
+        float max_accel = 200.0f;
         Vector3 dv = v - v_old;
         
         float dv_norm = 0.0f;
@@ -126,7 +126,7 @@ void ESKFCore::integrate_nominal(
         }
         
         // 速度クリップ
-        float max_velocity = 50.0f;
+        float max_velocity = 200.0f;
         for (int i=0; i<3; ++i) {
             v(i,0) = std::max(std::min(v(i,0), max_velocity), -max_velocity);
         }

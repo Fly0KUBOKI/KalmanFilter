@@ -1,0 +1,37 @@
+nohup: å…¥åŠ›ã‚’ç„¡è¦–ã—ã¾ã™
+=== Divergence Debug - Seed 1 ===
+Motion step 10000 / 80001
+Motion step 20000 / 80001
+Motion step 30000 / 80001
+Motion step 40000 / 80001
+Motion step 50000 / 80001
+Motion step 60000 / 80001
+Motion step 70000 / 80001
+Motion step 80000 / 80001
+Sensor step 10000 / 80001
+Sensor step 20000 / 80001
+Sensor step 30000 / 80001
+Sensor step 40000 / 80001
+Sensor step 50000 / 80001
+Sensor step 60000 / 80001
+Sensor step 70000 / 80001
+Sensor step 80000 / 80001
+sim_generate: wrote C:\Users\takut\OneDrive\ƒhƒLƒ…ƒƒ“ƒg\MATLAB\KalmanFilter\kalman\GenerateData\truth_data.csv and C:\Users\takut\OneDrive\ƒhƒLƒ…ƒƒ“ƒg\MATLAB\KalmanFilter\kalman\GenerateData\sensor_data.csv (80001 samples)
+Initial state:
+  p: [0.000000, 0.000000, 0.000000]
+  v: [0.000000, 0.000000, 0.000000]
+  q: [0.999624, 0.027410, 0.000009, -0.000000] (norm=1.000000)
+  ba: [0.010799, -0.539250, 0.016098]
+  bg: [-0.001379, -0.008273, 0.008929]
+  P diag: [5.00e+00, 5.00e-01, 1.00e-02, 5.00e-01, 1.00e-01]
+[eskf_core_mex] MEX not found, using MATLAB fallback
+{‚±‚ÌŒ^‚Ì•Ï”‚Å‚Íƒhƒbƒg ƒCƒ“ƒfƒbƒNƒX‚ÍƒTƒ|[ƒg‚³‚ê‚Ä‚¢‚Ü‚¹‚ñB
+
+ƒGƒ‰[: ESKF/predict (s 492)
+            obj.P = obj.divergence_guard.regularize_covariance(obj.P);
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ƒGƒ‰[: debug_nan (s 54)
+        eskf.predict(a, w);
+        ^^^^^^^^^^^^^^^^^^
+} 
+ERROR: MATLAB error Exit Status: 0x00000001
