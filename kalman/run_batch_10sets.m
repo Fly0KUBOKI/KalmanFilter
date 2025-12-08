@@ -246,7 +246,11 @@ function [metrics, has_error] = analyze_single_run(proj_root, run_id)
         
         % 発散チェック
         metrics.max_innov = max(est.innov_norm);
-        metrics.max_maha = max(est.maha_dist);
+        if ismember('maha_dist', est.Properties.VariableNames)
+            metrics.max_maha = max(est.maha_dist);
+        else
+            metrics.max_maha = 0;  % maha_distカラムがない場合はデフォルト値
+        end
         metrics.has_nan = any(isnan(est.px) | isnan(est.py) | isnan(est.pz));
         metrics.has_inf = any(isinf(est.px) | isinf(est.py) | isinf(est.pz));
         

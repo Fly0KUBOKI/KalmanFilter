@@ -1,6 +1,0 @@
-{run_batch_10sets は現在のフォルダーまたは MATLAB パス上に見つかりませんが、次の場所にあります。
- C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman
-
-MATLAB の現在のフォルダーを変更 または そのフォルダーを MATLAB パスに追加。
-} 
-ERROR: MATLAB error Exit Status: 0x00000001

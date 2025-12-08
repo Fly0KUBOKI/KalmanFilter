@@ -1,9 +1,0 @@
-ƒGƒ‰[: ŠÖ” 'ESKF' (ƒ^ƒCƒv'struct' ‚Ì“ü—Íˆø”) ‚ª–¢’è‹`‚Å‚·B
-{ŠÖ”‚Ü‚½‚Í•Ï” 'ESKF' ‚ª”F¯‚³‚ê‚Ü‚¹‚ñB
-
-ƒGƒ‰[: test_bias_init_minimal (s 25)
-    eskf = ESKF(obs, static_time, dt);
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-} 
-ERROR: MATLAB error Exit Status: 0x00000001
-Test completed at 2025å¹´ 12æœˆ  9æ—¥ ç«æ›œæ—¥ 00:37:23 JST

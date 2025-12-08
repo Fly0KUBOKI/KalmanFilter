@@ -59,6 +59,8 @@ classdef ESKF < handle
         prev_dx                % 前回の状態変化量 (15x1)
         dx_clipping_ratio      % クラッピング倍率（前回のn倍まで許容）
         dx_history             % 変化量履歴（デバッグ用）
+        % イノベーション記録
+        innov_norm             % イノベーションノルム（記録用）
     end
 
     methods
@@ -316,6 +318,9 @@ classdef ESKF < handle
             obj.prev_dx = zeros(15, 1);
             obj.dx_clipping_ratio = 3.0;  % 前回の3倍まで許容
             obj.dx_history = [];
+            
+            % イノベーション記録初期化
+            obj.innov_norm = 0.0;
         end
         
         function update_filter(obj, obs, k)
@@ -585,6 +590,7 @@ classdef ESKF < handle
             %    大きなイノベーションを制限（初期発散防止: 0.3 → 0.1 rad）
             max_innovation = 0.1;  % rad (約6度)
             innov_norm = norm(y);
+            obj.innov_norm = innov_norm;  % 記録用に保存
             if innov_norm > max_innovation
                 y = y * (max_innovation / innov_norm);  % 正規化して制限
             end
