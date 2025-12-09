@@ -3,8 +3,14 @@
 #include "../Common/Math/fixed_matrix.hpp"
 #include "../Common/Math/quaternion.hpp"
 
+#pragma once
+#include "meukf_types.hpp"
+#include "../Common/Math/fixed_matrix.hpp"
+#include "../Common/Math/quaternion.hpp"
+
 namespace meukf {
 
+// float型を使用（ユーザー要求により）
 using Vector3 = cmath_fx::Matrix<3, 1, float>;
 using Vector2 = cmath_fx::Matrix<2, 1, float>;
 using Vector4 = cmath_fx::Matrix<4, 1, float>;

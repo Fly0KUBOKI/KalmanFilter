@@ -36,15 +36,15 @@ static double vector3_norm(const Vector3& v) {
 // Helper for Cholesky Decomposition (3x3)
 // Returns true if successful, false if not positive definite
 static bool cholesky3x3(const Matrix3x3& A, Matrix3x3& L) {
-    double l[3][3] = {0};
-    double a[3][3];
+    float l[3][3] = {0};
+    float a[3][3];
     
     for(int i=0; i<3; ++i)
         for(int j=0; j<3; ++j)
             a[i][j] = A(i,j);
 
     // Initialize L to zero
-    for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) L(i,j) = 0.0;
+    for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) L(i,j) = 0.0f;
 
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j <= i; j++) {
@@ -55,10 +55,10 @@ static bool cholesky3x3(const Matrix3x3& A, Matrix3x3& L) {
 
             if (i == j) {
                 float val = a[i][i] - sum;
-                if (val <= 1e-12) return false; // Not positive definite or too small
+                if (val <= 1e-9f) return false; // floatに適した閾値
                 l[i][j] = std::sqrt(val);
             } else {
-                l[i][j] = (1.0 / l[j][j] * (a[i][j] - sum));
+                l[i][j] = (1.0f / l[j][j] * (a[i][j] - sum));
             }
         }
     }
@@ -68,6 +68,81 @@ static bool cholesky3x3(const Matrix3x3& A, Matrix3x3& L) {
             L(i,j) = l[i][j];
             
     return true;
+}
+
+// 堅牢なCholesky分解（MATLAB実装に合わせた多段フォールバック）
+static bool cholesky3x3_robust(Matrix3x3& A, Matrix3x3& L) {
+    // 1. 対称化
+    for(int i=0; i<3; ++i) {
+        for(int j=i+1; j<3; ++j) {
+            float avg = (A(i,j) + A(j,i)) / 2.0f;
+            A(i,j) = avg;
+            A(j,i) = avg;
+        }
+    }
+    
+    // 2. 最小固有値チェック（簡易版: 対角要素の最小値で近似）
+    float min_diag = A(0,0);
+    for(int i=1; i<3; ++i) {
+        if (A(i,i) < min_diag) min_diag = A(i,i);
+    }
+    
+    // 3. 正則化（正定値でない場合）
+    if (min_diag <= 0.0f) {
+        float reg = std::abs(min_diag) + 1e-6f;
+        for(int i=0; i<3; ++i) A(i,i) += reg;
+    }
+    
+    // 4. Cholesky分解
+    if (cholesky3x3(A, L)) {
+        return true;
+    }
+    
+    // 5. より強い正則化で再試行
+    for(int i=0; i<3; ++i) A(i,i) += 1e-4f;
+    if (cholesky3x3(A, L)) {
+        return true;
+    }
+    
+    // 6. 最終手段: 対角近似
+    L = Matrix3x3::Zero();
+    for(int i=0; i<3; ++i) {
+        L(i,i) = std::sqrt(std::max(0.0f, A(i,i)));
+    }
+    return true;
+}
+
+// 共分散行列の正定値化
+static void ensure_positive_definite(Matrix3x3& P) {
+    // 1. 対称化
+    for(int i=0; i<3; ++i) {
+        for(int j=i+1; j<3; ++j) {
+            float avg = (P(i,j) + P(j,i)) / 2.0f;
+            P(i,j) = avg;
+            P(j,i) = avg;
+        }
+    }
+    
+    // 2. 固有値チェック（簡易版: 対角要素の最小値）
+    float min_diag = P(0,0);
+    for(int i=1; i<3; ++i) {
+        if (P(i,i) < min_diag) min_diag = P(i,i);
+    }
+    
+    // 3. 正則化
+    if (min_diag <= 0.0f) {
+        float reg = std::abs(min_diag) + 1e-8f;
+        for(int i=0; i<3; ++i) P(i,i) += reg;
+        
+        // 再度対称化
+        for(int i=0; i<3; ++i) {
+            for(int j=i+1; j<3; ++j) {
+                float avg = (P(i,j) + P(j,i)) / 2.0f;
+                P(i,j) = avg;
+                P(j,i) = avg;
+            }
+        }
+    }
 }
 
 void MEUKFCore::step(const MEUKFInput& input, MEUKFOutput& output) {
@@ -500,6 +575,12 @@ void MEUKFCore::update_accel_meukf(State& state, const Vector3& a_meas, const Pa
         for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) P_full(6+i, 6+j) = P_new(i, j);
     }
 
+    // 姿勢共分散の正定値化
+    Matrix3x3 P_att_upd;
+    for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) P_att_upd(i, j) = P_full(6+i, 6+j);
+    ensure_positive_definite(P_att_upd);
+    for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) P_full(6+i, 6+j) = P_att_upd(i, j);
+
     // 共分散の上限制限 (MATLABコミット 7eb70e29: max_var = 5度^2)
     float max_var = (5.0f * 3.14159265f / 180.0f) * (5.0f * 3.14159265f / 180.0f); // 5 degrees^2 in radians^2
     for(int i=0; i<3; ++i) {
@@ -748,6 +829,12 @@ void MEUKFCore::update_mag_meukf(State& state, const Vector3& m_meas, const Para
         Matrix3x3 P_new = P_att - K * S * K.transpose();
         for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) P_full(6+i, 6+j) = P_new(i, j);
     }
+
+    // 姿勢共分散の正定値化
+    Matrix3x3 P_att_upd;
+    for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) P_att_upd(i, j) = P_full(6+i, 6+j);
+    ensure_positive_definite(P_att_upd);
+    for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) P_full(6+i, 6+j) = P_att_upd(i, j);
 
     // 共分散の上限制限 (MATLABコミット 7eb70e29: max_var = 5度^2)
     float max_var = (5.0f * 3.14159265f / 180.0f) * (5.0f * 3.14159265f / 180.0f); // 5 degrees^2 in radians^2

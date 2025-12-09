@@ -88,8 +88,8 @@ function results = run_filter(eskf, obs)
     results.euler = zeros(3, n_samples);
     results.ba = zeros(3, n_samples);
     results.bg = zeros(3, n_samples);
-    results.innov_norm = zeros(1, n_samples);  % イノベーションノルム記録用
     results.innov_norm = zeros(1, n_samples);
+    results.maha_dist = zeros(1, n_samples);
 
     for k = 1:n_samples
         if k == 1, fprintf('Start loop\n'); end
@@ -121,7 +121,7 @@ function results = run_filter(eskf, obs)
                 eskf.update_mag([obs.mx(k); obs.my(k); obs.mz(k)]);
             end
             
-            % update_baro
+            % update            test_cpp_baro_baro
             if mod(k, eskf.freq_baro) == 0
                 eskf.update_baro(obs.pressure(k));
             end
@@ -141,8 +141,17 @@ function results = run_filter(eskf, obs)
         results.euler(:,k) = eskf.get_euler();
         results.ba(:,k) = eskf.ba;
         results.bg(:,k) = eskf.bg;
-        results.innov_norm(k) = eskf.innov_norm;  % イノベーションノルム記録
-        results.innov_norm(k) = eskf.innov_norm;
+        % 記録: イノベーションノルムとマハラノビス距離 (存在しない場合は0)
+        if isprop(eskf, 'accel_innovation_norm')
+            results.innov_norm(k) = eskf.accel_innovation_norm;
+        else
+            results.innov_norm(k) = 0;
+        end
+        if isprop(eskf, 'accel_mahalanobis_dist')
+            results.maha_dist(k) = eskf.accel_mahalanobis_dist;
+        else
+            results.maha_dist(k) = 0;
+        end
         
         if mod(k, 1000) == 0
             fprintf('Step %d / %d\n', k, n_samples);
@@ -163,11 +172,14 @@ function save_results(proj_root, results)
         results.v(1,:)', results.v(2,:)', results.v(3,:)', ...
         results.euler(1,:)', results.euler(2,:)', results.euler(3,:)', ...
         results.ba(1,:)', results.ba(2,:)', results.ba(3,:)', ...
-        results.bg(1,:)', results.bg(2,:)', results.bg(3,:)', ...
-        results.innov_norm(:));
+        results.bg(1,:)', results.bg(2,:)', results.bg(3,:)');
+
+    % innov_norm と maha_dist を末尾に追加
+    T.innov_norm = results.innov_norm(:);
+    T.maha_dist = results.maha_dist(:);
 
     T.Properties.VariableNames = {'time','px','py','pz','vx','vy','vz','roll','pitch','yaw',...
-        'ba_x','ba_y','ba_z','bg_x','bg_y','bg_z','innov_norm'};
+        'ba_x','ba_y','ba_z','bg_x','bg_y','bg_z','innov_norm','maha_dist'};
     writetable(T, out_file);
 end
 
