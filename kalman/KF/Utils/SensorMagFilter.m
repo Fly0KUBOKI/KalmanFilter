@@ -11,14 +11,16 @@ classdef SensorMagFilter < handle
         config              % フィルタ設定
         m_filtered          % フィルタ済み磁気計測値
         noise_history       % ノイズ履歴
+        is_initialized      % 初期化フラグ
     end
     
     methods
         function obj = SensorMagFilter(config)
             % コンストラクタ
             obj.config = config;
-            obj.m_filtered = [0; 1; 0];  % 初期値は正規化ベクトル
+            obj.m_filtered = [1; 0; 0];  % デフォルトは北
             obj.noise_history = [];
+            obj.is_initialized = false;
         end
         
         function [m_out, is_outlier, info] = apply(obj, m_meas)
@@ -50,6 +52,7 @@ classdef SensorMagFilter < handle
                 info.is_norm_mismatch = true;
                 info.m_norm = m_norm;
                 info.expected_norm = expected_norm;
+                fprintf('Mag Outlier: Norm mismatch. Norm=%.2f, Expected=%.2f\n', m_norm, expected_norm);
                 return;
             end
             
@@ -58,6 +61,15 @@ classdef SensorMagFilter < handle
                 m_norm_meas = obj.m_filtered;  % 前回値を使用
             else
                 m_norm_meas = m_meas / m_norm;
+            end
+
+            % 初回初期化
+            if ~obj.is_initialized
+                obj.m_filtered = m_norm_meas;
+                obj.is_initialized = true;
+                m_out = obj.m_filtered;
+                is_outlier = false;
+                return;
             end
             
             % 残差角度を計算（ベクトル間の角度）
@@ -74,11 +86,13 @@ classdef SensorMagFilter < handle
             end
             
             % 外れ値判定（3σ、ラジアン）
-            is_outlier = (residual_angle > 3.0 * max(noise_estimate, 0.01));
+            % 高速回転時の誤検知を防ぐため、下限を緩和 (0.01 -> 0.1 rad approx 5.7 deg)
+            is_outlier = (residual_angle > 3.0 * max(noise_estimate, 0.1));
             if is_outlier
                 m_out = obj.m_filtered;
                 info.is_outlier = true;
                 info.residual_angle = residual_angle;
+                fprintf('Mag Outlier: Angle mismatch. Residual=%.4f rad, Threshold=%.4f rad\n', residual_angle, 3.0 * max(noise_estimate, 0.1));
                 return;
             end
             

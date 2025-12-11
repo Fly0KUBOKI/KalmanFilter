@@ -3,11 +3,6 @@
 #include "../Common/Math/fixed_matrix.hpp"
 #include "../Common/Math/quaternion.hpp"
 
-#pragma once
-#include "meukf_types.hpp"
-#include "../Common/Math/fixed_matrix.hpp"
-#include "../Common/Math/quaternion.hpp"
-
 namespace meukf {
 
 // float型を使用（ユーザー要求により）
@@ -17,6 +12,7 @@ using Vector4 = cmath_fx::Matrix<4, 1, float>;
 using Matrix3x3 = cmath_fx::Matrix<3, 3, float>;
 using Matrix2x2 = cmath_fx::Matrix<2, 2, float>;
 using Matrix3x2 = cmath_fx::Matrix<3, 2, float>;
+using Matrix2x3 = cmath_fx::Matrix<2, 3, float>;
 using Matrix15x15 = cmath_fx::Matrix<15, 15, float>;
 using Matrix15x2 = cmath_fx::Matrix<15, 2, float>;
 using Matrix15x3 = cmath_fx::Matrix<15, 3, float>;

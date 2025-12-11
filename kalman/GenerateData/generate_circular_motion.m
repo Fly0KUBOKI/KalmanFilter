@@ -85,14 +85,14 @@ function [pos_world, vel_world, attitude] = generate_circular_motion(params, t, 
         end
         theta_dot = theta_dot_cur;
 
-        % 位置計算
-        pos_world(i,1) = center_x + radius * cos(theta);  % East
-        pos_world(i,2) = center_y + radius * sin(theta);  % North
-        pos_world(i,3) = altitude;  % Up
+        % 位置計算 (NED: North, East, Down)
+        pos_world(i,1) = center_y + radius * sin(theta);  % North
+        pos_world(i,2) = center_x + radius * cos(theta);  % East
+        pos_world(i,3) = -altitude;  % Down
 
-        % 速度計算
-        vel_world(i,1) = -radius * theta_dot * sin(theta);  % East
-        vel_world(i,2) =  radius * theta_dot * cos(theta);  % North
+        % 速度計算 (NED)
+        vel_world(i,1) =  radius * theta_dot * cos(theta);  % North
+        vel_world(i,2) = -radius * theta_dot * sin(theta);  % East
         vel_world(i,3) = 0;
 
         % 姿勢計算：roll/pitchは単振動、yawは円運動に従う
@@ -103,7 +103,10 @@ function [pos_world, vel_world, attitude] = generate_circular_motion(params, t, 
             attitude(i,1) = roll_seq(i);
             attitude(i,2) = pitch_seq(i);
         end
-        attitude(i,3) = wrapToPi(theta - pi);  % yaw（時計回り）
+        % Yaw (NED): 0=North, 90=East. Clockwise positive.
+        % theta starts at pi and decreases.
+        % We want Yaw to increase from 0.
+        attitude(i,3) = wrapToPi(pi - theta);
         if mod(i, 10000) == 0
             fprintf('Motion step %d / %d\n', i, N);
         end

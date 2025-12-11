@@ -49,7 +49,8 @@ function [p, v, q, ba, bg, P] = call_meukf_update_cpp(p, v, q, ba, bg, P, sensor
     
     % C++ MEX呼び出し
     try
-        [new_state, status, debug_info] = mex_meukf_step_v2(state, sensor_data, mex_params);
+        % mex_meukf_step_v2は1つの出力(state)のみを返す
+        new_state = mex_meukf_step_v2(state, sensor_data, mex_params);
         
         % 状態を抽出
         p = new_state.p;

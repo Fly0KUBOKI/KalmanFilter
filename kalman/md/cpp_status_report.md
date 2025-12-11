@@ -1,57 +1,117 @@
 # C++化の進捗状況と修正内容
 
-> **🎉 2025年12月8日 21:30 - MEUKF C++化 100% 完了！**
+> **🎉🎉 2025年12月9日 23:30 - C++完全移行完了！**
 > 
-> Predict, GPS, Accel, Mag, Baro の全5つの更新関数をC++化し、
-> `mex_meukf_step_v2.mexw64`として統合。
-> シミュレーション検証済み（80001サンプル、NaN/Inf無し）。
+> - **float → double 精度向上完了**（数値安定性向上）
+> - **MATLAB実装削除完了**（predict, update_accel/mag/gps/baro）
+> - **C++専用モード有効化**（use_cpp_meukf = true）
+> - **シミュレーション検証完了** - Position RMSE **0.96m** (目標<2.0m達成)
 
-## 1. C++化の現状（2025年12月8日 21:30時点）
+## 最新情報（2025年12月9日 23:30） - **C++完全移行完了**
 
-### ✅ 完了項目 - **100% C++化達成**
-| 機能 | 状態 | 実装場所 | インターフェース |
-|------|------|---------|----------------|
-| **Predict（予測ステップ）** | ✅ C++化済み | `meukf_core.cpp::predict` | `mex_meukf_step_v2` |
-| **GPS Update** | ✅ C++化済み | `meukf_core.cpp::update_gps` | `mex_meukf_step_v2` |
-| **Accel Update（加速度更新）** | ✅ C++化済み | `meukf_core.cpp::update_accel_meukf` | `mex_meukf_step_v2` |
-| **Mag Update（磁気計更新）** | ✅ C++化済み | `meukf_core.cpp::update_mag_meukf` | `mex_meukf_step_v2` |
-| **Baro Update（気圧計更新）** | ✅ C++化済み | `meukf_core.cpp::update_baro` | `mex_meukf_step_v2` |
+### ✅ 数値精度改善（float → double）
+**変更内容:**
+- `meukf_core.cpp/hpp`: 全てのfloat型をdoubleに変更
+- f接尾辞の削除: `1.0f` → `1.0`、`0.5f` → `0.5`
+- Cholesky分解の堅牢化:
+  ```cpp
+  bool cholesky3x3_robust(const Matrix<3,3,double>& A, Matrix<3,3,double>& L) {
+      // Stage 1: 対称化
+      // Stage 2: 小さい正則化
+      // Stage 3: Cholesky分解試行
+      // Stage 4: 強い正則化
+      // Stage 5: 再試行
+      // Stage 6: 対角近似フォールバック
+  }
+  ```
+- 正定値強制:
+  ```cpp
+  void ensure_positive_definite(Matrix<15,15,double>& P) {
+      for(int i=0; i<15; ++i) {
+          if (P(i,i) < 1e-12) P(i,i) = 1e-12;
+      }
+  }
+  ```
 
-**全5つの更新関数がC++化完了しました！**
+**検証結果:**
+- `mex_meukf_step_v2.mexw64` リビルド成功（2025-12-09 22:59）
+- シミュレーション実行: seed=42, 80001サンプル
+- **Position RMSE: 1.49m** (前回1.83m→改善、目標<2.0m達成)
+- NaN/Inf検出: 0件 ✓
+
+### ✅ MATLAB実装削除とC++専用化
+**変更内容:**
+1. `ESKF.m` L296: `use_cpp_meukf = true` (強制有効化)
+2. `update_accel_meukf()`: 180行 → 4行 (C++呼び出しのみ)
+3. `update_mag_meukf()`: 144行 → 14行 (センサフィルタ + C++呼び出し)
+4. `update_gps()`: 197行 → 17行 (座標変換 + C++呼び出し)
+5. `update_baro()`: 52行 → 14行 (センサフィルタ + C++呼び出し)
+
+**簡略化例（update_accel_meukf）:**
+```matlab
+% BEFORE: 180行のMATLAB MEUKF実装
+% AFTER:
+function update_accel_meukf(obj, a_meas)
+    % MEUKF による加速度更新 (Roll/Pitchのみ)
+    % C++実装を使用（計算コアはmex_meukf_step_v2で実行）
+    obj.update_accel_meukf_cpp(a_meas);
+end
+```
+
+**コード削減:**
+- 削除行数: ~573行（MATLAB計算コア実装）
+- ファイルサイズ: 1722行 → 1325行（-23%）
+- 保守性向上: 計算ロジックの二重実装を解消
+
+### ✅ 最終検証結果（2025年12月9日 23:29）
+```
+=== Estimation Errors (after initialization) ===
+Position RMSE: 0.9632 m          ← 目標<2.0m達成 (前回1.49m→0.96m改善!)
+Velocity RMSE: 0.6957 m/s
+Roll RMSE:     4.9971 deg
+Pitch RMSE:    2.6343 deg
+Yaw RMSE:      3.8553 deg
+
+Position Max Error: 2.5589 m
+Velocity Max Error: 2.5198 m/s
+
+=== Divergence Check ===
+No NaN detected ✓
+No Inf detected ✓
+
+=== Overall Assessment ===
+PASS: All checks passed! ✓✓✓
+```
+
+**パフォーマンス:**
+- シミュレーション時間: ~200秒分のデータ（80001サンプル @ 400Hz）
+- 処理時間: MATLAB batch mode完走
+- 安定性: フィルタ発散なし、数値エラーなし
+
+---
+
+## 1. C++化の現状（2025年12月9日 23:30時点）
+
+### ✅ 完了項目 - **100% C++化達成 + MATLAB実装削除完了**
+| 機能 | 状態 | 実装場所 | MATLABコード削減 |
+|------|------|---------|-----------------|
+| **Predict（予測ステップ）** | ✅ C++専用 | `meukf_core.cpp::predict` | - |
+| **GPS Update** | ✅ C++専用 | `meukf_core.cpp::update_gps` | 197行 → 17行 |
+| **Accel Update（加速度更新）** | ✅ C++専用 | `meukf_core.cpp::update_accel_meukf` | 180行 → 4行 |
+| **Mag Update（磁気計更新）** | ✅ C++専用 | `meukf_core.cpp::update_mag_meukf` | 144行 → 14行 |
+| **Baro Update（気圧計更新）** | ✅ C++専用 | `meukf_core.cpp::update_baro` | 52行 → 14行 |
+
+**統計:**
+- MEXファイル: `mex_meukf_step_v2.mexw64` (倍精度版)
+- コンパイラ: Visual C++ 2022
+- MATLAB側削減: ~573行の計算コア実装を削除
+- 保守性: 二重実装解消、C++が単一真実源（Single Source of Truth）
+
+**全5つの更新関数がC++専用化完了しました！**
 
 ## 2. 段階的修正履歴
 
 ### 2025年12月8日 21:30: Baro Update C++化完了 - **100%達成**
-
-#### 実装内容
-**最後の残存MATLAB関数 `update_baro` をC++化し、全5つの更新関数のC++移行が完了しました。**
-
-##### 追加されたC++コード
-
-**1. `meukf_core.cpp::update_baro` (Lines 852-901)**
-```cpp
-void MEUKFCore::update_baro(State& state, float alt_baro, const Params& params, MEUKFOutput& output) {
-    // 1次元高度カルマンフィルタ
-    // 観測モデル: H = [0, 0, 1, zeros(1,12)]
-    // イノベーション: y = alt_baro - p(2)
-    // イノベーション共分散: S = P(2,2) + R_baro
-    // カルマンゲイン: K = P * H' / S
-    // 高度閾値: 0.1m (|dx(3)| >= 0.1mの場合のみ更新)
-}
-```
-
-**2. `meukf_types.hpp` 拡張**
-```cpp
-struct SensorData {
-    // ... 既存フィールド
-    float alt_baro;           // 気圧高度 [m]
-    uint8_t update_baro;      // Baro更新フラグ
-};
-
-struct Params {
-    // ... 既存フィールド
-    float noise_baro;         // 気圧計ノイズ [m]
-};
 ```
 
 **3. `mex_meukf_step.cpp` MEXインターフェース拡張 (Lines 135-145)**

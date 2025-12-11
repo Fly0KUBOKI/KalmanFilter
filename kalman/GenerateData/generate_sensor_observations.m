@@ -30,8 +30,8 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
     if strcmp(motion_type, 'circular')
         radius = params.motion.circular.radius;
         omega = params.motion.circular.omega;
-        center_x = radius;
-        center_y = 0;
+        center_x = 0;      % NED North
+        center_y = radius; % NED East
         
         static_time = 5;
         if isfield(params, 'static_time')
@@ -93,13 +93,13 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
             a_world = compute_general_acceleration(i, vel_world, dt, params);
         end
         
-        g_world = [0, 0, -9.81];
+        g_world = [0, 0, 9.81]; % NED gravity (Down)
         specific_force_world = a_world - g_world;
     % 機体軸: 標準航空機座標系 x=roll軸, y=pitch軸, z=down（直接マップ）
     accel_tmp = (R' * specific_force_world')';
     % 標準的な航空機座標系の軸割り当て
-    accel_body(i,1) = accel_tmp(1); % x: roll軸方向（機体右向き）
-    accel_body(i,2) = accel_tmp(2); % y: pitch軸方向（機体前向き）
+    accel_body(i,1) = accel_tmp(1); % x: roll軸方向（機体前向き）
+    accel_body(i,2) = accel_tmp(2); % y: pitch軸方向（機体右向き）
     accel_body(i,3) = accel_tmp(3); % z: yaw軸方向（機体下向き）
 
         % ジャイロスコープ（角速度）
@@ -124,18 +124,18 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
         gyro_body(i,3) = rad2deg(r);  % z軸周り: yaw角速度 (度/秒)
 
         % 磁気計
-        mag_world = [0, mag_strength, 0];
+        mag_world = [mag_strength, 0, 0]; % NED North
         mag_body(i,:) = (R' * mag_world')';
 
         % 気圧計
-        alt = alt0 + pos_world(i,3);
+        alt = alt0 - pos_world(i,3); % NED Down is negative altitude
         P0 = 101325;
         alt_clip = min(alt, 44330 - eps);
         baro(i) = P0 * (1 - (alt_clip / 44330))^(1/0.1903);
 
         % GPS
-        north_m = pos_world(i,2);
-        east_m = pos_world(i,1);
+        north_m = pos_world(i,1); % NED North
+        east_m = pos_world(i,2);  % NED East
         dlat = north_m * 9.0e-6;
         dlon = east_m * (9.0e-6 / max(cosd(lat0), 1e-6));
         gps_lat(i) = lat0 + dlat;
@@ -222,7 +222,7 @@ function yaw_rate = compute_circular_yaw_rate(i, t, static_time, accel_time, ome
         omega_scale = 1.0;
     end
 
-    yaw_rate = -omega * omega_scale;  % 時計回り
+    yaw_rate = omega * omega_scale;  % 時計回り
 end
 
 function yaw_rate = compute_general_yaw_rate(i, vel_world, dt, params)

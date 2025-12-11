@@ -45,6 +45,10 @@ classdef ESKF < handle
         % MEUKF関連
         use_meukf
         use_cpp_meukf  % C++実装を使用するかどうか
+        use_cpp_accel  % 加速度更新のC++実装フラグ
+        use_cpp_mag    % 磁気計更新のC++実装フラグ
+        use_cpp_gps    % GPS更新のC++実装フラグ
+        use_cpp_baro   % 気圧計更新のC++実装フラグ
         % Reset関連
         last_reset_step
         % 速度減衰
@@ -73,17 +77,28 @@ classdef ESKF < handle
                 dt = 1/100;
             end
             obj.dt = dt;
+            
+            fprintf('ESKF Constructor called.\n');
+            fprintf('Obs fields: %s\n', strjoin(fieldnames(obs), ', '));
 
             % Calculate static indices from static_time
             if nargin >= 2 && ~isempty(static_time) && static_time > 0
                 N_static = floor(static_time / dt);
+                fprintf('Static time: %.2f, dt: %.4f, N_static: %d\n', static_time, dt, N_static);
+                
                 if isfield(obs, 'accel_x') && length(obs.accel_x) >= N_static
                     static_idx = 1:N_static;
+                    fprintf('Found accel_x. Static idx set.\n');
+                elseif isfield(obs, 'ax') && length(obs.ax) >= N_static
+                    static_idx = 1:N_static;
+                    fprintf('Found ax. Static idx set.\n');
                 else
                     static_idx = [];
+                    fprintf('No accel field found or length insufficient.\n');
                 end
             else
                 static_idx = [];
+                fprintf('Static time not provided or invalid.\n');
             end
 
             % default nominal states
@@ -91,12 +106,16 @@ classdef ESKF < handle
             obj.v = zeros(3,1);
             
             % gravity
-            obj.g = [0;0;-9.80665];
+            obj.g = [0;0;9.80665];
 
             % Initialize noise parameters
             if ~isempty(static_idx) && length(static_idx) > 10
                 % Estimate noise from static period
-                accel_static = [obs.accel_x(static_idx), obs.accel_y(static_idx), obs.accel_z(static_idx)];
+                if isfield(obs, 'accel_x')
+                    accel_static = [obs.accel_x(static_idx), obs.accel_y(static_idx), obs.accel_z(static_idx)];
+                else
+                    accel_static = [obs.ax(static_idx), obs.ay(static_idx), obs.az(static_idx)];
+                end
                 accel_mean = mean(accel_static, 1);
                 sigma_a = mean(std(accel_static - accel_mean, [], 1));
                 
@@ -118,23 +137,59 @@ classdef ESKF < handle
                 phi = atan2(-accel_mean(2), -accel_mean(3));
                 theta = atan2(accel_mean(1), sqrt(accel_mean(2)^2 + accel_mean(3)^2));
                 
-                obj.q = QuaternionLib.from_euler([phi; theta; 0]);
+                % Temporary quaternion with 0 yaw (convert to degrees for QuaternionLib)
+                q_temp = QuaternionLib.from_euler(rad2deg([phi; theta; 0]));
                 
-                gyro_static = [obs.gyro_x(static_idx), obs.gyro_y(static_idx), obs.gyro_z(static_idx)];
+                if isfield(obs, 'gyro_x')
+                    gyro_static = [obs.gyro_x(static_idx), obs.gyro_y(static_idx), obs.gyro_z(static_idx)];
+                else
+                    gyro_static = [obs.wx(static_idx), obs.wy(static_idx), obs.wz(static_idx)];
+                end
                 sigma_g = mean(std(gyro_static, [], 1));
                 sigma_g = deg2rad(sigma_g);
                 
                 if isfield(obs, 'mag_x')
                     mag_static = [obs.mag_x(static_idx), obs.mag_y(static_idx), obs.mag_z(static_idx)];
+                    has_mag = true;
+                elseif isfield(obs, 'mx')
+                    mag_static = [obs.mx(static_idx), obs.my(static_idx), obs.mz(static_idx)];
+                    has_mag = true;
+                else
+                    has_mag = false;
+                end
+
+                if has_mag
                     mag_mean = mean(mag_static, 1);
                     sigma_mag = mean(std(mag_static - mag_mean, [], 1));
+                    
+                    % Calculate initial Yaw from Magnetometer
+                    % Rotate magnetic vector to horizontal plane using Roll/Pitch
+                    R_rp = QuaternionLib.to_rotation_matrix(q_temp);
+                    m_level = R_rp * mag_mean';
+                    
+                    % Calculate Yaw angle
+                    % NED frame: North is X, East is Y.
+                    % m_level points to North in the leveled body frame.
+                    % psi = -atan2(my, mx)
+                    psi = -atan2(m_level(2), m_level(1));
+                    
+                    fprintf('Initialized Yaw from Mag: %.2f deg\n', rad2deg(psi));
+                    
+                    % Update quaternion with calculated Yaw (convert to degrees for QuaternionLib)
+                    obj.q = QuaternionLib.from_euler(rad2deg([phi; theta; psi]));
                 else
                     sigma_mag = 10.0;
+                    obj.q = q_temp;
                 end
                 
                 if isfield(obs, 'baro')
                     P0 = 101325;
                     pressure_static = obs.baro(static_idx);
+                    alt_baro_static = 44330 * (1 - (pressure_static / P0).^0.1903);
+                    sigma_press = std(alt_baro_static - mean(alt_baro_static));
+                elseif isfield(obs, 'pressure')
+                    P0 = 101325;
+                    pressure_static = obs.pressure(static_idx);
                     alt_baro_static = 44330 * (1 - (pressure_static / P0).^0.1903);
                     sigma_press = std(alt_baro_static - mean(alt_baro_static));
                 else
@@ -145,6 +200,15 @@ classdef ESKF < handle
                     lat_static = obs.gps_lat(static_idx);
                     lon_static = obs.gps_lon(static_idx);
                     alt_static = obs.gps_alt(static_idx);
+                elseif isfield(obs, 'lat') && isfield(obs, 'lon') && isfield(obs, 'alt')
+                    lat_static = obs.lat(static_idx);
+                    lon_static = obs.lon(static_idx);
+                    alt_static = obs.alt(static_idx);
+                else
+                    lat_static = [];
+                end
+
+                if ~isempty(lat_static)
                     lat0 = mean(lat_static);
                     lon0 = mean(lon_static);
                     y_m = (lat_static - lat0) / (9.0e-6);
@@ -156,9 +220,15 @@ classdef ESKF < handle
                 end
                 
                 % Gyro noise threshold
-                wx_all = deg2rad(obs.gyro_x(:));
-                wy_all = deg2rad(obs.gyro_y(:));
-                wz_all = deg2rad(obs.gyro_z(:));
+                if isfield(obs, 'gyro_x')
+                    wx_all = deg2rad(obs.gyro_x(:));
+                    wy_all = deg2rad(obs.gyro_y(:));
+                    wz_all = deg2rad(obs.gyro_z(:));
+                else
+                    wx_all = deg2rad(obs.wx(:));
+                    wy_all = deg2rad(obs.wy(:));
+                    wz_all = deg2rad(obs.wz(:));
+                end
                 std_wx = std(wx_all);
                 std_wy = std(wy_all);
                 std_wz = std(wz_all);
@@ -263,7 +333,8 @@ classdef ESKF < handle
                 config.max_attitude_variance = (deg2rad(15))^2;  % 姿勢分散上限を緩和 (10 -> 15 deg)
                 config.max_mag_gain_element = 0.2;  % 磁気計ゲインを緩和 (0.15 -> 0.2)
                 obj.divergence_guard = DivergenceGuard(config);
-            catch
+            catch ME
+                fprintf('Error initializing DivergenceGuard: %s\n', ME.message);
                 obj.divergence_guard = [];
             end
 
@@ -293,7 +364,13 @@ classdef ESKF < handle
             
             % MEUKF初期化
             obj.use_meukf = true;  % MEUKFを有効化
-            obj.use_cpp_meukf = false;  % 一旦MATLAB実装を使用（安定性確認）
+            obj.use_cpp_meukf = false;  % C++実装のマスタースイッチ（個別制御優先）
+            
+            % C++実装の個別制御フラグ（デバッグ用）
+            obj.use_cpp_accel = false;   % 加速度更新
+            obj.use_cpp_mag = false;     % 磁気計更新
+            obj.use_cpp_gps = false;    % GPS更新
+            obj.use_cpp_baro = false;   % 気圧計更新
             
             % 角速度初期化
             obj.w_body = zeros(3,1);
@@ -715,7 +792,7 @@ classdef ESKF < handle
                 return;  % 外れ値の場合は更新をスキップ
             end
             
-            m_world = [0; 50; 0];
+            m_world = [50; 0; 0];
             Rb = QuaternionLib.to_rotation_matrix(obj.q);
             h_mag = Rb' * m_world;
             
@@ -743,6 +820,12 @@ classdef ESKF < handle
             
             % イノベーション計算
             y = z - h;
+            persistent print_count
+            if isempty(print_count), print_count = 0; end
+            if print_count < 20
+                fprintf('Mag Update: z=[%.2f, %.2f, %.2f], h=[%.2f, %.2f, %.2f], y=[%.2f, %.2f, %.2f]\n', z(1), z(2), z(3), h(1), h(2), h(3), y(1), y(2), y(3));
+                print_count = print_count + 1;
+            end
             
             % S = H_sub * P_sub * H_sub' + R_est (3x3)
             S = H_sub * (P_sub * H_sub') + R_est;
@@ -831,7 +914,19 @@ classdef ESKF < handle
         end
         
     function update_gps(obj, lat, lon, alt, k)
-            % GPS位置更新（ブロック化 EKF ベース）
+            % GPS位置更新
+            
+            if obj.use_cpp_gps
+                lat0 = obj.gps_origin(1);
+                lon0 = obj.gps_origin(2);
+                alt0 = obj.gps_origin(3);
+                y_m = (lat - lat0) / (9.0e-6);
+                x_m = (lon - lon0) / (9.0e-6 / cosd(lat0));
+                z_m = alt - alt0;
+                z_gps = [y_m; x_m; -z_m]; % NED
+                obj.update_gps_cpp(z_gps);
+                return;
+            end
             
             lat0 = obj.gps_origin(1);
             lon0 = obj.gps_origin(2);
@@ -842,81 +937,55 @@ classdef ESKF < handle
             x_m = (lon - lon0) / (9.0e-6 / cosd(lat0));
             z_m = alt - alt0;
             
-            z_gps = [x_m; y_m; z_m];
+            z_gps = [y_m; x_m; -z_m]; % NED: [North; East; Down]
             
-            % センサーフィルタ使用（初期化問題のため一時的にスキップ）
-            % [z_gps_filtered, is_outlier, ~] = obj.sensor_filters.gps.apply(z_gps);
-            % if is_outlier
-            %     return;
-            % end
-            z_gps_filtered = z_gps;  % フィルタをバイパス
-
-            % 予測測定値 (現在の推定位置)
+            z_gps_filtered = z_gps;
             y_pred = obj.p;
-
-            % イノベーション
             y_innov_pre = z_gps - y_pred;
-
-            % イノベーションが大きすぎる場合は外れ値として棄却 (閾値を100.0mに緩和)
+            
             if any(isnan(y_innov_pre)) || norm(y_innov_pre(1:3)) > 100.0
                 return;
             end
-
-            R = obj.noiseEstimator.getRnoise('gps');
             
-            % GPS更新前にPを正則化
+            R = obj.noiseEstimator.getRnoise('gps');
             obj.P = obj.divergence_guard.regularize_for_ukf(obj.P);
             
-            % --- UKF 更新: 位置・速度の6次元サブシステムに適用 ---
-            % 状態サブセット: x_sub = [p; v] (6x1)
             idx_pv = 1:6;
             x_sub = [obj.p; obj.v];
-            P_sub = obj.P(idx_pv, idx_pv);  % 6x6
-            
-            % 観測関数: 位置のみを返す (3x1)
+            P_sub = obj.P(idx_pv, idx_pv);
             h_func = @(x_pv) x_pv(1:3);
             
-            % UKF 更新を実行
             ukf_success = false;
             try
-                % alpha=1e-3, beta=2, kappa=0 (標準設定)
                 [x_sub_upd, P_sub_upd, K_ukf, S, y_innov] = ukf_update(x_sub, P_sub, z_gps_filtered, h_func, R, 1e-3, 2, 0);
                 ukf_success = true;
             catch ME
-                % UKF失敗時はEKFにフォールバック
                 warning('ESKF:update_gps:UKF_Failed', 'UKF update failed (%s), using EKF fallback', ME.message);
                 ukf_success = false;
             end
             
-            % 観測行列（位置のみ）: H = [I3, 0_{3x12}]
             H_gps = [eye(3), zeros(3, 12)];
             
             if ukf_success
-                % UKF成功時: Sとy_innovは既に計算済み
-                % 全状態へのカルマンゲインを計算
                 S = (S + S') / 2;
                 if rcond(S) < 1e-12
                     S = S + eye(3) * 1e-8;
                 end
-                
                 try
                     U = chol(S);
                     tmp = obj.P(:, 1:3);
-                    K = (U \ (U' \ tmp'))';  % 15x3
+                    K = (U \ (U' \ tmp'))';
                 catch
                     K = obj.P(:, 1:3) / S;
                 end
-                
                 K = obj.divergence_guard.clamp_gain(K);
                 dx = K * y_innov;
             else
-                % EKFフォールバック
                 idx_pos = 1:3;
                 y_innov = z_gps_filtered - obj.p;
                 P_pos = obj.P(idx_pos, idx_pos);
                 S = P_pos + R;
                 S = (S + S') / 2;
-                
                 try
                     U = chol(S);
                     tmp = obj.P(:, idx_pos);
@@ -924,27 +993,18 @@ classdef ESKF < handle
                 catch
                     K = obj.P(:, idx_pos) / S;
                 end
-                
                 K = obj.divergence_guard.clamp_gain(K);
                 dx = K * y_innov;
             end
             
-            % OutlierGuard チェック（UKF成功時は信頼してスキップ）
             if ukf_success
-                % UKFが成功した場合は既にsigma pointsでロバストに処理されているため、
-                % OutlierGuardをバイパスして直接更新を適用
                 should_update = true;
                 y_used = y_innov;
                 dx_used = [];
-                
-                % UKFの場合でも、イノベーションが大きすぎる場合は棄却する (外れ値対策強化)
-                % 位置のイノベーションが 20m 以上なら棄却 (ロックアウト防止のため緩和: 5.0 -> 20.0)
                 if norm(y_innov(1:3)) > 100.0
                     should_update = false;
                 end
             else
-                % EKFフォールバック時のみOutlierGuardを使用
-                H_gps = [eye(3), zeros(3, 12)];
                 R_updated = obj.noiseEstimator.getRnoise('gps');
                 ctx = struct();
                 ctx.k = k;
@@ -960,62 +1020,40 @@ classdef ESKF < handle
             if ~should_update
                 return;
             end
-
-            % ノイズ推定を更新
+            
             obj.noiseEstimator.estimate('gps', y_used, H_gps, obj.P);
-
-            % クリップ済み dx があれば使う
+            
             if ~isempty(dx_used)
                 dx = dx_used;
             end
             
-            % 変化量クラッピング適用（発散防止）
             dx = obj.clip_state_change(dx);
-
-            % 状態更新
+            
             if ukf_success
-                % UKF成功時: 更新された状態との差分を適用
-                % x_sub_updは絶対値なので、事前推定x_subとの差分をとる
                 dx_ukf = x_sub_upd - x_sub;
                 obj.p = obj.p + dx_ukf(1:3);
                 obj.v = obj.v + dx_ukf(4:6);
             else
-                % EKFフォールバック時: dx補正を適用
                 obj.p = obj.p + dx(1:3);
                 obj.v = obj.v + dx(4:6);
             end
             
-            % バイアス更新 (GPS観測による間接的な補正)
-            % デバッグ: 最初の更新時にdx値を確認
-            persistent first_update;
-            if isempty(first_update)
-                first_update = true;
-                fprintf('[GPS Update Debug] dx(10:15) = [%.6f, %.6f, %.6f, %.6f, %.6f, %.6f]\n', ...
-                    dx(10), dx(11), dx(12), dx(13), dx(14), dx(15));
-            end
             obj.ba = obj.ba + dx(10:12);
             obj.bg = obj.bg + dx(13:15);
             
-            % 共分散更新
             if ukf_success
-                % UKF成功時: サブシステムの更新済み共分散を使用
                 idx_obs = 1:6;
                 obj.P(idx_obs, idx_obs) = P_sub_upd;
-                
-                % クロス項更新 (姿勢・バイアスとの相関を更新)
                 for i = 7:15
                     obj.P(i, idx_obs) = obj.P(i, idx_obs) - K(i,:) * (H_gps(:,idx_obs) * obj.P(idx_obs, idx_obs));
                     obj.P(idx_obs, i) = obj.P(i, idx_obs)';
                 end
             else
-                % EKFフォールバック時: Joseph形式で更新
                 idx_obs = 1:6;
                 I_KH_block = eye(length(idx_obs)) - K(idx_obs,:) * H_gps(:,idx_obs);
                 P_block = obj.P(idx_obs, idx_obs);
                 P_block_new = I_KH_block * P_block * I_KH_block' + K(idx_obs,:) * R_updated * K(idx_obs,:)';
                 obj.P(idx_obs, idx_obs) = P_block_new;
-                
-                % クロス項更新
                 for i = 7:15
                     obj.P(i, idx_obs) = obj.P(i, idx_obs) - K(i,:) * (H_gps(:,idx_obs) * obj.P(idx_obs, idx_obs));
                     obj.P(idx_obs, i) = obj.P(i, idx_obs)';
@@ -1023,60 +1061,50 @@ classdef ESKF < handle
             end
             
             obj.P = (obj.P + obj.P') / 2;
-            
-            % 速度チェックとクリッピング
             [obj.v, obj.P, ~] = obj.divergence_guard.check_and_clip_velocity(obj.v, obj.P, 4:6);
         end
         
         function update_baro(obj, pressure)
             % 気圧計による高度更新
             
-            % センサーフィルタ適用
+            if obj.use_cpp_baro
+                [alt_baro, is_outlier, ~] = obj.sensor_filters.baro.apply(pressure);
+                if any(isnan(alt_baro)); return; end
+                if is_outlier; return; end
+                obj.update_baro_cpp(alt_baro);
+                return;
+            end
+            
             [alt_baro, is_outlier, ~] = obj.sensor_filters.baro.apply(pressure);
             if any(isnan(alt_baro)); return; end
-            
-            if is_outlier
-                return;  % 外れ値の場合は更新をスキップ
-            end
+            if is_outlier; return; end
             
             H = [0,0,1, zeros(1,12)];
             z = alt_baro;
             h = obj.p(3);
-            
-            % 現在のノイズ推定値を使用
             R_est = obj.noiseEstimator.getRnoise('baro');
             
             [y, S, R_used] = kalman_filter_core('compute_innovation_and_S', z, h, H, obj.P, R_est, struct());
-            
-            % フィルタリング（外れ値判定）
             [y_filtered, should_update] = SensorFilter.filterInnovation(y, R_used);
             if ~should_update
                 return;
             end
             
-            % --- 外れ値でない場合のみノイズ推定を更新 ---
             obj.noiseEstimator.estimate('baro', y_filtered, H, obj.P);
-            
             K = kalman_filter_core('compute_kalman_gain', obj.P, H, S);
             K = obj.divergence_guard.clamp_gain(K);
-            
-            % dx計算: Kは15x1、y_filteredはスカラー
             dx = K * y_filtered;
             
-            % dxのサイズ確認とベクトル化
             if numel(dx) == 1
-                % スカラーの場合、位置の高度のみ更新
                 dz = dx;
                 dx = zeros(15, 1);
                 dx(3) = dz;
             end
             
-            % 高度更新（閾値チェック付き）
             if abs(dx(3)) >= 0.1
                 obj.p(3) = obj.p(3) + dx(3);
             end
             
-            % 共分散更新
             x_pred = zeros(15,1);
             x_pred(1:3) = obj.p;
             [~, obj.P] = kalman_filter_core('update_state_covariance', x_pred, obj.P, K, H, y_filtered, R_used);
@@ -1084,15 +1112,11 @@ classdef ESKF < handle
         
         function update_accel_meukf(obj, a_meas)
             % MEUKF による加速度更新 (Roll/Pitchのみ)
-            % 外れ値パルス抑制強化版
             
-            % C++実装を使用する場合
-            if obj.use_cpp_meukf
+            if obj.use_cpp_accel
                 obj.update_accel_meukf_cpp(a_meas);
                 return;
             end
-            
-            % 以下、MATLAB実装
             
             % 高速回転中は加速度更新をスキップ（角速度チェック）
             if ~isempty(obj.w_body)
@@ -1126,8 +1150,8 @@ classdef ESKF < handle
             
             % 動的R調整 (バランス調整)
             gravity_deviation = abs(a_norm - 9.81);
-            R_scale = 1.0 + (gravity_deviation / 0.7);  % 感度を少し緩和 (0.5 -> 0.7)
-            R_floor = 0.25;  % ノイズフロアを上げて安定性向上 (0.15 -> 0.25)
+            R_scale = 1.0 + (gravity_deviation / 0.7);
+            R_floor = 0.25;
             R = diag(max(R_est_2d, R_floor) * R_scale);
             
             % 観測値 (x, y成分のみ)
@@ -1144,50 +1168,38 @@ classdef ESKF < handle
                 return;
             end
             
-            % 発散パラメータ記録: イノベーションノルム
-            obj.accel_innovation_norm = norm(y);
-            
-            % イノベーション制限 (安定化: 0.05rad ≈ 2.9度)
+            % イノベーション制限
             max_innovation = 0.05;
             innov_norm = norm(y);
             if innov_norm > max_innovation
                 y = y * (max_innovation / innov_norm);
             end
             
-            % マハラノビス距離チェック (3.5-sigma棄却で安定性向上)
+            % マハラノビス距離チェック
             try
                 mahal_dist = sqrt(y' / S * y);
-                
-                % 発散パラメータ記録: マハラノビス距離
-                obj.accel_mahalanobis_dist = mahal_dist;
-                
                 if mahal_dist > 3.5
-                    return;  % 外れ値として棄却
+                    return;
                 end
-                % 2.5-sigma以上は減衰
                 if mahal_dist > 2.5
                     attenuation = 2.5 / mahal_dist;
                     y = y * attenuation;
                 end
             catch
-                % S が特異の場合はスキップ
                 return;
             end
             
-            % dtheta再計算 (フィルタリング後のイノベーションで)
+            % dtheta再計算
             dtheta = K * y;
             
-            % 変化量クラッピング適用（発散防止）
+            % 変化量クラッピング適用
             dtheta_full = zeros(15, 1);
             dtheta_full(7:9) = dtheta;
             dtheta_full = obj.clip_state_change(dtheta_full);
             dtheta = dtheta_full(7:9);
             
-            % 発散パラメータ記録: ゲインノルム
-            obj.accel_gain_norm = norm(K, 'fro');
-            
-            % dthetaの大きさ制限 (0.6度で安定化)
-            dtheta_norm = norm(dtheta(1:2));  % Roll/Pitchのみチェック
+            % dthetaの大きさ制限
+            dtheta_norm = norm(dtheta(1:2));
             if dtheta_norm > deg2rad(0.6)
                 scale = deg2rad(0.6) / dtheta_norm;
                 dtheta(1:2) = dtheta(1:2) * scale;
@@ -1201,7 +1213,7 @@ classdef ESKF < handle
             obj.q = QuaternionLib.multiply(obj.q, dq);
             obj.q = QuaternionLib.normalize(obj.q);
             
-            % 共分散更新: MEUKFで得られた姿勢ブロック + フルクロス項の更新
+            % 共分散更新
             P_attitude_upd = (P_attitude_upd + P_attitude_upd') / 2;
             max_var = (deg2rad(5))^2;
             for i = 1:3
@@ -1210,32 +1222,23 @@ classdef ESKF < handle
                 end
             end
             
-            % フル状態のクロス共分散を更新（EKFブランチと同様のロジック）
-            % 観測に関連するインデックス: 姿勢(7:9)のみ（加速度は姿勢のみ観測）
             idx_obs = 7:9;
-            
-            % 観測行列の近似（線形化: 加速度のx,y成分に対する姿勢の感度）
-            % H_sub ≈ MEUKFのPxzから逆算するか、EKFと同じ線形化を使用
             Rb = QuaternionLib.to_rotation_matrix(obj.q);
             g_body = Rb' * obj.g;
             H_attitude = -RotationLib.skew_symmetric(g_body);
-            H_sub = H_attitude(1:2, :);  % x,y成分のみ
+            H_sub = H_attitude(1:2, :);
             
-            % フル状態に対するカルマンゲイン（EKFと整合的に計算）
-            P_cross = obj.P(:, idx_obs);  % 15x3
+            P_cross = obj.P(:, idx_obs);
             try
-                % K_full = P_cross * H_sub' / S
                 U = chol(S);
-                tmp = P_cross * H_sub';  % 15x2
-                K_full = (U \ (U' \ tmp'))';  % 15x2
+                tmp = P_cross * H_sub';
+                K_full = (U \ (U' \ tmp'))';
             catch
                 try
                     K_full = P_cross * (H_sub' / S);
                 catch
-                    % フォールバック: 姿勢ブロックのみ更新
                     obj.P(idx_obs, idx_obs) = P_attitude_upd;
                     obj.P = (obj.P + obj.P') / 2;
-                    % ノイズ推定更新
                     y_full = zeros(3,1);
                     y_full(1:2) = y;
                     H_full = [zeros(3,6), eye(3), zeros(3,6)];
@@ -1244,14 +1247,11 @@ classdef ESKF < handle
                 end
             end
             
-            % ゲインクリッピング
             K_full = obj.divergence_guard.clamp_gain(K_full);
             
-            % Joseph形式でフル共分散を更新
             I_KH_block = eye(length(idx_obs)) - K_full(idx_obs,:) * H_sub;
             obj.P(idx_obs, idx_obs) = I_KH_block * P_attitude_upd * I_KH_block' + K_full(idx_obs,:) * R * K_full(idx_obs,:)';
             
-            % クロス項更新
             for i = 1:15
                 if ~ismember(i, idx_obs)
                     obj.P(i, idx_obs) = obj.P(i, idx_obs) - K_full(i,:) * (H_sub * obj.P(idx_obs, idx_obs));
@@ -1261,7 +1261,6 @@ classdef ESKF < handle
             
             obj.P = (obj.P + obj.P') / 2;
             
-            % ノイズ推定更新
             y_full = zeros(3,1);
             y_full(1:2) = y;
             H_full = [zeros(3,6), eye(3), zeros(3,6)];
@@ -1270,7 +1269,6 @@ classdef ESKF < handle
         
         function update_mag_meukf(obj, m_meas)
             % MEUKF による磁気計更新
-            % 外れ値パルス抑制強化版
             
             % センサーフィルタ適用
             [m_filtered, is_outlier, ~] = obj.sensor_filters.mag.apply(m_meas);
@@ -1280,15 +1278,20 @@ classdef ESKF < handle
                 return;
             end
             
+            if obj.use_cpp_mag
+                obj.update_mag_meukf_cpp(m_filtered);
+                return;
+            end
+            
             % 地磁気ベクトル (北向き)
-            m_world = [0; 50; 0];
+            m_world = [50; 0; 0];
             
             % 観測関数
             h_func = @(q) compute_mag_observation(q, m_world);
             
             % ノイズ共分散 (保守的に)
             R_est = obj.noiseEstimator.getRnoise('mag');
-            R_est = R_est * 1.5;  % 磁気計ノイズを増やして保守的に
+            R_est = R_est * 1.5;
             
             % 姿勢誤差の共分散 (3x3)
             P_attitude = obj.P(7:9, 7:9);
@@ -1301,14 +1304,14 @@ classdef ESKF < handle
                 return;
             end
             
-            % イノベーション制限 (0.1rad ≈ 6度)
+            % イノベーション制限
             max_innovation = 0.1;
             innov_norm = norm(y);
             if innov_norm > max_innovation
                 y = y * (max_innovation / innov_norm);
             end
             
-            % マハラノビス距離チェック (4-sigma棄却、磁気計は少し緩め)
+            % マハラノビス距離チェック
             try
                 mahal_dist = sqrt(y' / S * y);
                 if mahal_dist > 4.0
@@ -1325,25 +1328,25 @@ classdef ESKF < handle
             % dtheta再計算
             dtheta = K * y;
             
-            % 変化量クラッピング適用（発散防止）
+            % 変化量クラッピング適用
             dtheta_full = zeros(15, 1);
             dtheta_full(7:9) = dtheta;
             dtheta_full = obj.clip_state_change(dtheta_full);
             dtheta = dtheta_full(7:9);
             
-            % dthetaの大きさ制限 (Yaw含めて1.0度以下に)
+            % dthetaの大きさ制限
             dtheta_norm = norm(dtheta);
             if dtheta_norm > deg2rad(1.0)
                 scale = deg2rad(1.0) / dtheta_norm;
                 dtheta = dtheta * scale;
             end
             
-            % 姿勢更新 (磁気計は全3軸更新可能)
+            % 姿勢更新
             dq = QuaternionLib.small_angle_quat(dtheta);
             obj.q = QuaternionLib.multiply(obj.q, dq);
             obj.q = QuaternionLib.normalize(obj.q);
             
-            % 共分散更新: MEUKFで得られた姿勢ブロック + フルクロス項の更新
+            % 共分散更新
             P_attitude_upd = (P_attitude_upd + P_attitude_upd') / 2;
             max_var = (deg2rad(8))^2;
             for i = 1:3
@@ -1352,29 +1355,24 @@ classdef ESKF < handle
                 end
             end
             
-            % フル状態のクロス共分散を更新（EKFブランチと同様）
             idx_obs = 7:9;
-            
-            % 観測行列（磁気計は全3軸）
             Rb = QuaternionLib.to_rotation_matrix(obj.q);
             h_mag = Rb' * m_world;
             h_mag_norm = norm(h_mag);
             if h_mag_norm > 1e-6
                 h_mag = h_mag / h_mag_norm;
             end
-            H_sub = RotationLib.skew_symmetric(h_mag);  % 3x3
+            H_sub = RotationLib.skew_symmetric(h_mag);
             
-            % フル状態に対するカルマンゲイン
-            P_cross = obj.P(:, idx_obs);  % 15x3
+            P_cross = obj.P(:, idx_obs);
             try
                 U = chol(S);
-                tmp = P_cross * H_sub';  % 15x3
-                K_full = (U \ (U' \ tmp'))';  % 15x3
+                tmp = P_cross * H_sub';
+                K_full = (U \ (U' \ tmp'))';
             catch
                 try
                     K_full = P_cross * (H_sub' / S);
                 catch
-                    % フォールバック
                     obj.P(idx_obs, idx_obs) = P_attitude_upd;
                     obj.P = (obj.P + obj.P') / 2;
                     H = [zeros(3,6), eye(3), zeros(3,6)];
@@ -1383,10 +1381,8 @@ classdef ESKF < handle
                 end
             end
             
-            % ゲインクリッピング
             K_full = obj.divergence_guard.clamp_gain(K_full);
             
-            % MAG専用ゲイン制限
             if isfield(obj.divergence_guard.config, 'max_mag_gain_element')
                 max_gain = obj.divergence_guard.config.max_mag_gain_element;
                 if size(K_full,1) >= 9
@@ -1394,11 +1390,9 @@ classdef ESKF < handle
                 end
             end
             
-            % Joseph形式でフル共分散を更新
             I_KH_block = eye(length(idx_obs)) - K_full(idx_obs,:) * H_sub;
             obj.P(idx_obs, idx_obs) = I_KH_block * P_attitude_upd * I_KH_block' + K_full(idx_obs,:) * R_est * K_full(idx_obs,:)';
             
-            % クロス項更新
             for i = 1:15
                 if ~ismember(i, idx_obs)
                     obj.P(i, idx_obs) = obj.P(i, idx_obs) - K_full(i,:) * (H_sub * obj.P(idx_obs, idx_obs));
@@ -1408,7 +1402,6 @@ classdef ESKF < handle
             
             obj.P = (obj.P + obj.P') / 2;
             
-            % ノイズ推定更新
             H = [zeros(3,6), eye(3), zeros(3,6)];
             obj.noiseEstimator.estimate('mag', y, H, obj.P);
         end
@@ -1593,7 +1586,7 @@ classdef ESKF < handle
         end
 
         function euler = get_euler(obj)
-            % オイラー角取得
+            % オイラー角取得 (degrees)
             euler = QuaternionLib.to_euler(obj.q);
         end
         
@@ -1680,7 +1673,7 @@ classdef ESKF < handle
             
             % パラメータ構造体
             params.g = obj.g;
-            params.mag_ref = [0; 50; 0];  % ダミー
+            params.mag_ref = [50; 0; 0];  % ダミー
             params.noise_accel = R_est_2d(1:3);
             params.noise_gyro = zeros(3,1);
             params.noise_ba = zeros(3,1);
@@ -1714,6 +1707,167 @@ classdef ESKF < handle
                 
             catch ME
                 warning('ESKF:update_accel_meukf_cpp:Failed', 'C++ MEUKF failed (%s), skipping', ME.message);
+            end
+        end
+        
+        function update_mag_meukf_cpp(obj, m_meas)
+            % C++実装による磁気計更新
+            
+            % ノイズパラメータ準備
+            R_est_full = obj.noiseEstimator.getRnoise('mag');
+            R_est_3d = diag(R_est_full) * 1.5;  % 保守的に
+            
+            % センサー構造体
+            sensor_data.accel = zeros(3,1);
+            sensor_data.gyro = zeros(3,1);
+            sensor_data.mag = m_meas;
+            sensor_data.gps_pos = zeros(3,1);
+            sensor_data.alt_baro = 0;
+            sensor_data.dt = 0;
+            
+            % パラメータ構造体
+            params.g = obj.g;
+            params.mag_ref = [50; 0; 0];
+            params.noise_accel = zeros(3,1);
+            params.noise_gyro = zeros(3,1);
+            params.noise_ba = zeros(3,1);
+            params.noise_bg = zeros(3,1);
+            params.noise_mag = R_est_3d(1:3);
+            params.noise_gps = zeros(3,1);
+            params.noise_baro = 0;
+            params.alpha = 1e-3;
+            params.beta = 2;
+            params.kappa = 0;
+            
+            % 状態を抽出
+            p = obj.p;
+            v = obj.v;
+            q = obj.q;
+            ba = obj.ba;
+            bg = obj.bg;
+            P = obj.P;
+            
+            % C++実装呼び出し
+            try
+                [p, v, q, ba, bg, P] = call_meukf_update_cpp(p, v, q, ba, bg, P, sensor_data, params, 'mag');
+                
+                % 状態を更新
+                obj.p = p;
+                obj.v = v;
+                obj.q = q;
+                obj.ba = ba;
+                obj.bg = bg;
+                obj.P = P;
+                
+            catch ME
+                warning('ESKF:update_mag_meukf_cpp:Failed', 'C++ MEUKF failed (%s), skipping', ME.message);
+            end
+        end
+        
+        function update_gps_cpp(obj, z_gps)
+            % C++実装によるGPS更新
+            
+            % ノイズパラメータ準備
+            R_est_full = obj.noiseEstimator.getRnoise('gps');
+            R_est_3d = diag(R_est_full);
+            
+            % センサー構造体
+            sensor_data.accel = zeros(3,1);
+            sensor_data.gyro = zeros(3,1);
+            sensor_data.mag = zeros(3,1);
+            sensor_data.gps_pos = z_gps;
+            sensor_data.alt_baro = 0;
+            sensor_data.dt = 0;
+            
+            % パラメータ構造体
+            params.g = obj.g;
+            params.mag_ref = [50; 0; 0];
+            params.noise_accel = zeros(3,1);
+            params.noise_gyro = zeros(3,1);
+            params.noise_ba = zeros(3,1);
+            params.noise_bg = zeros(3,1);
+            params.noise_mag = zeros(3,1);
+            params.noise_gps = R_est_3d(1:3);
+            params.noise_baro = 0;
+            params.alpha = 1e-3;
+            params.beta = 2;
+            params.kappa = 0;
+            
+            % 状態を抽出
+            p = obj.p;
+            v = obj.v;
+            q = obj.q;
+            ba = obj.ba;
+            bg = obj.bg;
+            P = obj.P;
+            
+            % C++実装呼び出し
+            try
+                [p, v, q, ba, bg, P] = call_meukf_update_cpp(p, v, q, ba, bg, P, sensor_data, params, 'gps');
+                
+                % 状態を更新
+                obj.p = p;
+                obj.v = v;
+                obj.q = q;
+                obj.ba = ba;
+                obj.bg = bg;
+                obj.P = P;
+                
+            catch ME
+                warning('ESKF:update_gps_cpp:Failed', 'C++ GPS update failed (%s), skipping', ME.message);
+            end
+        end
+        
+        function update_baro_cpp(obj, alt_baro)
+            % C++実装による気圧計更新
+            
+            % ノイズパラメータ準備
+            R_est = obj.noiseEstimator.getRnoise('baro');
+            
+            % センサー構造体
+            sensor_data.accel = zeros(3,1);
+            sensor_data.gyro = zeros(3,1);
+            sensor_data.mag = zeros(3,1);
+            sensor_data.gps_pos = zeros(3,1);
+            sensor_data.alt_baro = alt_baro;
+            sensor_data.dt = 0;
+            
+            % パラメータ構造体
+            params.g = obj.g;
+            params.mag_ref = [50; 0; 0];
+            params.noise_accel = zeros(3,1);
+            params.noise_gyro = zeros(3,1);
+            params.noise_ba = zeros(3,1);
+            params.noise_bg = zeros(3,1);
+            params.noise_mag = zeros(3,1);
+            params.noise_gps = zeros(3,1);
+            params.noise_baro = R_est;
+            params.alpha = 1e-3;
+            params.beta = 2;
+            params.kappa = 0;
+            
+            % 状態を抽出
+            p = obj.p;
+            v = obj.v;
+            q = obj.q;
+            ba = obj.ba;
+            bg = obj.bg;
+            P = obj.P;
+            
+            % C++実装呼び出し
+            try
+                [p, v, q, ba, bg, P] = call_meukf_update_cpp(p, v, q, ba, bg, P, sensor_data, params, 'baro');
+                
+                % 状態を更新
+                obj.p = p;
+                obj.v = v;
+                obj.q = q;
+                obj.ba = ba;
+                obj.bg = bg;
+                obj.P = P;
+                
+            catch ME
+                warning('ESKF:update_baro_cpp:Failed', 'C++ Baro update failed (%s), skipping', ME.message);
             end
         end
     end
