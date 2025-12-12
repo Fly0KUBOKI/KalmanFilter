@@ -48,40 +48,69 @@ function run_batch_10sets()
             copyfile(est_src, est_dst);
             log_message(log_file, sprintf('Run %d: 結果保存 -> %s', run_id, sprintf('estimation_%02d.csv', run_id)));
             
-            % 解析実行
-            log_message(log_file, sprintf('Run %d: 解析開始...', run_id));
-            [metrics, has_error] = analyze_single_run(proj_root, run_id);
+                % 解析実行
+                log_message(log_file, sprintf('Run %d: 解析開始...', run_id));
+                [metrics, has_error] = analyze_single_run(proj_root, run_id);
             
-            if has_error
-                log_message(log_file, sprintf('Run %d: エラー検出 - %s', run_id, metrics.error_msg));
+            % 判定: 各軸ごとにRMSE閾値で判定する
+            thr = 1.0; % 位置RMSE閾値 (m)
+            % 基本フィールドは常に保存
+            results_summary(run_id).pos_rmse = metrics.pos_rmse;
+            results_summary(run_id).posx_rmse = metrics.posx_rmse;
+            results_summary(run_id).posy_rmse = metrics.posy_rmse;
+            results_summary(run_id).posz_rmse = metrics.posz_rmse;
+            results_summary(run_id).vel_rmse = metrics.vel_rmse;
+            results_summary(run_id).roll_rmse = metrics.roll_rmse;
+            results_summary(run_id).pitch_rmse = metrics.pitch_rmse;
+            results_summary(run_id).yaw_rmse = metrics.yaw_rmse;
+            results_summary(run_id).ba_final = metrics.ba_final;
+            results_summary(run_id).bg_final = metrics.bg_final;
+            results_summary(run_id).max_innov = metrics.max_innov;
+            results_summary(run_id).max_maha = metrics.max_maha;
+            results_summary(run_id).has_nan = metrics.has_nan;
+            results_summary(run_id).has_inf = metrics.has_inf;
+
+            % NaN/Infがある場合は全軸FAILED
+            if metrics.has_nan || metrics.has_inf
+                results_summary(run_id).posx_ok = false;
+                results_summary(run_id).posy_ok = false;
+                results_summary(run_id).posz_ok = false;
                 results_summary(run_id).status = 'FAILED';
                 results_summary(run_id).error = metrics.error_msg;
-                results_summary(run_id).pos_rmse = NaN;
+                log_message(log_file, sprintf('Run %d: エラー検出 - %s', run_id, metrics.error_msg));
             else
-                % 結果保存
-                results_summary(run_id).status = 'SUCCESS';
-                results_summary(run_id).pos_rmse = metrics.pos_rmse;
-                results_summary(run_id).vel_rmse = metrics.vel_rmse;
-                results_summary(run_id).roll_rmse = metrics.roll_rmse;
-                results_summary(run_id).pitch_rmse = metrics.pitch_rmse;
-                results_summary(run_id).yaw_rmse = metrics.yaw_rmse;
-                results_summary(run_id).ba_final = metrics.ba_final;
-                results_summary(run_id).bg_final = metrics.bg_final;
-                results_summary(run_id).max_innov = metrics.max_innov;
-                results_summary(run_id).max_maha = metrics.max_maha;
-                results_summary(run_id).has_nan = metrics.has_nan;
-                results_summary(run_id).has_inf = metrics.has_inf;
-                
-                % ログ出力
-                log_message(log_file, sprintf('Run %d Summary:', run_id));
-                log_message(log_file, sprintf('  Position RMSE: %.4f m', metrics.pos_rmse));
+                % 軸別判定
+                posx_ok = metrics.posx_rmse <= thr;
+                posy_ok = metrics.posy_rmse <= thr;
+                posz_ok = metrics.posz_rmse <= thr;
+                results_summary(run_id).posx_ok = posx_ok;
+                results_summary(run_id).posy_ok = posy_ok;
+                results_summary(run_id).posz_ok = posz_ok;
+
+                % 全軸合格ならSUCCESS, そうでなければFAILED
+                if posx_ok && posy_ok && posz_ok
+                    results_summary(run_id).status = 'SUCCESS';
+                    log_message(log_file, sprintf('Run %d Summary: PASS (All axes within %.2fm)', run_id, thr));
+                else
+                    results_summary(run_id).status = 'FAILED';
+                    % どの軸がFailか列挙
+                    failed = {};
+                    if ~posx_ok, failed{end+1} = sprintf('X(%.2f)', metrics.posx_rmse); end
+                    if ~posy_ok, failed{end+1} = sprintf('Y(%.2f)', metrics.posy_rmse); end
+                    if ~posz_ok, failed{end+1} = sprintf('Z(%.2f)', metrics.posz_rmse); end
+                    results_summary(run_id).error = sprintf('Axis RMSE too high: %s', strjoin(failed, ', '));
+                    log_message(log_file, sprintf('Run %d: エラー検出 - %s', run_id, results_summary(run_id).error));
+                end
+
+                % ログ出力の詳細（常に表示）
+                log_message(log_file, sprintf('  Position RMSE: Overall=%.4f m, X=%.4f m, Y=%.4f m, Z=%.4f m', ...
+                    metrics.pos_rmse, metrics.posx_rmse, metrics.posy_rmse, metrics.posz_rmse));
                 log_message(log_file, sprintf('  Velocity RMSE: %.4f m/s', metrics.vel_rmse));
                 log_message(log_file, sprintf('  Roll/Pitch/Yaw RMSE: %.4f / %.4f / %.4f deg', ...
                     metrics.roll_rmse, metrics.pitch_rmse, metrics.yaw_rmse));
                 log_message(log_file, sprintf('  Gyro bias (final): [%.4f, %.4f, %.4f] deg/s', ...
                     rad2deg(metrics.bg_final)));
                 log_message(log_file, sprintf('  Max Innovation: %.4f', metrics.max_innov));
-                log_message(log_file, sprintf('  Status: SUCCESS'));
             end
             
         catch e
@@ -99,6 +128,9 @@ function run_batch_10sets()
     
     success_count = 0;
     pos_rmse_all = [];
+    posx_rmse_all = [];
+    posy_rmse_all = [];
+    posz_rmse_all = [];
     vel_rmse_all = [];
     roll_rmse_all = [];
     pitch_rmse_all = [];
@@ -108,6 +140,9 @@ function run_batch_10sets()
         if strcmp(results_summary(i).status, 'SUCCESS')
             success_count = success_count + 1;
             pos_rmse_all = [pos_rmse_all, results_summary(i).pos_rmse];
+            posx_rmse_all = [posx_rmse_all, results_summary(i).posx_rmse];
+            posy_rmse_all = [posy_rmse_all, results_summary(i).posy_rmse];
+            posz_rmse_all = [posz_rmse_all, results_summary(i).posz_rmse];
             vel_rmse_all = [vel_rmse_all, results_summary(i).vel_rmse];
             roll_rmse_all = [roll_rmse_all, results_summary(i).roll_rmse];
             pitch_rmse_all = [pitch_rmse_all, results_summary(i).pitch_rmse];
@@ -119,8 +154,14 @@ function run_batch_10sets()
     
     if success_count > 0
         log_message(log_file, sprintf('\n成功したRunの統計:'));
-        log_message(log_file, sprintf('Position RMSE: Mean=%.4f, Std=%.4f, Max=%.4f m', ...
+        log_message(log_file, sprintf('Position RMSE (overall): Mean=%.4f, Std=%.4f, Max=%.4f m', ...
             mean(pos_rmse_all), std(pos_rmse_all), max(pos_rmse_all)));
+        log_message(log_file, sprintf('Position RMSE by axis: X Mean=%.4f, Y Mean=%.4f, Z Mean=%.4f m', ...
+            mean(posx_rmse_all), mean(posy_rmse_all), mean(posz_rmse_all)));
+        log_message(log_file, sprintf('Position RMSE by axis: X Std=%.4f, Y Std=%.4f, Z Std=%.4f m', ...
+            std(posx_rmse_all), std(posy_rmse_all), std(posz_rmse_all)));
+        log_message(log_file, sprintf('Position RMSE by axis: X Max=%.4f, Y Max=%.4f, Z Max=%.4f m', ...
+            max(posx_rmse_all), max(posy_rmse_all), max(posz_rmse_all)));
         log_message(log_file, sprintf('Velocity RMSE: Mean=%.4f, Std=%.4f, Max=%.4f m/s', ...
             mean(vel_rmse_all), std(vel_rmse_all), max(vel_rmse_all)));
         log_message(log_file, sprintf('Roll RMSE: Mean=%.4f, Std=%.4f, Max=%.4f deg', ...
@@ -134,8 +175,8 @@ function run_batch_10sets()
     log_message(log_file, sprintf('\n個別結果:'));
     for i = 1:10
         if strcmp(results_summary(i).status, 'SUCCESS')
-            log_message(log_file, sprintf('Run %2d: PASS (Pos=%.4fm, Att=%.2f/%.2f/%.2f deg)', ...
-                i, results_summary(i).pos_rmse, ...
+                log_message(log_file, sprintf('Run %2d: PASS (Pos Overall=%.4fm, X=%.4fm, Y=%.4fm, Z=%.4fm, Att=%.2f/%.2f/%.2f deg)', ...
+                i, results_summary(i).pos_rmse, results_summary(i).posx_rmse, results_summary(i).posy_rmse, results_summary(i).posz_rmse, ...
                 results_summary(i).roll_rmse, results_summary(i).pitch_rmse, results_summary(i).yaw_rmse));
         else
             if isfield(results_summary(i), 'error')
@@ -221,10 +262,11 @@ function [metrics, has_error] = analyze_single_run(proj_root, run_id)
         init_samples = 2000;
         idx = init_samples+1:height(est);
         
-        % 誤差計算
-        pos_err = sqrt((est.px(idx) - truth.x(idx)).^2 + ...
-                       (est.py(idx) - truth.y(idx)).^2 + ...
-                       (est.pz(idx) - truth.z(idx)).^2);
+        % 誤差計算（軸別および総合）
+        posx_err = (est.px(idx) - truth.x(idx));
+        posy_err = (est.py(idx) - truth.y(idx));
+        posz_err = (est.pz(idx) - truth.z(idx));
+        pos_err = sqrt(posx_err.^2 + posy_err.^2 + posz_err.^2);
         vel_err = sqrt((est.vx(idx) - truth.vx(idx)).^2 + ...
                        (est.vy(idx) - truth.vy(idx)).^2 + ...
                        (est.vz(idx) - truth.vz(idx)).^2);
@@ -235,6 +277,9 @@ function [metrics, has_error] = analyze_single_run(proj_root, run_id)
         
         % 統計計算
         metrics.pos_rmse = rms(pos_err);
+        metrics.posx_rmse = rms(posx_err);
+        metrics.posy_rmse = rms(posy_err);
+        metrics.posz_rmse = rms(posz_err);
         metrics.vel_rmse = rms(vel_err);
         metrics.roll_rmse = rms(roll_err);
         metrics.pitch_rmse = rms(pitch_err);
@@ -245,7 +290,11 @@ function [metrics, has_error] = analyze_single_run(proj_root, run_id)
         metrics.bg_final = [est.bg_x(end), est.bg_y(end), est.bg_z(end)];
         
         % 発散チェック
-        metrics.max_innov = max(est.innov_norm);
+        if ismember('innov_norm', est.Properties.VariableNames)
+            metrics.max_innov = max(est.innov_norm);
+        else
+            metrics.max_innov = 0;  % innov_normカラムがない場合はデフォルト値
+        end
         if ismember('maha_dist', est.Properties.VariableNames)
             metrics.max_maha = max(est.maha_dist);
         else
@@ -254,13 +303,43 @@ function [metrics, has_error] = analyze_single_run(proj_root, run_id)
         metrics.has_nan = any(isnan(est.px) | isnan(est.py) | isnan(est.pz));
         metrics.has_inf = any(isinf(est.px) | isinf(est.py) | isinf(est.pz));
         
-        % エラーチェック
+        % エラーチェック（NaN/Inf と軸別発散判定）
         if metrics.has_nan || metrics.has_inf
             has_error = true;
             metrics.error_msg = 'NaN/Inf detected';
-        elseif metrics.pos_rmse > 1.0
-            has_error = true;
-            metrics.error_msg = sprintf('Position RMSE too high (%.2f m)', metrics.pos_rmse);
+        else
+            % 軸別しきい値 (m)
+            thr = 1.0;
+            bad_axes = {};
+            if metrics.posx_rmse > thr
+                bad_axes{end+1} = sprintf('X(%.2f)', metrics.posx_rmse);
+            end
+            if metrics.posy_rmse > thr
+                bad_axes{end+1} = sprintf('Y(%.2f)', metrics.posy_rmse);
+            end
+            if metrics.posz_rmse > thr
+                bad_axes{end+1} = sprintf('Z(%.2f)', metrics.posz_rmse);
+            end
+
+            if ~isempty(bad_axes)
+                has_error = true;
+                metrics.error_msg = sprintf('Position RMSE too high on axis: %s', strjoin(bad_axes, ', '));
+            elseif metrics.pos_rmse > thr
+                % 全体RMSEが閾値超過だが軸別RMSEはしきい値未満の場合、
+                % 二乗和から各軸の寄与率を計算して最大寄与軸を報告する
+                total_sq = metrics.posx_rmse^2 + metrics.posy_rmse^2 + metrics.posz_rmse^2;
+                if total_sq > 0
+                    frac = [metrics.posx_rmse^2, metrics.posy_rmse^2, metrics.posz_rmse^2] ./ total_sq * 100;
+                    [max_frac, idx_max] = max(frac);
+                    axis_names = {'X','Y','Z'};
+                    has_error = true;
+                    metrics.error_msg = sprintf('Position RMSE too high (overall %.2f m); largest contributor %s (%.1f%%)', ...
+                        metrics.pos_rmse, axis_names{idx_max}, max_frac);
+                else
+                    has_error = true;
+                    metrics.error_msg = sprintf('Position RMSE too high (overall %.2f m)', metrics.pos_rmse);
+                end
+            end
         end
         
     catch e
@@ -270,29 +349,45 @@ function [metrics, has_error] = analyze_single_run(proj_root, run_id)
 end
 
 function create_summary_csv(results_dir, results_summary)
-    % CSVサマリー作成
+    % CSVサマリー作成（軸別RMSEとOKフラグを含む）
     fid = fopen(fullfile(results_dir, 'batch_10sets_summary.csv'), 'w');
-    
+
     % ヘッダー
-    fprintf(fid, 'Run,Status,Pos_RMSE_m,Vel_RMSE_ms,Roll_RMSE_deg,Pitch_RMSE_deg,Yaw_RMSE_deg,');
+    fprintf(fid, 'Run,Status,PosX_RMSE_m,PosY_RMSE_m,PosZ_RMSE_m,PosX_OK,PosY_OK,PosZ_OK,Vel_RMSE_ms,Roll_RMSE_deg,Pitch_RMSE_deg,Yaw_RMSE_deg,');
     fprintf(fid, 'BA_x,BA_y,BA_z,BG_x_deg,BG_y_deg,BG_z_deg,Max_Innov,Has_NaN,Has_Inf\n');
-    
+
     % データ
     for i = 1:length(results_summary)
-        fprintf(fid, '%d,%s,', i, results_summary(i).status);
-        
-        if strcmp(results_summary(i).status, 'SUCCESS')
-            fprintf(fid, '%.4f,%.4f,%.4f,%.4f,%.4f,', ...
-                results_summary(i).pos_rmse, results_summary(i).vel_rmse, ...
-                results_summary(i).roll_rmse, results_summary(i).pitch_rmse, results_summary(i).yaw_rmse);
-            fprintf(fid, '%.6f,%.6f,%.6f,', results_summary(i).ba_final);
-            fprintf(fid, '%.6f,%.6f,%.6f,', rad2deg(results_summary(i).bg_final));
-            fprintf(fid, '%.4f,%d,%d\n', ...
-                results_summary(i).max_innov, results_summary(i).has_nan, results_summary(i).has_inf);
-        else
-            fprintf(fid, 'NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN\n');
-        end
+        s = results_summary(i);
+        fprintf(fid, '%d,%s,', i, s.status);
+
+        % Safe access to fields (some FAILED runs may miss fields)
+        posx = NaN; posy = NaN; posz = NaN; posx_ok = 0; posy_ok = 0; posz_ok = 0;
+        vel = NaN; roll = NaN; pitch = NaN; yaw = NaN;
+        ba = [NaN, NaN, NaN]; bg = [NaN, NaN, NaN]; max_innov = NaN; has_nan = 0; has_inf = 0;
+
+        if isfield(s, 'posx_rmse'), posx = s.posx_rmse; end
+        if isfield(s, 'posy_rmse'), posy = s.posy_rmse; end
+        if isfield(s, 'posz_rmse'), posz = s.posz_rmse; end
+        if isfield(s, 'posx_ok'), posx_ok = double(s.posx_ok); end
+        if isfield(s, 'posy_ok'), posy_ok = double(s.posy_ok); end
+        if isfield(s, 'posz_ok'), posz_ok = double(s.posz_ok); end
+        if isfield(s, 'vel_rmse'), vel = s.vel_rmse; end
+        if isfield(s, 'roll_rmse'), roll = s.roll_rmse; end
+        if isfield(s, 'pitch_rmse'), pitch = s.pitch_rmse; end
+        if isfield(s, 'yaw_rmse'), yaw = s.yaw_rmse; end
+        if isfield(s, 'ba_final'), ba = s.ba_final; end
+        if isfield(s, 'bg_final'), bg = rad2deg(s.bg_final); end
+        if isfield(s, 'max_innov'), max_innov = s.max_innov; end
+        if isfield(s, 'has_nan'), has_nan = double(s.has_nan); end
+        if isfield(s, 'has_inf'), has_inf = double(s.has_inf); end
+
+        fprintf(fid, '%.4f,%.4f,%.4f,%d,%d,%d,%.4f,%.4f,%.4f,%.4f,', ...
+            posx, posy, posz, posx_ok, posy_ok, posz_ok, vel, roll, pitch, yaw);
+        fprintf(fid, '%.6f,%.6f,%.6f,', ba);
+        fprintf(fid, '%.6f,%.6f,%.6f,', bg);
+        fprintf(fid, '%.4f,%d,%d\n', max_innov, has_nan, has_inf);
     end
-    
+
     fclose(fid);
 end

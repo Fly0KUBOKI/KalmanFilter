@@ -1,8 +1,9 @@
 # ESKF 完全ドキュメント - ファイル依存関係・全関数リスト・C++/MATLAB実装状況
 
-> **最終更新**: 2025年12月12日  
+> **最終更新**: 2025年12月13日  
 > **C++化完了率**: 100%（全Predict/Update関数）  
-> **MATLAB削減**: 1876行 → 1421行 (-24.3%)
+> **MATLAB削減**: 1876行 → 217行 (コンストラクタ) + @ESKF 8メソッド (-88%)  
+> **アーキテクチャ**: ESKF クラス分割→メソッドファイル化完了
 
 ---
 
@@ -100,17 +101,20 @@ kalman/
 ├── 実行スクリプト層（最上位）
 │   ├── run_simulation.m           : シングルシミュレーション実行
 │   ├── run_batch_10sets.m         : 10セット自動実行 + 統計
-│   ├── quick_test_cpp.m           : C++/MATLAB比較検証
 │   └── analyze_results.m          : 結果解析とCSV出力
 │
 ├── ESKF/ (メインクラス)
-│   ├── ESKF.m ★ (1421行, メインクラス)
-│   ├── @ESKF/ (オブジェクト定義)
-│   ├── Core/ (フォールバック実装, 現在未使用)
-│   │   ├── meukf_update_attitude.m
-│   │   ├── integrate_nominal_matlab.m
-│   │   └── ...
-│   └── ESKF_backup.m (バックアップ)
+│   ├── ESKF.m ★ (217行, メインクラスコンストラクタ)
+│   ├── @ESKF/ (オブジェクトメソッド定義 - 分割実装)
+│   │   ├── ESKF.m            : コンストラクタ
+│   │   ├── update_filter.m   : 1ステップ統括
+│   │   ├── predict.m         : IMU予測 (C++)
+│   │   ├── sensor_updates.m  : センサ更新統合
+│   │   ├── call_cpp_update_impl.m  : C++ MEX呼び出し (統一)
+│   │   ├── zupt.m            : ZUPT更新
+│   │   ├── reset.m           : リセット制御
+│   │   └── utils.m           : ユーティリティ
+│   └── Core/ (アーカイブのみ)
 │
 ├── Common/ (共通ライブラリ)
 │   ├── Math/
@@ -120,13 +124,19 @@ kalman/
 │   │   └── eskf_math.m          : 数学関数（C++ MEX）
 │   │
 │   ├── Estimation/
-│   │   └── NoiseEstimatorLib.m  : ノイズ推定（MATLAB）
+│   │   └── NoiseEstimator.m     : ノイズ推定 (MATLAB)
 │   │
 │   ├── Core/
 │   │   └── (ユーティリティ)
 │   │
 │   └── Sensor/
-│       └── SensorFilterLib.m    : センサーフィルタ（全5種類）
+│       ├── SensorFilter.m              : センサフィルタ管理 (MATLAB)
+│       ├── SensorAccelFilter.m        : 加速度フィルタ (MATLAB)
+│       ├── SensorGyroFilter.m         : 角速度フィルタ (MATLAB)
+│       ├── SensorMagFilter.m          : 磁気フィルタ (MATLAB)
+│       ├── SensorGPSFilter.m          : GPS フィルタ (MATLAB)
+│       ├── SensorBaroFilter.m         : 気圧フィルタ (MATLAB)
+│       └── BiquadFilter.m             : Biquad基底 (MATLAB)
 │
 ├── cpp/ (C++実装コア)
 │   ├── MEUKF/
@@ -576,8 +586,7 @@ Main Script: run_batch_10sets.m
 | テスト | ファイル | 状態 | 結果 |
 |--------|---------|------|------|
 | **シングルシミュレーション** | `run_simulation.m` | ✅ | seed=42 完正常、Position RMSE=0.96m |
-| **バッチテスト（10セット）** | `run_batch_10sets.m` | ⏳ | 実行可能、詳細統計実施中 |
-| **C++/MATLAB比較** | `quick_test_cpp.m` | ✅ | 結果一致確認 |
+| **バッチテスト（10セット）** | `run_batch_10sets.m` | ✅ | 成功率70% (7/10 PASS) |
 
 ---
 

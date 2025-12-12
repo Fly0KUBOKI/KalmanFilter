@@ -53,6 +53,13 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ad
     end
 
     %% アラン偏差（バイアス不安定性）
+    if isfield(params.noise, 'accel_allan_std') && params.noise.accel_allan_std > 0
+        dt = params.dt;
+        for j = 1:3
+            bias = cumsum(randn(N,1)) * params.noise.accel_allan_std * sqrt(dt);
+            accel_body(:,j) = accel_body(:,j) + bias;
+        end
+    end
     if isfield(params.noise, 'gyro_allan_std') && params.noise.gyro_allan_std > 0
         dt = params.dt;
         for j = 1:3

@@ -77,9 +77,10 @@ function params = config_params()
 
     % Allan偏差
     if params.noise.enable.allan
-        params.noise.gyro_allan_std = 0.2;
-        params.noise.baro_allan_std = 1.0;   % Barometer Allan deviation (meters)
+        params.noise.gyro_allan_std = 0.1;   % Gyroscope Allan deviation (deg/s)
+        params.noise.baro_allan_std = 0.1;   % Barometer Allan deviation (meters)
     else
+        params.noise.accel_allan_std = 0.0;
         params.noise.gyro_allan_std = 0.0;
         params.noise.baro_allan_std = 0.0;
     end
