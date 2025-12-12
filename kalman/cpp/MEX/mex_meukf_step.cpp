@@ -128,6 +128,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     input.sensor.update_mag = (uint8_t)get_field_scalar(m_sensor, "update_mag");
     input.sensor.update_gps = (uint8_t)get_field_scalar(m_sensor, "update_gps");
     input.sensor.update_baro = (uint8_t)get_field_scalar(m_sensor, "update_baro");
+    input.sensor.update_zupt = (uint8_t)get_field_scalar(m_sensor, "update_zupt");
     input.sensor.dt = static_cast<float>(get_field_scalar(m_sensor, "dt"));
 
     // 3. Params変換
@@ -140,6 +141,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     get_field_vec3_float(m_params, "noise_mag", input.params.noise_mag);
     get_field_vec3_float(m_params, "noise_gps", input.params.noise_gps);
     input.params.noise_baro = static_cast<float>(get_field_scalar(m_params, "noise_baro"));
+    get_field_vec3_float(m_params, "noise_zupt", input.params.noise_zupt);
     
     input.params.alpha = static_cast<float>(get_field_scalar(m_params, "alpha"));
     input.params.beta = static_cast<float>(get_field_scalar(m_params, "beta"));

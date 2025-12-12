@@ -52,7 +52,7 @@ classdef SensorMagFilter < handle
                 info.is_norm_mismatch = true;
                 info.m_norm = m_norm;
                 info.expected_norm = expected_norm;
-                fprintf('Mag Outlier: Norm mismatch. Norm=%.2f, Expected=%.2f\n', m_norm, expected_norm);
+                %fprintf('Mag Outlier: Norm mismatch. Norm=%.2f, Expected=%.2f\n', m_norm, expected_norm);
                 return;
             end
             
@@ -92,7 +92,7 @@ classdef SensorMagFilter < handle
                 m_out = obj.m_filtered;
                 info.is_outlier = true;
                 info.residual_angle = residual_angle;
-                fprintf('Mag Outlier: Angle mismatch. Residual=%.4f rad, Threshold=%.4f rad\n', residual_angle, 3.0 * max(noise_estimate, 0.1));
+                %fprintf('Mag Outlier: Angle mismatch. Residual=%.4f rad, Threshold=%.4f rad\n', residual_angle, 3.0 * max(noise_estimate, 0.1));
                 return;
             end
             

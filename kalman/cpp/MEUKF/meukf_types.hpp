@@ -28,6 +28,7 @@ struct SensorData {
     uint8_t update_mag;
     uint8_t update_gps;
     uint8_t update_baro;
+    uint8_t update_zupt; // ZUPT更新フラグ
     
     float dt;           // 前回からの経過時間 [s]
 };
@@ -45,6 +46,7 @@ struct Params {
     float noise_mag[3];         // 磁気ノイズ
     float noise_gps[3];         // GPSノイズ
     float noise_baro;           // 気圧高度ノイズ
+    float noise_zupt[3];        // ZUPTノイズ
     
     // UKFパラメータ
     float alpha;

@@ -32,6 +32,7 @@ function [p, v, q, ba, bg, P] = call_meukf_update_cpp(p, v, q, ba, bg, P, sensor
     sensor_data.update_mag = strcmp(update_type, 'mag');
     sensor_data.update_gps = strcmp(update_type, 'gps');
     sensor_data.update_baro = strcmp(update_type, 'baro');
+    sensor_data.update_zupt = strcmp(update_type, 'zupt');
     
     % パラメータ構造体
     mex_params.g = params.g(:);
@@ -43,6 +44,11 @@ function [p, v, q, ba, bg, P] = call_meukf_update_cpp(p, v, q, ba, bg, P, sensor
     mex_params.noise_mag = params.noise_mag(:);
     mex_params.noise_gps = params.noise_gps(:);
     mex_params.noise_baro = params.noise_baro;
+    if isfield(params, 'noise_zupt')
+        mex_params.noise_zupt = params.noise_zupt(:);
+    else
+        mex_params.noise_zupt = zeros(3,1);
+    end
     mex_params.alpha = params.alpha;
     mex_params.beta = params.beta;
     mex_params.kappa = params.kappa;

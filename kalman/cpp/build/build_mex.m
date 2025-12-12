@@ -140,6 +140,12 @@ function build_mex()
             warning('MEUKF sources not found, skipping');
         end
         
+        % Build: mex_sensor_filter (NEW - for incremental testing)
+        fprintf('\n=== [8/8] mex_sensor_filter ===\n');
+        if build_single_mex('mex_sensor_filter.cpp', compile_opts, inc_args, {}, bin_dir)
+            built_count = built_count + 1;
+        end
+        
     catch ME
         build_success = false;
         fprintf('\nBuild failed!\n');

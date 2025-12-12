@@ -39,6 +39,9 @@ private:
     // Baro Update
     static void update_baro(State& state, float alt_baro, const Params& params, MEUKFOutput& output);
 
+    // ZUPT Update
+    static void update_zupt(State& state, const Params& params, MEUKFOutput& output);
+
     // Helpers
     static void state_to_vars(const State& s, Vector3& p, Vector3& v, Vector4& q, Vector3& ba, Vector3& bg, Matrix15x15& P);
     static void vars_to_state(const Vector3& p, const Vector3& v, const Vector4& q, const Vector3& ba, const Vector3& bg, const Matrix15x15& P, State& s);

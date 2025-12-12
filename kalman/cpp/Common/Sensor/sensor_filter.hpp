@@ -21,9 +21,10 @@ public:
     
     cm filter(const cm& input) {
         if (!initialized_) {
-            filtered_ = input;
+            // MATLAB互換: 0初期化からスタート
+            filtered_.resize(input.rows, input.cols);
+            for(int i=0; i<filtered_.rows*filtered_.cols; ++i) filtered_.data[i] = 0.0f;
             initialized_ = true;
-            return filtered_;
         }
         
         cm result;
@@ -35,6 +36,15 @@ public:
         }
         filtered_ = result;
         return result;
+    }
+    
+    cm get_value() const {
+        return filtered_;
+    }
+
+    void set_value(const cm& val) {
+        filtered_ = val;
+        initialized_ = true;
     }
     
     void reset() {
@@ -54,36 +64,58 @@ private:
     float b0_, b1_, b2_;  // 分子係数
     float a1_, a2_;       // 分母係数
     bool initialized_;
+    bool coeffs_set_;     // 係数が設定されたかのフラグ
+    float current_dt_;
+    float current_cutoff_;
     
 public:
-    BiquadLowpassFilter() : initialized_(false) {
+    BiquadLowpassFilter() : initialized_(false), coeffs_set_(false), current_dt_(0.0f), current_cutoff_(0.0f) {
         b0_ = b1_ = b2_ = 0.0f;
         a1_ = a2_ = 0.0f;
     }
     
     void configure(float dt, float cutoff_freq) {
-        // Biquad係数計算
-        float omega = 2.0f * 3.14159265358979323846f * cutoff_freq;
-        float K = tanf(omega * dt / 2.0f);
-        float norm = 1.0f / (1.0f + K / 0.7071f + K * K);
+        // パラメータが変更された場合のみ再計算
+        if (coeffs_set_ && fabsf(dt - current_dt_) < 1e-6f && fabsf(cutoff_freq - current_cutoff_) < 1e-6f) {
+            return;
+        }
+        
+        current_dt_ = dt;
+        current_cutoff_ = cutoff_freq;
+
+        // Biquad係数計算 (MATLAB互換)
+        float sample_rate = 1.0f / dt;
+        float omega = 2.0f * 3.14159265358979323846f * cutoff_freq / sample_rate;
+        float K = tanf(omega / 2.0f);
+        float Q = 1.0f / sqrtf(2.0f);  // 0.7071...
+        float norm = 1.0f / (1.0f + K / Q + K * K);
         
         b0_ = K * K * norm;
         b1_ = 2.0f * b0_;
         b2_ = b0_;
         a1_ = 2.0f * (K * K - 1.0f) * norm;
-        a2_ = (1.0f - K / 0.7071f + K * K) * norm;
+        a2_ = (1.0f - K / Q + K * K) * norm;
         
-        initialized_ = false;
+        coeffs_set_ = true;
+        // MATLABではパラメータ変更時に状態をリセットしない
     }
     
     cm filter(const cm& input) {
         if (!initialized_) {
-            x1_ = input;
-            x2_ = input;
-            y1_ = input;
-            y2_ = input;
+            // MATLAB互換: 0初期化からスタート
+            x1_.resize(input.rows, input.cols);
+            x2_.resize(input.rows, input.cols);
+            y1_.resize(input.rows, input.cols);
+            y2_.resize(input.rows, input.cols);
+            
+            // リセット時のために明示的に0クリア
+            for(int i=0; i<input.rows*input.cols; ++i) {
+                x1_.data[i] = 0.0f;
+                x2_.data[i] = 0.0f;
+                y1_.data[i] = 0.0f;
+                y2_.data[i] = 0.0f;
+            }
             initialized_ = true;
-            return input;
         }
         
         cm result;
@@ -91,15 +123,20 @@ public:
         
         for (int i = 0; i < input.rows; ++i) {
             for (int j = 0; j < input.cols; ++j) {
-                result(i,j) = b0_ * input(i,j) + b1_ * x1_(i,j) + b2_ * x2_(i,j)
-                            - a1_ * y1_(i,j) - a2_ * y2_(i,j);
+                // MATLAB実装に合わせたロジック
+                // w = input - a1*y1 - a2*y2
+                float w = input(i,j) - a1_ * y1_(i,j) - a2_ * y2_(i,j);
+                
+                // result = b0*w + b1*x1 + b2*x2
+                result(i,j) = b0_ * w + b1_ * x1_(i,j) + b2_ * x2_(i,j);
+                
+                // 状態更新
+                x2_(i,j) = x1_(i,j);
+                x1_(i,j) = w;
+                y2_(i,j) = y1_(i,j);
+                y1_(i,j) = result(i,j);
             }
         }
-        
-        x2_ = x1_;
-        x1_ = input;
-        y2_ = y1_;
-        y1_ = result;
         
         return result;
     }
@@ -124,17 +161,23 @@ public:
     
     void filter(const cm& measurement, float dt, cm& pos_out, cm& vel_out) {
         if (!initialized_) {
-            position_ = measurement;
+            // MATLAB互換: 0初期化
+            position_.resize(measurement.rows, measurement.cols);
             velocity_.resize(measurement.rows, measurement.cols);
-            for (int i = 0; i < velocity_.rows; ++i) {
-                for (int j = 0; j < velocity_.cols; ++j) {
-                    velocity_(i,j) = 0.0f;
-                }
+            
+            // リセット時のために明示的に0クリア
+            for(int i=0; i<position_.rows*position_.cols; ++i) {
+                position_.data[i] = 0.0f;
+                velocity_.data[i] = 0.0f;
             }
+            
             initialized_ = true;
-            pos_out = position_;
-            vel_out = velocity_;
-            return;
+            
+            // 初回更新 (0からの予測)
+            // MATLAB: p_pred = 0 + 0*dt = 0
+            // innov = meas - 0 = meas
+            // p_filt = 0 + alpha * meas
+            // v_filt = 0 + beta/dt * meas
         }
         
         // 予測
@@ -189,10 +232,12 @@ private:
 public:
     OutlierDetector() : count_(0) {}
     
-    bool detect(float residual_norm, float threshold_sigma = 3.0f) {
+    bool detect(float residual_norm, float threshold_sigma = 3.0f, float min_std = 0.1f) {
         // ノイズ標準偏差推定
-        float noise_std = 0.1f;  // デフォルト
-        if (count_ > 0) {
+        float noise_std;
+        if (count_ == 0) {
+            noise_std = residual_norm;
+        } else {
             // 標準偏差計算
             float sum = 0.0f;
             float sum_sq = 0.0f;
@@ -201,9 +246,11 @@ public:
                 sum_sq += history_[i] * history_[i];
             }
             float mean = sum / count_;
-            noise_std = sqrtf(sum_sq / count_ - mean * mean);
-            noise_std = fmaxf(noise_std, 0.1f);
+            // 分散が負にならないように保護
+            float var = sum_sq / count_ - mean * mean;
+            noise_std = sqrtf(fmaxf(var, 0.0f));
         }
+        noise_std = fmaxf(noise_std, min_std);
         
         // 外れ値判定
         float threshold = threshold_sigma * noise_std;
@@ -259,38 +306,54 @@ public:
         }
         residual_norm = sqrtf(residual_norm);
         
-        // 外れ値検出
-        is_outlier = accel_outlier.detect(residual_norm);
+        // 外れ値検出 (3σ, min_std=0.1)
+        is_outlier = accel_outlier.detect(residual_norm, 3.0f, 0.1f);
         
         if (is_outlier) {
-            // 外れ値の場合は前回値を返す
-            return accel_filter.filter(a_meas);  // 実際は前回値を保持
+            // 外れ値の場合は前回値を返す (更新しない)
+            return accel_filter.get_value();
         } else {
             return accel_filter.filter(a_meas);
         }
     }
     
     // ジャイロフィルタ
-    cm filter_gyro(const cm& w_meas, float dt, float cutoff_freq = 50.0f) {
+    cm filter_gyro(const cm& w_meas, float dt, float cutoff_freq = 20.0f) {
         gyro_filter.configure(dt, cutoff_freq);
         return gyro_filter.filter(w_meas);
     }
     
     // 磁気計フィルタ（外れ値検出付き）
     cm filter_mag(const cm& m_meas, const cm& m_expected, bool& is_outlier) {
-        // 残差計算
+        // 前回値取得
+        cm prev_filtered = mag_filter.get_value();
+        
+        // 初回チェック (norm < 1e-6)
+        float prev_norm = 0.0f;
+        if (prev_filtered.rows == 3 && prev_filtered.cols == 1) {
+            for(int i=0; i<3; ++i) prev_norm += prev_filtered(i,0)*prev_filtered(i,0);
+            prev_norm = sqrtf(prev_norm);
+        }
+        
+        if (prev_norm < 1e-6f) {
+            mag_filter.set_value(m_meas);
+            is_outlier = false;
+            return m_meas;
+        }
+
+        // 残差計算 (対 前回値)
         float residual_norm = 0.0f;
         for (int i = 0; i < 3; ++i) {
-            float diff = m_meas(i,0) - m_expected(i,0);
+            float diff = m_meas(i,0) - prev_filtered(i,0);
             residual_norm += diff * diff;
         }
         residual_norm = sqrtf(residual_norm);
         
-        // 外れ値検出
-        is_outlier = mag_outlier.detect(residual_norm);
+        // 外れ値検出 (5σ, min_std=5.0)
+        is_outlier = mag_outlier.detect(residual_norm, 5.0f, 5.0f);
         
         if (is_outlier) {
-            return mag_filter.filter(m_meas);
+            return mag_filter.get_value();
         } else {
             return mag_filter.filter(m_meas);
         }

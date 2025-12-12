@@ -181,6 +181,11 @@ void MEUKFCore::step(const MEUKFInput& input, MEUKFOutput& output) {
     if (input.sensor.update_baro) {
         update_baro(output.new_state, input.sensor.alt_baro, input.params, output);
     }
+
+    // ZUPT Update
+    if (input.sensor.update_zupt) {
+        update_zupt(output.new_state, input.params, output);
+    }
 }
 
 void MEUKFCore::state_to_vars(const State& s, Vector3& p, Vector3& v, Vector4& q, Vector3& ba, Vector3& bg, Matrix15x15& P) {
@@ -797,8 +802,8 @@ void MEUKFCore::update_mag_meukf(State& state, const Vector3& m_meas, const Para
         }
     }
 
-    mexPrintf("DEBUG: mag_ref_norm=%f, noise_scale=%f\n", mag_ref_norm, noise_scale);
-    mexPrintf("DEBUG: params.noise_mag=[%f, %f, %f]\n", params.noise_mag[0], params.noise_mag[1], params.noise_mag[2]);
+    // mexPrintf("DEBUG: mag_ref_norm=%f, noise_scale=%f\n", mag_ref_norm, noise_scale);
+    // mexPrintf("DEBUG: params.noise_mag=[%f, %f, %f]\n", params.noise_mag[0], params.noise_mag[1], params.noise_mag[2]);
     for(int i=0; i<3; ++i) S(i, i) += std::max(params.noise_mag[i] * noise_scale, 1e-6f); // Scale noise and use small floor
 
     Matrix3x3 S_inv;
@@ -825,8 +830,8 @@ void MEUKFCore::update_mag_meukf(State& state, const Vector3& m_meas, const Para
     float mahal_dist = std::sqrt(mahal_dist_sq);
     
     // DEBUG PRINT
-    mexPrintf("Mag Update: y=[%f, %f, %f], S_diag=[%f, %f, %f], mahal=%f\n", 
-        y(0,0), y(1,0), y(2,0), S(0,0), S(1,1), S(2,2), mahal_dist);
+    // mexPrintf("Mag Update: y=[%f, %f, %f], S_diag=[%f, %f, %f], mahal=%f\n", 
+    //     y(0,0), y(1,0), y(2,0), S(0,0), S(1,1), S(2,2), mahal_dist);
 
     if (mahal_dist > 4.0f) { // Reverted to 4.0
         // 外れ値として棄却
@@ -1092,6 +1097,113 @@ void MEUKFCore::update_baro(State& state, float alt_baro, const Params& params, 
     Matrix15x15 I = Matrix15x15::Identity();
     P = (I - KH) * P;
     
+    vars_to_state(p, v, q, ba, bg, P, state);
+}
+
+void MEUKFCore::update_zupt(State& state, const Params& params, MEUKFOutput& output) {
+    Vector3 p, v, ba, bg;
+    Vector4 q;
+    Matrix15x15 P;
+    state_to_vars(state, p, v, q, ba, bg, P);
+
+    // ZUPT: Observe velocity = 0
+    // z = [0;0;0], h = v
+    // y = z - h = -v
+    Vector3 y;
+    y(0,0) = -v(0,0);
+    y(1,0) = -v(1,0);
+    y(2,0) = -v(2,0);
+
+    // H = [0, I, 0, 0, 0]
+    // S = H*P*H' + R
+    // H*P*H' is simply the velocity block of P (indices 3,4,5)
+    Matrix3x3 P_vv;
+    for(int i=0; i<3; ++i) {
+        for(int j=0; j<3; ++j) {
+            P_vv(i,j) = P(3+i, 3+j);
+        }
+    }
+
+    Matrix3x3 R;
+    R.setZero();
+    R(0,0) = params.noise_zupt[0];
+    R(1,1) = params.noise_zupt[1];
+    R(2,2) = params.noise_zupt[2];
+
+    Matrix3x3 S = P_vv + R;
+
+    // Invert S
+    Matrix3x3 S_inv;
+    if (!S.inverse(S_inv)) {
+        output.status = 2; // Singular matrix
+        return;
+    }
+
+    // K = P * H' * S_inv
+    // P * H' is the block of columns 3,4,5 of P
+    Matrix15x3 PHt;
+    for(int i=0; i<15; ++i) {
+        for(int j=0; j<3; ++j) {
+            PHt(i,j) = P(i, 3+j);
+        }
+    }
+
+    Matrix15x3 K = PHt * S_inv;
+
+    // dx = K * y
+    Vector15 dx = K * y;
+
+    // Update State
+    // Position
+    p(0,0) += dx(0,0); p(1,0) += dx(1,0); p(2,0) += dx(2,0);
+    // Velocity
+    v(0,0) += dx(3,0); v(1,0) += dx(4,0); v(2,0) += dx(5,0);
+    // Attitude (Error quaternion)
+    Vector3 dtheta;
+    dtheta(0,0) = dx(6,0); dtheta(1,0) = dx(7,0); dtheta(2,0) = dx(8,0);
+    
+    // Apply attitude correction (q_new = q * dq)
+    // Approximation: dq = [1, dtheta/2]
+    Vector4 dq;
+    dq(0,0) = 1.0f;
+    dq(1,0) = 0.5f * dtheta(0,0);
+    dq(2,0) = 0.5f * dtheta(1,0);
+    dq(3,0) = 0.5f * dtheta(2,0);
+    cquat::normalize_quat(dq);
+    
+    Vector4 q_new;
+    cquat::multiply_quat(q, dq, q_new);
+    cquat::normalize_quat(q_new);
+    q = q_new;
+
+    // Bias
+    ba(0,0) += dx(9,0); ba(1,0) += dx(10,0); ba(2,0) += dx(11,0);
+    bg(0,0) += dx(12,0); bg(1,0) += dx(13,0); bg(2,0) += dx(14,0);
+
+    // Update Covariance
+    // P = (I - K*H) * P
+    // K*H is 15x15, but only columns 3,4,5 are non-zero (equal to K)
+    Matrix15x15 KH = Matrix15x15::Zero();
+    for(int i=0; i<15; ++i) {
+        for(int j=0; j<3; ++j) {
+            KH(i, 3+j) = K(i,j);
+        }
+    }
+
+    Matrix15x15 I_mat = Matrix15x15::Identity();
+    P = (I_mat - KH) * P;
+
+    // Symmetrize P
+    for(int i=0; i<15; ++i) {
+        for(int j=i+1; j<15; ++j) {
+            float val = 0.5f * (P(i,j) + P(j,i));
+            P(i,j) = val;
+            P(j,i) = val;
+        }
+    }
+
+    vars_to_state(p, v, q, ba, bg, P, state);
+}
     vars_to_state(p, v, q, ba, bg, P, state);
 }
 

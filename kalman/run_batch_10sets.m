@@ -258,7 +258,7 @@ function [metrics, has_error] = analyze_single_run(proj_root, run_id)
         if metrics.has_nan || metrics.has_inf
             has_error = true;
             metrics.error_msg = 'NaN/Inf detected';
-        elseif metrics.pos_rmse > 10.0
+        elseif metrics.pos_rmse > 1.0
             has_error = true;
             metrics.error_msg = sprintf('Position RMSE too high (%.2f m)', metrics.pos_rmse);
         end
