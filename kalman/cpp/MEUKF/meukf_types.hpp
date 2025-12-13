@@ -22,6 +22,11 @@ struct SensorData {
     float gps_pos[3];   // GPS位置 (LLA または NED)
     float alt_baro;     // 気圧高度 [m]
     
+    // 前回のセンサー値（変更検知用）
+    float prev_mag[3];       // 前回の磁気計値
+    float prev_gps_pos[3];   // 前回のGPS位置
+    float prev_baro_alt;     // 前回の気圧高度
+    
     // 更新フラグ (1: 更新あり, 0: 更新なし)
     uint8_t update_accel;
     uint8_t update_gyro; // ジャイロは予測に必須だが、更新フラグとして一応用意

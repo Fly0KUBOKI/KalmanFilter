@@ -182,7 +182,7 @@ void MEUKFCore::step(const MEUKFInput& input, MEUKFOutput& output) {
         update_baro(output.new_state, input.sensor.alt_baro, input.params, output);
     }
 
-    // ZUPT Update
+    // ZUPT Update (常に実行)
     if (input.sensor.update_zupt) {
         update_zupt(output.new_state, input.params, output);
     }
@@ -553,10 +553,8 @@ void MEUKFCore::update_accel_meukf(State& state, const Vector3& a_meas, const Pa
     Matrix15x2 K_full = tmp * S_2d_inv;
     
     // Update Full State (2D innovation)
-    // MATLAB implementation only updates Attitude state, but updates Full Covariance.
-    // So we skip updating p, v, ba, bg here.
+    // Uncommented to enable bias estimation
     
-    /*
     Vector15 dx_full;
     for(int r=0; r<15; ++r) {
         dx_full(r, 0) = K_full(r, 0) * y(0,0) + K_full(r, 1) * y(1,0);
@@ -567,90 +565,26 @@ void MEUKFCore::update_accel_meukf(State& state, const Vector3& a_meas, const Pa
     v = v + make_vector3(dx_full(3,0), dx_full(4,0), dx_full(5,0));
     ba = ba + make_vector3(dx_full(9,0), dx_full(10,0), dx_full(11,0));
     bg = bg + make_vector3(dx_full(12,0), dx_full(13,0), dx_full(14,0));
-    */
     
-    // --- Double Update for Covariance (Matching MATLAB) ---
-    // 1. Update Attitude Block using Joseph form on P_att_upd
-    Matrix3x2 K_att_full; // K_full(6:8, :)
-    for(int r=0; r<3; ++r) for(int c=0; c<2; ++c) K_att_full(r,c) = K_full(6+r, c);
+    // --- Full Covariance Update ---
+    // P = P - K * H * P
+    // Calculate P_dec = K_full * (H_sub * P(6:8, :))
+    Matrix15x15 P_dec = Matrix15x15::Zero();
     
-    Matrix3x3 I3 = Matrix3x3::Identity();
-    Matrix3x3 I_KH = I3 - K_att_full * H_sub;
-    
-    // Reconstruct R_cov
-    Matrix2x2 R_cov = Matrix2x2::Zero();
-    // Note: R_scale and R_floor are local variables calculated earlier.
-    // I need to recalculate or assume they are available.
-    // They are available in the scope.
-    for(int i=0; i<2; ++i) {
-        float R_est = params.noise_accel[i];
-        R_cov(i, i) = std::max(R_est, R_floor) * R_scale;
-    }
-    
-    Matrix3x3 P_att_double = I_KH * P_att_upd * I_KH.transpose() + K_att_full * R_cov * K_att_full.transpose();
-    
-    // Update P_full attitude block
-    for(int r=0; r<3; ++r) for(int c=0; c<3; ++c) P_full(6+r, 6+c) = P_att_double(r,c);
-    
-    // 2. Update Cross Terms using P_att_double
-    // P(i, att) = P(i, att) - K_full(i,:) * (H_sub * P_att_double)
-    Matrix2x3 HP = H_sub * P_att_double;
-    
-    for(int r=0; r<15; ++r) {
-        if (r >= 6 && r <= 8) continue; // Skip attitude block
-        
-        // Extract K_full row (1x2)
-        Vector2 K_row;
-        for(int c=0; c<2; ++c) K_row(c,0) = K_full(r, c);
-        
-        // Calculate decrement: K_row * HP (1x2 * 2x3 = 1x3)
-        Vector3 dec;
-        for(int c=0; c<3; ++c) {
-            float sum = 0.0f;
-            for(int k=0; k<2; ++k) sum += K_row(k,0) * HP(k,c);
-            dec(c,0) = sum;
-        }
-        
-        // Update P_full(r, 6:8)
-        for(int c=0; c<3; ++c) P_full(r, 6+c) -= dec(c,0);
-        
-        // Update P_full(6:8, r) (Symmetry)
-        for(int c=0; c<3; ++c) P_full(6+c, r) = P_full(r, 6+c);
-    }
-    
-    // Update other blocks (P - KSK')?
-    // MATLAB loop:
-    // for i = 1:15
-    //     if ~ismember(i, idx_obs)
-    //         obj.P(i, idx_obs) = ...
-    //         obj.P(idx_obs, i) = ...
-    //     end
-    // end
-    // MATLAB ONLY updates cross terms (and attitude block).
-    // It does NOT update P(pos, pos) or P(vel, vel) etc. using K_full!
-    // Wait, really?
-    // 姿勢共分散の正定値化
-    Matrix3x3 P_att_check;
-    for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) P_att_check(i, j) = P_full(6+i, 6+j);
-    ensure_positive_definite(P_att_check);
-    for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) P_full(6+i, 6+j) = P_att_check(i, j);
-
-    // 共分散の上限制限 (MATLABコミット 7eb70e29: max_var = 5度^2)
-    float max_var = (5.0f * 3.14159265f / 180.0f) * (5.0f * 3.14159265f / 180.0f); // 5 degrees^2 in radians^2
-    for(int i=0; i<3; ++i) {
-        if (P_full(6+i, 6+i) > max_var) {
-            P_full(6+i, 6+i) = max_var;
-        }
-    }
-    
-    // 共分散の対称化
     for(int i=0; i<15; ++i) {
-        for(int j=i+1; j<15; ++j) {
-            float avg = (P_full(i,j) + P_full(j,i)) / 2.0f;
-            P_full(i,j) = avg;
-            P_full(j,i) = avg;
+        for(int j=0; j<15; ++j) {
+            float sum = 0.0f;
+            for(int k=0; k<2; ++k) {
+                float hp_kj = 0.0f;
+                for(int l=0; l<3; ++l) {
+                    hp_kj += H_sub(k, l) * P_full(6+l, j);
+                }
+                sum += K_full(i, k) * hp_kj;
+            }
+            P_dec(i, j) = sum;
         }
     }
+    P_full = P_full - P_dec;
 
     float angle = vector3_norm(dx);
 
@@ -880,10 +814,8 @@ void MEUKFCore::update_mag_meukf(State& state, const Vector3& m_meas, const Para
     Matrix15x3 K_full = tmp * S_inv;
     
     // Update Full State
-    // MATLAB implementation only updates Attitude state, but updates Full Covariance.
-    // So we skip updating p, v, ba, bg here.
+    // Uncommented to enable bias estimation
     
-    /*
     Vector15 dx_full;
     for(int r=0; r<15; ++r) {
         dx_full(r, 0) = K_full(r, 0) * y(0,0) + K_full(r, 1) * y(1,0) + K_full(r, 2) * y(2,0);
@@ -894,75 +826,26 @@ void MEUKFCore::update_mag_meukf(State& state, const Vector3& m_meas, const Para
     v = v + make_vector3(dx_full(3,0), dx_full(4,0), dx_full(5,0));
     ba = ba + make_vector3(dx_full(9,0), dx_full(10,0), dx_full(11,0));
     bg = bg + make_vector3(dx_full(12,0), dx_full(13,0), dx_full(14,0));
-    */
     
-    // --- Double Update for Covariance (Matching MATLAB) ---
-    // 1. Update Attitude Block using Joseph form on P_att_upd
-    Matrix3x3 K_att_full; // K_full(6:8, :)
-    for(int r=0; r<3; ++r) for(int c=0; c<3; ++c) K_att_full(r,c) = K_full(6+r, c);
+    // --- Full Covariance Update ---
+    // P = P - K * H * P
+    // Calculate P_dec = K_full * (H_sub * P(6:8, :))
+    Matrix15x15 P_dec = Matrix15x15::Zero();
     
-    Matrix3x3 I3 = Matrix3x3::Identity();
-    Matrix3x3 I_KH = I3 - K_att_full * H_sub;
-    
-    Matrix3x3 R_cov = Matrix3x3::Zero();
-    for(int i=0; i<3; ++i) {
-        // Use the same scaled noise as in S calculation
-        R_cov(i,i) = std::max(params.noise_mag[i] * noise_scale, 1e-6f);
-    }
-    
-    Matrix3x3 P_att_double = I_KH * P_att_upd * I_KH.transpose() + K_att_full * R_cov * K_att_full.transpose();
-    
-    // Update P_full attitude block
-    for(int r=0; r<3; ++r) for(int c=0; c<3; ++c) P_full(6+r, 6+c) = P_att_double(r,c);
-    
-    // 2. Update Cross Terms using P_att_double
-    // P(i, att) = P(i, att) - K_full(i,:) * (H_sub * P_att_double)
-    Matrix3x3 HP = H_sub * P_att_double;
-    
-    for(int r=0; r<15; ++r) {
-        if (r >= 6 && r <= 8) continue; // Skip attitude block
-        
-        // Extract K_full row (1x3)
-        Vector3 K_row;
-        for(int c=0; c<3; ++c) K_row(c,0) = K_full(r, c);
-        
-        // Calculate decrement: K_row * HP (1x3 * 3x3 = 1x3)
-        Vector3 dec;
-        for(int c=0; c<3; ++c) {
-            float sum = 0.0f;
-            for(int k=0; k<3; ++k) sum += K_row(k,0) * HP(k,c);
-            dec(c,0) = sum;
-        }
-        
-        // Update P_full(r, 6:8)
-        for(int c=0; c<3; ++c) P_full(r, 6+c) -= dec(c,0);
-        
-        // Update P_full(6:8, r) (Symmetry)
-        for(int c=0; c<3; ++c) P_full(6+c, r) = P_full(r, 6+c);
-    }
-
-    // 姿勢共分散の正定値化
-    Matrix3x3 P_att_check;
-    for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) P_att_check(i, j) = P_full(6+i, 6+j);
-    ensure_positive_definite(P_att_check);
-    for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) P_full(6+i, 6+j) = P_att_check(i, j);
-
-    // 共分散の上限制限 (MATLABコミット 7eb70e29: max_var = 5度^2)
-    float max_var = (5.0f * 3.14159265f / 180.0f) * (5.0f * 3.14159265f / 180.0f); // 5 degrees^2 in radians^2
-    for(int i=0; i<3; ++i) {
-        if (P_full(6+i, 6+i) > max_var) {
-            P_full(6+i, 6+i) = max_var;
-        }
-    }
-    
-    // 共分散の対称化
     for(int i=0; i<15; ++i) {
-        for(int j=i+1; j<15; ++j) {
-            float avg = (P_full(i,j) + P_full(j,i)) / 2.0f;
-            P_full(i,j) = avg;
-            P_full(j,i) = avg;
+        for(int j=0; j<15; ++j) {
+            float sum = 0.0f;
+            for(int k=0; k<3; ++k) {
+                float hp_kj = 0.0f;
+                for(int l=0; l<3; ++l) {
+                    hp_kj += H_sub(k, l) * P_full(6+l, j);
+                }
+                sum += K_full(i, k) * hp_kj;
+            }
+            P_dec(i, j) = sum;
         }
     }
+    P_full = P_full - P_dec;
 
     float angle = vector3_norm(dx);
 
@@ -1125,10 +1008,11 @@ void MEUKFCore::update_zupt(State& state, const Params& params, MEUKFOutput& out
     }
 
     Matrix3x3 R;
-    R.setZero();
-    R(0,0) = params.noise_zupt[0];
-    R(1,1) = params.noise_zupt[1];
-    R(2,2) = params.noise_zupt[2];
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            R(i,j) = (i == j) ? params.noise_zupt[i] : 0.0f;
+        }
+    }
 
     Matrix3x3 S = P_vv + R;
 
@@ -1202,8 +1086,6 @@ void MEUKFCore::update_zupt(State& state, const Params& params, MEUKFOutput& out
         }
     }
 
-    vars_to_state(p, v, q, ba, bg, P, state);
-}
     vars_to_state(p, v, q, ba, bg, P, state);
 }
 

@@ -114,7 +114,7 @@ function predict(obj, a_meas, w_meas)
     
     % Z軸加速度積分
     if obj.enable_accel_z_integration
-        R = QuaternionLib.to_rotation_matrix(obj.q);
+        R = mex_quaternion_lib('to_rotation_matrix', obj.q);
         a_ned = R * a_for_vel - [0; 0; obj.g(3)];
         az_excess = a_ned(3);
         if abs(az_excess) > obj.accel_z_threshold

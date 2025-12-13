@@ -6,6 +6,10 @@ classdef ESKF < handle
         p; v; q; ba; bg; P; Q; dt; g
         % ヘルパー
         noiseEstimator; sensor_filters; accel_filter; divergence_guard
+        % SensorDataBuffer統合 (Common削除のため)
+        prev_accel; prev_gyro; prev_mag
+        prev_gps_lat; prev_gps_lon; prev_gps_alt
+        prev_baro; buffer_tolerance
         % 設定
         freq_mag; freq_baro; freq_gps; freq_accel; gps_origin
         % ZUPT
@@ -54,7 +58,7 @@ classdef ESKF < handle
                 phi = atan2(-accel_mean(2), -accel_mean(3));
                 theta = atan2(accel_mean(1), sqrt(accel_mean(2)^2 + accel_mean(3)^2));
                 
-                q_temp = QuaternionLib.from_euler(rad2deg([phi; theta; 0]));
+                q_temp = mex_quaternion_lib('from_euler', rad2deg([phi; theta; 0]));
                 gyro_static = obj.utils('get_field', obs, {'wx', 'gyro_x'}, static_idx, 3);
                 sigma_g = deg2rad(mean(std(gyro_static, [], 1)));
                 
@@ -70,7 +74,7 @@ classdef ESKF < handle
                     sigma_mag = mean(std(mag_static - mag_mean, [], 1));
                     
                     % Yaw計算
-                    R_rp = QuaternionLib.to_rotation_matrix(q_temp);
+                    R_rp = mex_quaternion_lib('to_rotation_matrix', q_temp);
                     m_level = R_rp * mag_mean';
                     
                     % Calculate Yaw angle
@@ -81,8 +85,8 @@ classdef ESKF < handle
                     
                     fprintf('Initialized Yaw from Mag: %.2f deg\n', rad2deg(psi));
                     
-                    % Update quaternion with calculated Yaw (convert to degrees for QuaternionLib)
-                    obj.q = QuaternionLib.from_euler(rad2deg([phi; theta; psi]));
+                    % Update quaternion with calculated Yaw
+                    obj.q = mex_quaternion_lib('from_euler', rad2deg([phi; theta; psi]));
                 else
                     sigma_mag = 10.0;
                     obj.q = q_temp;
@@ -184,9 +188,20 @@ classdef ESKF < handle
                 'attenuation_factor', 0.6, 'max_attitude_variance', (deg2rad(15))^2, ...
                 'max_mag_gain_element', 0.2);
             obj.divergence_guard = DivergenceGuard(config);
+            
+            % SensorDataBuffer統合 (Common削除)
+            obj.prev_accel = zeros(3,1);
+            obj.prev_gyro = zeros(3,1);
+            obj.prev_mag = zeros(3,1);
+            obj.prev_gps_lat = 0;
+            obj.prev_gps_lon = 0;
+            obj.prev_gps_alt = 0;
+            obj.prev_baro = 0;
+            obj.buffer_tolerance = 1e-9;
 
-            % フィルタ周波数
-            [obj.freq_accel, obj.freq_mag, obj.freq_baro, obj.freq_gps] = deal(2, 4, 8, 10);
+            % フィルタ周波数（注: 実際の更新判定はGenerateDataの周期制御とC++の変更検知で実施）
+            % 互換性のため変数は残すが、update_filterでは使用しない
+            [obj.freq_accel, obj.freq_mag, obj.freq_baro, obj.freq_gps] = deal(1, 1, 1, 1);
             
             % ZUPT
             obj.zupt_threshold_accel = 1.0;

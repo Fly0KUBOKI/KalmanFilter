@@ -54,6 +54,7 @@ function run_batch_10sets()
             
             % 判定: 各軸ごとにRMSE閾値で判定する
             thr = 1.0; % 位置RMSE閾値 (m)
+            att_thr = 5.0; % 姿勢RMSE閾値 (deg) - Roll/Pitch/Yaw がこの値を超えるとFAILED
             % 基本フィールドは常に保存
             results_summary(run_id).pos_rmse = metrics.pos_rmse;
             results_summary(run_id).posx_rmse = metrics.posx_rmse;
@@ -79,7 +80,7 @@ function run_batch_10sets()
                 results_summary(run_id).error = metrics.error_msg;
                 log_message(log_file, sprintf('Run %d: エラー検出 - %s', run_id, metrics.error_msg));
             else
-                % 軸別判定
+                % 軸別判定（位置）
                 posx_ok = metrics.posx_rmse <= thr;
                 posy_ok = metrics.posy_rmse <= thr;
                 posz_ok = metrics.posz_rmse <= thr;
@@ -87,10 +88,14 @@ function run_batch_10sets()
                 results_summary(run_id).posy_ok = posy_ok;
                 results_summary(run_id).posz_ok = posz_ok;
 
-                % 全軸合格ならSUCCESS, そうでなければFAILED
-                if posx_ok && posy_ok && posz_ok
+                % 姿勢判定（Roll/Pitch/Yaw）
+                att_ok = (metrics.roll_rmse <= att_thr) && (metrics.pitch_rmse <= att_thr) && (metrics.yaw_rmse <= att_thr);
+                results_summary(run_id).att_ok = att_ok;
+
+                % 全軸（位置）かつ姿勢合格ならSUCCESS, そうでなければFAILED
+                if posx_ok && posy_ok && posz_ok && att_ok
                     results_summary(run_id).status = 'SUCCESS';
-                    log_message(log_file, sprintf('Run %d Summary: PASS (All axes within %.2fm)', run_id, thr));
+                    log_message(log_file, sprintf('Run %d Summary: PASS (Position axes within %.2fm and attitude within %.1fdeg)', run_id, thr, att_thr));
                 else
                     results_summary(run_id).status = 'FAILED';
                     % どの軸がFailか列挙
@@ -98,6 +103,9 @@ function run_batch_10sets()
                     if ~posx_ok, failed{end+1} = sprintf('X(%.2f)', metrics.posx_rmse); end
                     if ~posy_ok, failed{end+1} = sprintf('Y(%.2f)', metrics.posy_rmse); end
                     if ~posz_ok, failed{end+1} = sprintf('Z(%.2f)', metrics.posz_rmse); end
+                    if ~att_ok
+                        failed{end+1} = sprintf('Att(R=%.2f,P=%.2f,Y=%.2f)', metrics.roll_rmse, metrics.pitch_rmse, metrics.yaw_rmse);
+                    end
                     results_summary(run_id).error = sprintf('Axis RMSE too high: %s', strjoin(failed, ', '));
                     log_message(log_file, sprintf('Run %d: エラー検出 - %s', run_id, results_summary(run_id).error));
                 end

@@ -128,7 +128,7 @@ function build_mex()
         end
 
         % Build: mex_meukf_step
-        fprintf('\n=== [7/7] mex_meukf_step ===\n');
+        fprintf('\n=== [7/9] mex_meukf_step ===\n');
         meukf_core_cpp = fullfile(cpp_root, 'MEUKF', 'meukf_core.cpp');
         if exist('mex_meukf_step.cpp', 'file') && exist(meukf_core_cpp, 'file')
             fprintf('Sources: mex_meukf_step.cpp + meukf_core.cpp\n');
@@ -141,9 +141,32 @@ function build_mex()
         end
         
         % Build: mex_sensor_filter (NEW - for incremental testing)
-        fprintf('\n=== [8/8] mex_sensor_filter ===\n');
+        fprintf('\n=== [8/9] mex_sensor_filter ===\n');
         if build_single_mex('mex_sensor_filter.cpp', compile_opts, inc_args, {}, bin_dir)
             built_count = built_count + 1;
+        end
+        
+        % Build: mex_unified_filter (NEW - unified C++ interface)
+        fprintf('\n=== [9/10] mex_unified_filter ===\n');
+        unified_cpp = fullfile(cpp_root, 'MEUKF', 'unified_filter.cpp');
+        if exist('mex_unified_filter.cpp', 'file') && exist(unified_cpp, 'file') && exist(meukf_core_cpp, 'file')
+            fprintf('Sources: mex_unified_filter.cpp + unified_filter.cpp + meukf_core.cpp\n');
+            if build_single_mex('mex_unified_filter.cpp', compile_opts, inc_args, {unified_cpp, meukf_core_cpp}, bin_dir)
+                built_count = built_count + 1;
+            end
+        else
+            warning('Unified filter sources not found, skipping');
+        end
+        
+        % Build: mex_eskf_step (NEW - ESKF統合: 予測+全センサー更新)
+        fprintf('\n=== [10/10] mex_eskf_step ===\n');
+        if exist('mex_eskf_step.cpp', 'file') && exist(unified_cpp, 'file') && exist(meukf_core_cpp, 'file')
+            fprintf('Sources: mex_eskf_step.cpp + unified_filter.cpp + meukf_core.cpp\n');
+            if build_single_mex('mex_eskf_step.cpp', compile_opts, inc_args, {unified_cpp, meukf_core_cpp}, bin_dir)
+                built_count = built_count + 1;
+            end
+        else
+            warning('ESKF step sources not found, skipping');
         end
         
     catch ME

@@ -123,6 +123,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     get_field_vec3_float(m_sensor, "gps_pos", input.sensor.gps_pos);
     input.sensor.alt_baro = static_cast<float>(get_field_scalar(m_sensor, "alt_baro"));
     
+    // 前回のセンサー値を読み取り（変更検知用）
+    get_field_vec3_float(m_sensor, "prev_mag", input.sensor.prev_mag);
+    get_field_vec3_float(m_sensor, "prev_gps_pos", input.sensor.prev_gps_pos);
+    input.sensor.prev_baro_alt = static_cast<float>(get_field_scalar(m_sensor, "prev_baro_alt"));
+    
     input.sensor.update_accel = (uint8_t)get_field_scalar(m_sensor, "update_accel");
     input.sensor.update_gyro = (uint8_t)get_field_scalar(m_sensor, "update_gyro");
     input.sensor.update_mag = (uint8_t)get_field_scalar(m_sensor, "update_mag");

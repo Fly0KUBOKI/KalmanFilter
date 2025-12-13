@@ -14,11 +14,12 @@ function run_simulation(seed, skip_data_gen)
     results = run_filter(eskf, obs);
     save_results(proj_root, results);
     
-    try
-        plot_results(proj_root);
-    catch e
-        warning('プロット生成失敗: %s', e.message);
-    end
+    % プロット生成をスキップ（バッチ実行時のエラー回避）
+    % try
+    %     plot_results(proj_root);
+    % catch e
+    %     warning('プロット生成失敗: %s', e.message);
+    % end
     fprintf('推定完了\n');
 end
 
@@ -29,7 +30,7 @@ function add_paths(proj_root)
     addpath(genpath(fullfile(proj_root, 'EKF')));
     addpath(fullfile(proj_root, 'Graph'));
     addpath(fullfile(proj_root, 'GenerateData'));
-    addpath(genpath(fullfile(proj_root, 'Common')));
+    % Common削除完了: 全機能をC++/ESKF内部に統合
     addpath(genpath(fullfile(proj_root, 'cpp')));
 end
 

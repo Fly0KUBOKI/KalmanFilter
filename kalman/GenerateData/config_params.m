@@ -5,7 +5,7 @@ function params = config_params()
 
     % タイミング
     params.dt = 0.0025;
-    params.T = 100;
+    params.T = 50;
     params.static_time = 5;
 
     % 運動タイプ

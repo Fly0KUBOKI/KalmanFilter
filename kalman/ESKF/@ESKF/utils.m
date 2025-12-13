@@ -16,7 +16,7 @@ end
 
 function euler = get_euler_impl(obj)
     % オイラー角取得 (degrees)
-    euler = QuaternionLib.to_euler(obj.q);
+    euler = mex_quaternion_lib('to_euler', obj.q);
 end
 
 function data = get_field_impl(obj, obs, field_names, idx, num_cols)

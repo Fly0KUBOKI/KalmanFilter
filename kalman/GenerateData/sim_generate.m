@@ -86,3 +86,22 @@ function params = convert_angle_units(params)
         end
     end
 end
+
+function data_out = apply_update_frequency(data_in, freq, N)
+    % センサーデータを更新周期に応じて補完
+    % freq: 更新周期（サンプル数）
+    % 例: freq=5なら、5サンプルごとに値を更新し、その間は同じ値を保持
+    
+    data_out = data_in;
+    
+    for i = 1:N
+        % 更新タイミング: i が freq の倍数の時のみ新しい値
+        if mod(i-1, freq) ~= 0
+            % 更新しない: 直前の更新値をコピー
+            update_idx = floor((i-1) / freq) * freq + 1;
+            if update_idx >= 1 && update_idx <= N
+                data_out(i, :) = data_out(update_idx, :);
+            end
+        end
+    end
+end
