@@ -2,41 +2,72 @@
 
 ## Project Overview
 
-This is a hybrid MATLAB/C++ implementation of multiple Kalman filter variants (KF, EKF, ESKF, UKF, MEUKF) for sensor fusion and state estimation, with critical computational cores migrated to C++ MEX for performance.
+This is a **full C++ implementation** of multiple Kalman filter variants (KF, EKF, ESKF, UKF, MEUKF) for sensor fusion and state estimation, with MATLAB serving as a thin orchestration layer.
 
-**Architecture Philosophy**: MATLAB orchestrates the simulation workflow, sensor filtering, and adaptive noise estimation, while C++ MEX handles performance-critical filter computations (predict/update steps).
+**Architecture Philosophy (Full C++ Migration)**: 
+- **C++ Core**: All filter logic (predict, update, sensor filtering, noise estimation, divergence detection) executed in C++ MEX
+- **MATLAB Layer**: Minimal - data I/O, simulation setup, visualization only
+- **Unified Interface**: Single `mex_unified_filter()` function with input/output structs
+- **Automatic Update Control**: C++ detects sensor data changes internally - MATLAB sends duplicate data at different frequencies
 
 ## Critical Architecture Knowledge
 
-### Hybrid MATLAB/C++ Design
+### Full C++ Architecture (Target Design)
 
-**C++ Core (31% of codebase, 100% of compute-intensive operations)**:
-- All filter prediction/update steps executed in [`cpp/MEUKF/meukf_core.cpp`](kalman/cpp/MEUKF/meukf_core.cpp) (~1100 lines)
-- Main MEX interface: `mex_meukf_step_v2.mexw64` handles predict + 4 sensor updates (accel/mag/GPS/baro)
-- Supporting libraries: quaternion math, fixed-size matrix operations, sensor filtering (C++ versions in [`cpp/include/Common/`](kalman/cpp/include/Common/))
+**C++ Core (Target: 95% of logic)**:
+- **Unified filter interface**: [`cpp/MEUKF/unified_filter.cpp`](kalman/cpp/MEUKF/unified_filter.cpp) - single entry point
+- **Main MEX wrapper**: [`cpp/MEX/mex_unified_filter.cpp`](kalman/cpp/MEX/mex_unified_filter.cpp) - handles all sensor updates
+- **Core algorithms**: [`cpp/MEUKF/meukf_core.cpp`](kalman/cpp/MEUKF/meukf_core.cpp) (~1100 lines) - predict/update math
+- **Sensor filtering**: [`cpp/include/Common/Sensor/sensor_filter.hpp`](kalman/cpp/include/Common/Sensor/sensor_filter.hpp) - EMA, Biquad, outlier detection
+- **Noise estimation**: `cpp/include/Common/Estimation/noise_estimator.hpp` - adaptive R matrix
+- **Divergence detection**: `cpp/include/Common/Validation/divergence_guard.hpp` - innovation monitoring
+- **Change detection**: Internal buffers track previous sensor values - only updates when data changes
 
-**MATLAB Orchestration Layer (69% of codebase)**:
-- [`ESKF/@ESKF/ESKF.m`](kalman/ESKF/@ESKF/ESKF.m): Main filter class (217 lines) - handles initialization, state management
-- [`@ESKF/sensor_updates.m`](kalman/ESKF/@ESKF/sensor_updates.m): Unified sensor dispatch (4 types)
-- [`@ESKF/call_cpp_update_impl.m`](kalman/ESKF/@ESKF/call_cpp_update_impl.m): **Key integration point** - marshals MATLAB structs to MEX interface
-- Adaptive components: [`Common/Estimation/NoiseEstimatorLib.m`](kalman/Common/Estimation/NoiseEstimatorLib.m), [`Common/Sensor/SensorFilterLib.m`](kalman/Common/Sensor/SensorFilterLib.m)
-
-### Filter Execution Flow
+**MATLAB Thin Layer (Target: 5% orchestration only)**:
+- [`run_simulation.m`](kalman/run_simulation.m): Entry point - loads data, calls C++, saves results
+- [`ESKF/@ESKF/ESKF.m`](kalman/ESKF/@ESKF/ESKF.m): Minimal wrapper - one-time initialization, state storage
+- [`@ESKF/call_unified_filter.m`](kalman/ESKF/@ESKF/call_unified_filter.m): **Single C++ call per timestep** - packs input struct, unpacks output struct
+- [`GenerateData/sim_gene (Full C++ Target)
 
 ```
 run_simulation.m (entry point)
-  └─> ESKF.m constructor (static period noise calibration)
+  └─> ESKF.m constructor (reads config, initializes state)
       └─> Main loop (run_filter)
-          ├─> predict() → call_cpp_update_impl → mex_meukf_step_v2 (C++)
-          ├─> sensor_updates('accel') → call_cpp_update_impl (freq: 5 samples)
-          ├─> sensor_updates('mag') → call_cpp_update_impl (freq: 25 samples)
-          ├─> sensor_updates('gps') → call_cpp_update_impl (freq: 40 samples)
-          ├─> sensor_updates('baro') → call_cpp_update_impl (freq: 50 samples)
-          └─> zupt/reset checks (MATLAB logic)
+          └─> ONE CALL PER TIMESTEP: mex_unified_filter(input_struct) → output_struct
+              ├─ C++ internals (all in one call):
+              │   ├─ Change detection (compare with prev sensor values)
+              │   ├─ Predict step (always runs)
+              │   ├─ Sensor filtering (EMA/Biquad/outlier detection)
+              │   ├─ Update accel (if data changed)
+              │   ├─ Update mag (if data changed)
+              │   ├─ Update GPS (if data changed)
+              │   ├─ Update baro (if data changed)
+              │   ├─ ZUPT check & update
+              │   ├─ Divergence detection & reset
+              │   └─ Adaptive noise estimation
+              └─ MATLAB: Unpack output_struct → save results
 ```
 
-**Critical Pattern**: Every sensor update follows this sequence:
-1. MATLAB pre-filtering (SensorFilterLib) + outlier detection
+**Critical Pattern - Unified Interface**:
+```matlab
+% MATLAB sends ALL sensor data every timestep
+input.accel = [ax; ay; az];        % Accel sensor (100 Hz in data)
+input.gyro = [wx; wy; wz];         % Gyro sensor (100 Hz)
+input.mag = [mx; my; mz];          % Mag sensor (25 Hz - same value 4x)
+input.gps_pos = [px; py; pz];      % GPS (4 Hz - same value 25x)
+input.baro_alt = alt;              % Baro (2 Hz - same value 50x)
+input.dt = 0.01;                   % Timestep
+
+% C++ detects which sensors changed internally
+output = mex_unified_filter(prev_state, input, params);
+
+% MATLAB just unpacks and stores
+eskf.p = output.position;
+eskf.v = output.velocity;
+eskf.q = output.quaternion;
+```
+
+**Key Innovation**: Sensor update frequency controlled by **data duplication in MATLAB**, not by skip logic. C++ auto-detects changes via tolerance comparison (`norm(new - prev) > 1e-9`).etection
 2. Pack state into struct: `{p, v, q, ba, bg, P}` + sensor data + params
 3. Call `mex_meukf_step_v2(state, sensor, params)` - **this is where the math happens**
 4. Unpack C++ output back into MATLAB state variables
@@ -56,18 +87,32 @@ Output location: [`kalman/cpp/bin/`](kalman/cpp/bin/) (auto-added to path in ESK
 - Configure once: `mex -setup C++` in MATLAB
 
 **Active MEX files** (see [`cpp/markdown/README.md`](kalman/cpp/markdown/README.md)):
-- `mex_meukf_step_v2.mexw64` - Main filter engine
+- `mex_meukf_step_v2.mexw64` - Main filter engine (built from [`cpp/MEX/mex_meukf_step.cpp`](kalman/cpp/MEX/mex_meukf_step.cpp))
 - `mex_kalman_filter_core.mexw64` - Legacy support
 - `mex_eskf_math.mexw64` - Math utilities
-- `mex_quaternion_lib.mexw64` - Quaternion operations (legacy)
+- `mex_quaternion_lib.mexw64` - Quaternion operations
+- 13 additional MEX files for (Data Duplication Strategy)
 
-## Key Conventions & Patterns
+**MATLAB data generation** ([`sim_generate.m`](kalman/GenerateData/sim_generate.m)):
+- Base rate: 100 Hz (IMU accel/gyro)
+- Mag: 25 Hz → duplicate each value 4 times (indices: 1,1,1,1, 2,2,2,2, ...)
+- GPS: 4 Hz → duplicate each value 25 times 
+- Baro: 2 Hz → duplicate each value 50 times
 
-### State Representation
+**C++ change detection** (automatic):
+```cpp
+// In unified_filter.cpp
+if (norm(input.mag - prev_mag) > tolerance) {
+    update_mag(input.mag);  // Only runs when data changes
+    prev_mag = input.mag;
+}
+```
 
-15-state ESKF vector:
-- **Position** (p): [px, py, pz] (3D NED frame)
-- **Velocity** (v): [vx, vy, vz]
+**Why this approach?**:
+- Simpler MATLAB code (no skip logic, just send all data)
+- C++ controls all logic (sensor filtering, outlier detection, update decisions)
+- Matches real sensor behavior (high-rate sensors always stream, low-rate sensors hold values)
+- Eliminates MATLAB/C++ synchronization issues
 - **Quaternion** (q): [qw, qx, qy, qz] (normalized, body-to-NED)
 - **Accel bias** (ba): [bax, bay, baz]
 - **Gyro bias** (bg): [bgx, bgy, bgz]
@@ -103,8 +148,7 @@ Defined in ESKF constructor (critical for performance):
 - See: `update_gps()` in meukf_core.cpp
 
 ### Adaptive Noise Estimation
-
-[`NoiseEstimatorLib.m`](kalman/Common/Estimation/NoiseEstimatorLib.m) adjusts measurement covariance R dynamically:
+.m`](kalman/KF/Utils/NoiseEstimator.m) adjusts measurement covariance R dynamically:
 - Tracks innovation statistics (mean, std)
 - Applies EMA smoothing (α=0.01)
 - Clamps between R_MIN (eps) and R_MAX (1e6)
@@ -112,6 +156,7 @@ Defined in ESKF constructor (critical for performance):
 
 ### Divergence Detection & Recovery
 
+[`DivergenceGuard.m`](kalman/KF/Utils
 [`DivergenceGuard`](kalman/Common/Core/DivergenceGuard.m) monitors:
 - Innovation norm thresholds (sensor-specific)
 - Covariance trace growth (P matrix health)
@@ -125,11 +170,24 @@ Recovery strategy ([`@ESKF/reset.m`](kalman/ESKF/@ESKF/reset.m)):
 
 ## Development Workflows
 
+### Building the Unified C++ Filter
+
+**Build command** (from MATLAB):
+```matlab
+cd kalman/cpp/build
+build_mex()  % Compiles mex_unified_filter.mexw64 + utilities
+```
+
+**Active MEX files** (post full C++ migration):
+- `mex_unified_filter.mexw64` - **Primary interface** (all filter operations)
+- `mex_quaternion_lib.mexw64` - Utility for MATLAB-side quaternion conversions
+- Legacy MEX files retained for backward compatibility
+
 ### Running Simulations
 
-**Single run** (with data generation):
+**Single run**:
 ```matlab
-run_simulation()  % Uses default random seed
+run_simulation()  % Generates data with frequency duplication, calls C++ once per timestep
 ```
 
 **Batch testing** (10 runs with different seeds):
@@ -142,12 +200,13 @@ run_batch_10sets()  % Outputs: Results/batch_10sets_summary.csv
 run_simulation(42, true)  % seed=42, skip_data_gen=true
 ```
 
-### Data Generation
+### Data Generation with Frequency Control
 
-[`GenerateData/sim_generate.m`](kalman/GenerateData/sim_generate.m) creates synthetic IMU/GPS/Baro data:
-- Motion types: `'circular'`, `'random_walk'`, `'stationary'`
-- Configured via [`config_params.m`](kalman/GenerateData/config_params.m)
-- Outputs: `sensor_data.csv`, `truth_data.csv`
+[`GenerateData/sim_generate.m`](kalman/GenerateData/sim_generate.m):
+- Generates base IMU data at 100 Hz
+- **Duplicates low-rate sensor data**: Mag (4x), GPS (25x), Baro (50x)
+- Outputs: `sensor_data.csv` with all columns at 100 Hz (duplicated values for low-rate sensors)
+- Motion types: `'circular'`, `'random_walk'`, `'stationary'` (set in [`config_params.m`](kalman/GenerateData/config_params.m))
 
 **Key pattern**: Always regenerate data after changing motion parameters, otherwise filters use stale observations.
 
@@ -207,22 +266,27 @@ params = struct('g', obj.g(:), 'noise_accel', noise_accel, ...);
 
 ### File Naming Conventions
 
-- `run_*.m` - Entry point scripts
-- `*Lib.m` - Reusable utility libraries (QuaternionLib, SensorFilterLib, NoiseEstimatorLib)
-- `mex_*.cpp` - MEX interface wrappers
+- `run_*.m` - Entry point scripts (e.g., [`run_simulation.m`](kalman/run_simulation.m), [`run_batch_10sets.m`](kalman/run_batch_10sets.m))
+- `*Lib.m` - Reusable utility libraries (e.g., [`QuaternionLib.m`](kalman/Common/Math/QuaternionLib.m))
+- `@ClassName/` - MATLAB class methods organized in folders (e.g., [`@ESKF/`](kalman/ESKF/@ESKF/))
+- `mex_*.cpp` - MEX interface wrappers in [`cpp/MEX/`](kalman/cpp/MEX/)
 - `*_core.cpp` - C++ implementation (not directly callable from MATLAB)
 
 ## Common Pitfalls
 
-1. **Quaternion normalization**: Always normalize after mathematical operations. C++ code does this automatically; MATLAB code must call `QuaternionLib.normalize(q)`.
+1. **Quaternion normalization**: Always normalize after operations. C++ unified filter does this automatically in every update cycle.
 
-2. **Covariance symmetry**: P matrix can lose symmetry due to floating-point errors. ESKF updates enforce `P = (P + P')/2` in C++ code.
+2. **Covariance symmetry**: P matrix symmetry enforced in C++ via `P = (P + P')/2` after each update.
 
-3. **Sensor data missing values**: GPS lat/lon may be NaN (signal loss). Always check `~isnan(obs.lat(k))` before calling GPS update.
+3. **Sensor data duplication**: **Critical for full C++ design** - Low-rate sensors must duplicate values in MATLAB data generation. If GPS is 4 Hz, each GPS measurement appears 25 times consecutively in the 100 Hz data stream. C++ relies on change detection to determine updates.
 
-4. **Static initialization period**: First `static_time` seconds (default 3s) are used for noise calibration. Filter does not run during this period. See ESKF constructor logic.
+4. **Change detection tolerance**: Set in C++ (`tolerance = 1e-9`). If sensors have natural noise smaller than this, C++ may skip legitimate updates. Adjust tolerance in `unified_filter.cpp` if needed.
 
-5. **Path dependencies**: ESKF constructor calls `addpath(genpath('cpp'))` - if MEX files aren't found, check this executed correctly.
+5. **MEX cache**: After rebuilding, **always run `clear mex`** in MATLAB before `run_simulation()`. Old binaries stay in memory otherwise.
+
+6. **Input struct completeness**: C++ expects all sensor fields in input struct every timestep. Missing fields cause MEX errors. Even if sensor is not active, send zero/NaN with proper dimensions.
+
+7. **Stateless C++ design**: Unlike old MATLAB ESKF class, C++ unified filter is stateless - must pass full state on every call. MATLAB maintains state between calls in `ESKF.m` properties.
 
 ## Integration Points
 
@@ -245,20 +309,111 @@ params = struct('g', obj.g(:), 'noise_accel', noise_accel, ...);
 
 ## When Making Changes
 
-**To add a new sensor type**:
-1. Add update method in `meukf_core.cpp` (e.g., `update_lidar()`)
-2. Add case in `call_cpp_update_impl.m` to pack sensor data
-3. Update MEX interface in `mex_meukf_step.cpp` to parse new sensor struct
-4. Rebuild MEX and test
+### Adding a New Sensor Type
 
-**To tune filter parameters**:
-- Edit [`GenerateData/config_params.m`](kalman/GenerateData/config_params.m) for process noise Q
-- For measurement noise R, adjust in ESKF constructor or use adaptive estimation
+**Full C++ approach** (all logic in C++):
+
+1. **Add C++ update function** in [`cpp/MEUKF/meukf_core.cpp`](kalman/cpp/MEUKF/meukf_core.cpp):
+```cpp
+void update_lidar(const Vec3& z_lidar, const MEUKFState& state, ...) {
+    // Measurement model, Kalman gain, state update
+}
+```
+
+2. **Add to unified filter** in [`cpp/MEUKF/unified_filter.cpp`](kalman/cpp/MEUKF/unified_filter.cpp):
+```cpp
+// Change detection
+if (norm(input.lidar_range - prev_lidar) > tolerance) {
+    update_lidar(input.lidar_range, state, params);
+    prev_lidar = input.lidar_range;
+}
+```
+
+3. **Extend input struct** in [`cpp/MEX/mex_unified_filter.cpp`](kalman/cpp/MEX/mex_unified_filter.cpp):
+```cpp
+// Parse input struct
+mxArray* lidar_field = mxGetField(input_struct, 0, "lidar_range");
+Vec3 lidar_range = get_vec3_from (Full C++ Architecture)
+
+1. [`cpp/MEX/mex_unified_filter.cpp`](kalman/cpp/MEX/mex_unified_filter.cpp) - **Primary entry point** - MEX interface for unified filter
+2. [`cpp/MEUKF/unified_filter.cpp`](kalman/cpp/MEUKF/unified_filter.cpp) - Orchestrates predict + all sensor updates in one call
+3. [`cpp/MEUKF/meukf_core.cpp`](kalman/cpp/MEUKF/meukf_core.cpp) - Core MEUKF algorithms (predict, update math)
+4. [`GenerateData/sim_generate.m`](kalman/GenerateData/sim_generate.m) - Data generation with frequency duplication
+5. [`ESKF/@ESKF/call_unified_filter.m`](kalman/ESKF/@ESKF/call_unified_filter.m) - MATLAB wrapper (minimal logic)
+6. [`run_simulation.m`](kalman/run_simulation.m) - Main execution loop
+7. [`cpp/include/Common/`](kalman/cpp/include/Common/) - Sensor filtering, noise estimation, divergence detection (all C++)
+
+## Migration Status
+
+**Phase 1: Infrastructure (IN PROGRESS)**
+
+✅ Completed:
+- Unified filter types定義 (`cpp/include/MEUKF/unified_types.hpp`)
+- 基本的な統一フィルタクラス骨格 (`cpp/MEUKF/unified_filter.cpp`)
+- 予測ステップの実装
+- 変更検知ロジック
+- ZUPT実装
+
+🚧 In Progress:
+- MEX wrapper for unified filter (`cpp/MEX/mex_unified_filter.cpp`)
+- センサー更新関数の完全実装
+- Build script updates
+
+**Phase 2-5: Pending**
+- Sensor filtering migration
+- Noise estimation migration  
+- Divergence detection migration
+- MATLAB wrapper simplification
+- Full integration testing
+
+**Current Active Files**:
+- ✅ `cpp/include/MEUKF/unified_types.hpp` - FilterInput/Output/State structures
+- 🚧 `cpp/MEUKF/unified_filter.cpp` - Main filter logic (partial)
+- ❌ `cpp/MEX/mex_unified_filter.cpp` - Not yet created
+- ❌ MATLAB wrappers - Not yet simplified
+
+**MATLAB Files to be Deprecated** (after full migration):
+- `ESKF/@ESKF/predict.m` → Moved to `unified_filter.cpp::predict_step()`
+- `ESKF/@ESKF/sensor_updates.m` → Moved to `unified_filter.cpp::update_*()`
+- `ESKF/@ESKF/zupt.m` → Moved to `unified_filter.cpp::check_zupt()/update_zupt()`
+- `ESKF/@ESKF/call_cpp_update_impl.m` → Replaced by `call_unified_filter.m`
+- `KF/Utils/*.m` → Moved to `cpp/include/Common/`
+
+**Retained Files** (thin wrappers):
+- ✅ `Common/Math/QuaternionLib.m` - C++ MEX wrapper (kept)
+- ✅ `run_simulation.m` - Entry point (minimal changes)
+- ✅ `GenerateData/sim_generate.m` - Data generation with frequency control
+obs.lidar_range = repelem(lidar_10hz, 10);  % Duplicate to 100 Hz
+```
+
+5. **Rebuild and test**:
+```matlab
+cd kalman/cpp/build; build_mex()
+clear mex  % Force reload
+run_simulation()
+```
+
+### Tuning Filter Parameters
+
+**All tuning now in C++ headers**:
+- Process noise Q: Edit `cpp/include/MEUKF/meukf_types.hpp`
+- Measurement noise R: Edit `cpp/include/Common/Estimation/noise_estimator.hpp`
+- Adaptive parameters: Edit `cpp/MEUKF/meukf_core.cpp` (adaptive Q logic)
+
+**No MATLAB config files** (except motion parameters in [`config_params.m`](kalman/GenerateData/config_params.m) for data generation)
 
 **To debug C++ crashes**:
-- Add `mexPrintf()` statements in MEX wrapper
+- Add `mexPrintf()` statements in MEX wrapper (e.g., in [`cpp/MEX/mex_meukf_step.cpp`](kalman/cpp/MEX/mex_meukf_step.cpp))
 - Check matrix dimensions (fixed-size templates fail silently on mismatches)
 - Use `try/catch` around MEX calls in MATLAB to see error messages
+- Check MEX build output: warnings often indicate issues
+- Verify `mex -setup C++` is configured correctly for your compiler
+
+**To analyze filter performance**:
+- Use [`run_batch_10sets.m`](kalman/run_batch_10sets.m) for statistical analysis across multiple random seeds
+- Results saved to `Results/batch_10sets_summary.csv` with RMSE metrics
+- Target accuracy: Position RMSE < 5.0m, Attitude < 1-2°
+- Check detailed logs in [`md/`](kalman/md/) directory (design artifacts)
 
 ## Key Files to Understand First
 
