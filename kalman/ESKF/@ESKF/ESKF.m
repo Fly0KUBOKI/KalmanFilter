@@ -227,5 +227,27 @@ classdef ESKF < handle
             obj.accel_z_damping = 0.1;
             obj.baro_weight = 0.2;
         end
+
+        function output = call_unified_filter(obj, input_struct)
+            % CALL_UNIFIED_FILTER  C++統合フィルタを呼び出す（クラス内実装）
+            prev_state = struct();
+            prev_state.p = obj.p(:);
+            prev_state.v = obj.v(:);
+            prev_state.q = obj.q(:);
+            prev_state.ba = obj.ba(:);
+            prev_state.bg = obj.bg(:);
+            prev_state.P = obj.P;
+
+            % MEX呼び出し
+            output = mex_unified_filter(prev_state, input_struct);
+
+            % ESKFの状態を更新
+            obj.p = output.position(:);
+            obj.v = output.velocity(:);
+            obj.q = output.quaternion(:);
+            obj.ba = output.accel_bias(:);
+            obj.bg = output.gyro_bias(:);
+            obj.P = output.covariance;
+        end
     end
 end
