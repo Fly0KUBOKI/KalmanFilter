@@ -57,9 +57,9 @@ fprintf('Running MATLAB MEUKF Update...\n');
 [dtheta, P_att_new, K, S, y] = meukf_update_attitude(P_att, q_nom, a_meas, h_func, R_acc, params.alpha, params.beta, params.kappa);
 
 % Apply update to state (MATLAB side)
-dq = QuaternionLib.small_angle_quat(dtheta);
-q_matlab = QuaternionLib.multiply(q_nom, dq);
-q_matlab = QuaternionLib.normalize(q_matlab);
+dq = mex_quaternion_lib('small_angle_quat', dtheta);
+q_matlab = mex_quaternion_lib('multiply', q_nom, dq);
+q_matlab = mex_quaternion_lib('normalize', q_matlab);
 P_matlab = state.P;
 P_matlab(7:9, 7:9) = P_att_new;
 
@@ -161,9 +161,9 @@ h_func_mag = @(q) h_mag(q, mag_ref);
 
 [dtheta_mag, P_att_mag, ~, ~, ~] = meukf_update_attitude(P_att, q_nom, m_meas, h_func_mag, R_mag, params.alpha, params.beta, params.kappa);
 
-dq_mag = QuaternionLib.small_angle_quat(dtheta_mag);
-q_mag_matlab = QuaternionLib.multiply(q_nom, dq_mag);
-q_mag_matlab = QuaternionLib.normalize(q_mag_matlab);
+dq_mag = mex_quaternion_lib('small_angle_quat', dtheta_mag);
+q_mag_matlab = mex_quaternion_lib('multiply', q_nom, dq_mag);
+q_mag_matlab = mex_quaternion_lib('normalize', q_mag_matlab);
 P_mag_matlab = state.P;
 P_mag_matlab(7:9, 7:9) = P_att_mag;
 
@@ -185,15 +185,12 @@ end
 
 % --- Helper Functions ---
 function z_pred = h_mag(q, mag_ref)
-    R = QuaternionLib.quat2rotm(q);
+    R = mex_quaternion_lib('to_rotation_matrix', q);
     z_pred = R' * mag_ref;
 end
 
 function z_pred = h_accel(q, g)
-    R = QuaternionLib.quat2rotm(q);
-    % Accelerometer measures upward force (-g in body frame)
-    % If g is [0;0;-9.8] (downward), then -g is [0;0;9.8] (upward)
-    % z_pred = R' * (-g) = - (R' * g)
+    R = mex_quaternion_lib('to_rotation_matrix', q);
     z_pred = - (R' * g);
 end
 
@@ -215,11 +212,11 @@ function [state_pred] = predict_matlab(state, sensor, params)
         s = sin(half_angle);
         dq = [cos(half_angle); (w_corr/w_norm)*s];
     end
-    q_pred = QuaternionLib.multiply(state.q, dq);
-    state_pred.q = QuaternionLib.normalize(q_pred);
+    q_pred = mex_quaternion_lib('multiply', state.q, dq);
+    state_pred.q = mex_quaternion_lib('normalize', q_pred);
     
     % Position/Velocity
-    R = QuaternionLib.quat2rotm(state.q);
+    R = mex_quaternion_lib('to_rotation_matrix', state.q);
     % a_corr is proper acceleration (includes reaction to gravity)
     % a_kinematic = R * a_corr + g (where g is [0;0;-9.8])
     a_world = R * a_corr + g;
