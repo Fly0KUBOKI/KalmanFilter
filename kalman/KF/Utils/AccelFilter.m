@@ -48,10 +48,34 @@ classdef AccelFilter < handle
                 a_expected = zeros(3, 1);
             end
             
+            % Try C++ mex implementation first
+            use_mex = (exist('mex_sensor_filter','file') == 3);
+            if use_mex
+                try
+                    [a_filt, is_outlier] = mex_sensor_filter('accel', a_meas, a_expected);
+                    a_smooth = a_filt;
+                    obj.a_filtered = a_smooth;
+                    % update noise history with residual if available
+                    try
+                        residual = a_smooth - a_expected;
+                        residual_norm = norm(residual);
+                        obj.noise_history = [obj.noise_history; residual_norm];
+                        if length(obj.noise_history) > obj.history_size
+                            obj.noise_history = obj.noise_history(2:end);
+                        end
+                    catch
+                    end
+                    return;
+                catch
+                    % fallback to MATLAB implementation below
+                end
+            end
+
+            % --- MATLAB 実装フォールバック ---
             % 残差を計算
             residual = a_meas - a_expected;
             residual_norm = norm(residual);
-            
+
             % 現在のノイズレベルを推定
             if isempty(obj.noise_history)
                 noise_estimate = residual_norm;
@@ -59,21 +83,21 @@ classdef AccelFilter < handle
                 noise_std = std(obj.noise_history);
                 noise_estimate = max(noise_std, residual_norm / 3.0);  % 保守的に推定
             end
-            
+
             % 外れ値判定
             is_outlier = (residual_norm > obj.outlier_threshold * max(noise_estimate, 0.1));
-            
+
             % 外れ値の場合は前回値を保持（更新しない）
             if is_outlier
                 a_smooth = obj.a_filtered;
                 return;
             end
-            
+
             % EMAフィルタを適用
             % y_new = alpha * x + (1 - alpha) * y_old
             a_smooth = obj.ema_alpha * a_meas + (1 - obj.ema_alpha) * obj.a_filtered;
             obj.a_filtered = a_smooth;
-            
+
             % ノイズ履歴を更新（キューイング）
             obj.noise_history = [obj.noise_history; residual_norm];
             if length(obj.noise_history) > obj.history_size

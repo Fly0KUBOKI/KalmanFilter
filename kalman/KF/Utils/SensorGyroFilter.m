@@ -54,14 +54,36 @@ classdef SensorGyroFilter < handle
             info.is_outlier = false;
             is_outlier = false;
             
-            % Biquadフィルタを適用（3軸独立）
-            w_smooth = zeros(3, 1);
-            for i = 1:3
-                w_smooth(i) = obj.biquad_filters{i}.apply(w_meas(i));
+            % まず MEX 実装を試す（存在すれば C++ Biquad を使用）
+            use_mex = (exist('mex_sensor_filter','file') == 3);
+            if use_mex
+                try
+                    % mex_sensor_filter expects dt; derive from sample_rate used at construction
+                    sample_rate = 200; % matches constructor
+                    dt = 1.0 / sample_rate;
+                    cutoff_freq = obj.biquad_filters{1}.cutoff_freq;
+                    w_filt = mex_sensor_filter('gyro', w_meas, dt, cutoff_freq);
+                    w_smooth = w_filt;
+                    obj.w_filtered = w_smooth;
+                    obj.w_filtered_axis = w_smooth;
+                catch
+                    % MEX failed — fallback to MATLAB per-axis Biquad
+                    w_smooth = zeros(3, 1);
+                    for i = 1:3
+                        w_smooth(i) = obj.biquad_filters{i}.apply(w_meas(i));
+                    end
+                    obj.w_filtered = w_smooth;
+                    obj.w_filtered_axis = w_smooth;
+                end
+            else
+                % MEX が無ければ MATLAB 実装
+                w_smooth = zeros(3, 1);
+                for i = 1:3
+                    w_smooth(i) = obj.biquad_filters{i}.apply(w_meas(i));
+                end
+                obj.w_filtered = w_smooth;
+                obj.w_filtered_axis = w_smooth;
             end
-            
-            obj.w_filtered = w_smooth;
-            obj.w_filtered_axis = w_smooth;
             
             % 残差を計算（フィルタ後の値で）
             residual = w_smooth - w_expected;
