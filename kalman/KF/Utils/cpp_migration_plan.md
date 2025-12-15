@@ -81,6 +81,9 @@
 - **C++実装場所**: `kalman/cpp/Common/Sensor/sensor_filter.hpp` または新規ファイル
 - **MEX関数**: 必要
 - **テスト**: `run_batch_10sets.m`で検証
+- **ステータス**: ✅ `AccelFilter` の C++/MEX ラッパーを作成済み（`AccelFilter_cpp.m`）。
+  - 既存の `mex_sensor_filter('accel', ...)` が利用可能で、MATLAB フォールバックも実装済み。
+  - 単体比較スクリプト: `kalman/cpp/tests/compare_accel_filters.m`
 
 ### Phase 3: ユーティリティクラス（レイヤー2）
 #### 3.1 `NoiseEstimator.m`

@@ -22,13 +22,26 @@ function predict(obj, a_meas, w_meas)
         end
     end
     
-    % 加速度フィルタ適用 (MATLAB側で実施)
+    % 加速度フィルタ適用 (MATLAB側で実施)。
+    % ここでは C++/MEX ラッパーを優先して使用し、フォールバックで既存の MATLAB クラスを利用する。
     if ~isempty(obj.accel_filter)
+        % 期待値はフィルタ内の現在値を使う
         a_expected = obj.accel_filter.a_filtered;
         if norm(a_expected) < 1e-3
             a_expected = a_meas;
         end
-        [a_filtered, is_outlier] = obj.accel_filter.filter(a_meas, a_expected);
+        try
+            % Try the C++/MEX wrapper first (AccelFilter_cpp will fallback to MATLAB implementation)
+            [a_filtered, is_outlier] = AccelFilter_cpp(a_meas, a_expected, obj.accel_filter.ema_alpha, obj.accel_filter.history_size);
+        catch
+            % If wrapper not available or fails, call the MATLAB object method
+            [a_filtered, is_outlier] = obj.accel_filter.filter(a_meas, a_expected);
+        end
+        % keep MATLAB object internal state consistent (update a_filtered stored value)
+        try
+            obj.accel_filter.a_filtered = a_filtered;
+        catch
+        end
         a_for_vel = a_filtered;
     else
         a_for_vel = a_meas;
