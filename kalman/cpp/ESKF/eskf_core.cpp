@@ -1,4 +1,4 @@
-#include "eskf_core.hpp"
+﻿#include "eskf_core.hpp"
 #include "../KF/Core/kalman_filter_core.hpp"
 #include "../Common/Math/quaternion.hpp"
 #include <cmath>

@@ -1,4 +1,4 @@
-// ESKF C++ MEX Wrapper - Common Library版
+﻿// ESKF C++ MEX Wrapper - Common Library版
 // ビルドコマンド: mex mex_eskf_core.cpp eskf_core.cpp kalman_filter_core.cpp -Ic:\...\cpp
 
 #include "mex.h"

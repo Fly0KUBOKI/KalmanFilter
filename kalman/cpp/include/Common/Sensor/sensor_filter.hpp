@@ -1,8 +1,9 @@
-#pragma once
+﻿#pragma once
 
 #include "../Math/fixed_matrix.hpp"
 #include <cmath>
 #include <algorithm>
+#include <cstring>
 
 namespace common {
 namespace sensor {
@@ -37,8 +38,17 @@ public:
         return result;
     }
     
+    cm get_value() const {
+        return filtered_;
+    }
+    
     void reset() {
         initialized_ = false;
+    }
+    
+    void reset_zero() {
+        for(int i=0; i<filtered_.rows*filtered_.cols; ++i) filtered_.data[i] = 0.0f;
+        initialized_ = true;
     }
     
     void set_alpha(float alpha) {
@@ -173,6 +183,12 @@ public:
         initialized_ = false;
     }
     
+    void reset_zero() {
+        position_.resize(0, 0);
+        velocity_.resize(0, 0);
+        initialized_ = false;
+    }
+    
     void set_parameters(float alpha, float beta) {
         alpha_ = alpha;
         beta_ = beta;
@@ -189,13 +205,11 @@ private:
 public:
     OutlierDetector() : count_(0) {}
     
-    bool detect(float residual_norm, float threshold_sigma = 3.0f) {
-        // ノイズ標準偏差推定
-        float noise_std = 0.1f;  // デフォルト
-        if (count_ > 0) {
-            // 標準偏差計算
-            float sum = 0.0f;
-            float sum_sq = 0.0f;
+    bool detect(float residual_norm, float threshold_sigma = 3.0f, float min_std = 0.1f) {
+        float noise_std = min_std;
+        
+        if (count_ >= 5) {
+            float sum = 0.0f, sum_sq = 0.0f;
             for (int i = 0; i < count_; ++i) {
                 sum += history_[i];
                 sum_sq += history_[i] * history_[i];
@@ -205,16 +219,12 @@ public:
             noise_std = fmaxf(noise_std, 0.1f);
         }
         
-        // 外れ値判定
         float threshold = threshold_sigma * noise_std;
         bool is_outlier = (residual_norm > threshold);
 
-        // 履歴更新（MATLABのMEX経路と一致させるため、
-        // 外れ値判定の有無に関わらず履歴に残す）
         if (count_ < MAX_HISTORY) {
             history_[count_++] = residual_norm;
         } else {
-            // シフト
             for (int i = 0; i < MAX_HISTORY - 1; ++i) {
                 history_[i] = history_[i+1];
             }
@@ -523,6 +533,31 @@ public:
         gps_filter.set_parameters(0.5f, 0.1f);
     }
     
+    void reset_all() {
+        accel_filter.reset();
+        mag_filter.reset();
+        baro_filter.reset();
+        gps_filter.reset();
+        accel_outlier.reset();
+        mag_outlier.reset();
+    }
+    
+    void reset_all_zero() {
+        accel_filter.reset_zero();
+        mag_filter.reset_zero();
+        baro_filter.reset_zero();
+        gps_filter.reset_zero();
+        accel_outlier.reset();
+        mag_outlier.reset();
+    }
+
+    void set_accel_config(float ema_alpha, int history_size, float threshold_sigma, float min_std) {
+        accel_filter.set_alpha(ema_alpha);
+        accel_threshold_sigma_ = threshold_sigma;
+        accel_min_std_ = min_std;
+        (void)history_size; // history_size not used (fixed MAX_HISTORY)
+    }
+    
     // 加速度フィルタ（外れ値検出付き）
     cm filter_accel(const cm& a_meas, const cm& a_expected, bool& is_outlier) {
         // 残差計算
@@ -543,19 +578,8 @@ public:
             return accel_filter.filter(a_meas);
         }
     }
-
-    void set_accel_config(float ema_alpha, int history_size, float threshold_sigma, float min_std) {
-        accel_filter.set_alpha(ema_alpha);
-        accel_outlier.set_max_history(history_size);
-        accel_outlier.set_default_threshold_sigma(threshold_sigma);
-        accel_outlier.set_default_min_std(min_std);
-        accel_threshold_sigma_ = threshold_sigma;
-        accel_min_std_ = min_std;
-    }
     
-    // 磁気計フィルタ（外れ値検出付き）
     cm filter_mag(const cm& m_meas, const cm& m_expected, bool& is_outlier) {
-        // 残差計算
         float residual_norm = 0.0f;
         for (int i = 0; i < 3; ++i) {
             float diff = m_meas(i,0) - m_expected(i,0);
@@ -563,38 +587,22 @@ public:
         }
         residual_norm = sqrtf(residual_norm);
         
-        // 外れ値検出
         is_outlier = mag_outlier.detect(residual_norm);
         
-        if (is_outlier) {
-            return mag_filter.filter(m_meas);
-        } else {
-            return mag_filter.filter(m_meas);
-        }
+        return mag_filter.filter(m_meas);
     }
     
-    // GPSフィルタ
     void filter_gps(const cm& gps_pos, float dt, cm& pos_out, cm& vel_out) {
         gps_filter.filter(gps_pos, dt, pos_out, vel_out);
     }
     
-    // 気圧計フィルタ
     float filter_baro(float pressure) {
         cm p_in; p_in.resize(1,1); p_in(0,0) = pressure;
         cm p_out = baro_filter.filter(p_in);
         return p_out(0,0);
     }
-    
-    void reset_all() {
-        accel_filter.reset();
-        // gyro_filter removed (deprecated)
-        mag_filter.reset();
-        gps_filter.reset();
-        baro_filter.reset();
-        accel_outlier.reset();
-        mag_outlier.reset();
-    }
 };
 
 } // namespace sensor
 } // namespace common
+

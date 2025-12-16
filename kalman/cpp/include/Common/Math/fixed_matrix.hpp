@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <cmath>
 #include <cstring>
 #include <cassert>
@@ -7,7 +7,7 @@
 
 namespace cmath_fx {
 
-// 固定サイズ行列クラス
+// Fixed-size matrix class
 template <int R, int C, typename T = float>
 struct Matrix {
     static const int Rows = R;

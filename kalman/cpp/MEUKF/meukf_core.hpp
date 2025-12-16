@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "meukf_types.hpp"
 #include "../Common/Math/fixed_matrix.hpp"
 #include "../Common/Math/quaternion.hpp"

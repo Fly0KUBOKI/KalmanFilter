@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "../Math/fixed_matrix.hpp"
 #include <cmath>

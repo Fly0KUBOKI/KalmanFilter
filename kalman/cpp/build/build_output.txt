@@ -1,0 +1,104 @@
+=== MEX Build for Kalman Filters ===
+C++ root: C:\Users\takut\OneDrive\�h�L�������g\MATLAB\KalmanFilter\kalman\cpp
+MEX sources: C:\Users\takut\OneDrive\�h�L�������g\MATLAB\KalmanFilter\kalman\cpp\mex
+Output: C:\Users\takut\OneDrive\�h�L�������g\MATLAB\KalmanFilter\kalman\cpp\bin
+
+Compiler: Microsoft Visual C++ 2022
+
+=== [1/7] mex_kalman_filter_core ===
+Compiling...
+'Microsoft Visual C++ 2022' �Ńr���h���Ă��܂��B
+MEX �͐���Ɋ������܂����B
+Built: mex_kalman_filter_core.mexw64
+
+=== [2/7] mex_ukf_sigma_points ===
+Compiling...
+'Microsoft Visual C++ 2022' �Ńr���h���Ă��܂��B
+MEX �͐���Ɋ������܂����B
+Built: mex_ukf_sigma_points.mexw64
+
+=== [3/7] mex_eskf_core (legacy) ===
+Sources: mex_eskf_core.cpp + eskf_core.cpp
+Skipping mex_eskf_core (locked)
+
+=== [4/7] mex_eskf_math (NEW - pure computation) ===
+Sources: mex_eskf_math.cpp + eskf_math.cpp
+Compiling...
+'Microsoft Visual C++ 2022' �Ńr���h���Ă��܂��B
+MEX �͐���Ɋ������܂����B
+Built: mex_eskf_math.mexw64
+
+=== [5/7] mex_quaternion_lib ===
+Skipping mex_quaternion_lib (locked)
+
+=== [6/7] mex_ukf_update ===
+Compiling...
+'Microsoft Visual C++ 2022' �Ńr���h���Ă��܂��B
+MEX �͐���Ɋ������܂����B
+Built: mex_ukf_update.mexw64
+
+=== [7/9] mex_meukf_step ===
+Sources: mex_meukf_step.cpp + meukf_core.cpp
+Compiling...
+'Microsoft Visual C++ 2022' �Ńr���h���Ă��܂��B
+MEX �͐���Ɋ������܂����B
+Built: mex_meukf_step_v2.mexw64
+
+=== [8/9] mex_sensor_filter ===
+Compiling...
+'Microsoft Visual C++ 2022' でビルドしています。
+警告: Failed to build mex_sensor_filter.cpp: mex_sensor_filter.cpp
+C:\Users\takut\OneDrive\ドキュメン
+ト\MATLAB\KalmanFilter\kalman\cpp\MEX\../include/Common/Sensor/sensor_filter.hpp(544): error
+C2535: 'void common::sensor::SensorFilterLib::reset_all(void)': メンバー関数は、既に定義または宣言されて
+います。
+C:\Users\takut\OneDrive\ドキュメン
+ト\MATLAB\KalmanFilter\kalman\cpp\MEX\../include/Common/Sensor/sensor_filter.hpp(530): note:
+'common::sensor::SensorFilterLib::reset_all' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメン
+ト\MATLAB\KalmanFilter\kalman\cpp\MEX\../include/Common/Sensor/sensor_filter.hpp(553): error
+C2535: 'void common::sensor::SensorFilterLib::reset_all_zero(void)': メンバー関数は、既に定義または宣言
+されています。
+C:\Users\takut\OneDrive\ドキュメン
+ト\MATLAB\KalmanFilter\kalman\cpp\MEX\../include/Common/Sensor/sensor_filter.hpp(537): note:
+'common::sensor::SensorFilterLib::reset_all_zero' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメン
+ト\MATLAB\KalmanFilter\kalman\cpp\MEX\../include/Common/Sensor/sensor_filter.hpp(541): error
+C2039: 'reset_zero': 'common::sensor::AlphaBetaFilter' のメンバーではありません
+C:\Users\takut\OneDrive\ドキュメン
+ト\MATLAB\KalmanFilter\kalman\cpp\MEX\../include/Common/Sensor/sensor_filter.hpp(123): note:
+'common::sensor::AlphaBetaFilter' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメン
+ト\MATLAB\KalmanFilter\kalman\cpp\MEX\../include/Common/Sensor/sensor_filter.hpp(557): error
+C2039: 'reset_zero': 'common::sensor::AlphaBetaFilter' のメンバーではありません
+C:\Users\takut\OneDrive\ドキュメン
+ト\MATLAB\KalmanFilter\kalman\cpp\MEX\../include/Common/Sensor/sensor_filter.hpp(123): note:
+'common::sensor::AlphaBetaFilter' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメン
+ト\MATLAB\KalmanFilter\kalman\cpp\MEX\../include/Common/Sensor/sensor_filter.hpp(610): fatal error
+C1020: 予期しない #endif です。
+
+ 
+> build_mex>build_single_mex (行 267) 内
+build_mex (行 180) 内 
+
+=== [9/10] mex_unified_filter ===
+Sources: mex_unified_filter.cpp + unified_filter.cpp + meukf_core.cpp
+Compiling...
+'Microsoft Visual C++ 2022' でビルドしています。
+MEX は正常に完了しました。
+Built: mex_unified_filter.mexw64
+
+=== [10/10] mex_eskf_step ===
+Sources: mex_eskf_step.cpp + unified_filter.cpp + meukf_core.cpp
+Compiling...
+'Microsoft Visual C++ 2022' でビルドしています。
+MEX は正常に完了しました。
+Built: mex_eskf_step.mexw64
+
+=== Build Complete ===
+Successfully built 7 MEX file(s)
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+To use MEX files, add to MATLAB path:
+  addpath('C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin')

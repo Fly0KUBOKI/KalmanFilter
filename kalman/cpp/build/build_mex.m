@@ -1,4 +1,4 @@
-function build_mex()
+function build_mex(targets)
     % BUILD_MEX  Build C++/MEX libraries for Kalman Filters
     %
     % Usage:
@@ -10,6 +10,41 @@ function build_mex()
     %   - Source files in cpp/mex/, cpp/src/, cpp/include/
 
     fprintf('=== MEX Build for Kalman Filters ===\n');
+    % Usage: build_mex()          -> build all
+    %        build_mex({'mex_sensor_filter','mex_meukf_step'})
+    %        build_mex('mex_sensor_filter.cpp')
+
+    % Normalize targets argument (empty => build all)
+    if nargin < 1 || isempty(targets)
+        targets = {};
+    elseif ischar(targets) || isstring(targets)
+        targets = {char(targets)};
+    end
+    % ensure cellstr
+    if ~iscell(targets)
+        targets = cellstr(targets);
+    end
+
+    function yes = wants(name)
+        % Return true if 'name' should be built. If targets empty => build all.
+        if isempty(targets)
+            yes = true; return;
+        end
+        % normalize requested name to base (without extension)
+        [~, name_base, ~] = fileparts(name);
+        if isempty(name_base), name_base = name; end
+
+        yes = false;
+        for k = 1:numel(targets)
+            t = targets{k};
+            if isempty(t), continue; end
+            [~, t_base, ~] = fileparts(char(t));
+            if isempty(t_base), t_base = char(t); end
+            if strcmpi(name_base, t_base)
+                yes = true; return;
+            end
+        end
+    end
     
     % Path configuration
     build_dir = fileparts(mfilename('fullpath'));
@@ -79,13 +114,13 @@ function build_mex()
     try
         % Build: mex_kalman_filter_core
         fprintf('=== [1/7] mex_kalman_filter_core ===\n');
-        if build_single_mex('mex_kalman_filter_core.cpp', compile_opts, inc_args, {}, bin_dir)
+        if wants('mex_kalman_filter_core') && build_single_mex('mex_kalman_filter_core.cpp', compile_opts, inc_args, {}, bin_dir)
             built_count = built_count + 1;
         end
         
         % Build: mex_ukf_sigma_points
         fprintf('\n=== [2/7] mex_ukf_sigma_points ===\n');
-        if build_single_mex('mex_ukf_sigma_points.cpp', compile_opts, inc_args, {}, bin_dir)
+        if wants('mex_ukf_sigma_points') && build_single_mex('mex_ukf_sigma_points.cpp', compile_opts, inc_args, {}, bin_dir)
             built_count = built_count + 1;
         end
         
@@ -107,7 +142,7 @@ function build_mex()
         eskf_math_cpp = fullfile(src_dir, 'ESKF', 'eskf_math.cpp');
         if exist('mex_eskf_math.cpp', 'file') && exist(eskf_math_cpp, 'file')
             fprintf('Sources: mex_eskf_math.cpp + eskf_math.cpp\n');
-            if build_single_mex('mex_eskf_math.cpp', compile_opts, inc_args, {eskf_math_cpp}, bin_dir)
+            if wants('mex_eskf_math') && build_single_mex('mex_eskf_math.cpp', compile_opts, inc_args, {eskf_math_cpp}, bin_dir)
                 built_count = built_count + 1;
             end
         else
@@ -123,7 +158,7 @@ function build_mex()
         
         % Build: mex_ukf_update
         fprintf('\n=== [6/7] mex_ukf_update ===\n');
-        if build_single_mex('mex_ukf_update.cpp', compile_opts, inc_args, {}, bin_dir)
+        if wants('mex_ukf_update') && build_single_mex('mex_ukf_update.cpp', compile_opts, inc_args, {}, bin_dir)
             built_count = built_count + 1;
         end
 
@@ -133,7 +168,7 @@ function build_mex()
         if exist('mex_meukf_step.cpp', 'file') && exist(meukf_core_cpp, 'file')
             fprintf('Sources: mex_meukf_step.cpp + meukf_core.cpp\n');
             % Build with new name to avoid lock
-            if build_single_mex('mex_meukf_step.cpp', compile_opts, inc_args, {meukf_core_cpp}, bin_dir, 'mex_meukf_step_v2')
+            if wants('mex_meukf_step') && build_single_mex('mex_meukf_step.cpp', compile_opts, inc_args, {meukf_core_cpp}, bin_dir, 'mex_meukf_step_v2')
                 built_count = built_count + 1;
             end
         else
@@ -142,7 +177,7 @@ function build_mex()
         
         % Build: mex_sensor_filter (NEW - for incremental testing)
         fprintf('\n=== [8/9] mex_sensor_filter ===\n');
-        if build_single_mex('mex_sensor_filter.cpp', compile_opts, inc_args, {}, bin_dir)
+        if wants('mex_sensor_filter') && build_single_mex('mex_sensor_filter.cpp', compile_opts, inc_args, {}, bin_dir)
             built_count = built_count + 1;
         end
         
@@ -151,7 +186,7 @@ function build_mex()
         unified_cpp = fullfile(cpp_root, 'MEUKF', 'unified_filter.cpp');
         if exist('mex_unified_filter.cpp', 'file') && exist(unified_cpp, 'file') && exist(meukf_core_cpp, 'file')
             fprintf('Sources: mex_unified_filter.cpp + unified_filter.cpp + meukf_core.cpp\n');
-            if build_single_mex('mex_unified_filter.cpp', compile_opts, inc_args, {unified_cpp, meukf_core_cpp}, bin_dir)
+            if wants('mex_unified_filter') && build_single_mex('mex_unified_filter.cpp', compile_opts, inc_args, {unified_cpp, meukf_core_cpp}, bin_dir)
                 built_count = built_count + 1;
             end
         else
@@ -162,7 +197,7 @@ function build_mex()
         fprintf('\n=== [10/10] mex_eskf_step ===\n');
         if exist('mex_eskf_step.cpp', 'file') && exist(unified_cpp, 'file') && exist(meukf_core_cpp, 'file')
             fprintf('Sources: mex_eskf_step.cpp + unified_filter.cpp + meukf_core.cpp\n');
-            if build_single_mex('mex_eskf_step.cpp', compile_opts, inc_args, {unified_cpp, meukf_core_cpp}, bin_dir)
+            if wants('mex_eskf_step') && build_single_mex('mex_eskf_step.cpp', compile_opts, inc_args, {unified_cpp, meukf_core_cpp}, bin_dir)
                 built_count = built_count + 1;
             end
         else

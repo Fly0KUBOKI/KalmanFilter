@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "../Common/filter_interface.hpp"
 #include "../Common/Math/fixed_matrix.hpp"
