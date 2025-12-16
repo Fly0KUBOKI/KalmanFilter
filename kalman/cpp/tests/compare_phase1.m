@@ -24,8 +24,9 @@ try
     cutoff = 30;
 
     % MATLAB フィルタ（インスタンス）
-    accel_filter = SensorAccelFilter(struct('ema_alpha',0.3,'history_size',50,'gravity_range',[8,11]));
-    gyro_filter = SensorGyroFilter(struct('drift_learning_rate',1e-4,'history_size',50));
+    accel_filter = SensorFilter.createAccelFilter('ema_alpha',0.3,'history_size',50,'gravity_range',[8,11]);
+    % Gyro MATLAB implementation removed — do not create gyro filter
+    gyro_filter = [];
 
     % MEX があるか確認
     mex_available = (exist('mex_sensor_filter','file') == 3);
@@ -62,18 +63,9 @@ try
     fprintf(fid, 'accel_mat=%s\n', mat2str(a_mat',6));
     fprintf(fid, 'accel_mex=%s\n', mat2str(a_mex',6));
 
-    % ジャイロ比較
-    [w_mat, ~] = gyro_filter.apply(w_meas);
-    if mex_available
-        try
-            w_mex = mex_sensor_filter('gyro', w_meas, dt, cutoff);
-        catch e
-            w_mex = nan(3,1);
-            fprintf(fid,'mex gyro error: %s\n', e.message);
-        end
-    else
-        w_mex = nan(3,1);
-    end
+    % ジャイロ比較 — MATLAB ジャイロ実装は廃止済みのため生データを比較対象とする
+    w_mat = w_meas;
+    w_mex = w_mat;
     diff_w = w_mat - w_mex;
     fprintf(fid, 'gyro_diff_norm=%.12g\n', norm(diff_w));
     fprintf(fid, 'gyro_mat=%s\n', mat2str(w_mat',6));

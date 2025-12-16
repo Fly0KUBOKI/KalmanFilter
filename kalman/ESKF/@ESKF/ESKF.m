@@ -174,12 +174,14 @@ classdef ESKF < handle
 
             obj.sensor_filters = struct();
             obj.sensor_filters.accel = SensorFilter.createAccelFilter();
-            obj.sensor_filters.gyro  = SensorFilter.createGyroFilter();
+            % Gyro MATLAB implementation removed — do not create gyro filter
+            obj.sensor_filters.gyro  = [];
             obj.sensor_filters.mag   = SensorFilter.createMagFilter();
             obj.sensor_filters.gps   = SensorFilter.createGPSFilter();
             obj.sensor_filters.baro  = SensorFilter.createBaroFilter();
 
-            obj.accel_filter = AccelFilter(0.08, 50);
+            % MATLAB AccelFilter instance removed for Phase2 MEX — keep placeholder
+            obj.accel_filter = [];
 
             % DivergenceGuard
             config = struct('max_velocity', 3, 'max_acceleration', 3, ...

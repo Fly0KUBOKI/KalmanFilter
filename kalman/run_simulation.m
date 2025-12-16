@@ -15,11 +15,11 @@ function run_simulation(seed, skip_data_gen)
     save_results(proj_root, results);
     
     % プロット生成をスキップ（バッチ実行時のエラー回避）
-    % try
-    %     plot_results(proj_root);
-    % catch e
-    %     warning('プロット生成失敗: %s', e.message);
-    % end
+    try
+        plot_results(proj_root);
+    catch e
+        warning('プロット生成失敗: %s', e.message);
+    end
     fprintf('推定完了\n');
 end
 

@@ -34,8 +34,9 @@ classdef SensorFilterFactory < handle
                     filter = SensorFilter.createAccelFilter(varargin{:});
                     
                 case 'gyro'
-                    % ジャイロ: 積分特性、ドリフト発生
-                    filter = SensorFilter.createGyroFilter(varargin{:});
+                    % ジャイロフィルタは廃止済み — フィルタを返さない
+                    warning('SensorFilterFactory:gyroRemoved', 'Gyro filter implementation removed; returning empty.');
+                    filter = [];
                     
                 case 'mag'
                     % 磁気計: 方向ベクトル、ノルムは保存すべき

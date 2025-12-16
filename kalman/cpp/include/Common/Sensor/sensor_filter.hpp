@@ -208,20 +208,19 @@ public:
         // 外れ値判定
         float threshold = threshold_sigma * noise_std;
         bool is_outlier = (residual_norm > threshold);
-        
-        // 履歴更新（外れ値でない場合のみ）
-        if (!is_outlier) {
-            if (count_ < MAX_HISTORY) {
-                history_[count_++] = residual_norm;
-            } else {
-                // シフト
-                for (int i = 0; i < MAX_HISTORY - 1; ++i) {
-                    history_[i] = history_[i+1];
-                }
-                history_[MAX_HISTORY-1] = residual_norm;
+
+        // 履歴更新（MATLABのMEX経路と一致させるため、
+        // 外れ値判定の有無に関わらず履歴に残す）
+        if (count_ < MAX_HISTORY) {
+            history_[count_++] = residual_norm;
+        } else {
+            // シフト
+            for (int i = 0; i < MAX_HISTORY - 1; ++i) {
+                history_[i] = history_[i+1];
             }
+            history_[MAX_HISTORY-1] = residual_norm;
         }
-        
+
         return is_outlier;
     }
     
@@ -504,18 +503,20 @@ public:
 class SensorFilterLib {
 public:
     EMAFilter accel_filter;
-    BiquadLowpassFilter gyro_filter;
     EMAFilter mag_filter;
     AlphaBetaFilter gps_filter;
     EMAFilter baro_filter;
     
     OutlierDetector accel_outlier;
     OutlierDetector mag_outlier;
+    // configurable parameters for accel outlier detection
+    float accel_threshold_sigma_;
+    float accel_min_std_;
     
     NoiseEstimator noise_estimator;
     DivergenceGuard divergence_guard;
     
-    SensorFilterLib() : noise_estimator(10) {
+    SensorFilterLib() : noise_estimator(10), accel_threshold_sigma_(3.0f), accel_min_std_(0.1f) {
         accel_filter.set_alpha(0.3f);
         mag_filter.set_alpha(0.2f);
         baro_filter.set_alpha(0.4f);
@@ -532,21 +533,24 @@ public:
         }
         residual_norm = sqrtf(residual_norm);
         
-        // 外れ値検出
-        is_outlier = accel_outlier.detect(residual_norm);
+        // 外れ値検出（設定で制御）
+        is_outlier = accel_outlier.detect(residual_norm, accel_threshold_sigma_, accel_min_std_);
         
         if (is_outlier) {
             // 外れ値の場合は前回値を返す
-            return accel_filter.filter(a_meas);  // 実際は前回値を保持
+            return accel_filter.get_value();
         } else {
             return accel_filter.filter(a_meas);
         }
     }
-    
-    // ジャイロフィルタ
-    cm filter_gyro(const cm& w_meas, float dt, float cutoff_freq = 50.0f) {
-        gyro_filter.configure(dt, cutoff_freq);
-        return gyro_filter.filter(w_meas);
+
+    void set_accel_config(float ema_alpha, int history_size, float threshold_sigma, float min_std) {
+        accel_filter.set_alpha(ema_alpha);
+        accel_outlier.set_max_history(history_size);
+        accel_outlier.set_default_threshold_sigma(threshold_sigma);
+        accel_outlier.set_default_min_std(min_std);
+        accel_threshold_sigma_ = threshold_sigma;
+        accel_min_std_ = min_std;
     }
     
     // 磁気計フィルタ（外れ値検出付き）
@@ -583,7 +587,7 @@ public:
     
     void reset_all() {
         accel_filter.reset();
-        gyro_filter.reset();
+        // gyro_filter removed (deprecated)
         mag_filter.reset();
         gps_filter.reset();
         baro_filter.reset();

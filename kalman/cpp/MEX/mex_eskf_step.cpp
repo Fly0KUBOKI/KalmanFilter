@@ -110,30 +110,43 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     const mxArray* params = prhs[2];
     
     // --- 入力状態読み込み ---
-    unified::FilterInput input;
-    get_vec3(state_in, "p", input.p);
-    get_vec3(state_in, "v", input.v);
-    get_quat(state_in, "q", input.q);
-    get_vec3(state_in, "ba", input.ba);
-    get_vec3(state_in, "bg", input.bg);
-    get_matrix15(state_in, "P", input.P);
-    
+    // state_in は現在の推定状態を含む構造体なので、FilterOutput に読み込んで初期化する
+    unified::FilterOutput init_state;
+    // temp buffer for covariance
+    float Pbuf[15][15];
+    get_vec3(state_in, "p", init_state.position);
+    get_vec3(state_in, "v", init_state.velocity);
+    get_quat(state_in, "q", init_state.quaternion);
+    get_vec3(state_in, "ba", init_state.accel_bias);
+    get_vec3(state_in, "bg", init_state.gyro_bias);
+    get_matrix15(state_in, "P", Pbuf);
+    for (int i = 0; i < 15; ++i) {
+        for (int j = 0; j < 15; ++j) {
+            init_state.covariance(i,j) = Pbuf[i][j];
+        }
+    }
+
+    // 初期状態をフィルタに設定
+    unified::UnifiedFilter filter;
+    filter.initialize(init_state);
+
     // --- センサーデータ読み込み ---
+    unified::FilterInput input; // sensor-only input
     input.dt = static_cast<float>(get_scalar(sensor_data, "dt", 0.01));
     get_vec3(sensor_data, "accel", input.accel);
     get_vec3(sensor_data, "gyro", input.gyro);
     get_vec3(sensor_data, "mag", input.mag);
-    
+
     double gps_lat = get_scalar(sensor_data, "gps_lat", 0.0);
     double gps_lon = get_scalar(sensor_data, "gps_lon", 0.0);
     double gps_alt = get_scalar(sensor_data, "gps_alt", 0.0);
     input.gps_pos[0] = static_cast<float>(gps_lat);
     input.gps_pos[1] = static_cast<float>(gps_lon);
     input.gps_pos[2] = static_cast<float>(gps_alt);
-    
-    input.baro = static_cast<float>(get_scalar(sensor_data, "baro", 0.0));
-    
-    // 更新フラグ（ゼロベクトルでない場合に更新）
+
+    input.baro_alt = static_cast<float>(get_scalar(sensor_data, "baro", 0.0));
+
+    // 更新有無フラグは FilterInput の bool フィールドで表現
     float accel_norm = sqrtf(input.accel[0]*input.accel[0] + 
                              input.accel[1]*input.accel[1] + 
                              input.accel[2]*input.accel[2]);
@@ -143,22 +156,19 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     float mag_norm = sqrtf(input.mag[0]*input.mag[0] + 
                           input.mag[1]*input.mag[1] + 
                           input.mag[2]*input.mag[2]);
-    
-    input.update_accel = (accel_norm > 1e-6f) ? 1 : 0;
-    input.update_gyro = (gyro_norm > 1e-9f) ? 1 : 0;
-    input.update_mag = (mag_norm > 1e-6f) ? 1 : 0;
-    input.update_gps = (fabs(gps_lat) > 1e-9 || fabs(gps_lon) > 1e-9) ? 1 : 0;
-    input.update_baro = (fabs(input.baro) > 1e-6f) ? 1 : 0;
+
+    // accel/gyro are always provided in this interface; mark validity for others
+    input.mag_valid = (mag_norm > 1e-6f);
+    input.gps_valid = (fabs(gps_lat) > 1e-9 || fabs(gps_lon) > 1e-9);
+    input.baro_valid = (fabs(input.baro_alt) > 1e-6f);
     
     // --- パラメータ読み込み ---
     get_vec3(params, "g", input.g);
     get_vec3(params, "mag_ref", input.mag_ref);
-    get_vec3(params, "noise_accel", input.noise_accel);
-    get_vec3(params, "noise_gyro", input.noise_gyro);
-    get_vec3(params, "noise_ba", input.noise_ba);
-    get_vec3(params, "noise_bg", input.noise_bg);
-    get_vec3(params, "noise_mag", input.noise_mag);
-    get_vec3(params, "noise_gps", input.noise_gps);
+    input.noise_accel = static_cast<float>(get_scalar(params, "noise_accel", 0.01));
+    input.noise_gyro = static_cast<float>(get_scalar(params, "noise_gyro", 1.74e-4));
+    input.noise_mag = static_cast<float>(get_scalar(params, "noise_mag", 0.1));
+    input.noise_gps = static_cast<float>(get_scalar(params, "noise_gps", 1.0));
     input.noise_baro = static_cast<float>(get_scalar(params, "noise_baro", 0.01));
     
     input.alpha = static_cast<float>(get_scalar(params, "alpha", 1e-3));
@@ -167,17 +177,24 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     
     // --- UnifiedFilterで更新実行 ---
     unified::FilterOutput output;
-    unified::UnifiedFilter filter;
+    // filter は既に初期化済み（initialize を前で呼んでいる）
     filter.update(input, output);
     
     // --- 出力状態作成 ---
     const char* field_names[] = {"p", "v", "q", "ba", "bg", "P"};
     plhs[0] = mxCreateStructMatrix(1, 1, 6, field_names);
     
-    set_vec3(plhs[0], "p", output.p);
-    set_vec3(plhs[0], "v", output.v);
-    set_quat(plhs[0], "q", output.q);
-    set_vec3(plhs[0], "ba", output.ba);
-    set_vec3(plhs[0], "bg", output.bg);
-    set_matrix15(plhs[0], "P", output.P);
+    set_vec3(plhs[0], "p", output.position);
+    set_vec3(plhs[0], "v", output.velocity);
+    set_quat(plhs[0], "q", output.quaternion);
+    set_vec3(plhs[0], "ba", output.accel_bias);
+    set_vec3(plhs[0], "bg", output.gyro_bias);
+    // covariance -> float[15][15] バッファにコピーして出力
+    float Pout[15][15];
+    for (int i = 0; i < 15; ++i) {
+        for (int j = 0; j < 15; ++j) {
+            Pout[i][j] = output.covariance(i,j);
+        }
+    }
+    set_matrix15(plhs[0], "P", Pout);
 }

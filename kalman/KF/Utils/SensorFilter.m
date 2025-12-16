@@ -35,6 +35,16 @@ classdef SensorFilter
             config.scale_factor = p.Results.scale_factor;
             
             filter = SensorAccelFilter(config);
+            % If MEX exists and not forced to use MATLAB, sync config to C++ side
+            force_matlab_env = getenv('FORCE_MATLAB_FILTERS');
+            force_matlab = ~isempty(force_matlab_env) && strcmp(force_matlab_env, '1');
+            if exist('mex_sensor_filter','file') == 3 && ~force_matlab
+                try
+                    mex_sensor_filter('accel_config', config);
+                catch
+                    % ignore mex config failures; MATLAB filter still works
+                end
+            end
         end
         
         function filter = createGyroFilter(varargin)
@@ -57,8 +67,7 @@ classdef SensorFilter
             config.history_size = p.Results.history_size;
             config.drift_learning_rate = p.Results.drift_learning_rate;
             
-            % SensorGyroFilter was removed; return a no-op shim to preserve API
-            filter = NoOpGyroFilter(config);
+            error('SensorGyroFilter has been removed. Gyro filtering is discontinued; do not call createGyroFilter.');
         end
         
         function filter = createMagFilter(varargin)

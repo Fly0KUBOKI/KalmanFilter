@@ -53,23 +53,12 @@ end
 coeffs = compute_cpp_coeffs(dt, cutoff);
 
 % allocate
-mex_out = zeros(N,3);
 mat_out = zeros(N,3);
 cpp_out = zeros(N,3);
 
-% Ensure using correct mex (cpp/mex)
-addpath(fullfile(repo_root,'cpp','mex'),'-begin');
-clear mex; mex_sensor_filter('reset_zero');
-
 for k=1:N
     w = [obs.gyro_x(k); obs.gyro_y(k); obs.gyro_z(k)];
-    % mex
-    try
-        wm = mex_sensor_filter('gyro', w, dt, cutoff);
-        mex_out(k,:) = wm(:)';
-    catch
-        mex_out(k,:) = NaN;
-    end
+    % (MEX gyro removed) — do not call mex_sensor_filter('gyro',...)
     % MATLAB Biquad per-axis
     for ax=1:3
         mat_out(k,ax) = mat_filters{ax}.apply(w(ax));
@@ -83,11 +72,10 @@ for k=1:N
     end
 end
 
-% Summaries
-fprintf('RMSE mex vs matlab per-axis: %g %g %g\n', sqrt(mean((mex_out - mat_out).^2,1)) );
-fprintf('RMSE mex vs cppstyle per-axis: %g %g %g\n', sqrt(mean((mex_out - cpp_out).^2,1)) );
+% Summaries (compare MATLAB vs C++-style)
+fprintf('RMSE matlab vs cppstyle per-axis: %g %g %g\n', sqrt(mean((mat_out - cpp_out).^2,1)) );
 
-% Print first 10 diffs
+% Print first 10 samples
 for k=1:10
-    fprintf('k=%d time=%.4f | mex: %g %g %g | mat: %g %g %g | cppstyle: %g %g %g\n', k, obs.time(k), mex_out(k,1),mex_out(k,2),mex_out(k,3), mat_out(k,1),mat_out(k,2),mat_out(k,3), cpp_out(k,1),cpp_out(k,2),cpp_out(k,3));
+    fprintf('k=%d time=%.4f | mat: %g %g %g | cppstyle: %g %g %g\n', k, obs.time(k), mat_out(k,1),mat_out(k,2),mat_out(k,3), cpp_out(k,1),cpp_out(k,2),cpp_out(k,3));
 end

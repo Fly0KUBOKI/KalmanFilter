@@ -12,14 +12,15 @@ window = 1:N;
 
 % MATLAB フィルタ初期化
 acc_mat = AccelFilter();
-gyro_cfg = struct('drift_learning_rate', 0.0, 'history_size', 20);
-gyro_mat = SensorGyroFilter(gyro_cfg);
+% Gyro MATLAB implementation removed — do not create gyro filter
+gyro_mat = [];
 
 sample_rate = 200; dt = 1.0/sample_rate; cutoff_freq = 30.0;
 
 % 保存用配列
 acc_mex = zeros(N,3); acc_mat_out = zeros(N,3); acc_is_out_mex = false(N,1);
-gyro_mex = zeros(N,3); gyro_mat_out = zeros(N,3);
+% Gyro MEX handling removed — always use MATLAB-side gyro filter (NoOp)
+gyro_mex = NaN(N,3); gyro_mat_out = zeros(N,3);
 
 for k = 1:N
     a_meas = [obs.accel_x(k); obs.accel_y(k); obs.accel_z(k)];
@@ -36,12 +37,8 @@ for k = 1:N
             acc_is_out_mex(k) = false;
         end
 
-        try
-            w_m = mex_sensor_filter('gyro', w_meas, dt, cutoff_freq);
-            gyro_mex(k,:) = w_m(:)';
-        catch
-            gyro_mex(k,:) = NaN;
-        end
+        % gyro MEX removed — do not call mex_sensor_filter('gyro',...)
+        % gyro_mex remains NaN to indicate no MEX gyro output
     else
         acc_mex(k,:) = NaN; gyro_mex(k,:) = NaN;
     end
@@ -54,12 +51,8 @@ for k = 1:N
         acc_mat_out(k,:) = NaN;
     end
 
-    try
-        [w_smooth, ~, ~] = gyro_mat.apply(w_meas, zeros(3,1));
-        gyro_mat_out(k,:) = w_smooth(:)';
-    catch
-        gyro_mat_out(k,:) = NaN;
-    end
+    % Gyro MATLAB implementation removed — pass raw gyro through
+    gyro_mat_out(k,:) = w_meas(:)';
 end
 
 T = table(obs.time, obs.accel_x, obs.accel_y, obs.accel_z, ...
