@@ -122,12 +122,11 @@
 - **MEX関数**: 必要
 - **テスト**: `run_batch_10sets.m`で検証
 
-#### 5.3 `SensorGyroFilter.m`
-- **優先度**: 高
-- **依存**: `SensorFilter`, `BiquadFilter`（Phase 2.1, 4.1で移行済み）
-- **C++実装場所**: `kalman/cpp/Common/Sensor/sensor_filter.hpp` または新規ファイル
-- **MEX関数**: 必要
-- **テスト**: `run_batch_10sets.m`で検証
+#### 5.3 `SensorGyroFilter.m` (Removed)
+- **状態**: 削除済み（MATLAB 実装は削除し、互換のため `NoOpGyroFilter` を導入）
+- **理由**: 実運用で未使用かつ MEX 実装との不整合が問題を引き起こしていたため。
+- **影響**: `SensorFilter.createGyroFilter` は `NoOpGyroFilter` を返すように更新済み。MEX の `gyro` コマンドも削除済み。
+- **テスト**: `run_batch_10sets.m` を実行して差分確認（要実行）
 
 #### 5.4 `SensorGPSFilter.m`
 - **優先度**: 高

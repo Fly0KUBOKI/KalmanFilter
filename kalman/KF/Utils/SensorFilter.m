@@ -57,7 +57,8 @@ classdef SensorFilter
             config.history_size = p.Results.history_size;
             config.drift_learning_rate = p.Results.drift_learning_rate;
             
-            filter = SensorGyroFilter(config);
+            % SensorGyroFilter was removed; return a no-op shim to preserve API
+            filter = NoOpGyroFilter(config);
         end
         
         function filter = createMagFilter(varargin)

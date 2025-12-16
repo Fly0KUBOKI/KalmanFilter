@@ -3,6 +3,7 @@
 #include "../Common/Math/fixed_matrix.hpp"
 #include <string>
 #include <iostream>
+#include <cstdlib>
 
 using namespace common::sensor;
 using namespace cmath_fx;
@@ -78,40 +79,6 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         if (nlhs >= 2) {
             plhs[1] = mxCreateLogicalScalar(is_outlier);
         }
-    }
-    else if (cmd == "gyro") {
-        if (nrhs < 3) {
-            mexErrMsgIdAndTxt("SensorFilter:InvalidInput", "Gyro measurement and dt required.");
-        }
-        
-        // 入力: w_meas [3x1]
-        double* w_ptr = mxGetPr(prhs[1]);
-        if (mxGetM(prhs[1]) * mxGetN(prhs[1]) != 3) {
-            mexErrMsgIdAndTxt("SensorFilter:InvalidInput", "Gyro measurement must be 3 elements.");
-        }
-        
-        cmath_fx::FixedMatrix w_meas(3, 1);
-        w_meas(0,0) = (float)w_ptr[0];
-        w_meas(1,0) = (float)w_ptr[1];
-        w_meas(2,0) = (float)w_ptr[2];
-        
-        // 入力: dt
-        double dt = mxGetScalar(prhs[2]);
-        
-        // 入力: cutoff_freq (オプション)
-        double cutoff_freq = 20.0;
-        if (nrhs >= 4) {
-            cutoff_freq = mxGetScalar(prhs[3]);
-        }
-        
-        cmath_fx::FixedMatrix w_filt = filter_lib.filter_gyro(w_meas, (float)dt, (float)cutoff_freq);
-        
-        // 出力: w_filt [3x1]
-        plhs[0] = mxCreateDoubleMatrix(3, 1, mxREAL);
-        double* out_ptr = mxGetPr(plhs[0]);
-        out_ptr[0] = (double)w_filt(0,0);
-        out_ptr[1] = (double)w_filt(1,0);
-        out_ptr[2] = (double)w_filt(2,0);
     }
     else if (cmd == "mag") {
         if (nrhs < 2) {
