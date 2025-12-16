@@ -14,6 +14,39 @@ function run_batch_10sets()
     if ~exist(results_dir, 'dir')
         mkdir(results_dir);
     end
+
+    % C++ MEX バイナリのパスを追加（存在する場合）
+    mex_bin = fullfile(proj_root, 'cpp', 'bin');
+    if exist(mex_bin, 'dir')
+        addpath(mex_bin);
+    end
+
+        % Ensure C++ MEX binaries are on MATLAB path
+        try
+            bin_path = fullfile(proj_root, 'cpp', 'bin');
+            if exist(bin_path, 'dir')
+                addpath(bin_path);
+            end
+        catch
+        end
+
+    % MEXセンサーフィルタの状態をリセット（存在する場合）
+    try
+        clear mex;
+        if exist('mex_sensor_filter','file') == 3
+            % 明示的ゼロ初期化を優先
+            try
+                mex_sensor_filter('reset_zero');
+            catch
+                mex_sensor_filter('reset');
+            end
+        end
+    catch
+        % MEX が利用できない/リセット失敗でも続行
+    end
+    
+    % Phase2対策: MATLAB実装を強制使用（環境変数設定）
+    setenv('FORCE_MATLAB_FILTERS', '1');
     
     % ログファイルを開く
     log_file = fullfile(results_dir, 'batch_10sets_log.txt');
