@@ -54,7 +54,10 @@ classdef SensorAccelFilter < handle
             end
 
             % 可能であればC++実装（mex_sensor_filter）を使用
-            use_mex = (exist('mex_sensor_filter','file') == 3);
+            % ただし環境変数 FORCE_MATLAB_FILTERS=1 が設定されている場合は強制的にMATLAB実装を使う
+            force_matlab_env = getenv('FORCE_MATLAB_FILTERS');
+            force_matlab = ~isempty(force_matlab_env) && strcmp(force_matlab_env, '1');
+            use_mex = (exist('mex_sensor_filter','file') == 3) && ~force_matlab;
             if use_mex
                 try
                     if nargout >= 2

@@ -125,10 +125,15 @@ function run_batch_10sets()
                 att_ok = (metrics.roll_rmse <= att_thr) && (metrics.pitch_rmse <= att_thr) && (metrics.yaw_rmse <= att_thr);
                 results_summary(run_id).att_ok = att_ok;
 
-                % 全軸（位置）かつ姿勢合格ならSUCCESS, そうでなければFAILED
-                if posx_ok && posy_ok && posz_ok && att_ok
+                % 追加条件: 各姿勢軸の厳密閾値（deg）
+                att_axis_thr = 1.0; % Roll/Pitch/Yaw 各軸の厳格閾値 (deg)
+                att_axis_ok = (metrics.roll_rmse <= att_axis_thr) && (metrics.pitch_rmse <= att_axis_thr) && (metrics.yaw_rmse <= att_axis_thr);
+                results_summary(run_id).att_axis_ok = att_axis_ok;
+
+                % 全軸（位置）かつ姿勢合格かつ姿勢各軸が閾値以下ならSUCCESS, そうでなければFAILED
+                if posx_ok && posy_ok && posz_ok && att_ok && att_axis_ok
                     results_summary(run_id).status = 'SUCCESS';
-                    log_message(log_file, sprintf('Run %d Summary: PASS (Position axes within %.2fm and attitude within %.1fdeg)', run_id, thr, att_thr));
+                    log_message(log_file, sprintf('Run %d Summary: PASS (Position axes within %.2fm and attitude within %.1fdeg; attitude axes within %.1fdeg)', run_id, thr, att_thr, att_axis_thr));
                 else
                     results_summary(run_id).status = 'FAILED';
                     % どの軸がFailか列挙

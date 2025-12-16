@@ -1,0 +1,9 @@
+mex_available=1
+mex reset ok
+mex reset error: Unknown command.
+accel_diff_norm=2.05810722778
+accel_mat=[0.03 0 2.94]
+accel_mex=[0.051 0 4.998]
+gyro_diff_norm=0.00630256677153
+gyro_mat=[0.00131106 -0.00262213 0.000655532]
+gyro_mex=[0.00406173 -0.00812346 0.00203087]

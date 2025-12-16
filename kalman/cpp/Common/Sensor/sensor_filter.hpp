@@ -50,6 +50,17 @@ public:
     void reset() {
         initialized_ = false;
     }
+
+    void reset_zero() {
+        // 明示的に内部状態をゼロで初期化して初期化済みにする
+        if (filtered_.rows == 0 || filtered_.cols == 0) {
+            // サイズ不明のときは遅延初期化のままにする
+            initialized_ = false;
+            return;
+        }
+        for(int i=0;i<filtered_.rows*filtered_.cols;++i) filtered_.data[i] = 0.0f;
+        initialized_ = true;
+    }
     
     void set_alpha(float alpha) {
         alpha_ = fmaxf(0.0f, fminf(1.0f, alpha));
@@ -144,6 +155,21 @@ public:
     void reset() {
         initialized_ = false;
     }
+
+    void reset_zero() {
+        // 明示的に状態をゼロ化して初期化済みにする
+        x1_.resize(y1_.rows, y1_.cols); // ensure sizes consistent
+        x2_.resize(y1_.rows, y1_.cols);
+        y1_.resize(y1_.rows, y1_.cols);
+        y2_.resize(y1_.rows, y1_.cols);
+        for(int i=0;i<y1_.rows*y1_.cols;++i) {
+            x1_.data[i] = 0.0f;
+            x2_.data[i] = 0.0f;
+            y1_.data[i] = 0.0f;
+            y2_.data[i] = 0.0f;
+        }
+        initialized_ = true;
+    }
 };
 
 // ========== Alpha-Betaフィルタ ==========
@@ -214,6 +240,17 @@ public:
     
     void reset() {
         initialized_ = false;
+    }
+
+    void reset_zero() {
+        // 明示的に位置/速度をゼロ化して初期化済みにする
+        position_.resize(velocity_.rows == 0 ? 3 : velocity_.rows, velocity_.cols == 0 ? 1 : velocity_.cols);
+        velocity_.resize(position_.rows, position_.cols);
+        for(int i=0;i<position_.rows*position_.cols;++i) {
+            position_.data[i] = 0.0f;
+            velocity_.data[i] = 0.0f;
+        }
+        initialized_ = true;
     }
     
     void set_parameters(float alpha, float beta) {
@@ -377,6 +414,22 @@ public:
         mag_filter.reset();
         gps_filter.reset();
         baro_filter.reset();
+        accel_outlier.reset();
+        mag_outlier.reset();
+    }
+
+    void reset_all_zero() {
+        // 加速度/磁気は3x1、気圧は1x1を想定してゼロ初期化
+        cm z3; z3.resize(3,1); for(int i=0;i<3;++i) z3.data[i]=0.0f;
+        cm z1; z1.resize(1,1); z1.data[0]=0.0f;
+
+        accel_filter.set_value(z3);
+        mag_filter.set_value(z3);
+        baro_filter.set_value(z1);
+
+        gyro_filter.reset_zero();
+        gps_filter.reset_zero();
+
         accel_outlier.reset();
         mag_outlier.reset();
     }

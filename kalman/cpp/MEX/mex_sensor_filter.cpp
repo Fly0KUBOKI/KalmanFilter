@@ -25,6 +25,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         filter_lib.reset_all();
         return;
     }
+
+    if (cmd == "reset_zero") {
+        filter_lib.reset_all_zero();
+        return;
+    }
     else if (cmd == "accel") {
         if (nrhs < 2) {
             mexErrMsgIdAndTxt("SensorFilter:InvalidInput", "Accel measurement required.");
