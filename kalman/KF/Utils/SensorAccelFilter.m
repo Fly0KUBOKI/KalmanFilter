@@ -61,9 +61,9 @@ classdef SensorAccelFilter < handle
             if use_mex
                 try
                     if nargout >= 2
-                        [a_filt, is_outlier] = mex_sensor_filter('accel', a_meas, a_expected);
+                        [a_filt, is_outlier] = SensorFilters.accel(a_meas, a_expected);
                     else
-                        a_filt = mex_sensor_filter('accel', a_meas, a_expected);
+                        a_filt = SensorFilters.accel(a_meas, a_expected);
                         is_outlier = false;
                     end
                     a_out = a_filt;

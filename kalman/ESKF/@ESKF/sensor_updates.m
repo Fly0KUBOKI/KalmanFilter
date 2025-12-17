@@ -28,7 +28,7 @@ function update_accel_impl(obj, a_meas)
         return;  % データが前回と同じならスキップ
     end
     obj.prev_accel = a_meas;
-    
+
     if ~isempty(obj.w_body) && norm(obj.w_body) > 1.5; return; end
     [a_corrected, is_outlier, ~] = obj.sensor_filters.accel.apply(a_meas, zeros(3,1));
     if any(isnan(a_corrected)) || is_outlier; return; end
@@ -45,7 +45,7 @@ function update_mag_impl(obj, m_meas)
         return;  % データが前回と同じならスキップ
     end
     obj.prev_mag = m_meas;
-    
+
     [m_filtered, is_outlier, ~] = obj.sensor_filters.mag.apply(m_meas);
     if any(isnan(m_filtered)) || is_outlier; return; end
     do_cpp_update(obj, 'mag', m_filtered);
@@ -86,7 +86,7 @@ function update_baro_impl(obj, pressure)
     
     [alt_baro, is_outlier, ~] = obj.sensor_filters.baro.apply(pressure);
     if any(isnan(alt_baro)) || is_outlier; return; end
-    
+
     weight_factor = 1.0 / obj.baro_weight;
     obj.P(3,3) = obj.P(3,3) * weight_factor;
     do_cpp_update(obj, 'baro', alt_baro);
@@ -151,6 +151,40 @@ function do_cpp_update(obj, sensor_type, meas)
     mex_params.kappa = params.kappa;
 
     % 状態構築
+    % 上流ログ: state が破損していないか簡易 trace を残す
+    try
+        % ログはデフォルトで無効。必要な場合は環境変数 ENABLE_STATE_TRACE=1 を設定する。
+        trace_enabled = strcmp(getenv('ENABLE_STATE_TRACE'),'1');
+        if trace_enabled
+            outdir = fullfile(fileparts(mfilename('fullpath')), '..', '..', 'Results'); if ~exist(outdir,'dir'), mkdir(outdir); end
+            trace_file = fullfile(outdir, 'state_trace.txt');
+            fid = fopen(trace_file, 'a');
+            if fid ~= -1
+                fprintf(fid, '%s sensor=%s dt=%g p_max=%g v_max=%g q_norm=%g P_max=%g\n', ...
+                    datestr(now,'yyyy-mm-dd HH:MM:SS.FFF'), sensor_type, obj.dt, max(abs(obj.p(:))), max(abs(obj.v(:))), norm(obj.q(:)), max(abs(obj.P(:))));
+                fclose(fid);
+            end
+        end
+        % 深刻な異常があればスナップショットを保存（常時保存）
+        if max(abs(obj.p(:)))>1e12 || any(isnan([obj.p(:); obj.v(:); obj.q(:); obj.P(:)]))
+            outdir = fullfile(fileparts(mfilename('fullpath')), '..', '..', 'Results'); if ~exist(outdir,'dir'), mkdir(outdir); end
+            fname = fullfile(outdir, sprintf('state_pre_snapshot_%s_%d.mat', sensor_type, randi(1e9)));
+            try
+                snapshot.state.p = obj.p(:);
+                snapshot.state.v = obj.v(:);
+                snapshot.state.q = obj.q(:);
+                snapshot.state.ba = obj.ba(:);
+                snapshot.state.bg = obj.bg(:);
+                snapshot.state.P = obj.P;
+                snapshot.meta.dt = obj.dt;
+                snapshot.meta.t = now;
+                save(fname, 'snapshot');
+            catch
+            end
+        end
+    catch
+    end
+
     state.p = obj.p(:);
     state.v = obj.v(:);
     state.q = obj.q(:);
@@ -160,15 +194,47 @@ function do_cpp_update(obj, sensor_type, meas)
 
     % 呼び出し
     try
+        % Debug: call and check for NaN in returned state
         new_state = mex_meukf_step_v2(state, sensor_data, mex_params);
+        % Validate outputs
+        fields_ok = isstruct(new_state) && isfield(new_state,'p') && isfield(new_state,'v') && isfield(new_state,'q') && isfield(new_state,'ba') && isfield(new_state,'bg') && isfield(new_state,'P');
+        if ~fields_ok || any(isnan([new_state.p(:); new_state.v(:); new_state.q(:); new_state.ba(:); new_state.bg(:)])) || any(isnan(new_state.P(:)))
+            try
+                outdir = fullfile(fileparts(mfilename('fullpath')), '..', '..', 'Results'); if ~exist(outdir,'dir'), mkdir(outdir); end
+                fname = fullfile(outdir, sprintf('debug_mex_nan_%s_%d.mat', sensor_type, randi(1e9)));
+                debug_dump.state = state;
+                debug_dump.sensor_data = sensor_data;
+                debug_dump.mex_params = mex_params;
+                debug_dump.new_state = new_state;
+                save(fname, 'debug_dump');
+                fprintf('ESKF: do_cpp_update detected NaN in new_state — saved debug to %s\n', fname);
+            catch
+            end
+            error('ESKF:do_cpp_update:NaN','C++ update produced NaN or invalid outputs for sensor %s', sensor_type);
+        end
+
         obj.p = new_state.p;
         obj.v = new_state.v;
         obj.q = new_state.q;
         obj.ba = new_state.ba;
         obj.bg = new_state.bg;
         obj.P = new_state.P;
+
+        % post-update trace
+        try
+            if strcmp(getenv('ENABLE_STATE_TRACE'),'1')
+                outdir2 = fullfile(fileparts(mfilename('fullpath')), '..', '..', 'Results'); if ~exist(outdir2,'dir'), mkdir(outdir2); end
+                fid2 = fopen(fullfile(outdir2,'state_trace.txt'),'a');
+                if fid2 ~= -1
+                    fprintf(fid2, '%s POST sensor=%s p_max=%g v_max=%g q_norm=%g P_max=%g\n', datestr(now,'yyyy-mm-dd HH:MM:SS.FFF'), sensor_type, max(abs(obj.p(:))), max(abs(obj.v(:))), norm(obj.q(:)), max(abs(obj.P(:))));
+                    fclose(fid2);
+                end
+            end
+        catch
+        end
     catch ME
         warning('ESKF:do_cpp_update:Failed', 'C++ %s update failed: %s', sensor_type, ME.message);
+        rethrow(ME);
     end
 end
 

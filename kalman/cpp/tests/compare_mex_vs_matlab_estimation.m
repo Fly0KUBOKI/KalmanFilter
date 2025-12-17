@@ -5,7 +5,8 @@
 % Usage: run this file from MATLAB (no GUI) or call from VSCode MATLAB terminal.
 
 script_dir = fileparts(mfilename('fullpath'));
-proj_root = fullfile(script_dir, '..', '..', '..');
+% project root should be the 'kalman' folder (two levels up from cpp/tests)
+proj_root = fullfile(script_dir, '..', '..');
 oldpwd = pwd(); cd(proj_root); proj_root = pwd(); cd(oldpwd);
 
 results_dir = fullfile(proj_root, 'Results');

@@ -3,6 +3,13 @@
 ## 概要
 `kalman/KF/Utils` フォルダ内のMATLABコードを最下層から順番にC++へ移行する計画書。
 
+## ターミナルでの実行に関する注意点
+matlab -batch "run_batch_10sets"
+のように実行して
+ターミナルのコマンドを入力する際に、実行中に他のコマンドを入力すると実行が止まってしまうので、
+実行が完了するまでコマンドを入力してはいけない
+
+
 ## 移行方針
 1. **最下層から順番に移行**: 依存関係のない関数/クラスから開始
 2. **段階的移行**: 部分的にC++化し、バッチテストで検証
@@ -233,8 +240,26 @@
   - [x] 2.1 BiquadFilter
   - [x] 2.2 AccelFilter
 - [ ] Phase 3: ユーティリティクラス
-  - [ ] 3.1 NoiseEstimator
-  - [ ] 3.2 DivergenceGuard
+ - [ ] Phase 3: ユーティリティクラス
+  - [~] 3.1 NoiseEstimator (C++ 実装あり, 統合テスト保留)
+  - [~] 3.2 DivergenceGuard (C++ 実装あり, 統合テスト保留)
+
+### Phase3 進捗と MEX 化状況
+
+- **現状要約**: `NoiseEstimator` と `DivergenceGuard` の C++ 実装は `kalman/cpp/Common/Sensor/sensor_filter.hpp` に存在します。MEX ラッパ（例: `kalman/cpp/MEX/mex_sensor_filter.cpp`）および複数の MEX バイナリがワークスペースにあります。
+- **MEX化の完了判定**: C++ 実装および MEX エントリは実装済みですが、MATLAB 側との完全なインターフェース互換性検証（単体テスト・API 差分チェック）が未完了です。したがって「MEX化は実装済みだが、統合検証が完了していない（部分完了）」と表現します。
+
+### 残タスク（Phase3）
+
+1. `kalman/cpp/MEX/mex_sensor_filter.cpp` と `sensor_filter.hpp` の公開メソッドが MATLAB 側 (`NoiseEstimator.m`, `DivergenceGuard.m`) と厳密に一致するかを突合する（引数/戻り値/型/単位）。
+2. `kalman/cpp/tests/` に小さな単体テストを追加して、ノイズ推定のオンライン更新やダイバージェンス判定の閾値動作を確認する。
+3. CI またはローカルで `run_batch_10sets` を自動化し、C++経路（`mex_sensor_filter` 有効）と MATLAB フォールバック経路の両方で結果が一致することを確認する。
+4. 合格したら `3.1` / `3.2` のチェックを完全完了に更新する。
+
+### 優先度と推奨順序
+
+- 優先度: 高 — まずインターフェース突合と単体テストを実装し、不整合を解消する。
+- 推奨順序: 1) インターフェース確認、2) 単体テスト追加、3) MEXビルド & `clear mex`、4) `run_batch_10sets` で回帰確認。
 - [ ] Phase 4: センサーフィルタ基底
   - [ ] 4.1 SensorFilter
 - [ ] Phase 5: センサー専用フィルタ
@@ -287,9 +312,79 @@
   - フルバッチで既存結果と許容誤差内（差分ほぼゼロ）で一致すること
   - 互換性問題がなければ `Phase 3` のチェックを完了としてマークする
 
+## Phase0-1-2 完了記録（統合）
+
+### Phase0 (2025-12-14)
+- **内容**: 3つの基本関数を C++/MEX 化: `alpha_beta_step`, `ema_update`, `hampel_causal`
+- **実装**: `kalman/cpp/MEX/mex_filter_utils.cpp`
+- **ラッパー**: `kalman/KF/Utils/*_cpp.m`
+- **詳細**: [PHASE0_COMPLETE.md](kalman/KF/Utils/PHASE0_COMPLETE.md)
+
+### Phase1 (2025-12-16)
+- **内容**: Phase0 関数が MATLAB ラッパーを通じて MEX 経由で実行される状態に統一
+- **主要変更**: MEX 初期化（`clear mex` + `mex_sensor_filter('reset')`）と PASS 判定の厳格化
+- **詳細**: [PHASE1_COMPLETE.md](kalman/KF/Utils/PHASE1_COMPLETE.md)、[PHASE1_2_MIGRATION_SUMMARY.md](kalman/KF/Utils/PHASE1_2_MIGRATION_SUMMARY.md)
+
+### Phase2 (2025-12-17)
+- **内容**: `BiquadFilter` と `AccelFilter` の C++/MEX 化完了
+- **実装**: `kalman/cpp/Common/Sensor/sensor_filter.hpp` の `BiquadLowpassFilter` と `SensorFilterLib::filter_accel`
+- **検証**: `run_batch_10sets` で 10/10 PASS
+- **削除**: `SensorGyroFilter`（実運用未使用）
+- **詳細**: [AccelFilter_Migration_Plan.md](kalman/KF/Utils/AccelFilter_Migration_Plan.md)
+
+## Phase3 準備（検証・統合段階）
+
+- **目的**: `NoiseEstimator` / `DivergenceGuard` の C++ 実装を MATLAB 側と完全に統合
+- **現状**: C++ 実装（`sensor_filter.hpp`）あり、MEX コマンド部分的あり、統合テスト未完了
+- **推奨手順**:
+  1. インターフェース突合: `kalman/cpp/Common/Sensor/sensor_filter.hpp` と MATLAB 実装（`NoiseEstimator.m`, `DivergenceGuard.m`）のシグネチャを照合
+  2. MEX API 拡張: `kalman/cpp/MEX/mex_sensor_filter.cpp` に `'noise_estimate'`, `'get_R'`, `'divergence_check'`, `'divergence_regularize'` を追加
+  3. 単体テスト: `kalman/cpp/tests/` にノイズ推定・ダイバージェンス判定テストを追加
+  4. フルバッチ検証: `run_batch_10sets` で結果一致を確認
+  5. ドキュメント更新: 完了後に本計画を更新
+- **詳細**: [phase3_migration_notes.md](kalman/KF/Utils/phase3_migration_notes.md)
+
+## 発生した障害と対応記録 (2025-12-17)
+
+### **概要**
+- **事象**: Phase3 の移行作業中に MATLAB 側フィルタ初期化やノイズ推定の置換が入り、実行時エラーと性能劣化が発生。
+- **検出**: `run_batch_10sets` により Position/Attitude RMSE が許容外となるか、実行時エラーが発生。
+
+### **原因**
+- **NoiseEstimator 初期化の置換**: `NoiseEstimator(10)` が `struct()` に置換され、動的ノイズ推定機能を喪失。
+- **sensor_filters の未初期化化**: `obj.sensor_filters.*` が `[]` に設定され、MATLAB 側フォールバックが使えなくなった。
+- **呼び出し形の混在**: `obj.sensor_filters.*.apply(...)` と `SensorFilters.*(...)` の置換が混在し、未初期化オブジェクトにアクセス。
+- **バロメータ処理の欠落**: `weight_factor` が削除され、バロメータ更新でエラー。
+
+### **実施した対応**
+- `kalman/ESKF/@ESKF/ESKF.m` の初期化を復元: `NoiseEstimator(10)` と `SensorFilter.create*` に戻した。
+- `kalman/ESKF/@ESKF/sensor_updates.m` を修正: `obj.sensor_filters.*.apply(...)` 呼び出しに復帰し、`weight_factor = 1.0 / obj.baro_weight;` を再追加。
+- 修正後に単体実行および `run_batch_10sets` を実行し、Run 1–9 が PASS、Run 10 を単独再実行で正常終了を確認。
+
+### **テスト結果（要約）**
+- バッチ 10 セット中のいくつかは一時的に中断が発生したが、最終的に 10/10 を PASS として確認。
+- 代表指標: Position RMSE 全体 ≈ 0.50–0.59 m、Roll/Pitch RMSE ≈ 0.27–0.30 deg。
+
+### **再発防止と推奨対応**
+- `SensorFilters` と `mex_sensor_filter` の経路切替を明示的に管理し、ESKF 側で `FORCE_MATLAB_FILTERS` を確認して単一経路に統一する。
+- Phase3 の C++ 統合前に `NoiseEstimator` / `DivergenceGuard` のインターフェース互換テストを追加する（`kalman/cpp/tests/` に単体テストを追加）。
+- 小さな変更は必ずローカルで `run_batch_10sets` を回してからコミットするワークフローを徹底し、CI で自動バッチ回帰を実行する。
+
 ## 参考情報
 
-- 既存C++実装: `kalman/cpp/Common/Sensor/sensor_filter.hpp`
-- MEX関数例: `kalman/cpp/MEX/mex_sensor_filter.cpp`
-- ビルドスクリプト: `kalman/cpp/build/build_mex.m`
-- バッチテスト: `kalman/run_batch_10sets.m`
+- **既存C++実装**: `kalman/cpp/Common/Sensor/sensor_filter.hpp`
+- **MEX関数例**: `kalman/cpp/MEX/mex_sensor_filter.cpp`, `mex_filter_utils.cpp`
+- **ビルドスクリプト**: `kalman/cpp/build/build_mex.m`
+- **バッチテスト**: `kalman/run_batch_10sets.m`
+- **関連ドキュメント**:
+  - [PHASE0_COMPLETE.md](kalman/KF/Utils/PHASE0_COMPLETE.md)
+  - [PHASE0_TEST_GUIDE.md](kalman/KF/Utils/PHASE0_TEST_GUIDE.md)
+  - [PHASE1_COMPLETE.md](kalman/KF/Utils/PHASE1_COMPLETE.md)
+  - [PHASE1_2_MIGRATION_SUMMARY.md](kalman/KF/Utils/PHASE1_2_MIGRATION_SUMMARY.md)
+  - [phase3_migration_notes.md](kalman/KF/Utils/phase3_migration_notes.md)
+  - [AccelFilter_Migration_Plan.md](kalman/KF/Utils/AccelFilter_Migration_Plan.md)
+
+---
+**マスター更新日**: 2025-12-17  
+**統合内容**: Phase0-2 完了記録、Phase3 準備内容、障害対応、参考リンク一覧
+

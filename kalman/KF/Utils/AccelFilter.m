@@ -52,7 +52,7 @@ classdef AccelFilter < handle
             use_mex = (exist('mex_sensor_filter','file') == 3);
             if use_mex
                 try
-                    [a_filt, is_outlier] = mex_sensor_filter('accel', a_meas, a_expected);
+                    [a_filt, is_outlier] = SensorFilters.accel(a_meas, a_expected);
                     a_smooth = a_filt;
                     obj.a_filtered = a_smooth;
                     % update noise history with residual if available

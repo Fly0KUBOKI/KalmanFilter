@@ -40,7 +40,7 @@ classdef SensorFilter
             force_matlab = ~isempty(force_matlab_env) && strcmp(force_matlab_env, '1');
             if exist('mex_sensor_filter','file') == 3 && ~force_matlab
                 try
-                    mex_sensor_filter('accel_config', config);
+                    SensorFilters.accel_config(config);
                 catch
                     % ignore mex config failures; MATLAB filter still works
                 end

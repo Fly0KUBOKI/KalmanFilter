@@ -461,17 +461,26 @@ public:
             }
         }
         
-        // ジッター追加
+        // ジッターと最小対角値の保証
         float max_diag = 0.0f;
         for(int i=0; i<n; i++) max_diag = fmaxf(max_diag, fabsf(P(i,i)));
-        if(max_diag < 1e-10f) max_diag = 1e-10f;
+        if(max_diag < 1e-20f) max_diag = 1e-20f;
+
+        // 絶対的最小値と相対的最小値の両方を用いて下限を決定する。
+        // 小さいスケールの共分散（例えば diag(~1e-12)）でも十分に大きな下限を与えるため、
+        // 絶対下限 eps_abs を設ける。
+        const float eps_abs = 1e-9f;
+        const float eps_rel = min_eigenvalue_factor_; // class member, default 1e-8f
+        float min_diag = fmaxf(eps_abs, eps_rel * max_diag);
+
+        // 基本的なジッターは最大対角要素比例で加える（小さすぎる行列に対しては最小下限を適用）
         float jitter = jitter_base_ * max_diag;
-        for(int i=0; i<n; i++) P(i,i) += jitter;
-        
-        // 固有値補正は省略（簡易版）
-        // 必要に応じて固有値分解を追加
-        
-        // 状態別キャップ（15次元ESKF用）
+        for(int i=0; i<n; i++) {
+            if(P(i,i) < min_diag) P(i,i) = min_diag;
+            else P(i,i) += jitter;
+        }
+
+        // 必要なら状態別キャップ（15次元ESKF用）
         if(n == 15) {
             float caps[15] = {1e6f, 1e6f, 1e6f,  // pos
                               1e4f, 1e4f, 1e4f,  // vel

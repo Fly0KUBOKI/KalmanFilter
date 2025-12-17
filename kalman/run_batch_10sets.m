@@ -36,9 +36,9 @@ function run_batch_10sets()
         if exist('mex_sensor_filter','file') == 3
             % 明示的ゼロ初期化を優先
             try
-                mex_sensor_filter('reset_zero');
+                SensorFilters.reset_zero();
             catch
-                mex_sensor_filter('reset');
+                SensorFilters.reset();
             end
         end
     catch

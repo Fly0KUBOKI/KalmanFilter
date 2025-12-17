@@ -54,6 +54,16 @@ try
     if exist(bin_dir,'dir')==7
         addpath(bin_dir);
     end
+    % Ensure MATLAB-side utilities (KF/Utils etc.) are on the path so tests
+    % can construct MATLAB objects like NoiseEstimator.
+    try
+        utils_dir = fullfile(repo_root, 'kalman', 'KF', 'Utils');
+        if exist(utils_dir,'dir')==7
+            addpath(utils_dir);
+        end
+        addpath(fullfile(repo_root, 'kalman', 'KF'));
+    catch
+    end
     cd(oldpwd);
 catch ME
     fprintf('Build step failed or skipped: %s\n', ME.message);
@@ -69,7 +79,7 @@ fprintf('\nTest A: get_R vs MATLAB NoiseEstimator\n');
 try
     ne = NoiseEstimator(5);
     R_mat = ne.getRnoise('accel');
-    R_mex = mex_sensor_filter('get_R','accel');
+    R_mex = SensorFilters.get_R('accel');
     d = norm(R_mat - R_mex,'fro');
     fprintf('||R_mat - R_mex||_F = %g\n', d);
     if d < 1e-6
@@ -86,12 +96,12 @@ end
 %% Test B: noise_estimate updates R
 fprintf('\nTest B: noise_estimate updates R\n');
 try
-    R_before = mex_sensor_filter('get_R','accel');
+    R_before = SensorFilters.get_R('accel');
     innov = [0.2; 0.0; 0.0];
     H = eye(3);
     Ppred = eye(3)*0.01;
-    mex_sensor_filter('noise_estimate','accel', innov, H, Ppred);
-    R_after = mex_sensor_filter('get_R','accel');
+    SensorFilters.noise_estimate('accel', innov, H, Ppred);
+    R_after = SensorFilters.get_R('accel');
     change = norm(R_after - R_before,'fro');
     fprintf('Change in R (Fro): %g\n', change);
     if change > 0
@@ -112,7 +122,7 @@ try
     dx_in = zeros(15,1);
     dx_in(1) = 0.1;
     innov = [1000; 0; 0]; % large innovation to exercise attenuation/skip logic
-    [dx_out, should_skip, was_attenuated] = mex_sensor_filter('divergence_check','gps', innov, dx_in);
+    [dx_out, should_skip, was_attenuated] = SensorFilters.divergence_check('gps', innov, dx_in);
     fprintf('dx_out size: %dx%d, should_skip=%d, was_attenuated=%d\n', size(dx_out,1), size(dx_out,2), logical(should_skip), logical(was_attenuated));
     if ismatrix(dx_out) && size(dx_out,1) == 15
         fprintf('PASS: divergence_check returned dx_out shape OK\n');
@@ -128,8 +138,11 @@ end
 %% Test D: divergence_regularize
 fprintf('\nTest D: divergence_regularize\n');
 try
-    P = eye(15) * 1e-12; % poorly conditioned
-    Preg = mex_sensor_filter('divergence_regularize', P);
+    % Construct a deliberately ill-conditioned covariance: mix very small and moderate
+    % diagonal entries so that rcond is tiny and regularization effect is observable.
+    v = [1e-12, 1e-18, 1e-24, 1e-30, 1e-36, repmat(1e-2,1,10)];
+    P = diag(v);
+    Preg = SensorFilters.divergence_regularize(P);
     r_before = rcond(P);
     r_after = rcond(Preg);
     fprintf('rcond before=%g, after=%g\n', r_before, r_after);

@@ -29,7 +29,7 @@ for k = 1:N
     % MEX 呼び出し（存在確認）
     if exist('mex_sensor_filter','file') == 3
         try
-            [a_m, is_out] = mex_sensor_filter('accel', a_meas, zeros(3,1));
+            [a_m, is_out] = SensorFilters.accel(a_meas, zeros(3,1));
             acc_mex(k,:) = a_m(:)';
             acc_is_out_mex(k) = logical(is_out);
         catch

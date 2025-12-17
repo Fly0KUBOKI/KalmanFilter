@@ -35,9 +35,9 @@ try
     % MEX リセットと reset_zero テスト
     if mex_available
         try
-            mex_sensor_filter('reset');
+            SensorFilters.reset();
             fprintf(fid,'mex reset ok\n');
-            mex_sensor_filter('reset_zero');
+            SensorFilters.reset_zero();
             fprintf(fid,'mex reset_zero ok\n');
         catch e
             fprintf(fid,'mex reset error: %s\n', e.message);
@@ -48,7 +48,7 @@ try
     [a_mat, is_out_mat] = accel_filter.apply(a_meas, a_expected);
     if mex_available
         try
-            [a_mex, is_out_mex] = mex_sensor_filter('accel', a_meas, a_expected);
+            [a_mex, is_out_mex] = SensorFilters.accel(a_meas, a_expected);
         catch e
             a_mex = nan(3,1);
             is_out_mex = false;

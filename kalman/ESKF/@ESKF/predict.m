@@ -90,7 +90,33 @@ function predict(obj, a_meas, w_meas)
     state_in.ba = obj.ba;
     state_in.bg = obj.bg;
     state_in.P = obj.P;
-    
+    % 上流ログ (predict) — verbose は環境変数で制御
+    try
+        if strcmp(getenv('ENABLE_STATE_TRACE'),'1')
+            outdir = fullfile(fileparts(mfilename('fullpath')), '..', '..', 'Results'); if ~exist(outdir,'dir'), mkdir(outdir); end
+            fid = fopen(fullfile(outdir,'state_trace.txt'),'a');
+            if fid~=-1
+                fprintf(fid, '%s sensor=predict dt=%g p_max=%g v_max=%g q_norm=%g P_max=%g\n', datestr(now,'yyyy-mm-dd HH:MM:SS.FFF'), obj.dt, max(abs(obj.p(:))), max(abs(obj.v(:))), norm(obj.q(:)), max(abs(obj.P(:))));
+                fclose(fid);
+            end
+        end
+        if max(abs(obj.p(:)))>1e12 || any(isnan([obj.p(:); obj.v(:); obj.q(:); obj.P(:)]))
+            outdir = fullfile(fileparts(mfilename('fullpath')), '..', '..', 'Results'); if ~exist(outdir,'dir'), mkdir(outdir); end
+            fname = fullfile(outdir, sprintf('state_pre_snapshot_predict_%d.mat', randi(1e9)));
+            try
+                snapshot.state.p = obj.p(:);
+                snapshot.state.v = obj.v(:);
+                snapshot.state.q = obj.q(:);
+                snapshot.state.P = obj.P;
+                snapshot.meta.dt = obj.dt;
+                snapshot.meta.t = now;
+                save(fname, 'snapshot');
+            catch
+            end
+        end
+    catch
+    end
+
     % C++ MEX呼び出し
     try
         state_out = mex_meukf_step_v2(state_in, sensor_data, mex_params);
@@ -102,6 +128,19 @@ function predict(obj, a_meas, w_meas)
         obj.ba = state_out.ba;
         obj.bg = state_out.bg;
         obj.P = state_out.P;
+
+        % post-update trace for predict (env controlled)
+        try
+            if strcmp(getenv('ENABLE_STATE_TRACE'),'1')
+                outdir2 = fullfile(fileparts(mfilename('fullpath')), '..', '..', 'Results'); if ~exist(outdir2,'dir'), mkdir(outdir2); end
+                fid2 = fopen(fullfile(outdir2,'state_trace.txt'),'a');
+                if fid2~=-1
+                    fprintf(fid2, '%s POST sensor=predict dt=%g p_max=%g v_max=%g q_norm=%g P_max=%g\n', datestr(now,'yyyy-mm-dd HH:MM:SS.FFF'), obj.dt, max(abs(obj.p(:))), max(abs(obj.v(:))), norm(obj.q(:)), max(abs(obj.P(:))));
+                    fclose(fid2);
+                end
+            end
+        catch
+        end
         
     catch ME
         warning('ESKF:predict:MEXFailed', 'C++ Predict failed: %s', ME.message);
