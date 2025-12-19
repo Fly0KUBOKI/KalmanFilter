@@ -1,0 +1,9 @@
+{
+    "MATLAB.installPath": "C:\\Program Files\\MATLAB\\R2025b",
+    "files.associations": {
+        "functional": "cpp",
+        "vector": "cpp",
+        "utility": "cpp",
+        "cmath": "cpp"
+    }
+}
