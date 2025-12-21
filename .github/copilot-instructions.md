@@ -1,190 +1,114 @@
 # GitHub Copilot 指示 — KalmanFilter
 
-このファイルは、このリポジトリでAIコーディングエージェントがすぐに生産的に作業できるよう、必須の知識とワークフローを簡潔にまとめたものです。
+## 概要
+MATLAB（制御・I/O・可視化）+ C++ MEX（高速数値処理）のハイブリッド実装によるカルマンフィルタプロジェクト。  
+**主な目的**: C++ コアを修正 → MEX ビルド → MATLAB 側と数値パリティ検証 の流れを安全・迅速に実行する。
 
-目的のサマリ
-- MATLAB: オーケストレーション、I/O、可視化（`kalman/run_simulation.m` がメイン）
-- C++ MEX: 数値コア（`kalman/cpp/` 以下、ビルド成果物は `kalman/cpp/bin/*.mexw64`）
+## アーキテクチャの「なぜ」
+- **MATLAB層** (`kalman/run_simulation.m`): 実験設計・結果収集・比較用（1回のシミュレーション: ~50秒）
+- **C++ MEX層** (`kalman/cpp/` 以下): 計算ボトルネック（予測・更新×11,600ステップ）をC++で実装
+- **状態ベクトル** = 15次元 `[p(3), v(3), q(4), ba(3), bg(3)]`
+  - `q = [w, x, y, z]`（スカラー先頭）のクォータニオン形式固定
+  - C++ では `float64` で保持（PHASE 4 で精度損失問題特定済み）
 
-重要なワークフロー（必読）
-- C++ を修正したら必ずソースから MEX を再ビルド:
+## 必須ビルド・テストワークフロー
 
+### C++修正→検証の3ステップ
 ```matlab
+% 1. ビルド（特定ターゲットのみ選択可）
 cd kalman/cpp/build
-build_mex()              % または: build_mex({'mex_meukf_step'})
-clear mex               % 重要: MATLAB の MEX キャッシュをクリア
-addpath(fullfile(pwd,'..','bin'))
+build_mex()                    % 全体 or build_mex({'mex_meukf_step_v2'})
+clear mex                      % MATLAB キャッシュ必須クリア
+
+% 2. 単一実行（データ再生成スキップ）
+cd ../../..
+run_simulation(42, true)       % seed=42, skip_data_gen=true
+%  ↓ または バッチ実行（10組）
+run_batch_10sets()             % Results/に複数CSV出力
+
+% 3. 差分チェック
+compare_mex_matlab_detailed    % CSV差分表示
 ```
 
-- シミュレーション実行例（データ再生成オプション）:
+### よくある検証パターン
+- **小さな修正**: `build_mex({'mex_quaternion_lib'})` で単体テスト
+- **センサー関連**: `mex_meukf_step_v2` を中心に確認（70%の呼び出しシェア）
+- **精度問題**: `Results/estimation_*.csv` で行ごと差分確認
 
+## プロジェクト固有の「絶対守るルール」
+
+| ルール | 理由・補足 |
+|--------|-----------|
+| MEX バイナリは `bin/` フォルダ内 — 直接編集禁止 | 成果物フォルダ。必ずソース修正→`build_mex()` |
+| MEX 更新後は `clear mex` 実行 | キャッシュが古い .mexw64 を使い続ける落とし穴 |
+| 共分散は対称性保持 `P = (P + P')/2` | 数値丸め誤差で非対称化するため |
+| C++ 側がクォータニオン正規化 | MATLAB で二重正規化するな（ノーマライズ済みを重ねると精度低下） |
+| 状態フィールド順序厳格: p,v,q,ba,bg,P | MEX インターフェースがこの順で読み込む |
+
+## 主要ファイル・エントリポイント
+
+| ファイル | 役割 | 補足 |
+|---------|------|------|
+| `run_simulation.m` | MATLAB メイン (seed, skip_data_gen引数) | 1回: ~50秒 |
+| `run_batch_10sets.m` | 10セット自動実行 + CSV比較 | 検証の標準手段 |
+| `ESKF/@ESKF/ESKF.m` | フィルタクラス（predict, sensor_updates, zupt） | MEX 呼び出しハブ |
+| `sensor_updates.m` | センサー測定値→MEX呼び出し | struct 構築・フラグ設定 |
+| `config_params.m` | シミュレーションパラメータ（ノイズ、dt=0.0025） | PHASE 5 で変更可能性大 |
+| `cpp/build/build_mex.m` | ビルドスクリプト | `mex -setup C++` 要確認 |
+| `Results/estimation_*.csv` | MATLAB/MEX 出力結果 | 差分分析の基本データ |
+
+## MEX インターフェース構造（MATLAB↔C++）
+
+### 典型的な呼び出し例 (`sensor_updates.m` より)
 ```matlab
-cd ../../..  % kalman のルートへ戻る
-run_simulation(42, true)  % seed=42, skip_data_gen=true
+state = struct('p', p, 'v', v, 'q', q, 'ba', ba, 'bg', bg, 'P', P);
+sensor_data = struct('accel', accel, 'gyro', gyro, ..., 
+                     'update_accel', true, 'update_gyro', false, ...);
+mex_params = struct('g', g, 'noise_accel', R_accel, 'alpha', 0.1, ...);
+
+new_state = mex_meukf_step_v2(state, sensor_data, mex_params);
+% 戻り値: state（更新後）と debug_info（オプション）
 ```
 
-プロジェクト固有ルール（必ず守る）
-- 状態ベクトルは15次元: [p(3), v(3), q(4), ba(3), bg(3)]。クォータニオンはスカラー先頭: `qw,qx,qy,qz`。
-- MEX バイナリを直接編集しないこと（`kalman/cpp/bin/` は成果物フォルダ）。必ず `kalman/cpp/` のソースを編集してビルド。
-- MEX 更新後は `clear mex` を必ず実行する。
-- 数値安定化の慣例: 共分散は対称化して扱う（例: `P = (P + P')/2`）。
-- クォータニオン正規化は C++ 側で行われる場合がある — MATLAB 側で二重に正規化しない。
+### 状態・センサー・パラメータ struct の仕様
+- **state**: `p,v,q,ba,bg,P` (P=15×15行列)
+- **sensor_data**: `accel,gyro,mag,gps_pos,alt_baro,dt, update_*フラグ,prev_*` (変更検知用)
+- **mex_params**: `g,mag_ref,noise_*,alpha,beta,kappa` (UKF/MEUKF ハイパーパラメータ)
 
-重要なファイル・検索ワード（即参照）
-- MATLAB エントリ: [run_simulation](kalman/run_simulation.m)
-- データ生成: [GenerateData/sim_generate.m](kalman/GenerateData/sim_generate.m), [GenerateData/config_params.m](kalman/GenerateData/config_params.m)
-- C++ ビルド: [cpp/build/build_mex.m](kalman/cpp/build/build_mex.m), ログ: [cpp/build/build_log.txt](kalman/cpp/build/build_log.txt)
-- MEX 名称: `mex_meukf_step_v2`, `mex_meukf_step`, `mex_eskf_step`（検索で優先）
-- ESKF MATLAB クラス: [ESKF/@ESKF/ESKF.m](kalman/ESKF/@ESKF/ESKF.m)
-- 比較結果: [Results/estimation_matlab.csv](Results/estimation_matlab.csv) と [Results/estimation_mex.csv](Results/estimation_mex.csv)
+## デバッグ・トラブルシューティング
 
-典型的な修正・検証フロー（チェックリスト）
-1. C++ 修正（例: `kalman/cpp/MEUKF/*`）
-2. `build_mex()` で再ビルド（必要なら特定ターゲットのみ）
-3. MATLAB で `clear mex` 実行
-4. `run_simulation(..., true)` で動作比較（`true` はデータ再生成をスキップ）
-5. `Results/` の CSV を比較して差分を確認
+### ビルド失敗
+- **症状**: `build_log.txt` に未定義シンボル、コンパイラエラー
+- **チェック**: `mex -setup C++` で MSVC/MinGW が正しく設定されているか確認
+- **対応**: `cpp/build/build_result.txt` に詳細ログ → ファイル依存関係確認
 
-デバッグのヒント（よくある失敗と確認箇所）
-- ビルドに失敗したら: `mex -setup C++` を確認、`cpp/build/build_log.txt` と `build_result.txt` を参照
-- 推定値欠落や数値差が出たら: `Results/estimation_diff.csv` と `tools/compare_estimations.m` を利用
-- センサー更新コードの参照例: `kalman/ESKF/@ESKF/sensor_updates.m`
+### MEX 実行で NaN/推定値欠落
+- **症状**: `Results/` に CSV が生成されない、または値が全て NaN
+- **原因**: 多くは struct フィールド不一致か、初期状態が異常
+- **確認**: `sensor_updates.m` の状態フィールド順序と struct キー名を再確認
 
-検索用キーワード（コード内でのパターン探索に便利）
-- `mex_meukf_step_v2|mex_meukf_step|mex_eskf_step|build_mex|clear mex|estimation_matlab.csv|estimation_mex.csv`
+### MATLAB vs MEX 数値差が大きい（>1%）
+- **原因**: C++ 側が `float32` で計算している（PHASE 4 で検出）
+- **対応**: C++ ソースを `float64` に変更 → `build_mex()` → 再検証
+- **詳細**: `cpp/markdown/COMPLETION_REPORT.md` の "32-bit float 精度損失" を参照
 
-変更ルールと安全策
-- 小さな C++ 変更は対象の MEX ターゲットのみビルドして確認する（`build_mex({'mex_meukf_step'})`）。
-- ビルド成果物を直接編集しない。変更はソースへ戻し、再ビルドして確認する。
-- テスト手順を必ず `Results/` の CSV で保存して差分を残す。
+### センサー更新順序・頻度の制御
+- **場所**: `run_simulation.m` の メインループ内で `ESKF.predict()` / `ESKF.sensor_updates()` を条件付け呼び出し
+- **頻度パラメータ**: `freq_mag`, `freq_baro`, `freq_gps` (単位: サンプル数)
+- **ZUPT (Zero Velocity Update)**: 静止判定 → `ESKF.zupt()` を呼び出し
 
-問い合わせ・フィードバック
-- 不明点や追記して欲しい箇所があれば、具体的なファイル名や失敗ケースを教えてください。
+## 検索キーワード（コード内パターン探し用）
+
+```
+mex_meukf_step_v2|sensor_updates|update_accel|update_gps|
+float64|normalize|struct_to_matlab|get_field_vec3|
+estimation_matlab.csv|diff_p|max_error
+```
 
 ---
-小さく濃い目のガイドを目指しました。追加で「よく壊れるテスト」「頻出のパラメータ」といった情報があれば追記します。
-# GitHub Copilot 指示 — KalmanFilter リポジトリ
 
-このリポジトリは MATLAB（オーケストレーション／可視化／I/O）と C++ MEX（数値コア）を組み合わせたハイブリッド実装です。
-目的は「C++ コアを安全に修正して MEX をビルドし、MATLAB 側の動作と差分を迅速に検証する」ことです。
-
-必読の場所（短く）
-- MATLAB 実行: kalman/run_simulation.m — メインの実験ランナー（引数: seed, skip_data_gen）。
-- データ生成: kalman/GenerateData/sim_generate.m, config_params.m, sensor_data.csv。
-- C++ ソースとビルド: kalman/cpp/ (src, mex, include, MEUKF, ESKF), ビルドスクリプト: kalman/cpp/build/build_mex.m。
-- ビルド成果物: kalman/cpp/bin/*.mexw64（MATLAB で addpath して利用）。
-- 結果比較: Results/estimation_matlab.csv, Results/estimation_mex.csv, batch_10sets_matlab_log.txt。
-
-必須ワークフロー（MATLAB での実行例）
-1) C++ を修正したら（例: kalman/cpp/MEUKF/*）:
-
-```matlab
-cd kalman/cpp/build
-build_mex()             % 全体ビルド、または: build_mex({'mex_meukf_step'})
-clear mex              % *必ず*キャッシュをクリア
-addpath(fullfile(pwd,'..','bin'))
-```
-
-2) シミュレーション（データ再生成可）:
-
-```matlab
-cd ../../..  % kalman のルートに戻す
-run_simulation(42, true)  % seed=42, skip_data_gen=true
-```
-
-3) 差分確認:
-- 比較: Results/estimation_matlab.csv vs Results/estimation_mex.csv
-- バッチ: Results/batch_10sets_matlab_log.txt を参照
-
-重要なプロジェクト固有ルール（必ず守る）
-- 状態ベクトルは 15 次元: [p(3), v(3), q(4), ba(3), bg(3)]。クォータニオン順序はスカラー先頭: qw, qx, qy, qz。
-- MEX はソースから再ビルドすること。bin 内ファイルを直接編集しない。
-- MEX 更新後は `clear mex` を実行して MATLAB のキャッシュを解除する。
-- 数値安定化: 共分散は対称化する（例: P = (P + P')/2）とコード内で扱われる箇所あり。
-- クォータニオンの正規化は C++ 側で行われる場合があるので、MATLAB 側で二重正規化しない。
-
-よく使う検索キーワード（コード内のパターン）
-- `ESKF` クラス（kalman/ESKF/@ESKF） — `predict`, `reset`, `zupt`, `sensor_updates` が主要メソッド。
-- `mex_meukf_step_v2`, `mex_meukf_step`, `mex_eskf_step` — MEX のエントリ名。
-- `build_mex`, `build_meukf_only`, `run_selective_build` — ビルド補助スクリプト。
-
-デバッグと検証のヒント
-- ビルドログ: kalman/cpp/build/build_log.txt と build_result.txt を確認。
-- ビルド失敗時: MATLAB で `mex -setup C++` を実行してコンパイラ設定を確認。
-- 推定差や欠落が出る場合は CSV（Results/）を比較し、`kalman/Graph/plot_csv_file.m` で可視化する。
-- センサー更新の順序や頻度は `ESKF` オブジェクトの `freq_*` プロパティで制御される（run_simulation.m のループ参照）。
-
-変更を加えるときの安全ガイド
-- 小さな C++ 変更は単体の mex ターゲットだけビルドして確認（build_mex({'mex_meukf_step'})）。
-- 複数ターゲットを更新する場合は、まず `run_simulation(..., true)` でデータ生成をスキップして差分を切り分ける。
-- 出力は必ず `Results/` の CSV に保存されるため、自動比較スクリプトを作ると回帰検出が容易。
-
-追加情報が必要な箇所（欲しいフィードバック）
-- よく壊れるテストや特定のパラメータセットがあれば教えてください（自動化・サンプルで再現します）。
-# GitHub Copilot 指示 — KalmanFilter リポジトリ
-
-このファイルは、このリポジトリで効率よく作業するためのAIエージェント向け具体的指示をまとめます。目的は、MATLAB + C++ MEX ハイブリッドの ESKF/UKF/MEUKF 実装を素早く理解し、安全に変更できるようにすることです。
-
-- **ゴール**: ビルド（MEX）、シミュレーションの実行、C++コアの修正、MATLABラッパーの保守が主な作業領域。
-
-## 主要コンポーネント（ビッグピクチャ）
-- MATLAB orchestration: `kalman/run_simulation.m`, `kalman/GenerateData/sim_generate.m`, `kalman/ESKF/@ESKF/ESKF.m` がエントリーポイント。
-- C++ MEX core: `kalman/cpp/` 以下に C++ 実装と `build/` スクリプトがある。ビルド成果物は `kalman/cpp/bin/*.mexw64`。
-- データ: `kalman/GenerateData/` はシミュレーション入力と生成スクリプトを保持（`config_params.m`, `truth_data.csv`, `sensor_data.csv`）。
-
-## 重要なワークフロー（必須コマンド例）
-# GitHub Copilot 指示 — KalmanFilter リポジトリ
-
-このリポジトリは MATLAB（フロー管理、データ入出力）と C++ MEX（高負荷数値演算）を組み合わせたハイブリッド実装です。
-AI エージェントが素早く安全に作業できるよう、重点的に必要な知識・手順を簡潔にまとめます。
-
-## 要点（サマリ）
-- MATLAB がオーケストレーション（`kalman/run_simulation.m`）、C++ がコア処理（`kalman/cpp/*`）を担当。
-- MEX バイナリは `kalman/cpp/bin/*.mexw64` に置かれる。バイナリはソースから再ビルドすること。
-
-## 主要コンポーネント
-- MATLAB orchestration: `kalman/run_simulation.m`, `kalman/GenerateData/sim_generate.m`, `kalman/ESKF/@ESKF/ESKF.m`。
-- C++ MEX core: `kalman/cpp/MEUKF/`, `kalman/cpp/MEX/`（ビルドスクリプト: `kalman/cpp/build/build_mex.m`）。
-- データ: `kalman/GenerateData/`（シミュレーション生成）と `Results/`（出力/ログ）。
-
-## 必須ワークフロー（手順）
-1. C++ を編集したら（例: `kalman/cpp/MEUKF/*`）MATLAB で:
-
-```matlab
-cd kalman/cpp/build
-build_mex()
-clear mex   % 重要: MATLAB セッションの古い MEX を切る
-```
-
-2. 検証:
-
-```matlab
-run_simulation()
-run_simulation(42, true)
-test_phase1.m
-```
-
-3. 出力比較: `Results/estimation_matlab.csv` と `Results/estimation_mex.csv` を比較し差異を精査。
-
-## プロジェクト固有ルール / 注意点
-- 状態ベクトルは 15 次元: [p(3), v(3), q(4), ba(3), bg(3)]（クォータニオンはスカラー先頭: qw,qx,qy,qz）。
-- MEX バイナリは必ずソースからビルドする。直接編集禁止。
-- MEX 更新後は `clear mex` を必ず実行する（キャッシュが原因で古い挙動になる）。
-- 共分散は対称性を保つ（更新後 `P = (P + P')/2` が用いられることがある）。
-- C++ 側でクォータニオン正規化が行われる場合があるため、MATLAB 側で二重に正規化しない。
-
-## インターフェース / 検索ヒント
-- センサー更新は多くの場合 `mex_meukf_step_v2` を経由（参照: `kalman/ESKF/@ESKF/sensor_updates.m`）。
-- MEX 呼び出しはstructベースで状態・センサーを渡すパターンが一般的。
-
-## デバッグチェックリスト
-- ビルドログ: `kalman/cpp/build/build_log.txt` を確認。
-- MEX 実行で推定欠落が起きたら: `Results/run_mex_missing_estimation.txt` を見る。
-- 出力差分: `Results/estimation_matlab.csv` vs `Results/estimation_mex.csv`。
-- プロット: `kalman/Graph/plot_csv_file.m` を利用。
-
-## 典型的な修正フロー（短く）
-1. C++ コア修正 → 2. `build_mex()` → 3. `clear mex` → 4. `run_simulation()` → 5. CSV 比較
-
----
-フィードバック: 追記してほしい詳細（特定ファイル、よく壊れるテスト、頻出パラメータなど）があれば教えてください。
+## フィードバック・追記事項
+本ガイドは 2025/12/21 時点の実装に基づく。以下の変更があれば更新予定:
+- PHASE 5: 精度向上後の新しいベンチマーク値
+- 新しい MEX ターゲット追加時のビルド例
+- よく出るパラメータセット・テストケース

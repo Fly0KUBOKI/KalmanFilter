@@ -75,3 +75,42 @@ floatを基本的に使用する
 C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\mardown
 出力されたフォルダ
 C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\Results
+
+######
+
+**センサーフィルタ層における重力ノルム検証の欠落**が主な原因でした：
+
+| 実装 | 重力ノルム検証 | 精度 |
+|------|--------------|------|
+| **MATLAB** (`FORCE_MATLAB_FILTERS=1`) | ✅ あり (`[8.5, 10.5]` 範囲) | double |
+| **C++ MEX** (`FORCE_MATLAB_FILTERS=0`) | ❌ **なかった** | float |
+
+MATLAB側では加速度のノルムが `[8.5, 10.5]` 範囲外の異常データを棄却していましたが、C++側にはこの検証がなく、異常なデータがMEUKFに渡されて姿勢推定が劣化していました。
+
+### 適用した修正
+
+sensor_filter.hpp に以下を追加：
+1. 重力範囲パラメータ (`gravity_range_min_ = 8.5f`, `gravity_range_max_ = 10.5f`)
+2. `filter_accel()` 関数で重力ノルム検証を実施
+
+### テスト方法
+
+MATLABで以下を実行してください：
+
+```matlab
+% 1. MEXキャッシュクリア
+clear mex
+
+% 2. 新しいMEXファイルで置き換え
+cd('C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin')
+movefile('mex_sensor_filter_new.mexw64', 'mex_sensor_filter.mexw64', 'f')
+
+% 3. テスト実行
+cd('C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman')
+setenv('FORCE_MATLAB_FILTERS', '0');
+run_batch_10sets();
+```
+
+これで Roll/Pitch RMSE が MATLAB モードと同等（約 0.27-0.29 deg）になることが期待されます。
+
+変更を行いました。

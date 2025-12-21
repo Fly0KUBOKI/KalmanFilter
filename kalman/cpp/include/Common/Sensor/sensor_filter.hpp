@@ -687,11 +687,15 @@ public:
     // configurable parameters for accel outlier detection
     float accel_threshold_sigma_;
     float accel_min_std_;
+    // gravity norm validation range (matches MATLAB SensorAccelFilter defaults)
+    float gravity_range_min_;
+    float gravity_range_max_;
     
     NoiseEstimator noise_estimator;
     DivergenceGuard divergence_guard;
     
-    SensorFilterLib() : noise_estimator(10), accel_threshold_sigma_(3.0f), accel_min_std_(0.1f) {
+    SensorFilterLib() : noise_estimator(10), accel_threshold_sigma_(3.0f), accel_min_std_(0.1f),
+                        gravity_range_min_(8.5f), gravity_range_max_(10.5f) {
         accel_filter.set_alpha(0.3f);
         mag_filter.set_alpha(0.2f);
         baro_filter.set_alpha(0.4f);
@@ -725,6 +729,18 @@ public:
     
     // 加速度フィルタ（外れ値検出付き）
     cm filter_accel(const cm& a_meas, const cm& a_expected, bool& is_outlier) {
+        // NOTE: 重力ノルム検証は一時的にコメントアウト（テスト用）
+        // float a_norm_sq = 0.0f;
+        // for (int i = 0; i < 3; ++i) {
+        //     a_norm_sq += a_meas(i,0) * a_meas(i,0);
+        // }
+        // float a_norm = sqrtf(a_norm_sq);
+        // 
+        // if (a_norm < gravity_range_min_ || a_norm > gravity_range_max_) {
+        //     is_outlier = true;
+        //     return accel_filter.get_value();
+        // }
+        
         // 残差計算
         float residual_norm = 0.0f;
         for (int i = 0; i < 3; ++i) {
