@@ -1,65 +1,21 @@
-# C++ / MEX Implementation for Kalman Filters
+# ESKF MEX高速化
 
-ESKFシミュレーションの高速化のため、カルマンフィルタのコア計算をC++/MEXで実装しました。
-
-## ディレクトリ構成
-
-```
-cpp/
-├── src/              # C++実装ソース (.cpp)
-│   ├── KF/           # Kalman Filter 実装
-│   ├── EKF/          # Extended Kalman Filter 実装
-│   ├── ESKF/         # Error State Kalman Filter 実装
-│   └── UKF/          # Unscented Kalman Filter 実装
-│
-├── include/          # C++ヘッダファイル (.hpp)
-│   ├── Common/       # 共通ライブラリ
-│   │   ├── Math/     # 数学ユーティリティ (quaternion, fixed_matrix)
-│   │   ├── Sensor/   # センサーフィルタ
-│   │   └── Validation/ # 検証・正則化
-│   ├── KF/           # KF ヘッダ
-│   ├── EKF/          # EKF ヘッダ
-│   ├── ESKF/         # ESKF ヘッダ
-│   ├── UKF/          # UKF ヘッダ
-│   └── kalman_filters.hpp  # トップレベルヘッダ
-│
-├── mex/              # mex ラッパーソース (.cpp)
-│   ├── mex_kalman_filter_core.cpp
-│   ├── mex_eskf_core.cpp
-│   ├── mex_quaternion_lib.cpp
-│   ├── mex_ukf_sigma_points.cpp
-│   └── mex_ukf_update.cpp  (全5個)
-│
-├── bin/           # ビルド済MEXバイナリ (.mexw64)
-│   ├── mex_kalman_filter_core.mexw64
-│   ├── mex_eskf_core.mexw64
-│   ├── mex_quaternion_lib.mexw64
-│   ├── mex_ukf_sigma_points.mexw64
-│   └── mex_ukf_update.mexw64  (全5個)
-│
-├── build/            # ビルドスクリプト
-│   └── build_mex.m   # MEXビルドスクリプト
-│
-│
-├── build/            # ビルドスクリプト
-│   └── build_mex.m   # MEXビルドスクリプト
-│
-├── tests/            # テストスクリプト (予約)
-│
-└── README.md         # このファイル
-```
+ESKFシミュレーションの高速化のため、カルマンフィルタコア計算をC++/MEXで実装しました。
 
 ## 概要
 
 `kalman_filter_core.m`の主要な計算部分をC++で再実装し、MEX関数として呼び出すことで、ESKFシミュレーションを高速化します。
 
-### ビルド済みMEXファイル (5個)
+### 高速化された関数
 
-1. **mex_kalman_filter_core.mexw64** - カルマンフィルタコア関数（ゲイン計算、状態更新等）
-2. **mex_eskf_core.mexw64** - ESKF積分・予測・更新関数
-3. **mex_quaternion_lib.mexw64** - クォータニオン演算（積、共役、回転等）
-4. **mex_ukf_sigma_points.mexw64** - UKFシグマポイント生成
-5. **mex_ukf_update.mexw64** - UKF更新ステップ
+**KF/EKF用:**
+- `predict_step`: 共分散の予測ステップ (P = F*P*F' + Q*dt)
+- `compute_kalman_gain`: カルマンゲインの計算 (K = P*H' / S)
+- `update_state_covariance`: 状態と共分散の更新（Joseph形式）
+- `compute_jacobian`: ヤコビアン行列の計算
+
+**UKF用:**
+- `ukf_sigma_points`: シグマポイントと重みの生成
 
 ## ビルド方法
 
@@ -78,41 +34,13 @@ mex -setup C++
 ### 2. MEXファイルのビルド
 
 ```matlab
-cd cpp/build
+cd cpp
 build_mex()
 ```
 
-ビルドが成功すると、`cpp/mexw64/` に `.mexw64`（Windows）または対応する拡張子のファイルが生成されます。
-
-**注意事項:**
-- `mex_kf_core.cpp` と `mex_ekf.cpp` は古いAPIを使用しているため、現在はビルドされません
-- 5個のMEXファイルが正常にビルドされます
+ビルドが成功すると、`mex_kalman_filter_core.mexw64`（Windows）または対応する拡張子のファイルが生成されます。
 
 ## 使用方法
-
-### パス設定
-
-MATLAB でC++ MEXライブラリを使用する前に、パスを設定します：
-
-```matlab
-addpath('cpp/mexw64')
-```
-
-利用可能なMEXファイルを確認：
-
-```matlab
-which mex_eskf_core
-which mex_quaternion_lib
-```
-
-### MEX動作確認
-
-```matlab
-cd cpp
-test_mex_loading()
-```
-
-8つのMEXファイルがすべて読み込み可能か確認します。
 
 ### 自動的にMEXを使用
 
@@ -132,8 +60,10 @@ P = kalman_filter_core('predict_step', P, q, a_meas, ba, w_meas, bg, Q, dt);
 MEX実装が正しく動作するか確認：
 
 ```matlab
+cd ..
+check_mex_usage()  % MEXが使われているか確認
 cd cpp
-test_mex_loading()  % MEXが読み込み可能か確認
+test_mex_kalman_filter_core()  % 詳細テスト
 ```
 
 ### ESKFシミュレーションの実行
@@ -141,7 +71,7 @@ test_mex_loading()  % MEXが読み込み可能か確認
 通常通りシミュレーションを実行するだけで、MEX高速化が適用されます：
 
 ```matlab
-cd ..  % kalman/ ルートに戻る
+cd ..
 run_simulation()
 ```
 
@@ -158,28 +88,75 @@ run_simulation()
 
 ```
 cpp/
-├── src/              # C++実装ソース
-├── include/          # C++ヘッダファイル
-├── mex/              # MEX ラッパーソース
-├── bin/prebuilt/     # プリビルド済MEXバイナリ
-├── build/            # ビルドスクリプト
-├── tests/            # テストスクリプト
-├── setup_cpp_path.m  # パス設定スクリプト
-├── test_mex_loading.m # MEX読み込みテスト
-└── README.md         # このファイル
+├── build_mex.m                    # ビルドスクリプト
+├── test_mex_kalman_filter_core.m  # テストスクリプト
+├── README.md                      # このファイル
+├── mex_kalman_filter_core.mexw64  # コンパイル済みMEXファイル（Windows）
+├── KF/
+│   └── Core/
+│       ├── kalman_filter_core.hpp # C++ヘッダー
+│       └── kalman_filter_core.cpp # C++実装
+├── Common/
+│   └── Math/
+│       ├── fixed_matrix.hpp       # 固定サイズ行列ライブラリ
+│       └── quaternion.hpp         # クォータニオンユーティリティ
+└── MEX/
+    └── mex_kalman_filter_core.cpp # MEXラッパー
 ```
+
+## トラブルシューティング
+
+### コンパイルエラー
+
+1. **コンパイラが見つからない**
+   ```matlab
+   mex -setup C++
+   ```
+   を実行し、表示される指示に従ってコンパイラをインストール/選択
+
+2. **ヘッダーファイルが見つからない**
+   - `cpp/KF/Core/`と`cpp/Common/Math/`にファイルが存在するか確認
+
+3. **リンクエラー**
+   - Visual Studioがインストールされているか確認（Windows）
+   - コンパイラのバージョンがMATLABと互換性があるか確認
+
+### 実行時エラー
+
+1. **MEXファイルが見つからない**
+   ```matlab
+   which mex_kalman_filter_core
+   ```
+   で場所を確認。パスが通っているか確認。
+
+2. **MEXファイルが動作しない**
+   - MATLABを再起動
+   - `clear mex`を実行
+   - `build_mex()`でリビルド
+
+3. **精度の問題**
+   - MEX実装はMATLAB実装と同じアルゴリズムを使用しています
+   - 数値誤差の蓄積が大きい場合は共分散の正則化パラメータを調整
 
 ## 注意事項
 
+- `compute_innovation_and_S`は、paramsパラメータの複雑な処理があるため、MATLAB実装のままです
 - MEXファイルはプラットフォーム固有です（Windows用の.mexw64はMac/Linuxで動作しません）
 - MEXファイルが見つからない場合、自動的にMATLAB実装にフォールバックします
-- `bin/prebuilt/` にあるプリビルド済MEXバイナリは配布用です（Git管理対象）
+
+## 削除されたファイル
+
+不要なファイルを整理しました：
+- `test_ekf.m`, `test_ukf.m`, `test_mex.m`: 古いテストファイル
+- `STRUCTURE.md`: 古いドキュメント
+- `mex_build_results.mat`, `mex_kf_core.exp`, `mex_kf_core.lib`: 古いビルド成果物
+- `build_all_cpp_mex.m`: 使用されていない古いビルドスクリプト
 
 ## 今後の拡張
 
+- UKF/EKFの主要計算部分のMEX化
 - より高度な最適化（SIMD、並列化）
 - GPU対応（CUDA MEX）
-- クロスプラットフォームビルドの自動化（CMake）
 
 ## ライセンス
 

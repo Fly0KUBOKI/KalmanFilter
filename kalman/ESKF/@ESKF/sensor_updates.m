@@ -8,9 +8,9 @@ function varargout = sensor_updates(obj, method, varargin)
     
     switch method
         case 'accel'
-            update_accel_impl(obj, varargin{1});
+            update_accel_impl(obj, varargin{:});
         case 'mag'
-            update_mag_impl(obj, varargin{1});
+            update_mag_impl(obj, varargin{:});
         case 'gps'
             update_gps_impl(obj, varargin{1}, varargin{2}, varargin{3}, varargin{4});
         case 'baro'
@@ -20,7 +20,7 @@ function varargout = sensor_updates(obj, method, varargin)
     end
 end
 
-function update_accel_impl(obj, a_meas)
+function update_accel_impl(obj, a_meas, varargin)
     % 加速度更新 (変更検知追加)
     
     % 変更検知
@@ -34,10 +34,20 @@ function update_accel_impl(obj, a_meas)
     if any(isnan(a_corrected)) || is_outlier; return; end
     a_norm = norm(a_corrected);
     if a_norm < 0.1 || abs(a_norm - 9.81) > 3.0; return; end
-    do_cpp_update(obj, 'accel', a_corrected);
+    % forward optional sample index when provided
+    if ~isempty(varargin)
+        sample = varargin{1};
+    else
+        sample = [];
+    end
+    if ~isempty(sample)
+        do_cpp_update(obj, 'accel', a_corrected, sample);
+    else
+        do_cpp_update(obj, 'accel', a_corrected);
+    end
 end
 
-function update_mag_impl(obj, m_meas)
+function update_mag_impl(obj, m_meas, varargin)
     % 磁気計更新 (Phase 1: 変更検知追加)
     
     % 変更検知 (SensorDataBuffer統合)
@@ -48,7 +58,16 @@ function update_mag_impl(obj, m_meas)
 
     [m_filtered, is_outlier, ~] = obj.sensor_filters.mag.apply(m_meas);
     if any(isnan(m_filtered)) || is_outlier; return; end
-    do_cpp_update(obj, 'mag', m_filtered);
+    if ~isempty(varargin)
+        sample = varargin{1};
+    else
+        sample = [];
+    end
+    if ~isempty(sample)
+        do_cpp_update(obj, 'mag', m_filtered, sample);
+    else
+        do_cpp_update(obj, 'mag', m_filtered);
+    end
 end
 
 function update_gps_impl(obj, lat, lon, alt, k)
@@ -76,7 +95,7 @@ function update_gps_impl(obj, lat, lon, alt, k)
     do_cpp_update(obj, 'gps', z_gps, k);
 end
 
-function update_baro_impl(obj, pressure)
+function update_baro_impl(obj, pressure, varargin)
     % 気圧計更新 (Phase 1: 変更検知追加)
     
     % 変更検知 (SensorDataBuffer統合)
@@ -90,7 +109,16 @@ function update_baro_impl(obj, pressure)
 
     weight_factor = 1.0 / obj.baro_weight;
     obj.P(3,3) = obj.P(3,3) * weight_factor;
-    do_cpp_update(obj, 'baro', alt_baro);
+    if ~isempty(varargin)
+        sample = varargin{1};
+    else
+        sample = [];
+    end
+    if ~isempty(sample)
+        do_cpp_update(obj, 'baro', alt_baro, sample);
+    else
+        do_cpp_update(obj, 'baro', alt_baro);
+    end
     obj.P(3,3) = obj.P(3,3) / weight_factor;
 end
 
@@ -113,9 +141,15 @@ function do_cpp_update(obj, sensor_type, meas, sample)
             sensor_data.mag = meas;
             params.noise_mag = R(1:3);
         case 'gps'
-            R = diag(obj.noiseEstimator.getRnoise('gps'));
+            % Handle NoiseEstimator.getRnoise returning either a 3x3 matrix or 3x1 vector
+            tmpR = obj.noiseEstimator.getRnoise('gps');
+            if ismatrix(tmpR) && all(size(tmpR) == [3,3])
+                Rdiag = diag(tmpR);
+            else
+                Rdiag = tmpR(:);
+            end
             sensor_data.gps_pos = meas;
-            params.noise_gps = R(1:3);
+            params.noise_gps = Rdiag(1:3);
         case 'baro'
             sensor_data.alt_baro = meas;
             params.noise_baro = obj.noiseEstimator.getRnoise('baro');
@@ -141,6 +175,21 @@ function do_cpp_update(obj, sensor_type, meas, sample)
     mex_params.noise_bg = params.noise_bg(:);
     mex_params.noise_mag = params.noise_mag(:);
     mex_params.noise_gps = params.noise_gps(:);
+    % Override MEX GPS noise with MATLAB NoiseEstimator current value to
+    % ensure parity (use estimator's variance vector). Do this only for GPS
+    % updates to avoid changing other sensor behavior.
+    try
+        if strcmp(sensor_type,'gps')
+            tmpR = obj.noiseEstimator.getRnoise('gps');
+            if ismatrix(tmpR) && all(size(tmpR)==[3,3])
+                mex_params.noise_gps = diag(tmpR);
+            else
+                mex_params.noise_gps = tmpR(:);
+            end
+        end
+    catch
+        % ignore and fall back to params.noise_gps
+    end
     mex_params.noise_baro = params.noise_baro;
     if isfield(params, 'noise_zupt')
         mex_params.noise_zupt = params.noise_zupt(:);
@@ -234,7 +283,8 @@ function do_cpp_update(obj, sensor_type, meas, sample)
     % 呼び出し
     try
         % Debug: call and check for NaN in returned state
-        new_state = mex_meukf_step_v2(state, sensor_data, mex_params);
+        % Request 3 outputs: new_state, debug array, and mex_debug struct (last_K/last_y)
+        [new_state, dbg_out, mex_debug] = mex_meukf_step_v2(state, sensor_data, mex_params);
         % Validate outputs
         fields_ok = isstruct(new_state) && isfield(new_state,'p') && isfield(new_state,'v') && isfield(new_state,'q') && isfield(new_state,'ba') && isfield(new_state,'bg') && isfield(new_state,'P');
         if ~fields_ok || any(isnan([new_state.p(:); new_state.v(:); new_state.q(:); new_state.ba(:); new_state.bg(:)])) || any(isnan(new_state.P(:)))
@@ -257,16 +307,39 @@ function do_cpp_update(obj, sensor_type, meas, sample)
             if exist('do_sample_trace','var') && do_sample_trace
                 outdir_rec = fullfile(fileparts(mfilename('fullpath')), '..', '..', 'Results'); if ~exist(outdir_rec,'dir'), mkdir(outdir_rec); end
                 fname_rec = fullfile(outdir_rec, sprintf('record_runfilter_sample_%d.mat', sample));
-                try
-                    record.state = state;
-                    record.new_state = new_state;
-                    record.mex_params = mex_params;
-                    record.sensor_type = sensor_type;
-                    record.sensor_data = sensor_data;
-                    record.note = 'Saved immediately after mex_meukf_step_v2 return, before assigning to obj fields';
-                    save(fname_rec, 'record');
-                catch
-                end
+                    try
+                        record.state = state;
+                        record.new_state = new_state;
+                        record.mex_params = mex_params;
+                        record.sensor_type = sensor_type;
+                        record.sensor_data = sensor_data;
+                        record.note = 'Saved immediately after mex_meukf_step_v2 return, before assigning to obj fields';
+                        % If MEX returned pred_P, prefer that for the saved pre-update P
+                        if exist('mex_debug','var') && isstruct(mex_debug) && isfield(mex_debug,'pred_P') && ~isempty(mex_debug.pred_P)
+                            try
+                                record.state.P = mex_debug.pred_P;
+                            catch
+                                % ignore if assignment fails
+                            end
+                        end
+                        % Include K/y if returned by mex or available locally; otherwise set empty placeholders
+                        if exist('mex_debug','var') && isstruct(mex_debug) && isfield(mex_debug,'last_K')
+                            record.K = mex_debug.last_K;
+                        elseif isfield(new_state,'K')
+                            record.K = new_state.K;
+                        else
+                            record.K = [];
+                        end
+                        if exist('mex_debug','var') && isstruct(mex_debug) && isfield(mex_debug,'last_y')
+                            record.y = mex_debug.last_y;
+                        elseif isfield(new_state,'y')
+                            record.y = new_state.y;
+                        else
+                            record.y = [];
+                        end
+                        save(fname_rec, 'record');
+                    catch
+                    end
             end
         catch
         end

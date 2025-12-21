@@ -2,7 +2,12 @@
 % 10セットのシミュレーション実行と解析を行うプログラム
 % 全てのログとCSVはkalman\Resultsに保存される
 
-function run_batch_10sets()
+function run_batch_10sets(use_mex)
+    % run_batch_10sets(use_mex)
+    %  use_mex (optional, default=false) : true にすると MEX 実装を優先して実行します
+    if nargin < 1 || isempty(use_mex)
+        use_mex = false;
+    end
     % 前回のログとCSVを削除
     cleanup_previous_results();
     
@@ -15,24 +20,12 @@ function run_batch_10sets()
         mkdir(results_dir);
     end
 
-    % C++ MEX バイナリのパスを追加（存在する場合）
+    % C++ MEX バイナリのパスを追加（bin のみ）
+    clear mex;  % 古い MEX キャッシュを明示的にクリア
     mex_bin = fullfile(proj_root, 'cpp', 'bin');
     if exist(mex_bin, 'dir')
         addpath(mex_bin);
     end
-
-        % Ensure C++ MEX binaries are on MATLAB path
-        try
-            bin_path = fullfile(proj_root, 'cpp', 'bin');
-            if exist(bin_path, 'dir')
-                addpath(bin_path);
-            end
-        catch
-        end
-
-    % MEXセンサーフィルタの状態をリセット（存在する場合）
-    try
-        clear mex;
         if exist('mex_sensor_filter','file') == 3
             % 明示的ゼロ初期化を優先
             try
@@ -41,12 +34,13 @@ function run_batch_10sets()
                 SensorFilters.reset();
             end
         end
-    catch
-        % MEX が利用できない/リセット失敗でも続行
-    end
     
-    % Phase2対策: MATLAB実装を強制使用（環境変数設定）
-    setenv('FORCE_MATLAB_FILTERS', '1');
+    % MEX / MATLAB フィルタ選択
+    if use_mex
+        setenv('FORCE_MATLAB_FILTERS', '0');
+    else
+        setenv('FORCE_MATLAB_FILTERS', '1');
+    end
     
     % ログファイルを開く
     log_file = fullfile(results_dir, 'batch_10sets_log.txt');

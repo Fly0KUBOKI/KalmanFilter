@@ -110,7 +110,8 @@ function predict(obj, a_meas, w_meas)
     end
     % 上流ログ (predict) — verbose は環境変数で制御
     try
-        if strcmp(getenv('ENABLE_STATE_TRACE'),'1')
+        % Disabled writing of state trace file for now
+        if false % strcmp(getenv('ENABLE_STATE_TRACE'),'1')
             outdir = fullfile(fileparts(mfilename('fullpath')), '..', '..', 'Results'); if ~exist(outdir,'dir'), mkdir(outdir); end
             fid = fopen(fullfile(outdir,'state_trace.txt'),'a');
             if fid~=-1
@@ -128,7 +129,7 @@ function predict(obj, a_meas, w_meas)
                 snapshot.state.P = obj.P;
                 snapshot.meta.dt = obj.dt;
                 snapshot.meta.t = now;
-                save(fname, 'snapshot');
+                % save(fname, 'snapshot');  % disabled
             catch
             end
         end
@@ -149,7 +150,8 @@ function predict(obj, a_meas, w_meas)
 
         % post-update trace for predict (env controlled)
         try
-            if strcmp(getenv('ENABLE_STATE_TRACE'),'1')
+            % Disabled writing of state trace file for now
+            if false % strcmp(getenv('ENABLE_STATE_TRACE'),'1')
                 outdir2 = fullfile(fileparts(mfilename('fullpath')), '..', '..', 'Results'); if ~exist(outdir2,'dir'), mkdir(outdir2); end
                 fid2 = fopen(fullfile(outdir2,'state_trace.txt'),'a');
                 if fid2~=-1
@@ -175,7 +177,7 @@ function predict(obj, a_meas, w_meas)
                 trace_post.mex_params = mex_params;
                 trace_post.sensor_data = sensor_data;
                 trace_post.objP_post = obj.P;
-                save(fname_post, 'trace_post');
+                % save(fname_post, 'trace_post');  % disabled
             catch
             end
         end

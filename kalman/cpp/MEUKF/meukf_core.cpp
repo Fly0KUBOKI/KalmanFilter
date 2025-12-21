@@ -11,9 +11,9 @@
 
 namespace meukf {
 
-// Debug helper: control logging via env var MEX_DEBUG (0=off, 1=minimal, 2=verbose)
+// Debug helper: control logging via env var MEUKF_DEBUG_LEVEL (0=off, 1=minimal, 2=verbose)
 static int get_debug_level() {
-    const char* s = std::getenv("MEX_DEBUG");
+    const char* s = std::getenv("MEUKF_DEBUG_LEVEL");
     if (!s) return 0;
     int v = 0;
     try { v = std::atoi(s); } catch(...) { v = 0; }
@@ -163,10 +163,21 @@ void MEUKFCore::step(const MEUKFInput& input, MEUKFOutput& output) {
     output.new_state = input.prev_state;
     output.status = 0;
     for(int i=0; i<10; ++i) output.debug_info[i] = 0.0;
+    // Initialize optional debug outputs
+    for(int i=0;i<15*3;++i) output.last_K[i] = 0.0f;
+    for(int i=0;i<3;++i) output.last_y[i] = 0.0f;
+    output.last_y_len = 0;
+    output.last_sensor_type = 0;
+    for(int i=0;i<15*15;++i) output.pred_P[i] = 0.0f;
 
     // 1. Prediction Step
     if (input.sensor.dt > 0.0) {
         predict(output.new_state, input.sensor, input.params);
+    }
+
+    // Capture predicted covariance (P) immediately after predict() and before any updates
+    for(int i=0;i<15*15;++i) {
+        output.pred_P[i] = output.new_state.P[i];
     }
 
     // 2. Update Step
@@ -346,38 +357,11 @@ void MEUKFCore::predict(State& state, const SensorData& sensor, const Params& pa
                     if (av > max_abs) max_abs = av;
                 }
             }
-            if (any_nan || max_abs > 1e6) {
-                std::ofstream dbgfile("Results/predict_debug.txt", std::ios::app);
-                if (dbgfile.is_open()) {
-                    dbgfile << std::fixed << std::setprecision(9);
-                    dbgfile << "MARKER=PREDICT_DEBUG";
-                    dbgfile << ", any_nan=" << (any_nan?1:0);
-                    dbgfile << ", max_abs_P_new=" << max_abs;
-                    dbgfile << ", dt=" << dt;
-                    dbgfile << std::endl;
-
-                    dbgfile << "-- state before (p v q ba bg) --\n";
-                    dbgfile << p(0,0) << "," << p(1,0) << "," << p(2,0) << ",";
-                    dbgfile << v(0,0) << "," << v(1,0) << "," << v(2,0) << ",";
-                    dbgfile << q(0,0) << "," << q(1,0) << "," << q(2,0) << "," << q(3,0) << ",";
-                    dbgfile << ba(0,0) << "," << ba(1,0) << "," << ba(2,0) << ",";
-                    dbgfile << bg(0,0) << "," << bg(1,0) << "," << bg(2,0) << std::endl;
-
-                    dbgfile << "-- P_new_diag --\n";
-                    for(int ii=0; ii<15; ++ii) dbgfile << P_new(ii,ii) << (ii==14?"":"\,");
-                    dbgfile << std::endl;
-
-                    if (dbg >= 2) {
-                        dbgfile << "-- P_new_flat (first 5x5) --\n";
-                        for(int ii=0; ii<5; ++ii) {
-                            for(int jj=0; jj<5; ++jj) dbgfile << P_new(ii,jj) << (jj==4?"":"\,");
-                            dbgfile << std::endl;
-                        }
-                        dbgfile << std::endl;
-                    }
-                    dbgfile.close();
-                }
-            }
+            // DEBUG DISABLED: predict_debug output - not needed for current analysis
+            // if (any_nan || max_abs > 1e6) {
+            //     std::ofstream dbgfile("Results/predict_debug.txt", std::ios::app);
+            //     ... (commented out)
+            // }
         }
     } catch(...) {}
 
@@ -701,6 +685,18 @@ void MEUKFCore::update_accel_meukf(State& state, const Vector3& a_meas, const Pa
     // Store 2D innovation norm for debug
     output.debug_info[0] = innov_norm;
 
+    // Export last K (15x2) and y (2) into output.last_K/last_y (15x3 storage)
+    for(int r=0;r<15;++r) for(int c=0;c<3;++c) output.last_K[r*3 + c] = 0.0f;
+    for(int r=0;r<15;++r) {
+        for(int c=0;c<2;++c) {
+            output.last_K[r*3 + c] = K_full(r, c);
+        }
+    }
+    output.last_y[0] = y(0,0);
+    output.last_y[1] = y(1,0);
+    output.last_y_len = 2;
+    output.last_sensor_type = 1; // accel
+
     vars_to_state(p, v, q_updated, ba, bg, P_full, state);
 }
 
@@ -961,6 +957,13 @@ void MEUKFCore::update_mag_meukf(State& state, const Vector3& m_meas, const Para
 
     output.debug_info[1] = innov_norm;
 
+    // Export last K_full (15x3) and y (3) for mag update
+    for(int r=0;r<15;++r) for(int c=0;c<3;++c) output.last_K[r*3 + c] = 0.0f;
+    for(int r=0;r<15;++r) for(int c=0;c<3;++c) output.last_K[r*3 + c] = K_full(r, c);
+    output.last_y[0] = y(0,0); output.last_y[1] = y(1,0); output.last_y[2] = y(2,0);
+    output.last_y_len = 3;
+    output.last_sensor_type = 2; // mag
+
     vars_to_state(p, v, q_updated, ba, bg, P_full, state);
 }
 
@@ -973,6 +976,19 @@ void MEUKFCore::update_gps(State& state, const Vector3& gps_meas, const Params& 
     Vector3 z_pred = p;
     Vector3 y = gps_meas - z_pred;
     
+    // Export predicted P (pre-update) so external tools can compare pre-update covariance
+    for(int ii=0; ii<15; ++ii) {
+        for(int jj=0; jj<15; ++jj) {
+            output.pred_P[ii*15 + jj] = P(ii, jj);
+        }
+    }
+    // Build and export measurement matrix H (3 x 15) for GPS: H = [I3, 0...]
+    for(int ii=0; ii<3; ++ii) {
+        for(int jj=0; jj<15; ++jj) {
+            output.last_H[ii*15 + jj] = (jj == ii) ? 1.0f : 0.0f;
+        }
+    }
+
     Matrix3x3 P_pos;
     for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) P_pos(i, j) = P(i, j);
     
@@ -984,6 +1000,9 @@ void MEUKFCore::update_gps(State& state, const Vector3& gps_meas, const Params& 
         output.status = 1;
         return;
     }
+
+    // Export inverse of S for external inspection
+    for(int ii=0; ii<3; ++ii) for(int jj=0; jj<3; ++jj) output.last_S_inv[ii*3 + jj] = S_inv(ii, jj);
     
     Matrix15x3 PHt;
     for(int i=0; i<15; ++i) for(int j=0; j<3; ++j) PHt(i, j) = P(i, j);
@@ -1004,17 +1023,20 @@ void MEUKFCore::update_gps(State& state, const Vector3& gps_meas, const Params& 
                 gdbg << ", R=" << params.noise_gps[0] << "," << params.noise_gps[1] << "," << params.noise_gps[2];
                 gdbg << ", S=";
                 for(int ii=0; ii<3; ++ii) for(int jj=0; jj<3; ++jj) gdbg << S(ii,jj) << (ii==2 && jj==2?"":",");
-                gdbg << ", K_pos=";
-                for(int ii=0; ii<3; ++ii) for(int jj=0; jj<3; ++jj) gdbg << K(ii,jj) << (ii==2 && jj==2?"":",");
-                gdbg << ", dx_pos=" << dx(0,0) << "," << dx(1,0) << "," << dx(2,0);
-
-                // Add an explicit marker to detect whether this logging comes from the rebuilt binary
-                gdbg << ", MARKER=GPS_LOG_EXTENDED_v2";
-
-                // Log P (position block) before update (flattened row-major)
-                gdbg << ", P_pos_before=";
-                for(int ii=0; ii<3; ++ii) for(int jj=0; jj<3; ++jj) gdbg << P_pos(ii,jj) << (ii==2 && jj==2?"":",");
-
+                
+                // EXTENDED: Log full K matrix (15x3) for detailed comparison
+                gdbg << ", K_full=";
+                for(int ii=0; ii<15; ++ii) {
+                    for(int jj=0; jj<3; ++jj) {
+                        gdbg << K(ii,jj) << (ii==14 && jj==2?"":",");
+                    }
+                }
+                
+                gdbg << ", dx_full=";
+                for(int ii=0; ii<15; ++ii) {
+                    gdbg << dx(ii,0) << (ii==14?"":",");
+                }
+                
                 // Also log a small fingerprint of full P (diag elements)
                 gdbg << ", P_diag_before=";
                 for(int ii=0; ii<15; ++ii) gdbg << P(ii,ii) << (ii==14?"":",");
@@ -1090,6 +1112,17 @@ void MEUKFCore::update_gps(State& state, const Vector3& gps_meas, const Params& 
     // Ensure symmetry
     P = (P + P.transpose()) * 0.5f;
 
+    // Export K (15x3) and S (3x3) and y (3) for GPS update
+    for(int r=0;r<15;++r) for(int c=0;c<3;++c) output.last_K[r*3 + c] = 0.0f;
+    for(int r=0;r<15;++r) for(int c=0;c<3;++c) output.last_K[r*3 + c] = K(r, c);
+    
+    // Store S matrix (3x3) in output for external inspection
+    for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) output.last_S[i*3 + j] = S(i, j);
+    
+    output.last_y[0] = y(0,0); output.last_y[1] = y(1,0); output.last_y[2] = y(2,0);
+    output.last_y_len = 3;
+    output.last_sensor_type = 3; // gps
+
     // Debug: append P after GPS update (only if debug level >=2)
     try {
         int dbg = get_debug_level();
@@ -1126,21 +1159,13 @@ void MEUKFCore::update_baro(State& state, float alt_baro, const Params& params, 
     float z_pred = p(2,0);  // p(3) in MATLAB = p(2) in C++ (0-indexed)
     float y = alt_baro - z_pred;
 
-    // Debug: append baro update diagnostics to Results/baro_debug.txt (partial: alt_baro, z_pred, y)
-    try {
-        std::ofstream dbg("Results/baro_debug.txt", std::ios::app);
-        if(dbg.is_open()) {
-            dbg << std::fixed << std::setprecision(6);
-            dbg << "alt_baro=" << alt_baro << ", z_pred=" << z_pred << ", y=" << y << ", R=" << params.noise_baro;
-            // small fingerprint: diag of full P before update
-            dbg << ", P_diag_before=";
-            for(int ii=0; ii<15; ++ii) dbg << P(ii,ii) << (ii==14?"":",");
-            dbg << std::endl;
-            dbg.close();
-        }
-    } catch(...) {
-        // ignore logging failures
-    }
+    // Debug: DISABLED - baro_debug output not needed
+    // try {
+    //     std::ofstream dbg("Results/baro_debug.txt", std::ios::app);
+    //     if(dbg.is_open()) {
+    //         ... (commented out)
+    //     }
+    // } catch(...) { }
     
     // S = H*P*H' + R
     float P_z = P(2, 2);
@@ -1165,16 +1190,11 @@ void MEUKFCore::update_baro(State& state, float alt_baro, const Params& params, 
         dx(i,0) = K(i,0) * y;
     }
 
-    // Debug: append K(2) and dx(2) and whether applied
-    try {
-        std::ofstream dbg("Results/baro_debug.txt", std::ios::app);
-        if(dbg.is_open()) {
-            dbg << "S=" << S << ", K_z=" << K(2,0) << ", dx_z=" << dx(2,0);
-            bool applied = (std::abs(dx(2,0)) >= 0.1f);
-            dbg << ", applied=" << (applied?1:0) << std::endl;
-            dbg.close();
-        }
-    } catch(...) {}
+    // Debug: DISABLED - K and dx logging for baro
+    // try {
+    //     std::ofstream dbg("Results/baro_debug.txt", std::ios::app);
+    //     ... (commented out)
+    // } catch(...) {}
     
     // 高度更新のみ（閾値チェック付き）
     if (std::abs(dx(2,0)) >= 0.1f) {
@@ -1201,17 +1221,19 @@ void MEUKFCore::update_baro(State& state, float alt_baro, const Params& params, 
     P = P_tmp + K_R_Kt;
     P = (P + P.transpose()) * 0.5f;
     
+    // Export K (15x1) and y (1) for baro update
+    for(int r=0;r<15;++r) for(int c=0;c<3;++c) output.last_K[r*3 + c] = 0.0f;
+    for(int r=0;r<15;++r) output.last_K[r*3 + 0] = K(r,0);
+    output.last_y[0] = y;
+    output.last_y_len = 1;
+    output.last_sensor_type = 4; // baro
+
     // Debug: append P diag after baro update
-    try {
-        std::ofstream dbg2("Results/baro_debug.txt", std::ios::app);
-        if(dbg2.is_open()) {
-            dbg2 << std::fixed << std::setprecision(6);
-            dbg2 << "P_diag_after=";
-            for(int ii=0; ii<15; ++ii) dbg2 << P(ii,ii) << (ii==14?"":",");
-            dbg2 << std::endl;
-            dbg2.close();
-        }
-    } catch(...) {}
+    // Debug: DISABLED - P diag after baro update logging
+    // try {
+    //     std::ofstream dbg2("Results/baro_debug.txt", std::ios::app);
+    //     ... (commented out)
+    // } catch(...) {}
 
     vars_to_state(p, v, q, ba, bg, P, state);
 }

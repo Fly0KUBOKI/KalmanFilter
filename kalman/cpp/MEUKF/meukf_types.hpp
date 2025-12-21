@@ -71,6 +71,24 @@ struct MEUKFOutput {
     State new_state;        // 更新後の状態
     float debug_info[10];   // デバッグ用（イノベーション等）
     uint8_t status;         // 計算ステータス (0: 正常, 1: エラー)
+    // Optional debug outputs for external inspection
+    // last_K: stored as row-major 15 x 3 matrix (unused columns zeroed if smaller)
+    float last_K[15 * 3];
+    // last_S: innovation covariance (3 x 3 for GPS, 1x1 for scalar updates, stored row-major)
+    float last_S[3 * 3];
+    // last_S_inv: inverse of innovation covariance (3 x 3), row-major
+    float last_S_inv[3 * 3];
+    // last_H: measurement matrix H stored row-major (3 x 15 for GPS)
+    float last_H[3 * 15];
+    // last_y: innovation vector (length <= 3)
+    float last_y[3];
+    // actual length of last_y (1..3, 0 if none)
+    uint8_t last_y_len;
+    // sensor type code for last update: 0=none,1=accel,2=mag,3=gps,4=baro,5=zupt
+    uint8_t last_sensor_type;
+    // predicted covariance (P) immediately after predict() and before update
+    // stored row-major 15 x 15
+    float pred_P[15 * 15];
 };
 
 } // namespace meukf

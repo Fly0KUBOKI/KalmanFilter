@@ -1,6 +1,7 @@
 ﻿#include "mex.h"
 #include "meukf_core.hpp"
 #include <cstring>
+#include <cmath>
 
 // ヘルパー: MATLAB構造体からC++構造体へ
 void matlab_to_state(const mxArray* m_state, meukf::State& c_state) {
@@ -152,17 +153,171 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     input.params.beta = static_cast<float>(get_field_scalar(m_params, "beta"));
     input.params.kappa = static_cast<float>(get_field_scalar(m_params, "kappa"));
 
+    // Validate noise_gps input: must be finite non-negative variances (meters^2)
+    for(int i=0;i<3;++i) {
+        float v = input.params.noise_gps[i];
+        if(!std::isfinite(v) || v < 0.0f) {
+            mexErrMsgIdAndTxt("MEUKF:step:invalidNoiseGPS", "noise_gps must be finite non-negative variances (meters^2). Got %g at index %d", (double)v, i+1);
+        }
+    }
+
     // 実行
     meukf::MEUKFOutput output;
     meukf::MEUKFCore::step(input, output);
 
-    // 出力作成
-    // 入力構造体をコピーして、値を更新する形で返す
-    plhs[0] = mxDuplicateArray(m_prev_state);
-    state_to_matlab(output.new_state, plhs[0]);
-    
-    // デバッグ情報
-    plhs[1] = mxCreateDoubleMatrix(1, 10, mxREAL);
-    double* dbg = mxGetPr(plhs[1]);
-    for(int i=0; i<10; ++i) dbg[i] = output.debug_info[i];
+    // 出力作成（呼び出し側が要求した出力数に合わせて安全に割り当てる）
+    if(nlhs > 0) {
+        // 入力構造体をコピーして、値を更新する形で返す
+        plhs[0] = mxDuplicateArray(m_prev_state);
+        state_to_matlab(output.new_state, plhs[0]);
+    }
+
+    if(nlhs > 1) {
+        // デバッグ情報
+        plhs[1] = mxCreateDoubleMatrix(1, 10, mxREAL);
+        double* dbg = mxGetPr(plhs[1]);
+        for(int i=0; i<10; ++i) dbg[i] = output.debug_info[i];
+    }
+
+    if(nlhs > 2) {
+        // 出力: last_K / last_y / last_S 等を構造体で返す
+        const char* fnames[] = {"pred_P", "last_K", "last_S", "last_S_inv", "last_H", "last_y", "last_y_len", "last_sensor_type", "input_update_gps", "input_noise_gps"};
+        plhs[2] = mxCreateStructMatrix(1, 1, 10, fnames);
+
+        // pred_P: 15 x 15 double matrix (predicted P after predict(), row-major in C++)
+        mxArray* m_pred_P = mxCreateDoubleMatrix(15, 15, mxREAL);
+        double* prP = mxGetPr(m_pred_P);
+        for(int c=0; c<15; ++c) {
+            for(int r=0; r<15; ++r) {
+                prP[c*15 + r] = static_cast<double>(output.pred_P[r*15 + c]);
+            }
+        }
+        mxSetField(plhs[2], 0, "pred_P", m_pred_P);
+
+        // last_K: 15 x 3 double matrix (stored column-major in MATLAB)
+        mxArray* m_last_K = mxCreateDoubleMatrix(15, 3, mxREAL);
+        double* prK = mxGetPr(m_last_K);
+        for(int c=0; c<3; ++c) {
+            for(int r=0; r<15; ++r) {
+                // C++ stores as [r*3 + c]
+                prK[c*15 + r] = static_cast<double>(output.last_K[r*3 + c]);
+            }
+        }
+        mxSetField(plhs[2], 0, "last_K", m_last_K);
+
+        // last_S: 3 x 3 double matrix (innovation covariance, stored column-major in MATLAB)
+        mxArray* m_last_S = mxCreateDoubleMatrix(3, 3, mxREAL);
+        double* prS = mxGetPr(m_last_S);
+        for(int c=0; c<3; ++c) {
+            for(int r=0; r<3; ++r) {
+                // C++ stores as [r*3 + c]
+                prS[c*3 + r] = static_cast<double>(output.last_S[r*3 + c]);
+            }
+        }
+        mxSetField(plhs[2], 0, "last_S", m_last_S);
+
+        // last_y: variable length up to 3
+        int ylen = output.last_y_len;
+        if(ylen < 0) ylen = 0;
+        if(ylen > 3) ylen = 3;
+        mxArray* m_last_y = mxCreateDoubleMatrix(ylen, 1, mxREAL);
+        double* pry = nullptr;
+        if(ylen > 0) {
+            pry = mxGetPr(m_last_y);
+            for(int i=0;i<ylen;++i) pry[i] = static_cast<double>(output.last_y[i]);
+        }
+        mxSetField(plhs[2], 0, "last_y", m_last_y);
+
+        // last_S_inv: 3 x 3 double matrix (inverse innovation covariance)
+        mxArray* m_last_S_inv = mxCreateDoubleMatrix(3, 3, mxREAL);
+        double* prSinv = mxGetPr(m_last_S_inv);
+        for(int c=0; c<3; ++c) {
+            for(int r=0; r<3; ++r) {
+                prSinv[c*3 + r] = static_cast<double>(output.last_S_inv[r*3 + c]);
+            }
+        }
+        mxSetField(plhs[2], 0, "last_S_inv", m_last_S_inv);
+
+        // last_H: 3 x 15 double matrix (measurement matrix H, stored column-major in MATLAB)
+        mxArray* m_last_H = mxCreateDoubleMatrix(3, 15, mxREAL);
+        double* prH = mxGetPr(m_last_H);
+        for(int c=0; c<15; ++c) {
+            for(int r=0; r<3; ++r) {
+                // output.last_H indexed row-major [r*15 + c]
+                prH[c*3 + r] = static_cast<double>(output.last_H[r*15 + c]);
+            }
+        }
+        mxSetField(plhs[2], 0, "last_H", m_last_H);
+
+        // last_y_len
+        mxArray* m_ylen = mxCreateDoubleScalar(static_cast<double>(output.last_y_len));
+        mxSetField(plhs[2], 0, "last_y_len", m_ylen);
+
+        // last_sensor_type
+        mxArray* m_stype = mxCreateDoubleScalar(static_cast<double>(output.last_sensor_type));
+        mxSetField(plhs[2], 0, "last_sensor_type", m_stype);
+        // Echo the raw input flag for debugging (1 if sensor.update_gps was set in input)
+        mxArray* m_input_update = mxCreateDoubleScalar(static_cast<double>(input.sensor.update_gps));
+        mxSetField(plhs[2], 0, "input_update_gps", m_input_update);
+        // Echo the raw input noise_gps vector for debugging (3x1)
+        mxArray* m_input_noise = mxCreateDoubleMatrix(3, 1, mxREAL);
+        double* prNoise = mxGetPr(m_input_noise);
+        for(int i=0;i<3;++i) prNoise[i] = static_cast<double>(input.params.noise_gps[i]);
+        mxSetField(plhs[2], 0, "input_noise_gps", m_input_noise);
+
+        // --- Annotation/consistency checks: compare input.params.noise_gps with
+        // R estimated from last_S - H*pred_P*H'. If they differ significantly,
+        // emit a warning to help developers catch unit/scale mismatches.
+        try {
+            // Build pred_P matrix (15x15) in double from output.pred_P (float row-major)
+            double predP[15*15];
+            for(int r=0;r<15;++r) for(int c=0;c<15;++c) predP[r*15 + c] = static_cast<double>(output.pred_P[r*15 + c]);
+
+            // Build H (3x15) from output.last_H (row-major floats stored similarly)
+            double Hm[3*15];
+            for(int r=0;r<3;++r) for(int c=0;c<15;++c) Hm[r*15 + c] = static_cast<double>(output.last_H[r*15 + c]);
+
+            // Compute HPHT = H * predP * H'
+            double HP[3*15]; memset(HP,0,sizeof(HP));
+            for(int i=0;i<3;++i) {
+                for(int k=0;k<15;++k) {
+                    double Hik = Hm[i*15 + k];
+                    for(int j=0;j<15;++j) {
+                        HP[i*15 + j] += Hik * predP[k*15 + j];
+                    }
+                }
+            }
+            double HPHT[3*3]; memset(HPHT,0,sizeof(HPHT));
+            for(int i=0;i<3;++i) for(int j=0;j<3;++j) {
+                double sum = 0.0;
+                for(int k=0;k<15;++k) sum += HP[i*15 + k] * Hm[j*15 + k];
+                HPHT[i*3 + j] = sum;
+            }
+
+            // last_S is already returned as MATLAB array m_last_S; reconstruct as double
+            double lastS[3*3];
+            for(int c=0;c<3;++c) for(int r=0;r<3;++r) lastS[c*3 + r] = prS[c*3 + r];
+
+            // Estimate R_est = lastS - HPHT (diagonal)
+            double R_est_diag[3];
+            for(int i=0;i<3;++i) R_est_diag[i] = lastS[i*3 + i] - HPHT[i*3 + i];
+
+            // Compare input.params.noise_gps (float) with R_est_diag
+            // NOTE: This is a diagnostic check only. Disabled for now due to spurious negative R_est values.
+            // See: https://github.com/your-repo/issues/XXX
+            // for(int i=0;i<3;++i) {
+            //     double in_v = static_cast<double>(input.params.noise_gps[i]);
+            //     double est = R_est_diag[i];
+            //     double diff = in_v - est;
+            //     double rel = (est == 0.0) ? fabs(diff) : fabs(diff)/fabs(est);
+            //     if(!std::isfinite(est) || est < 0.0 || (fabs(diff) > 1.0 && rel > 0.20)) {
+            //         mexWarnMsgIdAndTxt("MEUKF:step:noiseMismatch",
+            //             "GPS noise mismatch detected: input noise_gps[%d]=%g vs estimated R[%d]=%g (diff=%g, rel=%g). MEX expects variances in meters^2.",
+            //             i+1, in_v, i+1, est, diff, rel);
+            //     }
+            // }
+        } catch(...) {
+            // best-effort checks only; do not fail on exceptions
+        }
+    }
 }

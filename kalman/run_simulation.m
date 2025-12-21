@@ -30,8 +30,9 @@ function add_paths(proj_root)
     addpath(genpath(fullfile(proj_root, 'EKF')));
     addpath(fullfile(proj_root, 'Graph'));
     addpath(fullfile(proj_root, 'GenerateData'));
-    % Common削除完了: 全機能をC++/ESKF内部に統合
-    addpath(genpath(fullfile(proj_root, 'cpp')));
+    % MEX バイナリ（bin のみ）を優先して追加
+    addpath(fullfile(proj_root, 'cpp', 'bin'));
+    % 古い genpath(cpp) は削除：bin のみで十分
 end
 
 function obs = read_observation(proj_root)
@@ -60,6 +61,9 @@ function results = run_filter(eskf, obs)
     results.innov_norm = zeros(1, n_samples);
     results.maha_dist = zeros(1, n_samples);
 
+    % Disable automatic saving of debug `record_*` files unless explicitly enabled
+    ENABLE_SAVE_TRACES = false;
+
     for k = 1:n_samples
         if k == 1; fprintf('Start loop\n'); end
         a = [obs.ax(k); obs.ay(k); obs.az(k)];
@@ -77,13 +81,13 @@ function results = run_filter(eskf, obs)
             end
 
             if mod(k, eskf.freq_accel) == 0
-                if ~isnan(trace_sample_num) && k==trace_sample_num
+                if ENABLE_SAVE_TRACES && ~isnan(trace_sample_num) && k==trace_sample_num
                     outdir_dbg = fullfile(fileparts(mfilename('fullpath')), '..', 'Results'); if ~exist(outdir_dbg,'dir'), mkdir(outdir_dbg); end
                     fname = fullfile(outdir_dbg, sprintf('record_before_accel_%d.mat', k));
                     try eskf_state.p = eskf.p; eskf_state.v = eskf.v; eskf_state.q = eskf.q; eskf_state.P = eskf.P; save(fname, 'k', 'eskf_state'); catch end
                 end
-                eskf.sensor_updates('accel', a);
-                if ~isnan(trace_sample_num) && k==trace_sample_num
+                eskf.sensor_updates('accel', a, k);
+                if ENABLE_SAVE_TRACES && ~isnan(trace_sample_num) && k==trace_sample_num
                     outdir_dbg = fullfile(fileparts(mfilename('fullpath')), '..', 'Results'); if ~exist(outdir_dbg,'dir'), mkdir(outdir_dbg); end
                     fname = fullfile(outdir_dbg, sprintf('record_after_accel_%d.mat', k));
                     try eskf_state.p = eskf.p; eskf_state.v = eskf.v; eskf_state.q = eskf.q; eskf_state.P = eskf.P; save(fname, 'k', 'eskf_state'); catch end
@@ -91,13 +95,13 @@ function results = run_filter(eskf, obs)
             end
 
             if mod(k, eskf.freq_mag) == 0
-                if ~isnan(trace_sample_num) && k==trace_sample_num
+                if ENABLE_SAVE_TRACES && ~isnan(trace_sample_num) && k==trace_sample_num
                     outdir_dbg = fullfile(fileparts(mfilename('fullpath')), '..', 'Results'); if ~exist(outdir_dbg,'dir'), mkdir(outdir_dbg); end
                     fname = fullfile(outdir_dbg, sprintf('record_before_mag_%d.mat', k));
                     try eskf_state.p = eskf.p; eskf_state.v = eskf.v; eskf_state.q = eskf.q; eskf_state.P = eskf.P; save(fname, 'k', 'eskf_state'); catch end
                 end
-                eskf.sensor_updates('mag', [obs.mx(k); obs.my(k); obs.mz(k)]);
-                if ~isnan(trace_sample_num) && k==trace_sample_num
+                eskf.sensor_updates('mag', [obs.mx(k); obs.my(k); obs.mz(k)], k);
+                if ENABLE_SAVE_TRACES && ~isnan(trace_sample_num) && k==trace_sample_num
                     outdir_dbg = fullfile(fileparts(mfilename('fullpath')), '..', 'Results'); if ~exist(outdir_dbg,'dir'), mkdir(outdir_dbg); end
                     fname = fullfile(outdir_dbg, sprintf('record_after_mag_%d.mat', k));
                     try eskf_state.p = eskf.p; eskf_state.v = eskf.v; eskf_state.q = eskf.q; eskf_state.P = eskf.P; save(fname, 'k', 'eskf_state'); catch end
@@ -105,13 +109,13 @@ function results = run_filter(eskf, obs)
             end
 
             if mod(k, eskf.freq_baro) == 0
-                if ~isnan(trace_sample_num) && k==trace_sample_num
+                if ENABLE_SAVE_TRACES && ~isnan(trace_sample_num) && k==trace_sample_num
                     outdir_dbg = fullfile(fileparts(mfilename('fullpath')), '..', 'Results'); if ~exist(outdir_dbg,'dir'), mkdir(outdir_dbg); end
                     fname = fullfile(outdir_dbg, sprintf('record_before_baro_%d.mat', k));
                     try eskf_state.p = eskf.p; eskf_state.v = eskf.v; eskf_state.q = eskf.q; eskf_state.P = eskf.P; save(fname, 'k', 'eskf_state'); catch end
                 end
-                eskf.sensor_updates('baro', obs.pressure(k));
-                if ~isnan(trace_sample_num) && k==trace_sample_num
+                eskf.sensor_updates('baro', obs.pressure(k), k);
+                if ENABLE_SAVE_TRACES && ~isnan(trace_sample_num) && k==trace_sample_num
                     outdir_dbg = fullfile(fileparts(mfilename('fullpath')), '..', 'Results'); if ~exist(outdir_dbg,'dir'), mkdir(outdir_dbg); end
                     fname = fullfile(outdir_dbg, sprintf('record_after_baro_%d.mat', k));
                     try eskf_state.p = eskf.p; eskf_state.v = eskf.v; eskf_state.q = eskf.q; eskf_state.P = eskf.P; save(fname, 'k', 'eskf_state'); catch end
@@ -119,13 +123,13 @@ function results = run_filter(eskf, obs)
             end
 
             if mod(k, eskf.freq_gps) == 0 && ~isnan(obs.lat(k))
-                if ~isnan(trace_sample_num) && k==trace_sample_num
+                if ENABLE_SAVE_TRACES && ~isnan(trace_sample_num) && k==trace_sample_num
                     outdir_dbg = fullfile(fileparts(mfilename('fullpath')), '..', 'Results'); if ~exist(outdir_dbg,'dir'), mkdir(outdir_dbg); end
                     fname = fullfile(outdir_dbg, sprintf('record_before_gps_%d.mat', k));
                     try eskf_state.p = eskf.p; eskf_state.v = eskf.v; eskf_state.q = eskf.q; eskf_state.P = eskf.P; save(fname, 'k', 'eskf_state'); catch end
                 end
                 eskf.sensor_updates('gps', obs.lat(k), obs.lon(k), obs.alt(k), k);
-                if ~isnan(trace_sample_num) && k==trace_sample_num
+                if ENABLE_SAVE_TRACES && ~isnan(trace_sample_num) && k==trace_sample_num
                     outdir_dbg = fullfile(fileparts(mfilename('fullpath')), '..', 'Results'); if ~exist(outdir_dbg,'dir'), mkdir(outdir_dbg); end
                     fname = fullfile(outdir_dbg, sprintf('record_after_gps_%d.mat', k));
                     try eskf_state.p = eskf.p; eskf_state.v = eskf.v; eskf_state.q = eskf.q; eskf_state.P = eskf.P; save(fname, 'k', 'eskf_state'); catch end
@@ -135,28 +139,30 @@ function results = run_filter(eskf, obs)
         
         eskf.reset('check', obs, k);
         % If TRACE_SAMPLE env var set, save eskf state at that sample for debugging
-        try
-            trace_sample_env = getenv('TRACE_SAMPLE');
-            trace_sample_num = str2double(trace_sample_env);
-            if ~isnan(trace_sample_num) && k == trace_sample_num
-                outdir_dbg = fullfile(proj_root, 'Results'); if ~exist(outdir_dbg,'dir'), mkdir(outdir_dbg); end
-                % Save only serializable state (avoid saving full object)
-                eskf_state.p = eskf.p;
-                eskf_state.v = eskf.v;
-                eskf_state.q = eskf.q;
-                eskf_state.ba = eskf.ba;
-                eskf_state.bg = eskf.bg;
-                eskf_state.P = eskf.P;
-                % include dt if available
-                try, eskf_state.dt = eskf.dt; catch, eskf_state.dt = [];, end
-                try
-                    save(fullfile(outdir_dbg, sprintf('record_runfilter_sample_%d.mat', k)), 'k', 'eskf_state');
-                catch
-                    % ignore save failures
+            try
+                trace_sample_env = getenv('TRACE_SAMPLE');
+                trace_sample_num = str2double(trace_sample_env);
+                if ENABLE_SAVE_TRACES && ~isnan(trace_sample_num) && k == trace_sample_num
+                    outdir_dbg = fullfile(proj_root, 'Results'); if ~exist(outdir_dbg,'dir'), mkdir(outdir_dbg); end
+                    % Save only serializable state (avoid saving full object)
+                    eskf_state.p = eskf.p;
+                    eskf_state.v = eskf.v;
+                    eskf_state.q = eskf.q;
+                    eskf_state.ba = eskf.ba;
+                    eskf_state.bg = eskf.bg;
+                    eskf_state.P = eskf.P;
+                    % include dt if available
+                    try, eskf_state.dt = eskf.dt; catch, eskf_state.dt = [];, end
+                    try
+                        % Save eskf_state under a distinct filename to avoid overwriting
+                        % the immediate mex debug record (which may be saved earlier).
+                        save(fullfile(outdir_dbg, sprintf('record_runfilter_sample_%d_eskfstate.mat', k)), 'k', 'eskf_state');
+                    catch
+                        % ignore save failures
+                    end
                 end
+            catch
             end
-        catch
-        end
         results.p(:,k) = eskf.p;
         results.v(:,k) = eskf.v;
         results.euler(:,k) = eskf.utils('get_euler');
