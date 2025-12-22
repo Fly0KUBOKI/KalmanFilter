@@ -68,6 +68,11 @@ classdef SensorAccelFilter < handle
                     end
                     a_out = a_filt;
                     info.is_outlier = is_outlier;
+                    % IMPORTANT: Update internal state to maintain parity with MATLAB mode
+                    % This ensures obj.a_filtered is kept in sync for fallback scenarios
+                    if ~is_outlier
+                        obj.a_filtered = a_filt;
+                    end
                     return;
                 catch
                     % MEX 呼び出し失敗時はフォールバックして MATLAB 実装を続行

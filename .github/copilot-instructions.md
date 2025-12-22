@@ -44,6 +44,28 @@ compare_mex_matlab_detailed    % CSV差分表示
 | 共分散は対称性保持 `P = (P + P')/2` | 数値丸め誤差で非対称化するため |
 | C++ 側がクォータニオン正規化 | MATLAB で二重正規化するな（ノーマライズ済みを重ねると精度低下） |
 | 状態フィールド順序厳格: p,v,q,ba,bg,P | MEX インターフェースがこの順で読み込む |
+| C++ センサーフィルタは MATLAB と同一のバリデーション | 重力ノルム検証 `[8.5, 10.5]` を C++ 側でも必ず実装 |
+| テスト用コメントアウトは即座に元に戻す | `NOTE: 一時的` 等のコメントは定期レビュー |
+
+## ⚠️ MATLAB/MEX パリティ — 過去のトラブル事例
+
+### Issue: 重力ノルム検証欠落 + 外れ値検出初期化不一致 (2025/12/22)
+**症状**: MEX モードで Roll/Pitch RMSE が 1.5-1.7 deg（MATLAB モードは 0.27-0.29 deg）
+
+**根本原因**:
+1. C++ `sensor_filter.hpp` の `filter_accel()` で重力ノルム検証がコメントアウトされていた
+2. `OutlierDetector.detect()` で履歴が空の場合の処理がMATLAB側と異なっていた
+   - C++: `noise_std = 0.1` (固定) → 最初のデータが外れ値と誤判定
+   - MATLAB: `noise_std = residual_norm` → 最初のデータは正常と判定
+
+**修正**: 
+- [sensor_filter.hpp#L740-L752](kalman/cpp/include/Common/Sensor/sensor_filter.hpp#L740) の重力検証コードを有効化
+- [sensor_filter.hpp#L248-L270](kalman/cpp/include/Common/Sensor/sensor_filter.hpp#L248) の外れ値検出初期化ロジックをMATLAB側と一致させる
+
+**教訓**:
+- MATLAB 側のバリデーションロジック（`SensorAccelFilter.m` の `gravity_range` チェック）は C++ 側にも必ず実装
+- **初期化直後の動作（履歴が空、履歴が少ない）もMATLAB側と一致させる**
+- 詳細は `kalman/mardown/MATLAB_MEX_PARITY_CHECKLIST.md` を参照
 
 ## 主要ファイル・エントリポイント
 

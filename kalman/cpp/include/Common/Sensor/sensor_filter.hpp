@@ -233,6 +233,13 @@ public:
 };
 
 // ========== 外れ値検出器 ==========
+// 
+// 【重要】MATLAB SensorAccelFilter.m とのパリティについて
+// MATLAB側では履歴が空の場合、noise_estimate = residual_norm とし、
+// 最初のデータは外れ値と判定されない（閾値が 3 * residual_norm になるため）。
+// C++側でもこの動作を再現する必要がある。
+// 
+// 2025/12/22: 履歴が空の場合の動作をMATLAB側と一致させる修正
 class OutlierDetector {
 private:
     static constexpr int MAX_HISTORY = 20;
@@ -243,9 +250,25 @@ public:
     OutlierDetector() : count_(0) {}
     
     bool detect(float residual_norm, float threshold_sigma = 3.0f, float min_std = 0.1f) {
-        float noise_std = min_std;
+        float noise_std;
         
-        if (count_ >= 5) {
+        if (count_ == 0) {
+            // 履歴が空の場合: MATLAB側と同様に residual_norm を基準にする
+            // これにより最初のデータは外れ値と判定されない
+            noise_std = fmaxf(residual_norm, min_std);
+        } else if (count_ < 5) {
+            // 履歴が少ない場合: 現在の履歴の標準偏差を使用（MATLAB互換）
+            float sum = 0.0f, sum_sq = 0.0f;
+            for (int i = 0; i < count_; ++i) {
+                sum += history_[i];
+                sum_sq += history_[i] * history_[i];
+            }
+            float mean = sum / count_;
+            float variance = sum_sq / count_ - mean * mean;
+            noise_std = sqrtf(fmaxf(variance, 0.0f));
+            noise_std = fmaxf(noise_std, fmaxf(residual_norm / 3.0f, min_std));
+        } else {
+            // 通常ケース: 履歴から標準偏差を計算
             float sum = 0.0f, sum_sq = 0.0f;
             for (int i = 0; i < count_; ++i) {
                 sum += history_[i];
@@ -253,19 +276,25 @@ public:
             }
             float mean = sum / count_;
             noise_std = sqrtf(sum_sq / count_ - mean * mean);
-            noise_std = fmaxf(noise_std, 0.1f);
+            // MATLAB parity: noise_estimate = max(noise_std, residual_norm / 3.0)
+            // This prevents noise_std from being too small when residuals are consistent
+            noise_std = fmaxf(noise_std, fmaxf(residual_norm / 3.0f, min_std));
         }
         
         float threshold = threshold_sigma * noise_std;
         bool is_outlier = (residual_norm > threshold);
 
-        if (count_ < MAX_HISTORY) {
-            history_[count_++] = residual_norm;
-        } else {
-            for (int i = 0; i < MAX_HISTORY - 1; ++i) {
-                history_[i] = history_[i+1];
+        // MATLAB parity: Only add to history if NOT an outlier
+        // This prevents outliers from corrupting the noise estimate
+        if (!is_outlier) {
+            if (count_ < MAX_HISTORY) {
+                history_[count_++] = residual_norm;
+            } else {
+                for (int i = 0; i < MAX_HISTORY - 1; ++i) {
+                    history_[i] = history_[i+1];
+                }
+                history_[MAX_HISTORY-1] = residual_norm;
             }
-            history_[MAX_HISTORY-1] = residual_norm;
         }
 
         return is_outlier;
@@ -728,18 +757,28 @@ public:
     }
     
     // 加速度フィルタ（外れ値検出付き）
+    // 
+    // 【重要】重力ノルム検証について
+    // この関数はMATLAB側のSensorAccelFilter.mと完全にパリティを保つ必要がある。
+    // MATLAB側では gravity_range = [8.5, 10.5] の範囲外の加速度は外れ値として棄却される。
+    // この検証が欠落すると、異常な加速度データがMEUKFに渡され、姿勢推定（Roll/Pitch）が
+    // 大きく劣化する（RMSE 0.27deg → 1.6deg程度）。
+    // 
+    // 2025/12/22: コメントアウトを解除し、MATLAB側と同一のロジックを有効化
     cm filter_accel(const cm& a_meas, const cm& a_expected, bool& is_outlier) {
-        // NOTE: 重力ノルム検証は一時的にコメントアウト（テスト用）
-        // float a_norm_sq = 0.0f;
-        // for (int i = 0; i < 3; ++i) {
-        //     a_norm_sq += a_meas(i,0) * a_meas(i,0);
-        // }
-        // float a_norm = sqrtf(a_norm_sq);
-        // 
-        // if (a_norm < gravity_range_min_ || a_norm > gravity_range_max_) {
-        //     is_outlier = true;
-        //     return accel_filter.get_value();
-        // }
+        // === 重力ノルム検証 (MATLAB SensorAccelFilter.m と同一) ===
+        // 加速度ノルムが [gravity_range_min_, gravity_range_max_] 範囲外なら外れ値として棄却
+        float a_norm_sq = 0.0f;
+        for (int i = 0; i < 3; ++i) {
+            a_norm_sq += a_meas(i,0) * a_meas(i,0);
+        }
+        float a_norm = sqrtf(a_norm_sq);
+        
+        if (a_norm < gravity_range_min_ || a_norm > gravity_range_max_) {
+            is_outlier = true;
+            // 外れ値の場合は前回のフィルタ済み値を返す
+            return accel_filter.get_value();
+        }
         
         // 残差計算
         float residual_norm = 0.0f;
