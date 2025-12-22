@@ -173,12 +173,13 @@ classdef ESKF < handle
             obj.noiseEstimator.R_gps   = ones(3,1) * (sigma_gps^2);
 
             obj.sensor_filters = struct();
-            obj.sensor_filters.accel = SensorFilter.createAccelFilter();
+            % NOTE: Sensor filters are now MEX-only; MATLAB instances below are placeholders/disabled
+            obj.sensor_filters.accel = SensorAccelFilter(struct('ema_alpha', 0.3, 'history_size', 20, 'gravity_range', [8.5, 10.5]));
             % Gyro MATLAB implementation removed — do not create gyro filter
             obj.sensor_filters.gyro  = [];
-            obj.sensor_filters.mag   = SensorFilter.createMagFilter();
-            obj.sensor_filters.gps   = SensorFilter.createGPSFilter();
-            obj.sensor_filters.baro  = SensorFilter.createBaroFilter();
+            obj.sensor_filters.mag   = SensorMagFilter(struct('ema_alpha', 0.2, 'history_size', 20, 'mag_norm_expected', 50));
+            obj.sensor_filters.gps   = SensorGPSFilter(struct('ema_alpha', 0.15, 'history_size', 10, 'horizontal_accuracy', 2.5, 'vertical_accuracy', 5.0));
+            obj.sensor_filters.baro  = SensorBaroFilter(struct('ema_alpha', 0.1, 'history_size', 50, 'altitude_per_pressure', 44330));
 
             % MATLAB AccelFilter instance removed for Phase2 MEX — keep placeholder
             obj.accel_filter = [];

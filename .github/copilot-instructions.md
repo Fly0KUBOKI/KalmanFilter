@@ -12,125 +12,52 @@ MATLAB（制御・I/O・可視化）+ C++ MEX（高速数値処理）のハイ�
   - C++ では `float64` で保持（PHASE 4 で精度損失問題特定済み）
 
 ## 必須ビルド・テストワークフロー
+# GitHub Copilot 指示 — KalmanFilter (要約)
 
-### C++修正→検証の3ステップ
+短く直接的に：このリポジトリはMATLABの実験/可視化レイヤと、C++ MEXによる高速フィルタコアを組み合わせたカルマンフィルタ実装です。
+
+短期ゴール（よくある作業）:
+- C++修正 → `kalman/cpp/build/build_mex.m` を実行
+- `clear mex` を必ず実行してから MATLAB で動作確認
+- 単体検証は `run_simulation(seed, true)`、バッチは `run_batch_10sets()`
+
+必読ルール（絶対守る）:
+- MEX バイナリは `kalman/cpp/bin/` に置かれる成果物。直接編集禁止。
+- MEX更新後は必ず `clear mex` を実行して MATLAB キャッシュをクリア。
+- 状態 `state` のフィールド順序は厳格：`p, v, q, ba, bg, P`。
+- 共分散 `P` は数値丸めで非対称化するため、出力前に `P = (P + P')/2` を適用。
+
+よく使うコマンド（コピーして使う）:
 ```matlab
-% 1. ビルド（特定ターゲットのみ選択可）
 cd kalman/cpp/build
-build_mex()                    % 全体 or build_mex({'mex_meukf_step_v2'})
-clear mex                      % MATLAB キャッシュ必須クリア
-
-% 2. 単一実行（データ再生成スキップ）
-cd ../../..
-run_simulation(42, true)       % seed=42, skip_data_gen=true
-%  ↓ または バッチ実行（10組）
-run_batch_10sets()             % Results/に複数CSV出力
-
-% 3. 差分チェック
-compare_mex_matlab_detailed    % CSV差分表示
+build_mex();     % or build_mex({'mex_meukf_step_v2'})
+clear mex
+cd ../..
+run_simulation(42, true)
+% or
+run_batch_10sets()
+compare_mex_matlab_detailed()
 ```
 
-### よくある検証パターン
-- **小さな修正**: `build_mex({'mex_quaternion_lib'})` で単体テスト
-- **センサー関連**: `mex_meukf_step_v2` を中心に確認（70%の呼び出しシェア）
-- **精度問題**: `Results/estimation_*.csv` で行ごと差分確認
+設計上の重要事項（AIが理解すべき点）:
+- 状態ベクトルは15次元：`[p(3), v(3), q(4), ba(3), bg(3)]`。`q` は `[w,x,y,z]`。
+- 多くの数値差は「C++での型（float32 vs float64）」や「二重ノーマライズ」「検証ロジック不一致」が原因。
+- センサーフィルタのバリデーション（例：重力ノルム `[8.5,10.5]`）はMATLABとC++で一致させる必要がある。
 
-## プロジェクト固有の「絶対守るルール」
+主要ファイル（参照先）:
+- `run_simulation.m` — 実験スクリプト（エントリ）
+- `run_batch_10sets.m` — 10セット検証スクリプト
+- `kalman/cpp/build/build_mex.m` — MEXビルドスクリプト
+- `kalman/ESKF/@ESKF/ESKF.m` — MATLAB側フィルタラッパ（MEX呼出しハブ）
+- `kalman/GenerateData/` — 入力データ生成・ノイズモデル
 
-| ルール | 理由・補足 |
-|--------|-----------|
-| MEX バイナリは `bin/` フォルダ内 — 直接編集禁止 | 成果物フォルダ。必ずソース修正→`build_mex()` |
-| MEX 更新後は `clear mex` 実行 | キャッシュが古い .mexw64 を使い続ける落とし穴 |
-| 共分散は対称性保持 `P = (P + P')/2` | 数値丸め誤差で非対称化するため |
-| C++ 側がクォータニオン正規化 | MATLAB で二重正規化するな（ノーマライズ済みを重ねると精度低下） |
-| 状態フィールド順序厳格: p,v,q,ba,bg,P | MEX インターフェースがこの順で読み込む |
-| C++ センサーフィルタは MATLAB と同一のバリデーション | 重力ノルム検証 `[8.5, 10.5]` を C++ 側でも必ず実装 |
-| テスト用コメントアウトは即座に元に戻す | `NOTE: 一時的` 等のコメントは定期レビュー |
+バグパターンの例（検索するとき）:
+- `mex_meukf_step_v2`、`sensor_updates`、`filter_accel`、`OutlierDetector`、`float32`、`normalize`
 
-## ⚠️ MATLAB/MEX パリティ — 過去のトラブル事例
+短い作業ガイドライン（AI向け具体例）:
+- 変更を入れる前に `build_mex()` をターゲットで実行し、`clear mex` → `run_simulation(seed,true)` で差分を比較。
+- C++で検証ロジックを追加・変更する場合、同じチェックがMATLAB側にもあるか `kalman/` 内を確認。
+- 結果差分は `Results/estimation_*.csv` で行単位比較する。`compare_mex_matlab_detailed.m` を使う。
 
-### Issue: 重力ノルム検証欠落 + 外れ値検出初期化不一致 (2025/12/22)
-**症状**: MEX モードで Roll/Pitch RMSE が 1.5-1.7 deg（MATLAB モードは 0.27-0.29 deg）
-
-**根本原因**:
-1. C++ `sensor_filter.hpp` の `filter_accel()` で重力ノルム検証がコメントアウトされていた
-2. `OutlierDetector.detect()` で履歴が空の場合の処理がMATLAB側と異なっていた
-   - C++: `noise_std = 0.1` (固定) → 最初のデータが外れ値と誤判定
-   - MATLAB: `noise_std = residual_norm` → 最初のデータは正常と判定
-
-**修正**: 
-- [sensor_filter.hpp#L740-L752](kalman/cpp/include/Common/Sensor/sensor_filter.hpp#L740) の重力検証コードを有効化
+最後に：このファイルは「作業の手順」と「破壊的変更を避けるための最小ルール」をまとめたものです。追加で欲しい具体例や、AIが自動で行うべきチェックがあれば教えてください。
 - [sensor_filter.hpp#L248-L270](kalman/cpp/include/Common/Sensor/sensor_filter.hpp#L248) の外れ値検出初期化ロジックをMATLAB側と一致させる
-
-**教訓**:
-- MATLAB 側のバリデーションロジック（`SensorAccelFilter.m` の `gravity_range` チェック）は C++ 側にも必ず実装
-- **初期化直後の動作（履歴が空、履歴が少ない）もMATLAB側と一致させる**
-- 詳細は `kalman/mardown/MATLAB_MEX_PARITY_CHECKLIST.md` を参照
-
-## 主要ファイル・エントリポイント
-
-| ファイル | 役割 | 補足 |
-|---------|------|------|
-| `run_simulation.m` | MATLAB メイン (seed, skip_data_gen引数) | 1回: ~50秒 |
-| `run_batch_10sets.m` | 10セット自動実行 + CSV比較 | 検証の標準手段 |
-| `ESKF/@ESKF/ESKF.m` | フィルタクラス（predict, sensor_updates, zupt） | MEX 呼び出しハブ |
-| `sensor_updates.m` | センサー測定値→MEX呼び出し | struct 構築・フラグ設定 |
-| `config_params.m` | シミュレーションパラメータ（ノイズ、dt=0.0025） | PHASE 5 で変更可能性大 |
-| `cpp/build/build_mex.m` | ビルドスクリプト | `mex -setup C++` 要確認 |
-| `Results/estimation_*.csv` | MATLAB/MEX 出力結果 | 差分分析の基本データ |
-
-## MEX インターフェース構造（MATLAB↔C++）
-
-### 典型的な呼び出し例 (`sensor_updates.m` より)
-```matlab
-state = struct('p', p, 'v', v, 'q', q, 'ba', ba, 'bg', bg, 'P', P);
-sensor_data = struct('accel', accel, 'gyro', gyro, ..., 
-                     'update_accel', true, 'update_gyro', false, ...);
-mex_params = struct('g', g, 'noise_accel', R_accel, 'alpha', 0.1, ...);
-
-new_state = mex_meukf_step_v2(state, sensor_data, mex_params);
-% 戻り値: state（更新後）と debug_info（オプション）
-```
-
-### 状態・センサー・パラメータ struct の仕様
-- **state**: `p,v,q,ba,bg,P` (P=15×15行列)
-- **sensor_data**: `accel,gyro,mag,gps_pos,alt_baro,dt, update_*フラグ,prev_*` (変更検知用)
-- **mex_params**: `g,mag_ref,noise_*,alpha,beta,kappa` (UKF/MEUKF ハイパーパラメータ)
-
-## デバッグ・トラブルシューティング
-
-### ビルド失敗
-- **症状**: `build_log.txt` に未定義シンボル、コンパイラエラー
-- **チェック**: `mex -setup C++` で MSVC/MinGW が正しく設定されているか確認
-- **対応**: `cpp/build/build_result.txt` に詳細ログ → ファイル依存関係確認
-
-### MEX 実行で NaN/推定値欠落
-- **症状**: `Results/` に CSV が生成されない、または値が全て NaN
-- **原因**: 多くは struct フィールド不一致か、初期状態が異常
-- **確認**: `sensor_updates.m` の状態フィールド順序と struct キー名を再確認
-
-### MATLAB vs MEX 数値差が大きい（>1%）
-- **原因**: C++ 側が `float32` で計算している（PHASE 4 で検出）
-- **対応**: C++ ソースを `float64` に変更 → `build_mex()` → 再検証
-- **詳細**: `cpp/markdown/COMPLETION_REPORT.md` の "32-bit float 精度損失" を参照
-
-### センサー更新順序・頻度の制御
-- **場所**: `run_simulation.m` の メインループ内で `ESKF.predict()` / `ESKF.sensor_updates()` を条件付け呼び出し
-- **頻度パラメータ**: `freq_mag`, `freq_baro`, `freq_gps` (単位: サンプル数)
-- **ZUPT (Zero Velocity Update)**: 静止判定 → `ESKF.zupt()` を呼び出し
-
-## 検索キーワード（コード内パターン探し用）
-
-```
-mex_meukf_step_v2|sensor_updates|update_accel|update_gps|
-float64|normalize|struct_to_matlab|get_field_vec3|
-estimation_matlab.csv|diff_p|max_error
-```
-
----
-
-## フィードバック・追記事項
-本ガイドは 2025/12/21 時点の実装に基づく。以下の変更があれば更新予定:
-- PHASE 5: 精度向上後の新しいベンチマーク値
-- 新しい MEX ターゲット追加時のビルド例
-- よく出るパラメータセット・テストケース
