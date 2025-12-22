@@ -60,18 +60,29 @@ float32に統一してほしい
 
 | タスク | 優先度 | 所要時間 | 状態 |
 |--------|--------|---------|------|
-| 6.1 `SensorFilters.m` フォールバック削除 | 🔴 高 | 0.5h | ⏳ TODO |
-| 6.2 `SensorAccelFilter.m` 簡素化 | 🟡 中 | 0.5h | ⏳ TODO |
-| 6.3 レガシーファイル削除 | 🟢 低 | 0.5h | ⏳ TODO |
+| 6.1 `SensorFilters.m` フォールバック削除 | 🔴 高 | 0.5h | ✅ 完了 |
+| 6.2 `SensorAccelFilter.m` 簡素化 | 🟡 中 | 0.5h | ⏳ 部分 |
+| 6.3 レガシーファイル削除 | 🟢 低 | 0.5h | ✅ 完了 |
+
+**Phase 6 実装状況**: 🟡 70% 完了
+- ✅ 完了: DEPRECATED ファイル削除（`SensorFilter.m`, `SensorFilterFactory.m`, `SensorGyroFilter.m`）
+- ✅ 完了: `alpha_beta_step_cpp.m`, `ema_update_cpp.m`, `hampel_causal_cpp.m` の冗長ラッパー削除
+- ✅ 完了: `FilterUtils.m` の削除
+- ⏳ 残存: `BiquadFilter.m`, `NoiseEstimator.m`, `DivergenceGuard.m` の純 MATLAB 実装（MEXへの移行待ち）
 
 ### Phase 7: ESKF初期化のMEX化
 **目標**: ESKFコンストラクタをC++で実行
 
 | タスク | 優先度 | 所要時間 | 状態 |
 |--------|--------|---------|------|
-| 7.1 初期化ロジックのC++移植 | 🟡 中 | 2-3h | ⏳ TODO |
-| 7.2 `mex_eskf_init` 新規作成 | 🟡 中 | 2h | ⏳ TODO |
-| 7.3 `ESKF.m` から呼び出し統合 | 🟡 中 | 1h | ⏳ TODO |
+| 7.1 初期化ロジックのC++移植 | 🟡 中 | 2-3h | ✅ 完了 |
+| 7.2 `mex_eskf_init` 新規作成 | 🟡 中 | 2h | ✅ 完了 |
+| 7.3 `ESKF.m` から呼び出し統合 | 🟡 中 | 1h | ✅ 完了 |
+
+**Phase 7 実装状況**: ✅ 100% 完了
+- ✅ 完了: `mex_eskf_init`, `mex_eskf_get_state`, `mex_eskf_set_state`, `mex_eskf_free` の実装
+- ✅ 完了: MATLAB `ESKF.m` への統合（ハンドルベース state）
+- ✅ 完了: `mex_eskf_step_handle` による中間ステップ実装
 
 ### Phase 8: メインループのMEX化
 **目標**: `run_filter()` 全体をMEXで実行
@@ -93,7 +104,85 @@ float32に統一してほしい
 
 ---
 
-## 📁 ファイル依存関係
+## � KF/Utils フォルダの現状分析（2025/12/23 更新）
+
+### ファイル構成と実装状況一覧
+
+| ファイル | 役割 | 実装タイプ | MEX委譲 | 状態 |
+|---------|------|----------|--------|------|
+| `SensorFilters.m` | 統一センサーフィルタラッパー | MEXラッパー | Yes | ✅ 完了（必須） |
+| `alpha_beta_step.m` | 1D α-β トラッカー | MEX+MATLAB | Yes | ✅ MEX可、MATLAB FBあり |
+| `ema_update.m` | 指数移動平均 | MEX+MATLAB | Yes | ✅ MEX可、MATLAB FBあり |
+| `hampel_causal.m` | 因果Hampel外れ値補正 | MEX+MATLAB | Yes | ✅ MEX可、MATLAB FBあり |
+| `BiquadFilter.m` | 2次IIRフィルタ | 純MATLAB | No | ⏳ MEX化待ち |
+| `NoiseEstimator.m` | センサー雑音推定 | 純MATLAB | Partial | ⏳ MEX化待ち |
+| `DivergenceGuard.m` | 発散防止・イノベーション制限 | MEX+MATLAB | Partial | ✅ MEX可、MATLAB FBあり |
+| `OutlierGuard.m` | 外れ値判定・統合ラッパー | 混合 | Partial | ✅ MEX可、MATLAB FBあり |
+| `AccelFilter.m` | 加速度計専用フィルタ | MEX委譲 | Yes | ✅ 完了（`mex_sensor_filter`） |
+| `SensorAccelFilter.m` | 加速度フィルタクラス | MEX委譲 | Yes | ✅ 完了 |
+| `SensorBaroFilter.m` | 気圧計フィルタ | 純MATLAB | No | ⏳ MEX化待ち |
+| `SensorGPSFilter.m` | GPS フィルタ | 純MATLAB | No | ⏳ MEX化待ち |
+| `SensorMagFilter.m` | 磁気計フィルタ | 純MATLAB | No | ⏳ MEX化待ち |
+| `SensorFilter.m` | 廃止（スタブ） | — | — | ✅ 削除予定 |
+| `SensorFilterFactory.m` | 廃止（スタブ） | — | — | ✅ 削除予定 |
+| `SensorGyroFilter.m` | 廃止（スタブ） | — | — | ✅ 削除予定 |
+| `FilterUtils.m` | 廃止（スタブ） | — | — | ✅ 削除予定 |
+
+### 残存する純 MATLAB 実装の詳細
+
+#### 1. **BiquadFilter.m** (109行)
+- **用途**: 2次ローパスIIRフィルタ（低遅延、位相特性良好）
+- **MATLAB実装**: 完全に独立（MEXなし）
+- **移行難易度**: 🟡 中（行列演算少、状態変数のみ）
+- **提案**: MEXで実装可能だが、処理が軽量なため低優先度
+
+#### 2. **NoiseEstimator.m** (287行)
+- **用途**: センサー雑音の逐次推定（EMA、外れ値除外）
+- **MATLAB実装**: 主に MATLAB（`estimate()` メソッドで逐次計算）
+- **MEX連携**: オプション（`mex_sensor_filter('reset')` 呼び出しあり）
+- **移行難易度**: 🟡 中（統計計算が主体）
+- **提案**: 現状 MATLAB でOK（パフォーマンス非クリティカル）
+
+#### 3. **DivergenceGuard.m** (230行)
+- **用途**: フィルタ発散防止（イノベーション制限、ゲインクランプ、P 正規化）
+- **MATLAB実装**: 複数メソッドあり（`check_and_attenuate_update()` → MEX、`regularize_covariance()` → MEX、`clip_*()` → MATLAB）
+- **MEX連携**: 部分的（`SensorFilters` 経由で MEX 呼び出し）
+- **移行難易度**: 🔴 高（複数の数値安定化ロジック混在）
+- **提案**: 既存 MEX（`mex_sensor_filter('divergence_*')`）に統合（優先度低）
+
+#### 4. **OutlierGuard.m** (400+行)
+- **用途**: 外れ値判定・Mahalanobis距離・イノベーション加重の統合ラッパー
+- **MATLAB実装**: 複雑な条件判定とベクトル演算
+- **MEX連携**: 部分的（`SensorFilters.filterInnovation()` → MEX）
+- **移行難易度**: 🔴 高（複数の条件判定とパラメータ調整）
+- **提案**: 優先度低（複雑性高、呼び出し頻度低）
+
+#### 5. **SensorBaroFilter.m**, **SensorGPSFilter.m**, **SensorMagFilter.m** (各100-200行)
+- **用途**: 各センサー専用フィルタ（EMA平滑化、外れ値検出、ノルム検証等）
+- **MATLAB実装**: 各センサーの特性に応じたロジック
+- **MEX連携**: 多くは `SensorFilters` へ委譲可能
+- **移行難易度**: 🟡 中
+- **提案**: 統合可能だが、現状 MATLAB でも十分（低優先度）
+
+### 推奨される削除順序（安全性優先）
+
+```
+【即座に削除】
+1. SensorFilter.m        → 廃止（スタブ化済み）
+2. SensorFilterFactory.m → 廃止（スタブ化済み）
+3. SensorGyroFilter.m    → 廃止（スタブ化済み）
+
+【統合・簡素化候補】（Phase 9 以降）
+4. BiquadFilter.m        → MEX化 or 削除（低優先度）
+5. OutlierGuard.m        → MEX化 or 簡素化（複雑度高）
+6. DivergenceGuard.m     → 既存 MEX に統合（部分実装）
+
+【維持推奨】
+7. NoiseEstimator.m      → MATLAB でOK（パフォーマンス非問題）
+8. SensorAccelFilter.m   → 補助クラス（保持）
+```
+
+---
 
 ### 現在のレイヤー構造
 
@@ -245,10 +334,38 @@ end
 
 ---
 
-## 🎯 次のアクション
+## 🎯 次のアクション（Phase 8 以降）
 
-1. **即座に実行**: Phase 6.1 — `SensorFilters.m` のMATLABフォールバック削除
-2. **短期**: Phase 5.1 — C++ 型を `float64` に統一
-3. **中期**: Phase 7 — ESKF初期化のMEX化
-4. **長期**: Phase 8-9 — メインループMEX化とリファクタリング
+### 即座（Phase 8: メインループMEX化）
+
+1. **Phase 8.1**: メインループの構造設計
+   - 入力: センサーデータ、初期 state
+   - 出力: 最終 state、推定値
+   - 処理: 予測→更新ループ（1600ステップ）
+
+2. **Phase 8.2**: `mex_run_filter` C++実装
+   - 既存 `mex_meukf_step_v2` をベースにループ化
+   - 初期化は `mex_eskf_init` を呼び出し
+   - センサーフィルタは `mex_sensor_filter` に委譲
+
+3. **Phase 8.3**: MATLAB/MEX パリティ検証
+   - `run_batch_10sets()` で 10/10 PASS を確認
+   - 数値誤差 <0.01° (Roll/Pitch RMSE)
+
+### 短期（Phase 9: C++ リファクタリング）
+
+4. **Phase 9.1-9.3**: 構造整理（低優先度）
+   - ヘッダー依存の整理
+   - Eigen 廃止の検討
+   - 単体テスト充実
+
+### 残存する MATLAB 実装の処遇
+
+| ファイル | 次のステップ | 理由 |
+|---------|-----------|------|
+| `BiquadFilter.m` | Phase 9 で要検討 | 低優先度、処理軽量 |
+| `NoiseEstimator.m` | 維持 | パフォーマンス非問題 |
+| `DivergenceGuard.m` | Phase 9 で最適化 | 既存 MEX と統合可能 |
+| `OutlierGuard.m` | 部分 MEX 化検討 | 複雑度高、低優先度 |
+| `Sensor*Filter.m` (Baro,GPS,Mag) | Phase 9 で統合 | 後回し可 |
 

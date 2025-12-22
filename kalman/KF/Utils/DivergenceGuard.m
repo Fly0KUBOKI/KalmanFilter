@@ -52,16 +52,12 @@ classdef DivergenceGuard < handle
 
         function [dx_out, should_skip, was_attenuated] = check_and_attenuate_update(obj, sensor_name, innovation, dx_in, ctx)
             should_skip = false; was_attenuated = false; dx_out = dx_in;
-            % Prefer mex implementation when available
+            % Delegate to compiled MEX implementation (MATLAB fallback removed)
             try
-                force_matlab_env = getenv('FORCE_MATLAB_FILTERS');
-                force_matlab = ~isempty(force_matlab_env) && strcmp(force_matlab_env, '1');
-                if ~force_matlab && (exist('mex_sensor_filter','file')==3 || exist('mex_sensor_filter','file')==2)
-                    [dx_out, should_skip, was_attenuated] = SensorFilters.divergence_check(sensor_name, innovation, dx_in);
-                    return;
-                end
-            catch
-                % fall through to MATLAB fallback
+                [dx_out, should_skip, was_attenuated] = SensorFilters.divergence_check(sensor_name, innovation, dx_in);
+                return;
+            catch ME
+                error('DivergenceGuard:MissingMEX', 'Required MEX ''mex_sensor_filter'' not available or failed: %s', ME.message);
             end
 
             % MATLAB fallback (lightweight): basic checks and attenuation
@@ -126,14 +122,12 @@ classdef DivergenceGuard < handle
         end
 
         function P_out = regularize_covariance(obj, P_in)
+            % Delegate to compiled MEX implementation (MATLAB fallback removed)
             try
-                force_matlab_env = getenv('FORCE_MATLAB_FILTERS');
-                force_matlab = ~isempty(force_matlab_env) && strcmp(force_matlab_env, '1');
-                if ~force_matlab && (exist('mex_sensor_filter','file')==3 || exist('mex_sensor_filter','file')==2)
-                    P_out = SensorFilters.divergence_regularize(P_in);
-                    return;
-                end
-            catch
+                P_out = SensorFilters.divergence_regularize(P_in);
+                return;
+            catch ME
+                error('DivergenceGuard:MissingMEX', 'Required MEX ''mex_sensor_filter'' not available or failed: %s', ME.message);
             end
 
             P_out = P_in;

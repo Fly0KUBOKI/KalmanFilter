@@ -48,33 +48,30 @@ classdef AccelFilter < handle
                 a_expected = zeros(3, 1);
             end
             
-            % Try C++ mex implementation first
-            use_mex = (exist('mex_sensor_filter','file') == 3);
-            if use_mex
-                try
+            % Delegate to compiled MEX implementation (MATLAB fallback removed)
+            try
+                if nargout >= 2
                     [a_filt, is_outlier] = SensorFilters.accel(a_meas, a_expected);
-                    a_smooth = a_filt;
-                    obj.a_filtered = a_smooth;
-                    % update noise history with residual if available
-                    try
-                        residual = a_smooth - a_expected;
-                        residual_norm = norm(residual);
-                        obj.noise_history = [obj.noise_history; residual_norm];
-                        if length(obj.noise_history) > obj.history_size
-                            obj.noise_history = obj.noise_history(2:end);
-                        end
-                    catch
-                    end
-                    return;
-                catch
-                    % fallback to MATLAB implementation below
+                else
+                    a_filt = SensorFilters.accel(a_meas, a_expected);
+                    is_outlier = false;
                 end
+                a_smooth = a_filt;
+                obj.a_filtered = a_smooth;
+                % update noise history with residual if available
+                try
+                    residual = a_smooth - a_expected;
+                    residual_norm = norm(residual);
+                    obj.noise_history = [obj.noise_history; residual_norm];
+                    if length(obj.noise_history) > obj.history_size
+                        obj.noise_history = obj.noise_history(2:end);
+                    end
+                catch
+                end
+                return;
+            catch ME
+                error('AccelFilter:MissingMEX', 'Required MEX ''mex_sensor_filter'' not available or failed: %s', ME.message);
             end
-
-            % --- MATLAB 実装フォールバック ---
-            % 残差を計算
-            residual = a_meas - a_expected;
-            residual_norm = norm(residual);
 
             % 現在のノイズレベルを推定
             if isempty(obj.noise_history)
