@@ -1,3 +1,50 @@
+# GitHub Copilot 指示 — KalmanFilter (要点まとめ)
+
+このプロジェクトは「MATLABで実験・可視化を行い、計算ホットパスをC++ MEXで実装する」ハイブリッド構成です。AIエージェントは下記に従って作業してください。
+
+必須ルール（優先度高）
+- MEXバイナリは成果物: [kalman/cpp/bin](kalman/cpp/bin)。直接編集しない。
+- MEX差し替え後は必ず MATLAB で `clear mex` を実行してからテストを行う。
+- 状態ベクトルの順序は厳格: p, v, q, ba, bg, P（計15要素）。`q` は `[w,x,y,z]`（スカラー先頭）。
+- 共分散 `P` は出力前に対称化: `P = (P + P')/2`。
+
+主要ワークフロー（再現コマンド）
+```matlab
+cd kalman/cpp/build
+build_mex();                % 全体ビルド、または build_mex({'ターゲット'})
+clear mex                  % 必須（MEX入れ替え後）
+cd ../..
+run_simulation(42, true)   % 単体検証（seed, 詳細出力）
+run_batch_10sets()         % 10セット検証
+compare_mex_matlab_detailed()
+```
+
+重要ファイルと確認ポイント
+- ビルド: [kalman/cpp/build/build_mex.m](kalman/cpp/build/build_mex.m)
+- MATLABエントリ: [kalman/run_simulation.m](kalman/run_simulation.m)
+- MATLABラッパ: [kalman/ESKF/@ESKF/ESKF.m](kalman/ESKF/@ESKF/ESKF.m)
+- MEX成果物: [kalman/cpp/bin](kalman/cpp/bin)（`*.mexw64` 等）
+- 型混在のリファレンス: [kalman/cpp/TYPE_MIX_REPORT.md](kalman/cpp/TYPE_MIX_REPORT.md)
+
+チェックリスト（編集時に自動で/手作業で確認すべき点）
+- 型整合: C++ の型（double/float32）と MATLAB 入出力の型の違いは結果差に直結する。`TYPE_MIX_REPORT.md` を参照。
+- クォータニオン: 正規化の重複や順序ミスを避ける（`q = [w,x,y,z]` を厳守）。
+- センサーフィルタ: 外れ値検出ロジックは [kalman/cpp/include/Common/Sensor/sensor_filter.hpp](kalman/cpp/include/Common/Sensor/sensor_filter.hpp) に実装。MATLAB側の意図と一致するか確認。
+- 出力比較: `Results/estimation_*.csv` を `compare_mex_matlab_detailed.m` で行単位比較する。
+
+よく使う検索キーワード（デバッグ用）
+- `mex_meukf_step_v2`, `sensor_updates`, `filter_accel`, `OutlierDetector`, `normalize`, `float32`
+
+推奨変更フロー（C++修正時）
+1. 小さな単位で変更（理解しやすい差分）
+2. `build_mex({'ターゲット'})` でターゲットビルド
+3. MATLABで `clear mex` → `run_simulation(seed,true)` 実行
+4. `run_batch_10sets()` と `compare_mex_matlab_detailed()` で回帰確認
+
+短い例: センサーフィルタの閾値を変更する場合は、C++の該当ファイルを変更 → ターゲットビルド → `clear mex` → `run_simulation` → `compare_mex_matlab_detailed`。
+
+フィードバック
+- この要約に不足する箇所（たとえば追加すべき自動チェックやCI手順）があれば指示してください。迅速に反映します。
 # GitHub Copilot 指示 — KalmanFilter
 
 ## 概要

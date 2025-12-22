@@ -1,4 +1,5 @@
-﻿// mex_eskf_step.cpp - 統合ESKF MEXインターフェース
+﻿// （上部のヘッダとヘルパー関数はファイル先頭に一度だけ定義されています）
+// mex_eskf_step.cpp - 統合ESKF MEXインターフェース
 // 1回の呼び出しで予測+全センサー更新を実行
 // 使用法: [state_out] = mex_eskf_step(state_in, sensor_data, params)
 

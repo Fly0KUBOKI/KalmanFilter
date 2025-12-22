@@ -148,6 +148,55 @@ function build_mex(targets)
         else
             warning('ESKF math sources not found, skipping');
         end
+
+        % Build: mex_eskf_init (NEW - ESKF object initialization)
+        fprintf('\n=== [5/7] mex_eskf_init (NEW - ESKF init) ===\n');
+        if exist('mex_eskf_init.cpp', 'file')
+            fprintf('Sources: mex_eskf_init.cpp\n');
+            if wants('mex_eskf_init') && build_single_mex('mex_eskf_init.cpp', compile_opts, inc_args, {}, bin_dir)
+                built_count = built_count + 1;
+            end
+        else
+            % not an error; optional target
+        end
+        
+        % Build: mex_eskf_get_state
+        fprintf('\n=== mex_eskf_get_state ===\n');
+        if exist('mex_eskf_get_state.cpp', 'file')
+            if wants('mex_eskf_get_state') && build_single_mex('mex_eskf_get_state.cpp', compile_opts, inc_args, {}, bin_dir)
+                built_count = built_count + 1;
+            end
+        end
+
+        % Build: mex_eskf_free
+        fprintf('\n=== mex_eskf_free ===\n');
+        if exist('mex_eskf_free.cpp', 'file')
+            if wants('mex_eskf_free') && build_single_mex('mex_eskf_free.cpp', compile_opts, inc_args, {}, bin_dir)
+                built_count = built_count + 1;
+            end
+        end
+        
+        % Build: mex_eskf_set_state
+        fprintf('\n=== mex_eskf_set_state ===\n');
+        if exist('mex_eskf_set_state.cpp', 'file')
+            if wants('mex_eskf_set_state') && build_single_mex('mex_eskf_set_state.cpp', compile_opts, inc_args, {}, bin_dir)
+                built_count = built_count + 1;
+            end
+        end
+
+        % Build: mex_eskf_step_handle (NEW - handle-based wrapper)
+        fprintf('\n=== mex_eskf_step_handle ===\n');
+        if exist('mex_eskf_step_handle.cpp', 'file')
+            if wants('mex_eskf_step_handle') && build_single_mex('mex_eskf_step_handle.cpp', compile_opts, inc_args, {}, bin_dir)
+                built_count = built_count + 1;
+            end
+        end
+
+        % Build: mex_eskf_step (wrapper calling mex_unified_filter)
+        fprintf('\n=== mex_eskf_step (wrapper) ===\n');
+        if exist('mex_eskf_step.cpp', 'file')
+            fprintf('Skipping intermediate mex_eskf_step build; will build with unified sources later.\n');
+        end
         
         % Build: mex_quaternion_lib
         fprintf('\n=== [5/7] mex_quaternion_lib ===\n');
@@ -246,14 +295,32 @@ function success = build_single_mex(mex_file, compile_opts, inc_args, extra_sour
         all_sources = [{mex_file}, extra_sources];
         % Specify output name
         mex_args = [compile_opts, inc_args, {'-output', output_name}, all_sources];
-        
+        % Remove previous build artifacts that can cause stale linking issues
+        mex_output = [output_name '.' mexext];
+        try
+            if exist(mex_output, 'file')
+                delete(mex_output);
+            end
+        catch
+            % ignore
+        end
+        % also remove common linker artifacts on Windows
+        try
+            if ispc
+                if exist([output_name '.lib'], 'file'), delete([output_name '.lib']); end
+                if exist([output_name '.exp'], 'file'), delete([output_name '.exp']); end
+                if exist([output_name '.obj'], 'file'), delete([output_name '.obj']); end
+            end
+        catch
+        end
+
         % Build
         fprintf('Compiling...\n');
         mex(mex_args{:});
         
         % Check output
         mex_output = [output_name '.' mexext];
-        
+
         if exist(mex_output, 'file')
             % Copy to output directory
             dest_file = fullfile(output_dir, mex_output);

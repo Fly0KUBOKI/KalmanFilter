@@ -4,6 +4,8 @@ classdef ESKF < handle
     properties
         % 状態
         p; v; q; ba; bg; P; Q; dt; g
+        % C++ MEX state handle (uint64), 0 if not created
+        state_handle
         % ヘルパー
         noiseEstimator; sensor_filters; accel_filter; divergence_guard
         % SensorDataBuffer統合 (Common削除のため)
@@ -164,6 +166,26 @@ classdef ESKF < handle
             obj.P(10:12, 10:12) = eye(3) * 0.5; % 加速度バイアスの初期分散を大きく（0.05 -> 0.5）
             obj.P(13:15, 13:15) = eye(3) * 0.1; % ジャイロバイアスの初期分散を大きく（0.01 -> 0.1）
 
+            % --- Try to initialize C++ ESKF state (parallel, non-fatal) ---
+            try
+                if exist('mex_eskf_init', 'file') == 3
+                    state_in = struct();
+                    state_in.p = obj.p(:);
+                    state_in.v = obj.v(:);
+                    state_in.q = obj.q(:);
+                    state_in.ba = obj.ba(:);
+                    state_in.bg = obj.bg(:);
+                    state_in.P = obj.P;
+                    % params struct can be empty for now
+                    obj.state_handle = mex_eskf_init(state_in, struct());
+                else
+                    obj.state_handle = uint64(0);
+                end
+            catch ME
+                warning('mex_eskf_init failed: %s', ME.message);
+                obj.state_handle = uint64(0);
+            end
+
             % ヘルパークラス初期化
             obj.noiseEstimator = NoiseEstimator(10);
             obj.noiseEstimator.R_accel = ones(3,1) * (sigma_a^2);
@@ -251,6 +273,19 @@ classdef ESKF < handle
             obj.ba = output.accel_bias(:);
             obj.bg = output.gyro_bias(:);
             obj.P = output.covariance;
+        end
+
+        function delete(obj)
+            % Free C++ persistent state if allocated
+            try
+                if isprop(obj, 'state_handle') && ~isempty(obj.state_handle) && obj.state_handle ~= uint64(0)
+                    if exist('mex_eskf_free', 'file') == 3
+                        mex_eskf_free(obj.state_handle);
+                    end
+                end
+            catch
+                % suppress errors during deletion
+            end
         end
     end
 end
