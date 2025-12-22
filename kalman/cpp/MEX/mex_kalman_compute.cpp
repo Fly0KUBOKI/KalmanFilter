@@ -24,17 +24,16 @@ using namespace kalman_compute;
 static std::vector<float> mat_to_float_vec(const mxArray* arr) {
     mwSize n = mxGetNumberOfElements(arr);
     std::vector<float> vec(n);
-    
+    if (!arr) {
+        mexErrMsgTxt("Input array is null");
+    }
     if (mxIsDouble(arr)) {
-        double* pr = mxGetPr(arr);
-        for (mwSize i = 0; i < n; ++i) {
-            vec[i] = static_cast<float>(pr[i]);
-        }
+        mex_conv::mxArrayToFloatArray(arr, vec.data(), static_cast<size_t>(n));
     } else if (mxIsSingle(arr)) {
-        float* pr = (float*)mxGetData(arr);
-        for (mwSize i = 0; i < n; ++i) {
-            vec[i] = pr[i];
-        }
+        // Direct copy from single data
+        float* pr = static_cast<float*>(mxGetData(arr));
+        if (!pr) mexErrMsgTxt("Input single array data is null");
+        for (mwSize i = 0; i < n; ++i) vec[i] = pr[i];
     } else {
         mexErrMsgTxt("Input must be double or single");
     }

@@ -1,6 +1,8 @@
 ﻿#include "mex.h"
 #include "../Common/Math/quaternion_lib.hpp"
 #include <cstring>
+#include "mex_type_conv.hpp"
+#include <vector>
 
 using Quat = quat_lib::Quaternion<float>;
 
@@ -36,8 +38,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("mex_quaternion_lib:nrhs", "q required");
         }
         
-        const double* q_data = mxGetPr(prhs[1]);
-        Quat q(q_data[0], q_data[1], q_data[2], q_data[3]);
+        float q_tmp[4];
+        mex_conv::mxArrayToFloatArray(prhs[1], q_tmp, 4);
+        Quat q(q_tmp[0], q_tmp[1], q_tmp[2], q_tmp[3]);
         q.normalize();
         
         float R[9];
@@ -56,8 +59,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("mex_quaternion_lib:nrhs", "q required");
         }
         
-        const double* q_data = mxGetPr(prhs[1]);
-        Quat q(q_data[0], q_data[1], q_data[2], q_data[3]);
+        float q_tmp[4];
+        mex_conv::mxArrayToFloatArray(prhs[1], q_tmp, 4);
+        Quat q(q_tmp[0], q_tmp[1], q_tmp[2], q_tmp[3]);
         q.normalize();
         
         float roll, pitch, yaw;
@@ -72,16 +76,17 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     } else if (strcmp(action, "from_euler") == 0) {
         // q = from_euler(euler) or q = from_euler(roll, pitch, yaw)
         float roll, pitch, yaw;
-        
+
         if (nrhs == 2) {
-            const double* euler = mxGetPr(prhs[1]);
-            roll = euler[0];
-            pitch = euler[1];
-            yaw = euler[2];
+            float euler_tmp[3];
+            mex_conv::mxArrayToFloatArray(prhs[1], euler_tmp, 3);
+            roll = euler_tmp[0];
+            pitch = euler_tmp[1];
+            yaw = euler_tmp[2];
         } else if (nrhs == 4) {
-            roll = mxGetScalar(prhs[1]);
-            pitch = mxGetScalar(prhs[2]);
-            yaw = mxGetScalar(prhs[3]);
+            roll = mex_conv::mxGetScalarAsFloat(prhs[1]);
+            pitch = mex_conv::mxGetScalarAsFloat(prhs[2]);
+            yaw = mex_conv::mxGetScalarAsFloat(prhs[3]);
         } else {
             mexErrMsgIdAndTxt("mex_quaternion_lib:nrhs", "euler vector or (roll,pitch,yaw) required");
         }
@@ -101,8 +106,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("mex_quaternion_lib:nrhs", "q required");
         }
         
-        const double* q_data = mxGetPr(prhs[1]);
-        Quat q(q_data[0], q_data[1], q_data[2], q_data[3]);
+        float q_tmp2[4];
+        mex_conv::mxArrayToFloatArray(prhs[1], q_tmp2, 4);
+        Quat q(q_tmp2[0], q_tmp2[1], q_tmp2[2], q_tmp2[3]);
         q.normalize();
         
         plhs[0] = mxCreateDoubleMatrix(4, 1, mxREAL);
@@ -118,11 +124,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("mex_quaternion_lib:nrhs", "q1 and q2 required");
         }
         
-        const double* q1_data = mxGetPr(prhs[1]);
-        const double* q2_data = mxGetPr(prhs[2]);
-        
-        Quat q1(q1_data[0], q1_data[1], q1_data[2], q1_data[3]);
-        Quat q2(q2_data[0], q2_data[1], q2_data[2], q2_data[3]);
+        float q1_tmp[4], q2_tmp[4];
+        mex_conv::mxArrayToFloatArray(prhs[1], q1_tmp, 4);
+        mex_conv::mxArrayToFloatArray(prhs[2], q2_tmp, 4);
+
+        Quat q1(q1_tmp[0], q1_tmp[1], q1_tmp[2], q1_tmp[3]);
+        Quat q2(q2_tmp[0], q2_tmp[1], q2_tmp[2], q2_tmp[3]);
         
         Quat q = Quat::multiply(q1, q2);
         
@@ -139,8 +146,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("mex_quaternion_lib:nrhs", "theta required");
         }
         
-        const double* theta = mxGetPr(prhs[1]);
-        Quat q = Quat::from_small_angle(theta[0], theta[1], theta[2]);
+        float theta_tmp[3];
+        mex_conv::mxArrayToFloatArray(prhs[1], theta_tmp, 3);
+        Quat q = Quat::from_small_angle(theta_tmp[0], theta_tmp[1], theta_tmp[2]);
         
         plhs[0] = mxCreateDoubleMatrix(4, 1, mxREAL);
         double* q_out = mxGetPr(plhs[0]);
@@ -155,12 +163,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("mex_quaternion_lib:nrhs", "q, omega, dt required");
         }
         
-        const double* q_data = mxGetPr(prhs[1]);
-        const double* omega = mxGetPr(prhs[2]);
-        float dt = mxGetScalar(prhs[3]);
-        
-        Quat q(q_data[0], q_data[1], q_data[2], q_data[3]);
-        Quat q_new = Quat::integrate(q, omega[0], omega[1], omega[2], dt);
+        float q_tmp3[4]; float omega_tmp[3];
+        mex_conv::mxArrayToFloatArray(prhs[1], q_tmp3, 4);
+        mex_conv::mxArrayToFloatArray(prhs[2], omega_tmp, 3);
+        float dt = mex_conv::mxGetScalarAsFloat(prhs[3]);
+
+        Quat q(q_tmp3[0], q_tmp3[1], q_tmp3[2], q_tmp3[3]);
+        Quat q_new = Quat::integrate(q, omega_tmp[0], omega_tmp[1], omega_tmp[2], dt);
         
         plhs[0] = mxCreateDoubleMatrix(4, 1, mxREAL);
         double* q_out = mxGetPr(plhs[0]);
@@ -175,8 +184,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("mex_quaternion_lib:nrhs", "q required");
         }
         
-        const double* q_data = mxGetPr(prhs[1]);
-        Quat q(q_data[0], q_data[1], q_data[2], q_data[3]);
+        float q_tmp4[4];
+        mex_conv::mxArrayToFloatArray(prhs[1], q_tmp4, 4);
+        Quat q(q_tmp4[0], q_tmp4[1], q_tmp4[2], q_tmp4[3]);
         Quat q_conj = q.conjugate();
         
         plhs[0] = mxCreateDoubleMatrix(4, 1, mxREAL);
@@ -192,8 +202,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("mex_quaternion_lib:nrhs", "q required");
         }
         
-        const double* q_data = mxGetPr(prhs[1]);
-        Quat q(q_data[0], q_data[1], q_data[2], q_data[3]);
+        float q_tmp5[4];
+        mex_conv::mxArrayToFloatArray(prhs[1], q_tmp5, 4);
+        Quat q(q_tmp5[0], q_tmp5[1], q_tmp5[2], q_tmp5[3]);
         Quat q_inv = q.inverse();
         
         plhs[0] = mxCreateDoubleMatrix(4, 1, mxREAL);
@@ -209,10 +220,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("mex_quaternion_lib:nrhs", "v1 and v2 required");
         }
         
-        const double* v1 = mxGetPr(prhs[1]);
-        const double* v2 = mxGetPr(prhs[2]);
-        
-        Quat q = Quat::from_two_vectors(v1[0], v1[1], v1[2], v2[0], v2[1], v2[2]);
+        float v1_tmp[3], v2_tmp[3];
+        mex_conv::mxArrayToFloatArray(prhs[1], v1_tmp, 3);
+        mex_conv::mxArrayToFloatArray(prhs[2], v2_tmp, 3);
+
+        Quat q = Quat::from_two_vectors(v1_tmp[0], v1_tmp[1], v1_tmp[2], v2_tmp[0], v2_tmp[1], v2_tmp[2]);
         
         plhs[0] = mxCreateDoubleMatrix(4, 1, mxREAL);
         double* q_out = mxGetPr(plhs[0]);
@@ -227,12 +239,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("mex_quaternion_lib:nrhs", "q1 and q2 required");
         }
         
-        const double* q1_data = mxGetPr(prhs[1]);
-        const double* q2_data = mxGetPr(prhs[2]);
-        
-        Quat q1(q1_data[0], q1_data[1], q1_data[2], q1_data[3]);
-        Quat q2(q2_data[0], q2_data[1], q2_data[2], q2_data[3]);
-        
+        float q1_tmp2[4], q2_tmp2[4];
+        mex_conv::mxArrayToFloatArray(prhs[1], q1_tmp2, 4);
+        mex_conv::mxArrayToFloatArray(prhs[2], q2_tmp2, 4);
+
+        Quat q1(q1_tmp2[0], q1_tmp2[1], q1_tmp2[2], q1_tmp2[3]);
+        Quat q2(q2_tmp2[0], q2_tmp2[1], q2_tmp2[2], q2_tmp2[3]);
+
         float d = Quat::distance(q1, q2);
         
         plhs[0] = mxCreateDoubleScalar(static_cast<double>(d));
@@ -243,12 +256,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("mex_quaternion_lib:nrhs", "q1, q2, t required");
         }
         
-        const double* q1_data = mxGetPr(prhs[1]);
-        const double* q2_data = mxGetPr(prhs[2]);
-        float t = mxGetScalar(prhs[3]);
-        
-        Quat q1(q1_data[0], q1_data[1], q1_data[2], q1_data[3]);
-        Quat q2(q2_data[0], q2_data[1], q2_data[2], q2_data[3]);
+        float q1_tmp3[4], q2_tmp3[4];
+        mex_conv::mxArrayToFloatArray(prhs[1], q1_tmp3, 4);
+        mex_conv::mxArrayToFloatArray(prhs[2], q2_tmp3, 4);
+        float t = mex_conv::mxGetScalarAsFloat(prhs[3]);
+
+        Quat q1(q1_tmp3[0], q1_tmp3[1], q1_tmp3[2], q1_tmp3[3]);
+        Quat q2(q2_tmp3[0], q2_tmp3[1], q2_tmp3[2], q2_tmp3[3]);
         
         Quat q = Quat::slerp(q1, q2, t);
         
@@ -265,9 +279,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("mex_quaternion_lib:nrhs", "v required");
         }
         
-        const double* v = mxGetPr(prhs[1]);
+        float v_tmp[3];
+        mex_conv::mxArrayToFloatArray(prhs[1], v_tmp, 3);
         float S[9];
-        Quat::skew_symmetric(v[0], v[1], v[2], S);
+        Quat::skew_symmetric(v_tmp[0], v_tmp[1], v_tmp[2], S);
         
         plhs[0] = mxCreateDoubleMatrix(3, 3, mxREAL);
         double* S_out = mxGetPr(plhs[0]);

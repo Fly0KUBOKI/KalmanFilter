@@ -1,8 +1,10 @@
 ﻿#include "mex.h"
 #include "../include/Common/Sensor/sensor_filter.hpp"
 #include "../include/Common/Math/fixed_matrix.hpp"
+#include "mex_type_conv.hpp"
 #include <string>
 #include <cstdlib>
+#include <vector>
 
 using namespace common::sensor;
 
@@ -53,22 +55,24 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         if (nrhs < 5) mexErrMsgIdAndTxt("SensorFilter:Usage", "noise_estimate requires 4 args (sensor, innov, H, P)");
         char stype[64];
         if (mxGetString(prhs[1], stype, sizeof(stype))) mexErrMsgIdAndTxt("SensorFilter:Usage", "sensor_type must be string");
-        
         int innov_len = mxGetM(prhs[2]) * mxGetN(prhs[2]);
         auto innov = cmath_fx::FixedMatrix(innov_len, 1);
-        double* ip = mxGetPr(prhs[2]);
-        for(int i=0; i<innov_len; ++i) innov(i,0) = (float)ip[i];
-        
+        std::vector<float> innov_tmp(static_cast<size_t>(innov_len));
+        mex_conv::mxArrayToFloatArray(prhs[2], innov_tmp.data(), static_cast<size_t>(innov_len));
+        for(int i=0; i<innov_len; ++i) innov(i,0) = innov_tmp[i];
+
         int H_m = mxGetM(prhs[3]); int H_n = mxGetN(prhs[3]);
         auto H = cmath_fx::FixedMatrix(H_m, H_n);
-        double* Hp = mxGetPr(prhs[3]);
-        for(int j=0;j<H_n;++j) for(int i=0;i<H_m;++i) H(i,j)=(float)Hp[j*H_m+i];
-        
+        std::vector<float> H_tmp(static_cast<size_t>(H_m) * static_cast<size_t>(H_n));
+        mex_conv::mxArrayToFloatArray(prhs[3], H_tmp.data(), static_cast<size_t>(H_m) * static_cast<size_t>(H_n));
+        for(int j=0;j<H_n;++j) for(int i=0;i<H_m;++i) H(i,j) = H_tmp[j*H_m + i];
+
         int P_m = mxGetM(prhs[4]); int P_n = mxGetN(prhs[4]);
         auto P = cmath_fx::FixedMatrix(P_m, P_n);
-        double* Pp = mxGetPr(prhs[4]);
-        for(int j=0;j<P_n;++j) for(int i=0;i<P_m;++i) P(i,j)=(float)Pp[j*P_m+i];
-        
+        std::vector<float> P_tmp(static_cast<size_t>(P_m) * static_cast<size_t>(P_n));
+        mex_conv::mxArrayToFloatArray(prhs[4], P_tmp.data(), static_cast<size_t>(P_m) * static_cast<size_t>(P_n));
+        for(int j=0;j<P_n;++j) for(int i=0;i<P_m;++i) P(i,j) = P_tmp[j*P_m + i];
+
         filter_lib.noise_estimator.estimate(stype, innov, H, P);
         return;
     }
@@ -78,18 +82,19 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         if (mxIsStruct(prhs[1])) {
             mxArray* f;
             float ema_alpha = 0.3f; int history_size = 10; float thresh = 3.0f; float min_std = 0.1f;
-            f = mxGetField(prhs[1], 0, "ema_alpha"); if(f) ema_alpha = (float)mxGetScalar(f);
-            f = mxGetField(prhs[1], 0, "history_size"); if(f) history_size = (int)mxGetScalar(f);
-            f = mxGetField(prhs[1], 0, "threshold_sigma"); if(f) thresh = (float)mxGetScalar(f);
-            f = mxGetField(prhs[1], 0, "min_std"); if(f) min_std = (float)mxGetScalar(f);
+            f = mxGetField(prhs[1], 0, "ema_alpha"); if(f) ema_alpha = mex_conv::mxGetScalarAsFloat(f);
+            f = mxGetField(prhs[1], 0, "history_size"); if(f) history_size = static_cast<int>(mex_conv::mxGetScalarAsFloat(f));
+            f = mxGetField(prhs[1], 0, "threshold_sigma"); if(f) thresh = mex_conv::mxGetScalarAsFloat(f);
+            f = mxGetField(prhs[1], 0, "min_std"); if(f) min_std = mex_conv::mxGetScalarAsFloat(f);
             filter_lib.set_accel_config(ema_alpha, history_size, thresh, min_std);
         } else if (mxIsDouble(prhs[1])) {
             int len = mxGetNumberOfElements(prhs[1]);
-            double* dp = mxGetPr(prhs[1]);
-            float ema_alpha = (len>0)?(float)dp[0]:0.3f;
-            int history_size = (len>1)?(int)dp[1]:10;
-            float thresh = (len>2)?(float)dp[2]:3.0f;
-            float min_std = (len>3)?(float)dp[3]:0.1f;
+            std::vector<float> dp_tmp(static_cast<size_t>(len));
+            mex_conv::mxArrayToFloatArray(prhs[1], dp_tmp.data(), static_cast<size_t>(len));
+            float ema_alpha = (len>0)?dp_tmp[0]:0.3f;
+            int history_size = (len>1)?static_cast<int>(dp_tmp[1]):10;
+            float thresh = (len>2)?dp_tmp[2]:3.0f;
+            float min_std = (len>3)?dp_tmp[3]:0.1f;
             filter_lib.set_accel_config(ema_alpha, history_size, thresh, min_std);
         } else {
             mexErrMsgIdAndTxt("SensorFilter:Usage","accel_config: unsupported arg");
@@ -103,8 +108,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         int e_m = mxGetM(prhs[2]); int e_n = mxGetN(prhs[2]);
         if (m_m*m_n !=3 || e_m*e_n!=3) mexErrMsgIdAndTxt("SensorFilter:Usage","accel vectors must be length 3");
         cmath_fx::FixedMatrix a_meas(3,1), a_exp(3,1);
-        double* ap = mxGetPr(prhs[1]); for(int i=0;i<3;++i) a_meas(i,0)=(float)ap[i];
-        double* bp = mxGetPr(prhs[2]); for(int i=0;i<3;++i) a_exp(i,0)=(float)bp[i];
+        float a_tmp[3]; float b_tmp[3];
+        mex_conv::mxArrayToFloatArray(prhs[1], a_tmp, 3);
+        mex_conv::mxArrayToFloatArray(prhs[2], b_tmp, 3);
+        for(int i=0;i<3;++i) a_meas(i,0) = a_tmp[i];
+        for(int i=0;i<3;++i) a_exp(i,0) = b_tmp[i];
         bool is_out = false;
         auto a_filt = filter_lib.filter_accel(a_meas, a_exp, is_out);
         plhs[0] = mxCreateDoubleMatrix(3,1,mxREAL); double* out = mxGetPr(plhs[0]); for(int i=0;i<3;++i) out[i]=(double)a_filt(i,0);
@@ -118,8 +126,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         int e_m = mxGetM(prhs[2]); int e_n = mxGetN(prhs[2]);
         if (m_m*m_n !=3 || e_m*e_n!=3) mexErrMsgIdAndTxt("SensorFilter:Usage","mag vectors must be length 3");
         cmath_fx::FixedMatrix m_meas(3,1), m_exp(3,1);
-        double* ap = mxGetPr(prhs[1]); for(int i=0;i<3;++i) m_meas(i,0)=(float)ap[i];
-        double* bp = mxGetPr(prhs[2]); for(int i=0;i<3;++i) m_exp(i,0)=(float)bp[i];
+        float a_tmp[3]; float b_tmp[3];
+        mex_conv::mxArrayToFloatArray(prhs[1], a_tmp, 3);
+        mex_conv::mxArrayToFloatArray(prhs[2], b_tmp, 3);
+        for(int i=0;i<3;++i) m_meas(i,0) = a_tmp[i];
+        for(int i=0;i<3;++i) m_exp(i,0) = b_tmp[i];
         bool is_out = false;
         auto m_filt = filter_lib.filter_mag(m_meas, m_exp, is_out);
         plhs[0] = mxCreateDoubleMatrix(3,1,mxREAL); double* out = mxGetPr(plhs[0]); for(int i=0;i<3;++i) out[i]=(double)m_filt(i,0);
@@ -131,8 +142,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         if (nrhs < 3) mexErrMsgIdAndTxt("SensorFilter:Usage","gps requires gps_pos (3x1) and dt");
         int p_m = mxGetM(prhs[1]); int p_n = mxGetN(prhs[1]);
         if (p_m*p_n!=3) mexErrMsgIdAndTxt("SensorFilter:Usage","gps_pos must be length 3");
-        double* pp = mxGetPr(prhs[1]); cmath_fx::FixedMatrix gps_pos(3,1); for(int i=0;i<3;++i) gps_pos(i,0)=(float)pp[i];
-        double dt = mxGetScalar(prhs[2]);
+        float pp_tmp[3]; cmath_fx::FixedMatrix gps_pos(3,1);
+        mex_conv::mxArrayToFloatArray(prhs[1], pp_tmp, 3);
+        for(int i=0;i<3;++i) gps_pos(i,0) = pp_tmp[i];
+        float dt = mex_conv::mxGetScalarAsFloat(prhs[2]);
         cmath_fx::FixedMatrix pos_out(3,1), vel_out(3,1);
         filter_lib.filter_gps(gps_pos, (float)dt, pos_out, vel_out);
         plhs[0]=mxCreateDoubleMatrix(3,1,mxREAL); double* out1=mxGetPr(plhs[0]); for(int i=0;i<3;++i) out1[i]=(double)pos_out(i,0);
@@ -142,7 +155,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
     if (cmdstr == "baro") {
         if (nrhs < 2) mexErrMsgIdAndTxt("SensorFilter:Usage","baro requires pressure scalar");
-        double p = mxGetScalar(prhs[1]);
+        float p = mex_conv::mxGetScalarAsFloat(prhs[1]);
         // Convert pressure (Pa) to altitude (m) using barometric formula
         const float P0 = 101325.0f;
         const float ALT_COEFF = 44330.0f; // matches MATLAB SensorBaroFilter default
@@ -160,13 +173,15 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         
         int innov_len = mxGetM(prhs[2]) * mxGetN(prhs[2]);
         auto innov = cmath_fx::FixedMatrix(innov_len, 1);
-        double* ip = mxGetPr(prhs[2]);
-        for(int i=0; i<innov_len; ++i) innov(i,0) = (float)ip[i];
-        
+        std::vector<float> innov_tmp(static_cast<size_t>(innov_len));
+        mex_conv::mxArrayToFloatArray(prhs[2], innov_tmp.data(), static_cast<size_t>(innov_len));
+        for(int i=0; i<innov_len; ++i) innov(i,0) = innov_tmp[i];
+
         int dx_len = mxGetM(prhs[3]) * mxGetN(prhs[3]);
         auto dx = cmath_fx::FixedMatrix(dx_len, 1);
-        double* dxp = mxGetPr(prhs[3]);
-        for(int i=0; i<dx_len; ++i) dx(i,0) = (float)dxp[i];
+        std::vector<float> dx_tmp(static_cast<size_t>(dx_len));
+        mex_conv::mxArrayToFloatArray(prhs[3], dx_tmp.data(), static_cast<size_t>(dx_len));
+        for(int i=0; i<dx_len; ++i) dx(i,0) = dx_tmp[i];
         
         bool was_att = false;
         bool skip = filter_lib.divergence_guard.check_and_attenuate(sname, innov, dx, was_att);
@@ -182,8 +197,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         if (nrhs < 2) mexErrMsgIdAndTxt("SensorFilter:Usage", "divergence_regularize requires P");
         int P_m = mxGetM(prhs[1]); int P_n = mxGetN(prhs[1]);
         auto P = cmath_fx::FixedMatrix(P_m, P_n);
-        double* Pp = mxGetPr(prhs[1]);
-        for(int j=0;j<P_n;++j) for(int i=0;i<P_m;++i) P(i,j)=(float)Pp[j*P_m+i];
+        std::vector<float> P_tmp(static_cast<size_t>(P_m) * static_cast<size_t>(P_n));
+        mex_conv::mxArrayToFloatArray(prhs[1], P_tmp.data(), static_cast<size_t>(P_m) * static_cast<size_t>(P_n));
+        for(int j=0;j<P_n;++j) for(int i=0;i<P_m;++i) P(i,j) = P_tmp[j*P_m + i];
         filter_lib.divergence_guard.regularize_covariance(P);
         plhs[0] = mxCreateDoubleMatrix(P.rows, P.cols, mxREAL);
         double* out = mxGetPr(plhs[0]);

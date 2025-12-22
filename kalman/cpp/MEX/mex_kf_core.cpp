@@ -5,17 +5,23 @@
 #include "../KF/Core/kalman_filter_core.hpp"
 #include "../Common/Math/fixed_matrix.hpp"
 
+// Safe MEX <-> float conversions
+#include "mex_type_conv.hpp"
+#include <vector>
+
 using cm = cmath_fx::FixedMatrix;
 
 static bool matToFixed(const mxArray* arr, cm& out) {
-    if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
+    if (!arr) return false;
     mwSize rows = mxGetM(arr); mwSize cols = mxGetN(arr);
     if (rows > cmath_fx::MAX_N || cols > cmath_fx::MAX_N) return false;
-    double* pr = mxGetPr(arr);
+    size_t ne = static_cast<size_t>(rows) * static_cast<size_t>(cols);
+    std::vector<float> tmp(ne);
+    mex_conv::mxArrayToFloatArray(arr, tmp.data(), ne);
     out.resize((int)rows, (int)cols);
     for (mwSize j = 0; j < cols; ++j) {
         for (mwSize i = 0; i < rows; ++i) {
-            out((int)i,(int)j) = static_cast<float>(pr[j*rows + i]);
+            out((int)i,(int)j) = tmp[static_cast<size_t>(j) * static_cast<size_t>(rows) + static_cast<size_t>(i)];
         }
     }
     return true;
@@ -47,8 +53,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     if (!matToFixed(prhs[4], w_meas)) mexErrMsgTxt("Failed to read w_meas");
     if (!matToFixed(prhs[5], bg)) mexErrMsgTxt("Failed to read bg");
     if (!matToFixed(prhs[6], Q)) mexErrMsgTxt("Failed to read Q");
-    if (!mxIsDouble(prhs[7]) || mxIsComplex(prhs[7]) || mxGetNumberOfElements(prhs[7])!=1) mexErrMsgTxt("dt must be scalar double");
-    float dt = static_cast<float>(mxGetScalar(prhs[7]));
+    float dt = mex_conv::mxGetScalarAsFloat(prhs[7]);
 
     // check sizes
     if (P.rows != P.cols) mexErrMsgTxt("P must be square");

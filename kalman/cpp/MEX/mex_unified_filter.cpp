@@ -1,6 +1,7 @@
 ﻿#include "mex.h"
 #include "../include/MEUKF/unified_filter.hpp"
 #include "../MEUKF/meukf_core.hpp"
+#include "mex_type_conv.hpp"
 #include <cstring>
 
 // ヘルパー: MATLAB double から C++ float への変換
@@ -8,13 +9,8 @@ inline float to_float(double d) { return static_cast<float>(d); }
 
 // ヘルパー: MATLABからVector3取得
 void get_vec3(const mxArray* mx_struct, const char* field_name, float* out) {
-    mxArray* field = mxGetField(mx_struct, 0, field_name);
-    if (field && mxGetNumberOfElements(field) >= 3) {
-        double* pr = mxGetPr(field);
-        out[0] = to_float(pr[0]);
-        out[1] = to_float(pr[1]);
-        out[2] = to_float(pr[2]);
-    }
+    const mxArray* field = mxGetField(mx_struct, 0, field_name);
+    mex_conv::mxArrayToFloatArray(field, out, 3);
 }
 
 // ヘルパー: Vector3をMATLABへ設定
@@ -30,14 +26,15 @@ void set_vec3(mxArray* mx_struct, const char* field_name, const float* in) {
 
 // ヘルパー: MATLABからスカラー取得
 float get_scalar(const mxArray* mx_struct, const char* field_name, float default_val = 0.0f) {
-    mxArray* field = mxGetField(mx_struct, 0, field_name);
-    return field ? to_float(mxGetScalar(field)) : default_val;
+    const mxArray* field = mxGetField(mx_struct, 0, field_name);
+    return field ? mex_conv::mxGetScalarAsFloat(field) : default_val;
 }
 
 // ヘルパー: MATLABからbool取得
 bool get_bool(const mxArray* mx_struct, const char* field_name, bool default_val = false) {
-    mxArray* field = mxGetField(mx_struct, 0, field_name);
-    return field ? (mxGetScalar(field) != 0.0) : default_val;
+    const mxArray* field = mxGetField(mx_struct, 0, field_name);
+    if (!field) return default_val;
+    return (mex_conv::mxGetScalarAsFloat(field) != 0.0f);
 }
 
 // FilterInputをMATLAB構造体から読み込み
@@ -142,23 +139,18 @@ void eskf_state_to_filter_output(const mxArray* mx_state, unified::FilterOutput&
     get_vec3(mx_state, "bg", output.gyro_bias);
     
     // Quaternion
-    mxArray* q_field = mxGetField(mx_state, 0, "q");
-    if (q_field && mxGetNumberOfElements(q_field) >= 4) {
-        double* q_data = mxGetPr(q_field);
-        output.quaternion[0] = to_float(q_data[0]); // qw
-        output.quaternion[1] = to_float(q_data[1]); // qx
-        output.quaternion[2] = to_float(q_data[2]); // qy
-        output.quaternion[3] = to_float(q_data[3]); // qz
-    }
+    const mxArray* q_field = mxGetField(mx_state, 0, "q");
+    float q_tmp[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+    mex_conv::mxArrayToFloatArray(q_field, q_tmp, 4);
+    for (int i = 0; i < 4; ++i) output.quaternion[i] = q_tmp[i];
     
     // Covariance
-    mxArray* P_field = mxGetField(mx_state, 0, "P");
-    if (P_field) {
-        double* P_data = mxGetPr(P_field);
-        for (int c = 0; c < 15; ++c) {
-            for (int r = 0; r < 15; ++r) {
-                output.covariance(r, c) = to_float(P_data[c*15 + r]);
-            }
+    const mxArray* P_field = mxGetField(mx_state, 0, "P");
+    float P_tmp[15*15];
+    mex_conv::mxArrayToFloatArray(P_field, P_tmp, 15*15);
+    for (int c = 0; c < 15; ++c) {
+        for (int r = 0; r < 15; ++r) {
+            output.covariance(r, c) = P_tmp[c*15 + r];
         }
     }
 }

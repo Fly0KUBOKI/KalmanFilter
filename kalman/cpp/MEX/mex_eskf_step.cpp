@@ -4,43 +4,29 @@
 
 #include "mex.h"
 #include "../include/MEUKF/unified_filter.hpp"
+#include "mex_type_conv.hpp"
 #include <cstring>
 #include <cmath>
 
 // ヘルパー関数: MATLAB配列から3次元ベクトル取得
 void get_vec3(const mxArray* mx_struct, const char* field_name, float* out) {
-    mxArray* field = mxGetField(mx_struct, 0, field_name);
-    if (field && mxGetNumberOfElements(field) >= 3) {
-        double* pr = mxGetPr(field);
-        out[0] = static_cast<float>(pr[0]);
-        out[1] = static_cast<float>(pr[1]);
-        out[2] = static_cast<float>(pr[2]);
-    } else {
-        out[0] = out[1] = out[2] = 0.0f;
-    }
+    const mxArray* field = mxGetField(mx_struct, 0, field_name);
+    mex_conv::mxArrayToFloatArray(field, out, 3);
 }
 
 // ヘルパー関数: MATLAB配列からクォータニオン取得
 void get_quat(const mxArray* mx_struct, const char* field_name, float* out) {
-    mxArray* field = mxGetField(mx_struct, 0, field_name);
-    if (field && mxGetNumberOfElements(field) >= 4) {
-        double* pr = mxGetPr(field);
-        out[0] = static_cast<float>(pr[0]); // qw
-        out[1] = static_cast<float>(pr[1]); // qx
-        out[2] = static_cast<float>(pr[2]); // qy
-        out[3] = static_cast<float>(pr[3]); // qz
-    } else {
-        out[0] = 1.0f; out[1] = out[2] = out[3] = 0.0f;
-    }
+    const mxArray* field = mxGetField(mx_struct, 0, field_name);
+    // default: identity quaternion if missing; mex_conv fills zeros, so set default first
+    out[0] = 1.0f; out[1] = out[2] = out[3] = 0.0f;
+    mex_conv::mxArrayToFloatArray(field, out, 4);
 }
 
 // ヘルパー関数: スカラー取得
 double get_scalar(const mxArray* mx_struct, const char* field_name, double default_val = 0.0) {
-    mxArray* field = mxGetField(mx_struct, 0, field_name);
-    if (field && mxIsDouble(field)) {
-        return mxGetScalar(field);
-    }
-    return default_val;
+    const mxArray* field = mxGetField(mx_struct, 0, field_name);
+    if (!field) return default_val;
+    return static_cast<double>(mex_conv::mxGetScalarAsFloat(field));
 }
 
 // ヘルパー関数: 3次元ベクトルをMATLABに設定
@@ -78,20 +64,16 @@ void set_matrix15(mxArray* mx_struct, const char* field_name, const float P[15][
 
 // ヘルパー関数: 15x15行列をC++に取得
 void get_matrix15(const mxArray* mx_struct, const char* field_name, float P[15][15]) {
-    mxArray* field = mxGetField(mx_struct, 0, field_name);
-    if (field && mxGetM(field) == 15 && mxGetN(field) == 15) {
-        double* pr = mxGetPr(field);
-        for (int i = 0; i < 15; i++) {
-            for (int j = 0; j < 15; j++) {
-                P[i][j] = static_cast<float>(pr[j * 15 + i]); // Column-major
-            }
-        }
-    } else {
-        // 初期化（単位行列）
-        for (int i = 0; i < 15; i++) {
-            for (int j = 0; j < 15; j++) {
-                P[i][j] = (i == j) ? 1.0f : 0.0f;
-            }
+    const mxArray* field = mxGetField(mx_struct, 0, field_name);
+    if (!field || mxGetM(field) != 15 || mxGetN(field) != 15) {
+        for (int i = 0; i < 15; i++) for (int j = 0; j < 15; j++) P[i][j] = (i==j)?1.0f:0.0f;
+        return;
+    }
+    float tmp[15*15];
+    mex_conv::mxArrayToFloatArray(field, tmp, 15*15);
+    for (int i = 0; i < 15; i++) {
+        for (int j = 0; j < 15; j++) {
+            P[i][j] = tmp[j*15 + i]; // column-major to row-major layout
         }
     }
 }

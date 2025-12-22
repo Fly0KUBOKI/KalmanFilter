@@ -3,72 +3,79 @@
 #include "../Common/Math/quaternion.hpp"
 #include "../Common/Validation/validation.hpp"
 #include "../include/Common/Sensor/sensor_filter.hpp"
+#include "mex_type_conv.hpp"
 #include <cstring>
+#include <vector>
 
 using cm = cmath_fx::FixedMatrix;
 
 // ===== MathUtils Handlers =====
 void handle_wrap_to_pi(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 1) mexErrMsgIdAndTxt("mex_common_lib:wrap_to_pi", "Need 1 input: angle");
-    double angle = mxGetScalar(prhs[0]);
-    double wrapped = common::math::MathUtils::wrap_to_pi(static_cast<float>(angle));
-    plhs[0] = mxCreateDoubleScalar(wrapped);
+    float anglef = mex_conv::mxGetScalarAsFloat(prhs[0]);
+    float wrappedf = common::math::MathUtils::wrap_to_pi(anglef);
+    plhs[0] = mxCreateDoubleScalar(static_cast<double>(wrappedf));
 }
 
 void handle_normalize_vector(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 1) mexErrMsgIdAndTxt("mex_common_lib:normalize_vector", "Need 1 input: vector");
-    
-    double* v_in = mxGetPr(prhs[0]);
-    int n = mxGetNumberOfElements(prhs[0]);
-    
+    const mxArray* arr = prhs[0];
+    int n = static_cast<int>(mxGetNumberOfElements(arr));
+    std::vector<float> tmp(static_cast<size_t>(n));
+    mex_conv::mxArrayToFloatArray(arr, tmp.data(), static_cast<size_t>(n));
+
     cm v; v.resize(n, 1);
-    for (int i = 0; i < n; ++i) v(i,0) = static_cast<float>(v_in[i]);
-    
+    for (int i = 0; i < n; ++i) v(i,0) = tmp[i];
+
     cm v_norm = common::math::MathUtils::normalize_vector(v);
-    
+
     plhs[0] = mxCreateDoubleMatrix(n, 1, mxREAL);
     double* v_out = mxGetPr(plhs[0]);
-    for (int i = 0; i < n; ++i) v_out[i] = v_norm(i,0);
+    for (int i = 0; i < n; ++i) v_out[i] = static_cast<double>(v_norm(i,0));
 }
 
 void handle_skew_symmetric(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 1) mexErrMsgIdAndTxt("mex_common_lib:skew_symmetric", "Need 1 input: vector");
-    
-    double* v_in = mxGetPr(prhs[0]);
+    const mxArray* arr = prhs[0];
+    std::vector<float> tmp(3);
+    mex_conv::mxArrayToFloatArray(arr, tmp.data(), 3);
+
     cm v; v.resize(3, 1);
-    for (int i = 0; i < 3; ++i) v(i,0) = static_cast<float>(v_in[i]);
-    
+    for (int i = 0; i < 3; ++i) v(i,0) = tmp[i];
+
     cm S = common::math::MathUtils::skew_symmetric(v);
-    
+
     plhs[0] = mxCreateDoubleMatrix(3, 3, mxREAL);
     double* S_out = mxGetPr(plhs[0]);
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-            S_out[i + j*3] = S(i,j);
+            S_out[i + j*3] = static_cast<double>(S(i,j));
         }
     }
 }
 
 void handle_enforce_symmetry(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 1) mexErrMsgIdAndTxt("mex_common_lib:enforce_symmetry", "Need 1 input: matrix");
-    
-    double* M_in = mxGetPr(prhs[0]);
-    int n = mxGetM(prhs[0]);
-    
+    const mxArray* arr = prhs[0];
+    int n = static_cast<int>(mxGetM(arr));
+
+    std::vector<float> tmp(static_cast<size_t>(n) * static_cast<size_t>(n));
+    mex_conv::mxArrayToFloatArray(arr, tmp.data(), static_cast<size_t>(n) * static_cast<size_t>(n));
+
     cm M; M.resize(n, n);
     for (int i = 0; i < n; ++i) {
         for (int j = 0; j < n; ++j) {
-            M(i,j) = static_cast<float>(M_in[i + j*n]);
+            M(i,j) = tmp[i + j*n];
         }
     }
-    
+
     common::math::MathUtils::enforce_symmetry(M);
-    
+
     plhs[0] = mxCreateDoubleMatrix(n, n, mxREAL);
     double* M_out = mxGetPr(plhs[0]);
     for (int i = 0; i < n; ++i) {
         for (int j = 0; j < n; ++j) {
-            M_out[i + j*n] = M(i,j);
+            M_out[i + j*n] = static_cast<double>(M(i,j));
         }
     }
 }
@@ -76,63 +83,62 @@ void handle_enforce_symmetry(int nlhs, mxArray* plhs[], int nrhs, const mxArray*
 // ===== QuaternionLib Handlers =====
 void handle_quat_multiply(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 2) mexErrMsgIdAndTxt("mex_common_lib:quat_multiply", "Need 2 inputs: q1, q2");
-    
-    double* q1_in = mxGetPr(prhs[0]);
-    double* q2_in = mxGetPr(prhs[1]);
-    
+    std::vector<float> q1_tmp(4), q2_tmp(4);
+    mex_conv::mxArrayToFloatArray(prhs[0], q1_tmp.data(), 4);
+    mex_conv::mxArrayToFloatArray(prhs[1], q2_tmp.data(), 4);
+
     cm q1, q2; q1.resize(4,1); q2.resize(4,1);
     for (int i = 0; i < 4; ++i) {
-        q1(i,0) = static_cast<float>(q1_in[i]);
-        q2(i,0) = static_cast<float>(q2_in[i]);
+        q1(i,0) = q1_tmp[i];
+        q2(i,0) = q2_tmp[i];
     }
-    
+
     cm q_out;
     cquat::multiply_quat(q1, q2, q_out);
-    
+
     plhs[0] = mxCreateDoubleMatrix(4, 1, mxREAL);
     double* q_data = mxGetPr(plhs[0]);
-    for (int i = 0; i < 4; ++i) q_data[i] = q_out(i,0);
+    for (int i = 0; i < 4; ++i) q_data[i] = static_cast<double>(q_out(i,0));
 }
 
 void handle_quat_normalize(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 1) mexErrMsgIdAndTxt("mex_common_lib:quat_normalize", "Need 1 input: q");
-    
-    double* q_in = mxGetPr(prhs[0]);
+    std::vector<float> q_tmp(4);
+    mex_conv::mxArrayToFloatArray(prhs[0], q_tmp.data(), 4);
     cm q; q.resize(4,1);
-    for (int i = 0; i < 4; ++i) q(i,0) = static_cast<float>(q_in[i]);
-    
+    for (int i = 0; i < 4; ++i) q(i,0) = q_tmp[i];
+
     cquat::normalize_quat(q);
-    
+
     plhs[0] = mxCreateDoubleMatrix(4, 1, mxREAL);
     double* q_out = mxGetPr(plhs[0]);
-    for (int i = 0; i < 4; ++i) q_out[i] = q(i,0);
+    for (int i = 0; i < 4; ++i) q_out[i] = static_cast<double>(q(i,0));
 }
 
 void handle_quat_to_rotm(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 1) mexErrMsgIdAndTxt("mex_common_lib:quat_to_rotm", "Need 1 input: q");
-    
-    double* q_in = mxGetPr(prhs[0]);
+    std::vector<float> q_tmp(4);
+    mex_conv::mxArrayToFloatArray(prhs[0], q_tmp.data(), 4);
     cm q; q.resize(4,1);
-    for (int i = 0; i < 4; ++i) q(i,0) = static_cast<float>(q_in[i]);
-    
+    for (int i = 0; i < 4; ++i) q(i,0) = q_tmp[i];
+
     cm R;
     cquat::quat_to_rotm(q, R);
-    
+
     plhs[0] = mxCreateDoubleMatrix(3, 3, mxREAL);
     double* R_out = mxGetPr(plhs[0]);
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-            R_out[i + j*3] = R(i,j);
+            R_out[i + j*3] = static_cast<double>(R(i,j));
         }
     }
 }
 
 void handle_quat_from_euler(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 3) mexErrMsgIdAndTxt("mex_common_lib:quat_from_euler", "Need 3 inputs: roll, pitch, yaw (deg)");
-    
-    float roll = static_cast<float>(mxGetScalar(prhs[0]));
-    float pitch = static_cast<float>(mxGetScalar(prhs[1]));
-    float yaw = static_cast<float>(mxGetScalar(prhs[2]));
+    float roll = mex_conv::mxGetScalarAsFloat(prhs[0]);
+    float pitch = mex_conv::mxGetScalarAsFloat(prhs[1]);
+    float yaw = mex_conv::mxGetScalarAsFloat(prhs[2]);
     
     cm q;
     cquat::from_euler_deg(roll, pitch, yaw, q);
@@ -144,28 +150,28 @@ void handle_quat_from_euler(int nlhs, mxArray* plhs[], int nrhs, const mxArray* 
 
 void handle_quat_to_euler(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 1) mexErrMsgIdAndTxt("mex_common_lib:quat_to_euler", "Need 1 input: q");
-    
-    double* q_in = mxGetPr(prhs[0]);
+    std::vector<float> q_tmp(4);
+    mex_conv::mxArrayToFloatArray(prhs[0], q_tmp.data(), 4);
     cm q; q.resize(4,1);
-    for (int i = 0; i < 4; ++i) q(i,0) = static_cast<float>(q_in[i]);
-    
+    for (int i = 0; i < 4; ++i) q(i,0) = q_tmp[i];
+
     cm euler_deg;
     cquat::to_euler_deg(q, euler_deg);
-    
+
     plhs[0] = mxCreateDoubleMatrix(3, 1, mxREAL);
     double* euler = mxGetPr(plhs[0]);
-    for (int i = 0; i < 3; ++i) euler[i] = euler_deg(i,0);
+    for (int i = 0; i < 3; ++i) euler[i] = static_cast<double>(euler_deg(i,0));
 }
 
 // ===== StateValidator Handlers =====
 void handle_clip_velocity(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 2) mexErrMsgIdAndTxt("mex_common_lib:clip_velocity", "Need 2 inputs: v, max_vel");
-    
-    double* v_in = mxGetPr(prhs[0]);
-    float max_vel = static_cast<float>(mxGetScalar(prhs[1]));
-    
+    std::vector<float> v_tmp(3);
+    mex_conv::mxArrayToFloatArray(prhs[0], v_tmp.data(), 3);
+    float max_vel = mex_conv::mxGetScalarAsFloat(prhs[1]);
+
     cm v; v.resize(3,1);
-    for (int i = 0; i < 3; ++i) v(i,0) = static_cast<float>(v_in[i]);
+    for (int i = 0; i < 3; ++i) v(i,0) = v_tmp[i];
     
     // ノルム計算
     float v_norm = 0.0f;
@@ -190,14 +196,14 @@ void handle_clip_velocity(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
 
 void handle_validate_covariance(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 1) mexErrMsgIdAndTxt("mex_common_lib:validate_covariance", "Need 1 input: P");
-    
-    double* P_in = mxGetPr(prhs[0]);
-    int n = mxGetM(prhs[0]);
-    
+    int n = static_cast<int>(mxGetM(prhs[0]));
+    std::vector<float> P_tmp(static_cast<size_t>(n) * static_cast<size_t>(n));
+    mex_conv::mxArrayToFloatArray(prhs[0], P_tmp.data(), static_cast<size_t>(n) * static_cast<size_t>(n));
+
     cm P; P.resize(n,n);
     for (int i = 0; i < n; ++i) {
         for (int j = 0; j < n; ++j) {
-            P(i,j) = static_cast<float>(P_in[i + j*n]);
+            P(i,j) = P_tmp[i + j*n];
         }
     }
     
@@ -220,17 +226,18 @@ void handle_validate_covariance(int nlhs, mxArray* plhs[], int nrhs, const mxArr
 // ===== SensorFilter Handlers =====
 void handle_lowpass_filter(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 3) mexErrMsgIdAndTxt("mex_common_lib:lowpass_filter", "Need 3 inputs: signal, prev_filtered, alpha");
-    
-    double* signal_in = mxGetPr(prhs[0]);
-    double* prev_in = mxGetPr(prhs[1]);
-    float alpha = static_cast<float>(mxGetScalar(prhs[2]));
-    
-    int n = mxGetNumberOfElements(prhs[0]);
+    int n = static_cast<int>(mxGetNumberOfElements(prhs[0]));
+    std::vector<float> signal_tmp(static_cast<size_t>(n));
+    std::vector<float> prev_tmp(static_cast<size_t>(n));
+    mex_conv::mxArrayToFloatArray(prhs[0], signal_tmp.data(), static_cast<size_t>(n));
+    mex_conv::mxArrayToFloatArray(prhs[1], prev_tmp.data(), static_cast<size_t>(n));
+    float alpha = mex_conv::mxGetScalarAsFloat(prhs[2]);
+
     cm signal, prev, filtered;
     signal.resize(n,1); prev.resize(n,1); filtered.resize(n,1);
     for (int i = 0; i < n; ++i) {
-        signal(i,0) = static_cast<float>(signal_in[i]);
-        prev(i,0) = static_cast<float>(prev_in[i]);
+        signal(i,0) = signal_tmp[i];
+        prev(i,0) = prev_tmp[i];
         filtered(i,0) = alpha * signal(i,0) + (1.0f - alpha) * prev(i,0);
     }
     
@@ -241,15 +248,16 @@ void handle_lowpass_filter(int nlhs, mxArray* plhs[], int nrhs, const mxArray* p
 
 void handle_detect_outlier(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 3) mexErrMsgIdAndTxt("mex_common_lib:detect_outlier", "Need 3 inputs: measurement, expected, threshold");
-    
-    double* meas_in = mxGetPr(prhs[0]);
-    double* exp_in = mxGetPr(prhs[1]);
-    float threshold = static_cast<float>(mxGetScalar(prhs[2]));
-    
-    int n = mxGetNumberOfElements(prhs[0]);
+    int n = static_cast<int>(mxGetNumberOfElements(prhs[0]));
+    std::vector<float> meas_tmp(static_cast<size_t>(n));
+    std::vector<float> exp_tmp(static_cast<size_t>(n));
+    mex_conv::mxArrayToFloatArray(prhs[0], meas_tmp.data(), static_cast<size_t>(n));
+    mex_conv::mxArrayToFloatArray(prhs[1], exp_tmp.data(), static_cast<size_t>(n));
+    float threshold = mex_conv::mxGetScalarAsFloat(prhs[2]);
+
     float diff_norm = 0.0f;
     for (int i = 0; i < n; ++i) {
-        float diff = static_cast<float>(meas_in[i] - exp_in[i]);
+        float diff = meas_tmp[i] - exp_tmp[i];
         diff_norm += diff * diff;
     }
     diff_norm = sqrtf(diff_norm);

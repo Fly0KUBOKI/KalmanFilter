@@ -1,5 +1,7 @@
 ﻿#include "mex.h"
 #include "UKF/Core/ukf_core.hpp"
+#include "mex_type_conv.hpp"
+#include <vector>
 
 // 最小テスト版: (6,3)ケースのみサポート
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
@@ -15,9 +17,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     const mxArray* mx_h_func = prhs[3];
     const mxArray* mx_R = prhs[4];
     
-    float alpha = (nrhs >= 6) ? static_cast<float>(mxGetScalar(prhs[5])) : 1e-3f;
-    float beta = (nrhs >= 7) ? static_cast<float>(mxGetScalar(prhs[6])) : 2.0f;
-    float kappa = (nrhs >= 8) ? static_cast<float>(mxGetScalar(prhs[7])) : 0.0f;
+    float alpha = (nrhs >= 6) ? mex_conv::mxGetScalarAsFloat(prhs[5]) : 1e-3f;
+    float beta = (nrhs >= 7) ? mex_conv::mxGetScalarAsFloat(prhs[6]) : 2.0f;
+    float kappa = (nrhs >= 8) ? mex_conv::mxGetScalarAsFloat(prhs[7]) : 0.0f;
     
     int n = static_cast<int>(mxGetM(mx_x));
     int m = static_cast<int>(mxGetM(mx_z));
@@ -45,21 +47,26 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     MatrixNM K;
     VectorM y;
     
-    const double* x_data = mxGetPr(mx_x);
-    const double* P_data = mxGetPr(mx_P);
-    const double* z_data = mxGetPr(mx_z);
-    const double* R_data = mxGetPr(mx_R);
-    
+    // Convert inputs to float temporaries
+    float x_tmp[N];
+    float P_tmp[N*N];
+    float z_tmp[M];
+    float R_tmp[M*M];
+    mex_conv::mxArrayToFloatArray(mx_x, x_tmp, N);
+    mex_conv::mxArrayToFloatArray(mx_P, P_tmp, N*N);
+    mex_conv::mxArrayToFloatArray(mx_z, z_tmp, M);
+    mex_conv::mxArrayToFloatArray(mx_R, R_tmp, M*M);
+
     for (int i = 0; i < N; ++i) {
-        x(i, 0) = static_cast<float>(x_data[i]);
+        x(i, 0) = x_tmp[i];
         for (int j = 0; j < N; ++j) {
-            P(i, j) = static_cast<float>(P_data[i + j * N]);
+            P(i, j) = P_tmp[i + j * N];
         }
     }
     for (int i = 0; i < M; ++i) {
-        z(i, 0) = static_cast<float>(z_data[i]);
+        z(i, 0) = z_tmp[i];
         for (int j = 0; j < M; ++j) {
-            R(i, j) = static_cast<float>(R_data[i + j * M]);
+            R(i, j) = R_tmp[i + j * M];
         }
     }
     
@@ -78,10 +85,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mxDestroyArray(mx_x_sig);
             mexErrMsgIdAndTxt("mex_ukf_update_minimal:h_func", "Error calling h_func");
         }
-        const double* z_pred_data = mxGetPr(lhs[0]);
+        std::vector<float> z_pred_tmp(M);
+        mex_conv::mxArrayToFloatArray(lhs[0], z_pred_tmp.data(), static_cast<size_t>(M));
         VectorM z_pred_vec;
         for (int i = 0; i < M; ++i) {
-            z_pred_vec(i, 0) = static_cast<float>(z_pred_data[i]);
+            z_pred_vec(i, 0) = z_pred_tmp[i];
         }
         mxDestroyArray(mx_x_sig);
         mxDestroyArray(lhs[0]);

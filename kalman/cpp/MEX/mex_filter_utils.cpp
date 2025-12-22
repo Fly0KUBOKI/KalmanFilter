@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <vector>
 #include <cstring>
+// mex conversion helpers
+#include "mex_type_conv.hpp"
 
 using cm = cmath_fx::FixedMatrix;
 using namespace common::math;
@@ -17,24 +19,22 @@ void handle_alpha_beta_step(int nlhs, mxArray* plhs[], int nrhs, const mxArray* 
             "Need at least 4 inputs: x, v, z, dt");
     }
     
-    double x_in = mxGetScalar(prhs[0]);
-    double v_in = mxGetScalar(prhs[1]);
-    double z_in = mxGetScalar(prhs[2]);
-    double dt = mxGetScalar(prhs[3]);
-    
+    float x = mex_conv::mxGetScalarAsFloat(prhs[0]);
+    float v = mex_conv::mxGetScalarAsFloat(prhs[1]);
+    float zf = mex_conv::mxGetScalarAsFloat(prhs[2]);
+    float dt = mex_conv::mxGetScalarAsFloat(prhs[3]);
+
     float alpha = 0.85f;
     float beta = 0.1f;
     if (nrhs >= 5 && !mxIsEmpty(prhs[4])) {
-        alpha = static_cast<float>(mxGetScalar(prhs[4]));
+        alpha = mex_conv::mxGetScalarAsFloat(prhs[4]);
     }
     if (nrhs >= 6 && !mxIsEmpty(prhs[5])) {
-        beta = static_cast<float>(mxGetScalar(prhs[5]));
+        beta = mex_conv::mxGetScalarAsFloat(prhs[5]);
     }
-    
-    float x = static_cast<float>(x_in);
-    float v = static_cast<float>(v_in);
-    bool z_is_nan = mxIsNaN(z_in) || mxIsInf(z_in);
-    float z = z_is_nan ? 0.0f : static_cast<float>(z_in);
+
+    bool z_is_nan = std::isnan(zf) || std::isinf(zf);
+    float z = z_is_nan ? 0.0f : zf;
     
     // 予測
     float x_pred = x + v * dt;
@@ -64,31 +64,33 @@ void handle_ema_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[
             "Need at least 2 inputs: x, y_prev");
     }
     
-    double* x_in = mxGetPr(prhs[0]);
     int n_x = static_cast<int>(mxGetNumberOfElements(prhs[0]));
-    
+
     float alpha = 0.1f;
     if (nrhs >= 3 && !mxIsEmpty(prhs[2])) {
-        alpha = static_cast<float>(mxGetScalar(prhs[2]));
+        alpha = mex_conv::mxGetScalarAsFloat(prhs[2]);
     }
-    
+
     cm x, y_prev, out;
     x.resize(n_x, 1);
+    std::vector<float> x_tmp(static_cast<size_t>(n_x));
+    mex_conv::mxArrayToFloatArray(prhs[0], x_tmp.data(), static_cast<size_t>(n_x));
     for (int i = 0; i < n_x; ++i) {
-        x(i,0) = static_cast<float>(x_in[i]);
+        x(i,0) = x_tmp[i];
     }
-    
+
     bool y_prev_empty = mxIsEmpty(prhs[1]);
     if (!y_prev_empty) {
-        double* y_prev_in = mxGetPr(prhs[1]);
         int n_y = static_cast<int>(mxGetNumberOfElements(prhs[1]));
         if (n_y != n_x) {
             mexErrMsgIdAndTxt("mex_filter_utils:ema_update", 
                 "x and y_prev must have same size");
         }
         y_prev.resize(n_y, 1);
+        std::vector<float> y_tmp(static_cast<size_t>(n_y));
+        mex_conv::mxArrayToFloatArray(prhs[1], y_tmp.data(), static_cast<size_t>(n_y));
         for (int i = 0; i < n_y; ++i) {
-            y_prev(i,0) = static_cast<float>(y_prev_in[i]);
+            y_prev(i,0) = y_tmp[i];
         }
     }
     
@@ -117,30 +119,27 @@ void handle_hampel_causal(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
             "Need at least 2 inputs: buffer, new_x");
     }
     
-    double* buffer_in = mxGetPr(prhs[0]);
     int n_buf = static_cast<int>(mxGetNumberOfElements(prhs[0]));
-    
-    double* new_x_in = mxGetPr(prhs[1]);
     int n_new = static_cast<int>(mxGetNumberOfElements(prhs[1]));
-    
+
     int window = 5;
     if (nrhs >= 3 && !mxIsEmpty(prhs[2])) {
-        window = static_cast<int>(mxGetScalar(prhs[2]));
+        window = static_cast<int>(mex_conv::mxGetScalarAsFloat(prhs[2]));
     }
-    
+
     float n_sigma = 3.0f;
     if (nrhs >= 4 && !mxIsEmpty(prhs[3])) {
-        n_sigma = static_cast<float>(mxGetScalar(prhs[3]));
+        n_sigma = mex_conv::mxGetScalarAsFloat(prhs[3]);
     }
-    
+
     // バッファとnew_xを結合
     std::vector<float> buf;
-    for (int i = 0; i < n_buf; ++i) {
-        buf.push_back(static_cast<float>(buffer_in[i]));
-    }
-    for (int i = 0; i < n_new; ++i) {
-        buf.push_back(static_cast<float>(new_x_in[i]));
-    }
+    std::vector<float> buffer_tmp(static_cast<size_t>(n_buf));
+    mex_conv::mxArrayToFloatArray(prhs[0], buffer_tmp.data(), static_cast<size_t>(n_buf));
+    for (int i = 0; i < n_buf; ++i) buf.push_back(buffer_tmp[i]);
+    std::vector<float> newx_tmp(static_cast<size_t>(n_new));
+    mex_conv::mxArrayToFloatArray(prhs[1], newx_tmp.data(), static_cast<size_t>(n_new));
+    for (int i = 0; i < n_new; ++i) buf.push_back(newx_tmp[i]);
     
     // ウィンドウサイズに制限
     if (static_cast<int>(buf.size()) > window) {
@@ -179,7 +178,7 @@ void handle_hampel_causal(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
     double* out_data = mxGetPr(plhs[0]);
     
     if (n_new == 1) {
-        float new_x_val = static_cast<float>(new_x_in[0]);
+        float new_x_val = newx_tmp[0];
         if (fabsf(new_x_val - med) > threshold) {
             out_data[0] = med;
         } else {
@@ -188,7 +187,7 @@ void handle_hampel_causal(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
     } else {
         // ベクトル版: 各要素に対して中央値と閾値を計算
         for (int k = 0; k < n_new; ++k) {
-            float new_x_val = static_cast<float>(new_x_in[k]);
+            float new_x_val = newx_tmp[k];
             // 簡易版: 全体の中央値と閾値を使用
             if (fabsf(new_x_val - med) > threshold) {
                 out_data[k] = med;

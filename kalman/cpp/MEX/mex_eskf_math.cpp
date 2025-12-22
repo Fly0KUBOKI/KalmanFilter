@@ -11,20 +11,24 @@
 
 #include "mex.h"
 #include "../include/ESKF/eskf_math.hpp"
+#include "mex_type_conv.hpp"
 #include <string>
 #include <cstring>
+#include <vector>
 
 using namespace eskf_math;
 
 // Helper: MATLAB array -> Vector
 template<int N>
 static bool matToVector(const mxArray* arr, cmath_fx::Vector<N, Scalar>& out) {
+    if (!arr) return false;
     if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
     mwSize numel = mxGetNumberOfElements(arr);
     if (numel != N) return false;
-    double* pr = mxGetPr(arr);
+    std::vector<Scalar> tmp(static_cast<size_t>(N));
+    mex_conv::mxArrayToFloatArray(arr, tmp.data(), static_cast<size_t>(N));
     for (int i = 0; i < N; ++i) {
-        out(i, 0) = static_cast<Scalar>(pr[i]);
+        out(i, 0) = static_cast<Scalar>(tmp[static_cast<size_t>(i)]);
     }
     return true;
 }
@@ -43,14 +47,16 @@ static mxArray* vectorToMat(const cmath_fx::Vector<N, Scalar>& v) {
 // Helper: MATLAB array -> Matrix
 template<int R, int C>
 static bool matToMatrix(const mxArray* arr, cmath_fx::Matrix<R, C, Scalar>& out) {
+    if (!arr) return false;
     if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
     mwSize rows = mxGetM(arr);
     mwSize cols = mxGetN(arr);
     if (rows != R || cols != C) return false;
-    double* pr = mxGetPr(arr);
+    std::vector<Scalar> tmp(static_cast<size_t>(R) * static_cast<size_t>(C));
+    mex_conv::mxArrayToFloatArray(arr, tmp.data(), static_cast<size_t>(R) * static_cast<size_t>(C));
     for (int j = 0; j < C; ++j) {
         for (int i = 0; i < R; ++i) {
-            out(i, j) = static_cast<Scalar>(pr[j * rows + i]);
+            out(i, j) = static_cast<Scalar>(tmp[static_cast<size_t>(j) * static_cast<size_t>(rows) + static_cast<size_t>(i)]);
         }
     }
     return true;
@@ -71,10 +77,11 @@ static mxArray* matrixToMat(const cmath_fx::Matrix<R, C, Scalar>& M) {
 
 // Helper: Get scalar from MATLAB array
 static Scalar getScalar(const mxArray* arr) {
+    if (!arr) mexErrMsgTxt("Expected scalar double");
     if (!mxIsDouble(arr) || mxGetNumberOfElements(arr) != 1) {
         mexErrMsgTxt("Expected scalar double");
     }
-    return static_cast<Scalar>(mxGetScalar(arr));
+    return static_cast<Scalar>(mex_conv::mxGetScalarAsFloat(arr));
 }
 
 // Handler: quaternion_integration

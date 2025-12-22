@@ -1,5 +1,6 @@
 ﻿#include "mex.h"
 #include "meukf_core.hpp"
+#include "mex_type_conv.hpp"
 #include <cstring>
 #include <cmath>
 
@@ -8,39 +9,21 @@ void matlab_to_state(const mxArray* m_state, meukf::State& c_state) {
     // p, v, q, ba, bg, P
     // MATLAB側は double なので float に変換
     
-    auto get_vec3 = [&](const char* name, float* out) {
-        mxArray* f = mxGetField(m_state, 0, name);
-        if(f) {
-            double* pr = mxGetPr(f);
-            out[0] = static_cast<float>(pr[0]); 
-            out[1] = static_cast<float>(pr[1]); 
-            out[2] = static_cast<float>(pr[2]);
-        }
-    };
-    
-    get_vec3("p", c_state.p);
-    get_vec3("v", c_state.v);
-    get_vec3("ba", c_state.ba);
-    get_vec3("bg", c_state.bg);
-    
-    mxArray* f_q = mxGetField(m_state, 0, "q");
-    if(f_q) {
-        double* pr = mxGetPr(f_q);
-        c_state.q[0] = static_cast<float>(pr[0]); 
-        c_state.q[1] = static_cast<float>(pr[1]); 
-        c_state.q[2] = static_cast<float>(pr[2]); 
-        c_state.q[3] = static_cast<float>(pr[3]);
-    }
-    
+    // p, v, ba, bg
+    mex_conv::mxArrayToFloatArray(mxGetField(m_state,0,"p"), c_state.p, 3);
+    mex_conv::mxArrayToFloatArray(mxGetField(m_state,0,"v"), c_state.v, 3);
+    mex_conv::mxArrayToFloatArray(mxGetField(m_state,0,"ba"), c_state.ba, 3);
+    mex_conv::mxArrayToFloatArray(mxGetField(m_state,0,"bg"), c_state.bg, 3);
+
+    // q
+    mex_conv::mxArrayToFloatArray(mxGetField(m_state,0,"q"), c_state.q, 4);
+
+    // P: MATLAB column-major -> internal row-major
     mxArray* f_P = mxGetField(m_state, 0, "P");
-    if(f_P) {
-        double* pr = mxGetPr(f_P);
-        // MATLABはColumn-major, C++はRow-major
-        for(int c=0; c<15; ++c) {
-            for(int r=0; r<15; ++r) {
-                c_state.P[r*15 + c] = static_cast<float>(pr[c*15 + r]);
-            }
-        }
+    if (f_P) {
+        float P_tmp[15*15];
+        mex_conv::mxArrayToFloatArray(f_P, P_tmp, 15*15);
+        for (int r=0;r<15;++r) for (int c=0;c<15;++c) c_state.P[r*15 + c] = P_tmp[c*15 + r];
     }
 }
 
@@ -99,35 +82,19 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     // 2. SensorData変換
     auto get_field_scalar = [&](const mxArray* s, const char* f) -> double {
         mxArray* field = mxGetField(s, 0, f);
-        return field ? mxGetScalar(field) : 0.0;
-    };
-    auto get_field_vec3 = [&](const mxArray* s, const char* f, double* out) {
-        mxArray* field = mxGetField(s, 0, f);
-        if(field) {
-            double* pr = mxGetPr(field);
-            out[0] = pr[0]; out[1] = pr[1]; out[2] = pr[2];
-        }
-    };
-    auto get_field_vec3_float = [&](const mxArray* s, const char* f, float* out) {
-        mxArray* field = mxGetField(s, 0, f);
-        if(field) {
-            double* pr = mxGetPr(field);
-            out[0] = static_cast<float>(pr[0]); 
-            out[1] = static_cast<float>(pr[1]); 
-            out[2] = static_cast<float>(pr[2]);
-        }
+        return field ? static_cast<double>(mex_conv::mxGetScalarAsFloat(field)) : 0.0;
     };
 
-    get_field_vec3_float(m_sensor, "accel", input.sensor.accel);
-    get_field_vec3_float(m_sensor, "gyro", input.sensor.gyro);
-    get_field_vec3_float(m_sensor, "mag", input.sensor.mag);
-    get_field_vec3_float(m_sensor, "gps_pos", input.sensor.gps_pos);
-    input.sensor.alt_baro = static_cast<float>(get_field_scalar(m_sensor, "alt_baro"));
+    mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"accel"), input.sensor.accel, 3);
+    mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"gyro"), input.sensor.gyro, 3);
+    mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"mag"), input.sensor.mag, 3);
+    mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"gps_pos"), input.sensor.gps_pos, 3);
+    input.sensor.alt_baro = mex_conv::mxGetScalarAsFloat(mxGetField(m_sensor,0,"alt_baro"));
     
     // 前回のセンサー値を読み取り（変更検知用）
-    get_field_vec3_float(m_sensor, "prev_mag", input.sensor.prev_mag);
-    get_field_vec3_float(m_sensor, "prev_gps_pos", input.sensor.prev_gps_pos);
-    input.sensor.prev_baro_alt = static_cast<float>(get_field_scalar(m_sensor, "prev_baro_alt"));
+    mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"prev_mag"), input.sensor.prev_mag, 3);
+    mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"prev_gps_pos"), input.sensor.prev_gps_pos, 3);
+    input.sensor.prev_baro_alt = mex_conv::mxGetScalarAsFloat(mxGetField(m_sensor,0,"prev_baro_alt"));
     
     input.sensor.update_accel = (uint8_t)get_field_scalar(m_sensor, "update_accel");
     input.sensor.update_gyro = (uint8_t)get_field_scalar(m_sensor, "update_gyro");
@@ -135,23 +102,23 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     input.sensor.update_gps = (uint8_t)get_field_scalar(m_sensor, "update_gps");
     input.sensor.update_baro = (uint8_t)get_field_scalar(m_sensor, "update_baro");
     input.sensor.update_zupt = (uint8_t)get_field_scalar(m_sensor, "update_zupt");
-    input.sensor.dt = static_cast<float>(get_field_scalar(m_sensor, "dt"));
+    input.sensor.dt = mex_conv::mxGetScalarAsFloat(mxGetField(m_sensor,0,"dt"));
 
     // 3. Params変換
-    get_field_vec3_float(m_params, "g", input.params.g);
-    get_field_vec3_float(m_params, "mag_ref", input.params.mag_ref);
-    get_field_vec3_float(m_params, "noise_accel", input.params.noise_accel);
-    get_field_vec3_float(m_params, "noise_gyro", input.params.noise_gyro);
-    get_field_vec3_float(m_params, "noise_ba", input.params.noise_ba);
-    get_field_vec3_float(m_params, "noise_bg", input.params.noise_bg);
-    get_field_vec3_float(m_params, "noise_mag", input.params.noise_mag);
-    get_field_vec3_float(m_params, "noise_gps", input.params.noise_gps);
-    input.params.noise_baro = static_cast<float>(get_field_scalar(m_params, "noise_baro"));
-    get_field_vec3_float(m_params, "noise_zupt", input.params.noise_zupt);
-    
-    input.params.alpha = static_cast<float>(get_field_scalar(m_params, "alpha"));
-    input.params.beta = static_cast<float>(get_field_scalar(m_params, "beta"));
-    input.params.kappa = static_cast<float>(get_field_scalar(m_params, "kappa"));
+    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"g"), input.params.g, 3);
+    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"mag_ref"), input.params.mag_ref, 3);
+    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_accel"), input.params.noise_accel, 3);
+    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_gyro"), input.params.noise_gyro, 3);
+    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_ba"), input.params.noise_ba, 3);
+    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_bg"), input.params.noise_bg, 3);
+    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_mag"), input.params.noise_mag, 3);
+    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_gps"), input.params.noise_gps, 3);
+    input.params.noise_baro = mex_conv::mxGetScalarAsFloat(mxGetField(m_params,0,"noise_baro"));
+    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_zupt"), input.params.noise_zupt, 3);
+
+    input.params.alpha = mex_conv::mxGetScalarAsFloat(mxGetField(m_params,0,"alpha"));
+    input.params.beta = mex_conv::mxGetScalarAsFloat(mxGetField(m_params,0,"beta"));
+    input.params.kappa = mex_conv::mxGetScalarAsFloat(mxGetField(m_params,0,"kappa"));
 
     // Validate noise_gps input: must be finite non-negative variances (meters^2)
     for(int i=0;i<3;++i) {
@@ -185,35 +152,25 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         plhs[2] = mxCreateStructMatrix(1, 1, 10, fnames);
 
         // pred_P: 15 x 15 double matrix (predicted P after predict(), row-major in C++)
+        // pred_P: convert internal row-major float -> MATLAB column-major double
         mxArray* m_pred_P = mxCreateDoubleMatrix(15, 15, mxREAL);
-        double* prP = mxGetPr(m_pred_P);
-        for(int c=0; c<15; ++c) {
-            for(int r=0; r<15; ++r) {
-                prP[c*15 + r] = static_cast<double>(output.pred_P[r*15 + c]);
-            }
-        }
+        float pred_tmp[15*15];
+        for(int r=0;r<15;++r) for(int c=0;c<15;++c) pred_tmp[r + c*15] = output.pred_P[r*15 + c];
+        mex_conv::floatArrayToMxArray(pred_tmp, m_pred_P, 15, 15);
         mxSetField(plhs[2], 0, "pred_P", m_pred_P);
 
         // last_K: 15 x 3 double matrix (stored column-major in MATLAB)
         mxArray* m_last_K = mxCreateDoubleMatrix(15, 3, mxREAL);
-        double* prK = mxGetPr(m_last_K);
-        for(int c=0; c<3; ++c) {
-            for(int r=0; r<15; ++r) {
-                // C++ stores as [r*3 + c]
-                prK[c*15 + r] = static_cast<double>(output.last_K[r*3 + c]);
-            }
-        }
+        float K_tmp[15*3];
+        for(int r=0;r<15;++r) for(int c=0;c<3;++c) K_tmp[r + c*15] = output.last_K[r*3 + c];
+        mex_conv::floatArrayToMxArray(K_tmp, m_last_K, 15, 3);
         mxSetField(plhs[2], 0, "last_K", m_last_K);
 
         // last_S: 3 x 3 double matrix (innovation covariance, stored column-major in MATLAB)
         mxArray* m_last_S = mxCreateDoubleMatrix(3, 3, mxREAL);
-        double* prS = mxGetPr(m_last_S);
-        for(int c=0; c<3; ++c) {
-            for(int r=0; r<3; ++r) {
-                // C++ stores as [r*3 + c]
-                prS[c*3 + r] = static_cast<double>(output.last_S[r*3 + c]);
-            }
-        }
+        float S_tmp[3*3];
+        for(int r=0;r<3;++r) for(int c=0;c<3;++c) S_tmp[r + c*3] = output.last_S[r*3 + c];
+        mex_conv::floatArrayToMxArray(S_tmp, m_last_S, 3, 3);
         mxSetField(plhs[2], 0, "last_S", m_last_S);
 
         // last_y: variable length up to 3
@@ -221,32 +178,25 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         if(ylen < 0) ylen = 0;
         if(ylen > 3) ylen = 3;
         mxArray* m_last_y = mxCreateDoubleMatrix(ylen, 1, mxREAL);
-        double* pry = nullptr;
         if(ylen > 0) {
-            pry = mxGetPr(m_last_y);
-            for(int i=0;i<ylen;++i) pry[i] = static_cast<double>(output.last_y[i]);
+            float y_tmp[3];
+            for(int i=0;i<ylen;++i) y_tmp[i] = output.last_y[i];
+            mex_conv::floatArrayToMxArray(y_tmp, m_last_y, ylen, 1);
         }
         mxSetField(plhs[2], 0, "last_y", m_last_y);
 
         // last_S_inv: 3 x 3 double matrix (inverse innovation covariance)
         mxArray* m_last_S_inv = mxCreateDoubleMatrix(3, 3, mxREAL);
-        double* prSinv = mxGetPr(m_last_S_inv);
-        for(int c=0; c<3; ++c) {
-            for(int r=0; r<3; ++r) {
-                prSinv[c*3 + r] = static_cast<double>(output.last_S_inv[r*3 + c]);
-            }
-        }
+        float Sinv_tmp[3*3];
+        for(int r=0;r<3;++r) for(int c=0;c<3;++c) Sinv_tmp[r + c*3] = output.last_S_inv[r*3 + c];
+        mex_conv::floatArrayToMxArray(Sinv_tmp, m_last_S_inv, 3, 3);
         mxSetField(plhs[2], 0, "last_S_inv", m_last_S_inv);
 
         // last_H: 3 x 15 double matrix (measurement matrix H, stored column-major in MATLAB)
         mxArray* m_last_H = mxCreateDoubleMatrix(3, 15, mxREAL);
-        double* prH = mxGetPr(m_last_H);
-        for(int c=0; c<15; ++c) {
-            for(int r=0; r<3; ++r) {
-                // output.last_H indexed row-major [r*15 + c]
-                prH[c*3 + r] = static_cast<double>(output.last_H[r*15 + c]);
-            }
-        }
+        float H_tmp[3*15];
+        for(int r=0;r<3;++r) for(int c=0;c<15;++c) H_tmp[r + c*3] = output.last_H[r*15 + c];
+        mex_conv::floatArrayToMxArray(H_tmp, m_last_H, 3, 15);
         mxSetField(plhs[2], 0, "last_H", m_last_H);
 
         // last_y_len
@@ -261,8 +211,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         mxSetField(plhs[2], 0, "input_update_gps", m_input_update);
         // Echo the raw input noise_gps vector for debugging (3x1)
         mxArray* m_input_noise = mxCreateDoubleMatrix(3, 1, mxREAL);
-        double* prNoise = mxGetPr(m_input_noise);
-        for(int i=0;i<3;++i) prNoise[i] = static_cast<double>(input.params.noise_gps[i]);
+        float noise_tmp[3]; for(int i=0;i<3;++i) noise_tmp[i] = input.params.noise_gps[i];
+        mex_conv::floatArrayToMxArray(noise_tmp, m_input_noise, 3, 1);
         mxSetField(plhs[2], 0, "input_noise_gps", m_input_noise);
 
         // --- Annotation/consistency checks: compare input.params.noise_gps with
@@ -295,6 +245,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
             }
 
             // last_S is already returned as MATLAB array m_last_S; reconstruct as double
+            double* prS = mxGetPr(m_last_S);
             double lastS[3*3];
             for(int c=0;c<3;++c) for(int r=0;r<3;++r) lastS[c*3 + r] = prS[c*3 + r];
 

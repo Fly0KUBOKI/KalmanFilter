@@ -3,16 +3,21 @@
 
 #include "mex.h"
 #include "../Common/Math/fixed_matrix.hpp"
+#include "mex_type_conv.hpp"
+#include <vector>
 
 using cm = cmath_fx::FixedMatrix;
 
 static bool matToFixed(const mxArray* arr, cm& out) {
+    if (!arr) return false;
     if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
     mwSize rows = mxGetM(arr); mwSize cols = mxGetN(arr);
     if (rows > cmath_fx::MAX_N || cols > cmath_fx::MAX_N) return false;
-    double* pr = mxGetPr(arr);
+    size_t ne = static_cast<size_t>(rows) * static_cast<size_t>(cols);
+    std::vector<float> tmp(ne);
+    mex_conv::mxArrayToFloatArray(arr, tmp.data(), ne);
     out.resize((int)rows, (int)cols);
-    for (mwSize j = 0; j < cols; ++j) for (mwSize i = 0; i < rows; ++i) out((int)i,(int)j) = static_cast<float>(pr[j*rows + i]);
+    for (mwSize j = 0; j < cols; ++j) for (mwSize i = 0; i < rows; ++i) out((int)i,(int)j) = tmp[j*rows + i];
     return true;
 }
 

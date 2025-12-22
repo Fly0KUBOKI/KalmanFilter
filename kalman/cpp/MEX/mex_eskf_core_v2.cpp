@@ -3,19 +3,21 @@
 
 #include "mex.h"
 #include "../ESKF/eskf_core.hpp"
+#include "mex_type_conv.hpp"
 #include <cstring>
 
 // ヘルパー: MATLAB配列からFixedMatrixへ
 cmath_fx::FixedMatrix matToFixed(const mxArray* mat) {
+    cmath_fx::FixedMatrix result;
+    if (!mat) return result;
     size_t rows = mxGetM(mat);
     size_t cols = mxGetN(mat);
-    double* data = mxGetPr(mat);
-    
-    cmath_fx::FixedMatrix result;
     result.resize(rows, cols);
+    std::vector<float> tmp(static_cast<size_t>(rows) * static_cast<size_t>(cols));
+    mex_conv::mxArrayToFloatArray(mat, tmp.data(), static_cast<size_t>(rows) * static_cast<size_t>(cols));
     for (size_t i = 0; i < rows; ++i) {
         for (size_t j = 0; j < cols; ++j) {
-            result(i,j) = static_cast<float>(data[j*rows + i]);
+            result(i,j) = tmp[static_cast<size_t>(j) * static_cast<size_t>(rows) + static_cast<size_t>(i)];
         }
     }
     return result;
@@ -48,7 +50,7 @@ void handle_integrate_nominal(int nlhs, mxArray* plhs[], int nrhs, const mxArray
     auto bg = matToFixed(prhs[5]);
     auto a_meas = matToFixed(prhs[6]);
     auto w_meas = matToFixed(prhs[7]);
-    float dt = static_cast<float>(mxGetScalar(prhs[8]));
+    float dt = mex_conv::mxGetScalarAsFloat(prhs[8]);
     auto g = matToFixed(prhs[9]);
     auto gyro_thr = matToFixed(prhs[10]);
     auto accel_thr = matToFixed(prhs[11]);
@@ -72,7 +74,7 @@ void handle_update_accel(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prh
     
     auto q = matToFixed(prhs[1]);
     auto a_meas = matToFixed(prhs[2]);
-    float scale = static_cast<float>(mxGetScalar(prhs[3]));
+    float scale = mex_conv::mxGetScalarAsFloat(prhs[3]);
     
     auto q_new = eskf::ESKFCore::update_accel(q, a_meas, scale);
     
@@ -129,9 +131,9 @@ void handle_update_baro(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs
     
     auto p = matToFixed(prhs[1]);
     auto P = matToFixed(prhs[2]);
-    float pressure = static_cast<float>(mxGetScalar(prhs[3]));
     auto origin = matToFixed(prhs[4]);
-    float R_baro = static_cast<float>(mxGetScalar(prhs[5]));
+    float pressure = mex_conv::mxGetScalarAsFloat(prhs[3]);
+    float R_baro = mex_conv::mxGetScalarAsFloat(prhs[5]);
     
     cmath_fx::FixedMatrix p_new, P_new, K, dx;
     eskf::ESKFCore::update_baro(p, P, pressure, origin, R_baro, p_new, P_new, K, dx);

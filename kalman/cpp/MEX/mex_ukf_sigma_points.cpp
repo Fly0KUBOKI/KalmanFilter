@@ -7,6 +7,8 @@
 #include "mex.h"
 #include <cmath>
 #include <algorithm>
+#include "mex_type_conv.hpp"
+#include <vector>
 
 // Cholesky decomposition for lower triangular matrix
 static bool chol_lower(const float* A, int n, float* L) {
@@ -49,21 +51,19 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         mexErrMsgIdAndTxt("mex_ukf_sigma_points:notDouble", "P must be real double matrix");
     }
     
-    const double* x = mxGetPr(prhs[0]);
     int n = (int)mxGetM(prhs[0]);
     if (mxGetN(prhs[0]) != 1) {
         mexErrMsgIdAndTxt("mex_ukf_sigma_points:xNotVector", "x must be column vector");
     }
     
-    const double* P = mxGetPr(prhs[1]);
     if (mxGetM(prhs[1]) != n || mxGetN(prhs[1]) != n) {
         mexErrMsgIdAndTxt("mex_ukf_sigma_points:sizeMismatch", "P must be nxn matrix");
     }
     
     // Optional parameters
-    float alpha = (nrhs >= 3) ? static_cast<float>(mxGetScalar(prhs[2])) : 1e-3f;
-    float beta = (nrhs >= 4) ? static_cast<float>(mxGetScalar(prhs[3])) : 2.0f;
-    float kappa = (nrhs >= 5) ? static_cast<float>(mxGetScalar(prhs[4])) : 0.0f;
+    float alpha = (nrhs >= 3) ? mex_conv::mxGetScalarAsFloat(prhs[2]) : 1e-3f;
+    float beta = (nrhs >= 4) ? mex_conv::mxGetScalarAsFloat(prhs[3]) : 2.0f;
+    float kappa = (nrhs >= 5) ? mex_conv::mxGetScalarAsFloat(prhs[4]) : 0.0f;
     
     // Calculate lambda
     float lambda = alpha * alpha * (n + kappa) - n;
@@ -85,22 +85,26 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     }
     
     // Scale P and compute Cholesky
-    float* P_scaled = new float[n * n];
+    // Convert inputs to float temporaries
+    std::vector<float> x_tmp(static_cast<size_t>(n));
+    std::vector<float> P_tmp(static_cast<size_t>(n) * static_cast<size_t>(n));
+    mex_conv::mxArrayToFloatArray(prhs[0], x_tmp.data(), static_cast<size_t>(n));
+    mex_conv::mxArrayToFloatArray(prhs[1], P_tmp.data(), static_cast<size_t>(n) * static_cast<size_t>(n));
+
+    std::vector<float> P_scaled(static_cast<size_t>(n) * static_cast<size_t>(n));
     for (int i = 0; i < n * n; ++i) {
-        P_scaled[i] = (n + lambda) * static_cast<float>(P[i]);
+        P_scaled[static_cast<size_t>(i)] = (n + lambda) * P_tmp[static_cast<size_t>(i)];
     }
 
     // Add small regularization
     for (int i = 0; i < n; ++i) {
-        P_scaled[i * n + i] += 1e-9f;
+        P_scaled[static_cast<size_t>(i) * static_cast<size_t>(n) + static_cast<size_t>(i)] += 1e-9f;
     }
 
-    float* sqrtP = new float[n * n];
-    bool chol_success = chol_lower(P_scaled, n, sqrtP);
-    
+    std::vector<float> sqrtP(static_cast<size_t>(n) * static_cast<size_t>(n));
+    bool chol_success = chol_lower(P_scaled.data(), n, sqrtP.data());
+
     if (!chol_success) {
-        delete[] P_scaled;
-        delete[] sqrtP;
         mexErrMsgIdAndTxt("mex_ukf_sigma_points:cholFailed",
                           "Cholesky decomposition failed - P is not positive definite");
     }
@@ -111,23 +115,22 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
 
     // First sigma point: x
     for (int i = 0; i < n; ++i) {
-        sig[i] = static_cast<double>(x[i]);
+        sig[i] = static_cast<double>(x_tmp[i]);
     }
 
     // Next n sigma points: x + sqrtP columns
     for (int j = 0; j < n; ++j) {
-        for (int i = 0; i < n; ++i) {
-            sig[i + (j + 1) * n] = static_cast<double>(x[i] + sqrtP[i * n + j]);
+            for (int i = 0; i < n; ++i) {
+            sig[i + (j + 1) * n] = static_cast<double>(x_tmp[i] + sqrtP[i * n + j]);
         }
     }
 
     // Last n sigma points: x - sqrtP columns
     for (int j = 0; j < n; ++j) {
-        for (int i = 0; i < n; ++i) {
-            sig[i + (n + j + 1) * n] = static_cast<double>(x[i] - sqrtP[i * n + j]);
+            for (int i = 0; i < n; ++i) {
+            sig[i + (n + j + 1) * n] = static_cast<double>(x_tmp[i] - sqrtP[i * n + j]);
         }
     }
     
-    delete[] P_scaled;
-    delete[] sqrtP;
+    // vectors auto-free
 }

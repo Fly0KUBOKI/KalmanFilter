@@ -8,18 +8,22 @@
 #include "../KF/Core/kalman_filter_core.hpp"
 #include <string>
 #include <cstring>
+// Safe MEX <-> float conversions
+#include "mex_type_conv.hpp"
+#include <vector>
 
 // Helper: MATLAB array -> Matrix
 template<int R, int C, typename T = float>
 static bool matToMatrix(const mxArray* arr, cmath_fx::Matrix<R, C, T>& out) {
-    if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
+    if (!arr) return false;
     mwSize rows = mxGetM(arr);
     mwSize cols = mxGetN(arr);
     if (rows != R || cols != C) return false;
-    double* pr = mxGetPr(arr);
+    std::vector<T> tmp(static_cast<size_t>(R) * static_cast<size_t>(C));
+    mex_conv::mxArrayToFloatArray(arr, tmp.data(), static_cast<size_t>(R) * static_cast<size_t>(C));
     for (int j = 0; j < C; ++j) {
         for (int i = 0; i < R; ++i) {
-            out(i, j) = static_cast<T>(pr[j * rows + i]);
+            out(i, j) = static_cast<T>(tmp[static_cast<size_t>(j) * static_cast<size_t>(R) + static_cast<size_t>(i)]);
         }
     }
     return true;
@@ -39,13 +43,14 @@ static mxArray* vectorToMat(const cmath_fx::Vector<R, T>& v) {
 // Helper: MATLAB array -> Vector
 template<int R, typename T = float>
 static bool matToVector(const mxArray* arr, cmath_fx::Vector<R, T>& out) {
-    if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
+    if (!arr) return false;
     mwSize rows = mxGetM(arr);
     mwSize cols = mxGetN(arr);
     if ((rows != R || cols != 1) && (rows != 1 || cols != R)) return false;
-    double* pr = mxGetPr(arr);
+    std::vector<T> tmp(static_cast<size_t>(R));
+    mex_conv::mxArrayToFloatArray(arr, tmp.data(), static_cast<size_t>(R));
     for (int i = 0; i < R; ++i) {
-        out(i, 0) = static_cast<T>(pr[i]);
+        out(i, 0) = static_cast<T>(tmp[static_cast<size_t>(i)]);
     }
     return true;
 }
@@ -65,15 +70,15 @@ static mxArray* matrixToMat(const cmath_fx::Matrix<R, C, T>& M) {
 
 // Dynamic size helper
 static bool matToMatrixDynamic(const mxArray* arr, int& rows, int& cols, float* data, int max_size) {
-    if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
+    if (!arr) return false;
     rows = (int)mxGetM(arr);
     cols = (int)mxGetN(arr);
     if (rows * cols > max_size) return false;
-    
-    double* pr = mxGetPr(arr);
+    std::vector<float> tmp(static_cast<size_t>(rows) * static_cast<size_t>(cols));
+    mex_conv::mxArrayToFloatArray(arr, tmp.data(), static_cast<size_t>(rows) * static_cast<size_t>(cols));
     for (int j = 0; j < cols; ++j) {
         for (int i = 0; i < rows; ++i) {
-            data[i * cols + j] = static_cast<float>(pr[j * rows + i]);
+            data[i * cols + j] = tmp[static_cast<size_t>(j) * static_cast<size_t>(rows) + static_cast<size_t>(i)];
         }
     }
     return true;

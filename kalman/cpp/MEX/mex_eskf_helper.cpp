@@ -1,5 +1,6 @@
 ﻿#include "mex.h"
 #include "../ESKF/eskf_helper.hpp"
+#include "mex_type_conv.hpp"
 
 using ESKFHelperF = eskf::ESKFHelper<float>;
 
@@ -42,29 +43,27 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         }
         
         ESKFHelperF::NominalState nominal;
-        const double* p_data = mxGetPr(mx_p);
-        const double* v_data = mxGetPr(mx_v);
-        const double* q_data = mxGetPr(mx_q);
-        const double* ba_data = mxGetPr(mx_ba);
-        const double* bg_data = mxGetPr(mx_bg);
-        
-        for (int i = 0; i < 3; ++i) {
-            nominal.p(i, 0) = p_data[i];
-            nominal.v(i, 0) = v_data[i];
-            nominal.ba(i, 0) = ba_data[i];
-            nominal.bg(i, 0) = bg_data[i];
-        }
-        nominal.q.w = q_data[0];
-        nominal.q.x = q_data[1];
-        nominal.q.y = q_data[2];
-        nominal.q.z = q_data[3];
-        
+        float tmp3[3];
+        mex_conv::mxArrayToFloatArray(mx_p, tmp3, 3);
+        for (int i = 0; i < 3; ++i) nominal.p(i, 0) = tmp3[i];
+        mex_conv::mxArrayToFloatArray(mx_v, tmp3, 3);
+        for (int i = 0; i < 3; ++i) nominal.v(i, 0) = tmp3[i];
+        mex_conv::mxArrayToFloatArray(mx_ba, tmp3, 3);
+        for (int i = 0; i < 3; ++i) nominal.ba(i, 0) = tmp3[i];
+        mex_conv::mxArrayToFloatArray(mx_bg, tmp3, 3);
+        for (int i = 0; i < 3; ++i) nominal.bg(i, 0) = tmp3[i];
+        float tmpq[4];
+        mex_conv::mxArrayToFloatArray(mx_q, tmpq, 4);
+        nominal.q.w = tmpq[0];
+        nominal.q.x = tmpq[1];
+        nominal.q.y = tmpq[2];
+        nominal.q.z = tmpq[3];
+
         // dx読み込み
-        const double* dx_data = mxGetPr(mx_dx);
+        float dx_tmp[15];
+        mex_conv::mxArrayToFloatArray(mx_dx, dx_tmp, 15);
         ESKFHelperF::Vector15 dx;
-        for (int i = 0; i < 15; ++i) {
-            dx(i, 0) = dx_data[i];
-        }
+        for (int i = 0; i < 15; ++i) dx(i, 0) = dx_tmp[i];
         
         // 注入実行
         ESKFHelperF::inject_error_state(nominal, dx);
@@ -79,22 +78,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         mxArray* out_ba = mxCreateDoubleMatrix(3, 1, mxREAL);
         mxArray* out_bg = mxCreateDoubleMatrix(3, 1, mxREAL);
         
-        double* p_out = mxGetPr(out_p);
-        double* v_out = mxGetPr(out_v);
-        double* q_out = mxGetPr(out_q);
-        double* ba_out = mxGetPr(out_ba);
-        double* bg_out = mxGetPr(out_bg);
-        
-        for (int i = 0; i < 3; ++i) {
-            p_out[i] = nominal.p(i, 0);
-            v_out[i] = nominal.v(i, 0);
-            ba_out[i] = nominal.ba(i, 0);
-            bg_out[i] = nominal.bg(i, 0);
-        }
-        q_out[0] = nominal.q.w;
-        q_out[1] = nominal.q.x;
-        q_out[2] = nominal.q.y;
-        q_out[3] = nominal.q.z;
+        // 出力に float -> double 変換して詰める
+        mex_conv::floatArrayToMxArray(reinterpret_cast<const float*>(&nominal.p(0,0)), out_p, 3, 1);
+        mex_conv::floatArrayToMxArray(reinterpret_cast<const float*>(&nominal.v(0,0)), out_v, 3, 1);
+        float qf[4] = { nominal.q.w, nominal.q.x, nominal.q.y, nominal.q.z };
+        mex_conv::floatArrayToMxArray(qf, out_q, 4, 1);
+        mex_conv::floatArrayToMxArray(reinterpret_cast<const float*>(&nominal.ba(0,0)), out_ba, 3, 1);
+        mex_conv::floatArrayToMxArray(reinterpret_cast<const float*>(&nominal.bg(0,0)), out_bg, 3, 1);
         
         mxSetField(plhs[0], 0, "p", out_p);
         mxSetField(plhs[0], 0, "v", out_v);
@@ -108,24 +98,17 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("mex_eskf_helper:nrhs", "P required");
         }
         
-        const double* P_data = mxGetPr(prhs[1]);
+        // P: double (MATLAB) -> float (internal)
+        float P_tmp[15*15];
+        mex_conv::mxArrayToFloatArray(prhs[1], P_tmp, 15*15); // column-major copy
         ESKFHelperF::Matrix15 P;
-        for (int i = 0; i < 15; ++i) {
-            for (int j = 0; j < 15; ++j) {
-                P(i, j) = P_data[i + j * 15];
-            }
-        }
-        
-        float eps = (nrhs >= 3) ? mxGetScalar(prhs[2]) : 1e-9f;
+        for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) P(i,j) = P_tmp[i + j*15];
+
+        float eps = (nrhs >= 3) ? mex_conv::mxGetScalarAsFloat(prhs[2]) : 1e-9f;
         ESKFHelperF::regularize_covariance(P, eps);
-        
+
         plhs[0] = mxCreateDoubleMatrix(15, 15, mxREAL);
-        double* P_out = mxGetPr(plhs[0]);
-        for (int i = 0; i < 15; ++i) {
-            for (int j = 0; j < 15; ++j) {
-                P_out[i + j * 15] = P(i, j);
-            }
-        }
+        mex_conv::floatArrayToMxArray(reinterpret_cast<const float*>(&P(0,0)), plhs[0], 15, 15);
         
     } else {
         mexErrMsgIdAndTxt("mex_eskf_helper:action", "Unknown action: %s", action);
