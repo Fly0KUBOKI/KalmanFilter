@@ -1,56 +1,14 @@
 classdef SensorAccelFilter < handle
-    % SENSORACCELFILTER  加速度計専用フィルタ
-    %
-    % 機能:
-    %   - EMA平滑化
-    %   - 外れ値検出（3σ）
-    %   - 重力ノルム検証
-    %   - 大きな変化スケーリング
-    
-    properties
-        config              % フィルタ設定
-        a_filtered          % フィルタ済み加速度
-        noise_history       % ノイズ履歴
-    end
-    
+    % Deprecated stub: functionality moved to SensorFilters (MEX).
     methods
-        function obj = SensorAccelFilter(config)
-            % コンストラクタ
-            obj.config = config;
-            obj.a_filtered = [0; 0; 0];
-            obj.noise_history = [];
+        function obj = SensorAccelFilter(varargin)
+            warning('SensorAccelFilter:disabled','SensorAccelFilter is disabled. Use SensorFilters.accel(a_meas,a_expected).');
         end
-        
-        function [a_out, is_outlier, info] = apply(obj, a_meas, a_expected)
-            % APPLY  加速度計測値をフィルタリング（MEX に直接委譲）
-            if nargin < 3
-                a_expected = zeros(3, 1);
-            end
-
-            % Delegate to SensorFilters (now a MEX-only wrapper)
-            if nargout >= 2
-                [a_filt, is_outlier] = SensorFilters.accel(a_meas, a_expected);
-            else
-                a_filt = SensorFilters.accel(a_meas, a_expected);
-                is_outlier = false;
-            end
-
-            % Update internal cached value for parity
-            if ~is_outlier
-                obj.a_filtered = a_filt;
-            end
-
-            a_out = a_filt;
-            info = struct('is_outlier', is_outlier, 'is_gravity_mismatch', false, 'scale_factor', 1.0);
+        function varargout = apply(~, varargin)
+            error('SensorAccelFilter:disabled','SensorAccelFilter.apply is disabled. Call SensorFilters.accel(a_meas,a_expected).');
         end
-        
-        function noise_level = getNoiseLevel(obj)
-            % GETNOISELEVEL  ノイズレベルを取得
-            if isempty(obj.noise_history)
-                noise_level = 0.1;
-            else
-                noise_level = std(obj.noise_history);
-            end
+        function noise_level = getNoiseLevel(~)
+            noise_level = NaN;
         end
     end
 end

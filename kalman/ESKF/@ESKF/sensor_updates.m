@@ -30,7 +30,16 @@ function update_accel_impl(obj, a_meas, varargin)
     obj.prev_accel = a_meas;
 
     if ~isempty(obj.w_body) && norm(obj.w_body) > 1.5; return; end
-    [a_corrected, is_outlier, ~] = obj.sensor_filters.accel.apply(a_meas, zeros(3,1));
+    % Prefer MEX via SensorFilters; fallback to MATLAB instance if MEX unavailable
+    try
+        [a_corrected, is_outlier] = SensorFilters.accel(a_meas, zeros(3,1));
+    catch
+        if ~isempty(obj.sensor_filters) && ~isempty(obj.sensor_filters.accel)
+            [a_corrected, is_outlier, ~] = obj.sensor_filters.accel.apply(a_meas, zeros(3,1));
+        else
+            a_corrected = a_meas; is_outlier = false;
+        end
+    end
     if any(isnan(a_corrected)) || is_outlier; return; end
     a_norm = norm(a_corrected);
     if a_norm < 0.1 || abs(a_norm - 9.81) > 3.0; return; end
@@ -56,7 +65,16 @@ function update_mag_impl(obj, m_meas, varargin)
     end
     obj.prev_mag = m_meas;
 
-    [m_filtered, is_outlier, ~] = obj.sensor_filters.mag.apply(m_meas);
+    % Prefer MEX via SensorFilters; fallback to MATLAB instance if MEX unavailable
+    try
+        [m_filtered, is_outlier] = SensorFilters.mag(m_meas, obj.prev_mag);
+    catch
+        if ~isempty(obj.sensor_filters) && ~isempty(obj.sensor_filters.mag)
+            [m_filtered, is_outlier, ~] = obj.sensor_filters.mag.apply(m_meas);
+        else
+            m_filtered = m_meas; is_outlier = false;
+        end
+    end
     if any(isnan(m_filtered)) || is_outlier; return; end
     if ~isempty(varargin)
         sample = varargin{1};
@@ -104,7 +122,19 @@ function update_baro_impl(obj, pressure, varargin)
     end
     obj.prev_baro = pressure;
     
-    [alt_baro, is_outlier, ~] = obj.sensor_filters.baro.apply(pressure);
+    % Prefer MEX via SensorFilters; fallback to MATLAB instance if MEX unavailable
+    try
+        [alt_baro, is_outlier] = SensorFilters.baro(pressure);
+    catch
+        if ~isempty(obj.sensor_filters) && ~isempty(obj.sensor_filters.baro)
+            [alt_baro, is_outlier, ~] = obj.sensor_filters.baro.apply(pressure);
+        else
+            % Convert pressure -> altitude locally (simple formula)
+            P0 = 101325; ALT_COEFF = 44330;
+            alt_baro = ALT_COEFF * (1 - (pressure / P0)^0.1903);
+            is_outlier = false;
+        end
+    end
     if any(isnan(alt_baro)) || is_outlier; return; end
 
     weight_factor = 1.0 / obj.baro_weight;

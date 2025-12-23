@@ -21,30 +21,9 @@ classdef SensorGPSFilter < handle
             obj.noise_history = [];
         end
         
-        function [pos_out, is_outlier, info] = apply(obj, pos_meas)
-            % APPLY  GPS位置データをフィルタリング（MEX に委譲）
-            % Delegate to SensorFilters.gps and keep internal cache.
-
-            info = struct();
-            info.is_outlier = false;
-
-            % SensorFilters.gps expects a scalar dt as second argument; pass
-            % a reasonable default (1.0) to avoid signature mismatch.
-            if nargout >= 2
-                [pos_filt, ~] = SensorFilters.gps(pos_meas, 1.0);
-                is_outlier = false;
-            else
-                pos_filt = SensorFilters.gps(pos_meas, 1.0);
-                is_outlier = false;
+            function [pos_out, is_outlier, info] = apply(obj, pos_meas)
+                error('SensorGPSFilter:disabled','SensorGPSFilter.apply is disabled. Use SensorFilters.gps(gps_pos, dt).');
             end
-
-            if ~is_outlier
-                obj.pos_filtered = pos_filt;
-            end
-
-            pos_out = pos_filt;
-            info.is_outlier = is_outlier;
-        end
         
         function noise_level = getNoiseLevel(obj)
             if isempty(obj.noise_history)

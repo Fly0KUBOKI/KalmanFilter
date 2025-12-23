@@ -24,30 +24,7 @@ classdef SensorMagFilter < handle
         end
         
         function [m_out, is_outlier, info] = apply(obj, m_meas)
-            % APPLY  磁気計測値をフィルタリング（MEX に委譲）
-            % Delegate the core logic to SensorFilters.mag and keep
-            % internal cached state for parity.
-
-            info = struct();
-            info.is_outlier = false;
-
-            % Call SensorFilters.mag (MEX wrapper). Preserve behavior
-            % when caller only requests a single output.
-            if nargout >= 2
-                [m_filt, is_outlier] = SensorFilters.mag(m_meas, obj.m_filtered);
-            else
-                m_filt = SensorFilters.mag(m_meas, obj.m_filtered);
-                is_outlier = false;
-            end
-
-            % Update internal cached value when not an outlier
-            if ~is_outlier
-                obj.m_filtered = m_filt;
-                obj.is_initialized = true;
-            end
-
-            m_out = m_filt;
-            info.is_outlier = is_outlier;
+            error('SensorMagFilter:disabled','SensorMagFilter.apply is disabled. Use SensorFilters.mag(m_meas,m_expected).');
         end
         
         function noise_level = getNoiseLevel(obj)

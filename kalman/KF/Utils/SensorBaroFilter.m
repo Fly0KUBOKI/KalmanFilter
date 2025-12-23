@@ -22,25 +22,7 @@ classdef SensorBaroFilter < handle
         end
         
         function [alt_out, is_outlier, info] = apply(obj, pressure)
-            % APPLY  気圧計測値をフィルタリング（MEX に委譲）
-            % Delegate to SensorFilters.baro and keep internal cache.
-
-            info = struct();
-            info.is_outlier = false;
-
-            if nargout >= 2
-                [alt_filt, is_outlier] = SensorFilters.baro(pressure);
-            else
-                alt_filt = SensorFilters.baro(pressure);
-                is_outlier = false;
-            end
-
-            if ~is_outlier
-                obj.alt_filtered = alt_filt;
-            end
-
-            alt_out = alt_filt;
-            info.is_outlier = is_outlier;
+            error('SensorBaroFilter:disabled','SensorBaroFilter.apply is disabled. Use SensorFilters.baro(pressure).');
         end
         
         function noise_level = getNoiseLevel(obj)
