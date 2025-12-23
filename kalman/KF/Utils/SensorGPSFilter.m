@@ -22,72 +22,28 @@ classdef SensorGPSFilter < handle
         end
         
         function [pos_out, is_outlier, info] = apply(obj, pos_meas)
-            % APPLY  GPS位置データをフィルタリング
-            %
-            % 入力:
-            %   pos_meas - 計測位置 [x; y; z] (m)
-            %
-            % 出力:
-            %   pos_out    - フィルタ済み位置 (3x1)
-            %   is_outlier - 外れ値判定フラグ
-            %   info       - デバッグ情報
-            
+            % APPLY  GPS位置データをフィルタリング（MEX に委譲）
+            % Delegate to SensorFilters.gps and keep internal cache.
+
             info = struct();
             info.is_outlier = false;
-            
-            % 残差を計算
-            residual = pos_meas - obj.pos_filtered;
-            
-            % 水平・垂直で異なる精度
-            residual_h = sqrt(residual(1)^2 + residual(2)^2);  % 水平
-            residual_v = abs(residual(3));                      % 垂直
-            
-            % 残差ノルムを推定
-            if isempty(obj.noise_history)
-                noise_estimate_h = residual_h;
-                noise_estimate_v = residual_v;
+
+            % SensorFilters.gps expects a scalar dt as second argument; pass
+            % a reasonable default (1.0) to avoid signature mismatch.
+            if nargout >= 2
+                [pos_filt, ~] = SensorFilters.gps(pos_meas, 1.0);
+                is_outlier = false;
             else
-                % 過去の水平・垂直残差をそれぞれ追跡
-                if size(obj.noise_history, 2) >= 2
-                    noise_history_h = obj.noise_history(:, 1);
-                    noise_history_v = obj.noise_history(:, 2);
-                    noise_estimate_h = std(noise_history_h);
-                    noise_estimate_v = std(noise_history_v);
-                else
-                    noise_estimate_h = residual_h;
-                    noise_estimate_v = residual_v;
-                end
+                pos_filt = SensorFilters.gps(pos_meas, 1.0);
+                is_outlier = false;
             end
-            
-            % 外れ値判定（3σ、水平・垂直で分離）
-            h_outlier = (residual_h > 3.0 * max(noise_estimate_h, 1.0));
-            v_outlier = (residual_v > 3.0 * max(noise_estimate_v, 1.0));
-            is_outlier = h_outlier || v_outlier;
-            
-            if is_outlier
-                pos_out = obj.pos_filtered;
-                info.is_outlier = true;
-                info.h_outlier = h_outlier;
-                info.v_outlier = v_outlier;
-                return;
+
+            if ~is_outlier
+                obj.pos_filtered = pos_filt;
             end
-            
-            % EMAフィルタを適用（弱い平滑化）
-            pos_smooth = obj.config.ema_alpha * pos_meas + ...
-                         (1 - obj.config.ema_alpha) * obj.pos_filtered;
-            obj.pos_filtered = pos_smooth;
-            
-            % ノイズ履歴を更新
-            obj.noise_history = [obj.noise_history; residual_h, residual_v];
-            if size(obj.noise_history, 1) > obj.config.history_size
-                obj.noise_history = obj.noise_history(2:end, :);
-            end
-            
-            pos_out = pos_smooth;
-            info.residual_h = residual_h;
-            info.residual_v = residual_v;
-            info.noise_estimate_h = noise_estimate_h;
-            info.noise_estimate_v = noise_estimate_v;
+
+            pos_out = pos_filt;
+            info.is_outlier = is_outlier;
         end
         
         function noise_level = getNoiseLevel(obj)

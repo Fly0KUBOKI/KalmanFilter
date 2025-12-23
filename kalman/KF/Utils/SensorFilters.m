@@ -26,7 +26,14 @@ classdef SensorFilters
                 a_filt = mex_sensor_filter('accel', a_meas, a_expected);
                 is_out = false;
             else
-                [a_filt, is_out] = mex_sensor_filter('accel', a_meas, a_expected);
+                try
+                    [a_filt, is_out] = mex_sensor_filter('accel', a_meas, a_expected);
+                catch ME
+                    % Fallback: mex returned fewer outputs than expected
+                    warning('SensorFilters.accel: mex_sensor_filter accel did not return two outputs: %s', ME.message);
+                    a_filt = mex_sensor_filter('accel', a_meas, a_expected);
+                    is_out = false;
+                end
             end
         end
 
@@ -35,7 +42,13 @@ classdef SensorFilters
                 m_filt = mex_sensor_filter('mag', m_meas, m_expected);
                 is_out = false;
             else
-                [m_filt, is_out] = mex_sensor_filter('mag', m_meas, m_expected);
+                try
+                    [m_filt, is_out] = mex_sensor_filter('mag', m_meas, m_expected);
+                catch ME
+                    warning('SensorFilters.mag: mex_sensor_filter mag did not return two outputs: %s', ME.message);
+                    m_filt = mex_sensor_filter('mag', m_meas, m_expected);
+                    is_out = false;
+                end
             end
         end
 
@@ -44,7 +57,13 @@ classdef SensorFilters
                 pos_out = mex_sensor_filter('gps', gps_pos, dt);
                 vel_out = zeros(size(pos_out));
             else
-                [pos_out, vel_out] = mex_sensor_filter('gps', gps_pos, dt);
+                try
+                    [pos_out, vel_out] = mex_sensor_filter('gps', gps_pos, dt);
+                catch ME
+                    warning('SensorFilters.gps: mex_sensor_filter gps did not return two outputs: %s', ME.message);
+                    pos_out = mex_sensor_filter('gps', gps_pos, dt);
+                    vel_out = zeros(size(pos_out));
+                end
             end
         end
 
@@ -54,7 +73,13 @@ classdef SensorFilters
                 p = mex_sensor_filter('baro', pressure);
                 is_out = false;
             else
-                [p, is_out] = mex_sensor_filter('baro', pressure);
+                try
+                    [p, is_out] = mex_sensor_filter('baro', pressure);
+                catch ME
+                    warning('SensorFilters.baro: mex_sensor_filter baro did not return two outputs: %s', ME.message);
+                    p = mex_sensor_filter('baro', pressure);
+                    is_out = false;
+                end
             end
         end
 

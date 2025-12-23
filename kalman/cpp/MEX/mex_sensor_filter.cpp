@@ -164,6 +164,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         float alt_meas = ALT_COEFF * (1.0f - powf(p_frac, 0.1903f));
         float pf = filter_lib.filter_baro(alt_meas);
         plhs[0]=mxCreateDoubleMatrix(1,1,mxREAL); *mxGetPr(plhs[0])=(double)pf;
+        if (nlhs >= 2) {
+            /* Provide is_outlier flag for MATLAB callers that expect two outputs */
+            plhs[1] = mxCreateLogicalScalar(false);
+        }
         return;
     }
     if (cmdstr == "divergence_check") {

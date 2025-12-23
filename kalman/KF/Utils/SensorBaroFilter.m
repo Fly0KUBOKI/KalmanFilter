@@ -22,63 +22,25 @@ classdef SensorBaroFilter < handle
         end
         
         function [alt_out, is_outlier, info] = apply(obj, pressure)
-            % APPLY  気圧計測値をフィルタリング
-            %
-            % 入力:
-            %   pressure - 気圧 (Pa)
-            %
-            % 出力:
-            %   alt_out    - フィルタ済み高度 (m)
-            %   is_outlier - 外れ値判定フラグ
-            %   info       - デバッグ情報
-            
+            % APPLY  気圧計測値をフィルタリング（MEX に委譲）
+            % Delegate to SensorFilters.baro and keep internal cache.
+
             info = struct();
             info.is_outlier = false;
-            
-            % 気圧から高度に変換（バロメトリック公式）
-            P0 = 101325;  % 標準気圧
-            alt_meas = obj.config.altitude_per_pressure * ...
-                       (1 - (pressure / P0)^0.1903);
-            
-            % 残差を計算
-            residual = alt_meas - obj.alt_filtered;
-            residual_abs = abs(residual);
-            
-            % ノイズレベル推定
-            if isempty(obj.noise_history)
-                noise_estimate = residual_abs;
+
+            if nargout >= 2
+                [alt_filt, is_outlier] = SensorFilters.baro(pressure);
             else
-                noise_std = std(obj.noise_history);
-                noise_estimate = max(noise_std, residual_abs / 3.0);
+                alt_filt = SensorFilters.baro(pressure);
+                is_outlier = false;
             end
-            
-            % 外れ値判定（3σ）
-            % 気圧計は時間変化が遅いため、大きな変化は外れ値の可能性が高い
-            is_outlier = (residual_abs > 3.0 * max(noise_estimate, 0.5));
-            
-            if is_outlier
-                alt_out = obj.alt_filtered;
-                info.is_outlier = true;
-                info.residual = residual;
-                info.noise_estimate = noise_estimate;
-                return;
+
+            if ~is_outlier
+                obj.alt_filtered = alt_filt;
             end
-            
-            % EMAフィルタを適用（最も強い平滑化）
-            alt_smooth = obj.config.ema_alpha * alt_meas + ...
-                         (1 - obj.config.ema_alpha) * obj.alt_filtered;
-            obj.alt_filtered = alt_smooth;
-            
-            % ノイズ履歴を更新
-            obj.noise_history = [obj.noise_history; residual_abs];
-            if length(obj.noise_history) > obj.config.history_size
-                obj.noise_history = obj.noise_history(2:end);
-            end
-            
-            alt_out = alt_smooth;
-            info.residual = residual;
-            info.noise_estimate = noise_estimate;
-            info.pressure = pressure;
+
+            alt_out = alt_filt;
+            info.is_outlier = is_outlier;
         end
         
         function noise_level = getNoiseLevel(obj)
