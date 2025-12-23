@@ -1,0 +1,1 @@
+STRUCT trace_pre: fields=state_in, mex_params, sensor_data, objP_pre

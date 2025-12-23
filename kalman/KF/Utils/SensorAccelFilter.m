@@ -27,20 +27,31 @@ classdef SensorAccelFilter < handle
                 a_expected = zeros(3, 1);
             end
 
-            % Delegate to SensorFilters (now a MEX-only wrapper)
-            if nargout >= 2
-                [a_filt, is_outlier] = SensorFilters.accel(a_meas, a_expected);
-            else
-                a_filt = SensorFilters.accel(a_meas, a_expected);
-                is_outlier = false;
+            % Try MEX first; fall back to MATLAB if unavailable or invalid
+            if exist('mex_sensor_filter','file') == 3
+                try
+                    if nargout >= 2
+                        [a_filt, is_outlier] = SensorFilters.accel(a_meas, a_expected);
+                    else
+                        a_filt = SensorFilters.accel(a_meas, a_expected);
+                        is_outlier = false;
+                    end
+                    % Validate MEX output
+                    if SensorFilters.validate_sensor_output('accel', a_filt)
+                        obj.a_filtered = a_filt;
+                        a_out = a_filt;
+                        info = struct('is_outlier', is_outlier, 'is_gravity_mismatch', false, 'scale_factor', 1.0);
+                        return;
+                    end
+                catch ME
+                    warning('SensorAccelFilter:MEXFailed', 'MEX accel failed: %s. Using MATLAB fallback.', ME.message);
+                end
             end
 
-            % Update internal cached value for parity
-            if ~is_outlier
-                obj.a_filtered = a_filt;
-            end
-
-            a_out = a_filt;
+            % MATLAB fallback: simple pass-through (measured accel)
+            a_out = a_meas;
+            is_outlier = false;
+            obj.a_filtered = a_meas;
             info = struct('is_outlier', is_outlier, 'is_gravity_mismatch', false, 'scale_factor', 1.0);
         end
         

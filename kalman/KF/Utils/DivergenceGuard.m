@@ -52,12 +52,14 @@ classdef DivergenceGuard < handle
 
         function [dx_out, should_skip, was_attenuated] = check_and_attenuate_update(obj, sensor_name, innovation, dx_in, ctx)
             should_skip = false; was_attenuated = false; dx_out = dx_in;
-            % Delegate to compiled MEX implementation (MATLAB fallback removed)
-            try
-                [dx_out, should_skip, was_attenuated] = SensorFilters.divergence_check(sensor_name, innovation, dx_in);
-                return;
-            catch ME
-                error('DivergenceGuard:MissingMEX', 'Required MEX ''mex_sensor_filter'' not available or failed: %s', ME.message);
+            % Try MEX first, but fall back to MATLAB if unavailable
+            if exist('mex_sensor_filter','file') == 3
+                try
+                    [dx_out, should_skip, was_attenuated] = SensorFilters.divergence_check(sensor_name, innovation, dx_in);
+                    return;
+                catch ME
+                    warning('DivergenceGuard:MEXFailed', 'MEX divergence_check failed: %s. Using MATLAB fallback.', ME.message);
+                end
             end
 
             % MATLAB fallback (lightweight): basic checks and attenuation

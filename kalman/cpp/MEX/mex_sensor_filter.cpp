@@ -164,6 +164,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         float alt_meas = ALT_COEFF * (1.0f - powf(p_frac, 0.1903f));
         float pf = filter_lib.filter_baro(alt_meas);
         plhs[0]=mxCreateDoubleMatrix(1,1,mxREAL); *mxGetPr(plhs[0])=(double)pf;
+        // Return is_outlier as second output (currently always false for baro)
+        if(nlhs>=2) { plhs[1] = mxCreateLogicalScalar(false); }
         return;
     }
     if (cmdstr == "divergence_check") {

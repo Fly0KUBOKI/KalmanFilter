@@ -13,22 +13,16 @@ classdef AccelFilter < handle
     
     methods
         function obj = AccelFilter(ema_alpha, history_size)
-            % コンストラクタ
-            %
-            % 入力:
-            %   ema_alpha    - EMA係数 (デフォルト: 0.3, 小さいほど平滑化が強い)
-            %   history_size - 履歴サイズ (デフォルト: 20)
-            
+            % Allow construction; delegate to MEX when available, MATLAB fallback otherwise
             if nargin < 1 || isempty(ema_alpha)
                 ema_alpha = 0.3;
             end
             if nargin < 2 || isempty(history_size)
                 history_size = 20;
             end
-            
             obj.a_filtered = [0; 0; 0];
             obj.ema_alpha = ema_alpha;
-            obj.outlier_threshold = 3.0;  % 3σを超える値を外れ値とする
+            obj.outlier_threshold = 3.0;
             obj.noise_history = [];
             obj.history_size = history_size;
         end
@@ -48,30 +42,42 @@ classdef AccelFilter < handle
                 a_expected = zeros(3, 1);
             end
             
-            % Delegate to compiled MEX implementation (MATLAB fallback removed)
-            try
-                if nargout >= 2
-                    [a_filt, is_outlier] = SensorFilters.accel(a_meas, a_expected);
-                else
-                    a_filt = SensorFilters.accel(a_meas, a_expected);
-                    is_outlier = false;
-                end
-                a_smooth = a_filt;
-                obj.a_filtered = a_smooth;
-                % update noise history with residual if available
+            % Try MEX first; fall back to MATLAB if unavailable or invalid
+            if exist('mex_sensor_filter','file') == 3
                 try
-                    residual = a_smooth - a_expected;
-                    residual_norm = norm(residual);
-                    obj.noise_history = [obj.noise_history; residual_norm];
-                    if length(obj.noise_history) > obj.history_size
-                        obj.noise_history = obj.noise_history(2:end);
+                    if nargout >= 2
+                        [a_filt, is_outlier] = SensorFilters.accel(a_meas, a_expected);
+                    else
+                        a_filt = SensorFilters.accel(a_meas, a_expected);
+                        is_outlier = false;
                     end
-                catch
+                    % Validate MEX output
+                    if SensorFilters.validate_sensor_output('accel', a_filt)
+                        a_smooth = a_filt;
+                        obj.a_filtered = a_smooth;
+                        try
+                            residual = a_smooth - a_expected;
+                            residual_norm = norm(residual);
+                            obj.noise_history = [obj.noise_history; residual_norm];
+                            if length(obj.noise_history) > obj.history_size
+                                obj.noise_history = obj.noise_history(2:end);
+                            end
+                        catch
+                        end
+                        return;
+                    else
+                        % Invalid MEX output; fall through to MATLAB
+                        warning('AccelFilter:InvalidMEXOutput', 'MEX returned invalid accel; using MATLAB fallback');
+                    end
+                catch ME
+                    warning('AccelFilter:MEXFailed', 'MEX accel failed: %s. Using MATLAB fallback.', ME.message);
                 end
-                return;
-            catch ME
-                error('AccelFilter:MissingMEX', 'Required MEX ''mex_sensor_filter'' not available or failed: %s', ME.message);
             end
+
+            % --- MATLAB フォールバック実装 ---
+            % 残差を計算
+            residual = a_meas - a_expected;
+            residual_norm = norm(residual);
 
             % 現在のノイズレベルを推定
             if isempty(obj.noise_history)

@@ -357,11 +357,19 @@ void MEUKFCore::predict(State& state, const SensorData& sensor, const Params& pa
                     if (av > max_abs) max_abs = av;
                 }
             }
-            // DEBUG DISABLED: predict_debug output - not needed for current analysis
-            // if (any_nan || max_abs > 1e6) {
-            //     std::ofstream dbgfile("Results/predict_debug.txt", std::ios::app);
-            //     ... (commented out)
-            // }
+            // If any non-finite or extremely large covariance appeared, append a short dump
+            if (any_nan || max_abs > 1e6) {
+                std::ofstream dbgfile("Results/predict_debug.txt", std::ios::app);
+                if (dbgfile.is_open()) {
+                    dbgfile << std::fixed << std::setprecision(6);
+                    dbgfile << "P_new_max_abs=" << max_abs << ", any_nan=" << (any_nan?1:0) << ", P_diag_new=";
+                        for(int ii=0; ii<15; ++ii) {
+                            dbgfile << P_new(ii,ii) << (ii==14?"":",");
+                    }
+                    dbgfile << std::endl;
+                    dbgfile.close();
+                }
+            }
         }
     } catch(...) {}
 

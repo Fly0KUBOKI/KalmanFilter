@@ -11,6 +11,14 @@ function run_simulation(seed, skip_data_gen)
     params = config_params();
     dt = calculate_dt(obs);
     eskf = ESKF(obs, params.static_time, dt);
+    % Ensure sensor filter MEX is reset before running (defensive)
+    if exist('mex_sensor_filter','file') == 3
+        try
+            SensorFilters.reset_zero();
+        catch
+            try, SensorFilters.reset(); catch, end
+        end
+    end
     % Prefer MEX main-loop when available (Phase 8). Fall back to MATLAB `run_filter`.
     if exist('mex_run_filter','file') ~= 0
         results = mex_run_filter(eskf, obs);
@@ -66,8 +74,13 @@ function results = run_filter(eskf, obs)
     results.innov_norm = zeros(1, n_samples);
     results.maha_dist = zeros(1, n_samples);
 
-    % Disable automatic saving of debug `record_*` files unless explicitly enabled
-    ENABLE_SAVE_TRACES = false;
+    % Enable trace saving when TRACE_SAMPLE env var is set (debugging)
+    trace_sample_env = getenv('TRACE_SAMPLE');
+    if ~isempty(trace_sample_env)
+        ENABLE_SAVE_TRACES = true;
+    else
+        ENABLE_SAVE_TRACES = false;
+    end
 
     for k = 1:n_samples
         if k == 1; fprintf('Start loop\n'); end

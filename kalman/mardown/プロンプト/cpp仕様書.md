@@ -128,3 +128,23 @@ utilsフォルダのmex化に向けた計画を作成する
 
 ## 注意
 低レイヤーから順番にmex化してmatlab実装をコメントアウトし、問題が無ければ次へ進む
+
+## 現状
+utilsの整理の過程(C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\mardown\UTILS_PLAN_INDEX.md)でセンサー機能の機能が失われた可能性がある
+現在はnan/infといったエラーが続いている
+原因は他にある可能性もある
+
+## 参考1
+0fbe5f5c99795c86481074d9671767fe163f3b38
+の変更を行う前は問題が無かった
+
+## 参考2
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\mardown
+に様々な履歴や計画などが保存してある
+これを参考に修正を行って
+
+## やること
+徹底的に原因を調べて、修正を行い、batchを実行して確かめる
+batchを実行中、nan/infなどのエラーが出たらすぐに、中断して修正する
+batchが全て成功するまで、ターミナルでの実行、修正を繰り返し続けて
+最後に、原因と修正についてmarkdownを出力して

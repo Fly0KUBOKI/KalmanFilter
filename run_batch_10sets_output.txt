@@ -1,0 +1,75 @@
+前回の結果を削除しました
+
+========================================
+=== Run 1/10 ===
+========================================
+Run 1: シミュレーション開始...
+Motion step 10000 / 20001
+Motion step 20000 / 20001
+Sensor step 10000 / 20001
+Sensor step 20000 / 20001
+sim_generate: wrote C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\truth_data.csv and C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\sensor_data.csv (20001 samples)
+Initialized Yaw from Mag: 0.05 deg
+推定完了
+Run 1: シミュレーション完了 (20.57秒)
+Run 1: 結果保存 -> estimation_01.csv
+Run 1: 解析開始...
+Run 1 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
+  Position RMSE: Overall=0.5226 m, X=0.1627 m, Y=0.1395 m, Z=0.4766 m
+  Velocity RMSE: 0.5698 m/s
+  Roll/Pitch/Yaw RMSE: 0.2733 / 0.2770 / 0.6419 deg
+  Gyro bias (final): [-0.2213, 0.0439, -0.0530] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 2/10 ===
+========================================
+Run 2: シミュレーション開始...
+Motion step 10000 / 20001
+Motion step 20000 / 20001
+Sensor step 10000 / 20001
+Sensor step 20000 / 20001
+sim_generate: wrote C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\truth_data.csv and C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\sensor_data.csv (20001 samples)
+Initialized Yaw from Mag: -0.20 deg
+推定完了
+Run 2: シミュレーション完了 (19.62秒)
+Run 2: 結果保存 -> estimation_02.csv
+Run 2: 解析開始...
+Run 2 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
+  Position RMSE: Overall=0.5443 m, X=0.1531 m, Y=0.1433 m, Z=0.5023 m
+  Velocity RMSE: 0.5681 m/s
+  Roll/Pitch/Yaw RMSE: 0.2858 / 0.3003 / 0.6849 deg
+  Gyro bias (final): [0.0003, 0.0660, 0.1464] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 3/10 ===
+========================================
+Run 3: シミュレーション開始...
+Motion step 10000 / 20001
+Motion step 20000 / 20001
+Sensor step 10000 / 20001
+Sensor step 20000 / 20001
+sim_generate: wrote C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\truth_data.csv and C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\sensor_data.csv (20001 samples)
+Initialized Yaw from Mag: -0.24 deg
+推定完了
+Run 3: シミュレーション完了 (18.12秒)
+Run 3: 結果保存 -> estimation_03.csv
+Run 3: 解析開始...
+Run 3 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
+  Position RMSE: Overall=0.5431 m, X=0.1646 m, Y=0.1387 m, Z=0.4986 m
+  Velocity RMSE: 0.5685 m/s
+  Roll/Pitch/Yaw RMSE: 0.2649 / 0.2770 / 0.7312 deg
+  Gyro bias (final): [0.0553, -0.0106, 0.3650] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 4/10 ===
+========================================
+Run 4: シミュレーション開始...
+Motion step 10000 / 20001
+Motion step 20000 / 20001
+Sensor step 10000 / 20001
+Sensor step 20000 / 20001
+sim_generate: wrote C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\truth_data.csv and C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\GenerateData\sensor_data.csv (20001 samples)
+Initialized Yaw from Mag: -0.16 deg
