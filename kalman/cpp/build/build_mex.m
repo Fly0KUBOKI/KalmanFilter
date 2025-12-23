@@ -241,6 +241,17 @@ function build_mex(targets)
         else
             warning('Unified filter sources not found, skipping');
         end
+
+        % Build: mex_run_filter (Phase 8 main-loop)
+        fprintf('\n=== mex_run_filter (Phase 8) ===\n');
+        if exist('mex_run_filter.cpp', 'file') && exist(unified_cpp, 'file') && exist(meukf_core_cpp, 'file')
+            fprintf('Sources: mex_run_filter.cpp + unified_filter.cpp + meukf_core.cpp\n');
+            if wants('mex_run_filter') && build_single_mex('mex_run_filter.cpp', compile_opts, inc_args, {unified_cpp, meukf_core_cpp}, bin_dir)
+                built_count = built_count + 1;
+            end
+        else
+            warning('mex_run_filter sources not found or dependencies missing, skipping');
+        end
         
         % Build: mex_eskf_step (NEW - ESKF統合: 予測+全センサー更新)
         fprintf('\n=== [10/10] mex_eskf_step ===\n');

@@ -11,7 +11,12 @@ function run_simulation(seed, skip_data_gen)
     params = config_params();
     dt = calculate_dt(obs);
     eskf = ESKF(obs, params.static_time, dt);
-    results = run_filter(eskf, obs);
+    % Prefer MEX main-loop when available (Phase 8). Fall back to MATLAB `run_filter`.
+    if exist('mex_run_filter','file') ~= 0
+        results = mex_run_filter(eskf, obs);
+    else
+        results = run_filter(eskf, obs);
+    end
     save_results(proj_root, results);
     
     % プロット生成をスキップ（バッチ実行時のエラー回避）
