@@ -64,8 +64,8 @@ classdef NoiseEstimator < handle
             catch
             end
             try
-                if exist('mex_sensor_filter','file')==3 || exist('mex_sensor_filter','file')==2
-                    mex_sensor_filter('reset');
+                if exist('mex_kf_utils','file')==2
+                    mex_kf_utils('sensor','reset');
                     % NOTE: Do NOT auto-sync initial R from MEX here.
                     % Previous behavior called obj.sync_from_mex() which allowed
                     % compiled MEX to overwrite MATLAB-side NoiseEstimator
@@ -256,7 +256,7 @@ classdef NoiseEstimator < handle
 
     methods (Access = private)
         function sync_from_mex(obj, sensor_type)
-            % Pull updated R from mex_sensor_filter for one sensor or all
+            % Pull updated R from compiled sensors via mex_kf_utils for one sensor or all
             if nargin < 2
                 sensors = {'accel','gyro','mag','gps','baro'};
             else
@@ -265,7 +265,7 @@ classdef NoiseEstimator < handle
             for i=1:numel(sensors)
                 s = sensors{i};
                 try
-                    Rm = mex_sensor_filter('get_R', s);
+                    Rm = mex_kf_utils('sensor', 'get_R', s);
                     if strcmp(s,'baro')
                         obj.R_baro = double(Rm);
                     else

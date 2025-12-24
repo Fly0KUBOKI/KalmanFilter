@@ -1,6 +1,7 @@
 classdef DivergenceGuard < handle
     % DivergenceGuard - compatibility shim that delegates to SensorFilters
-    % If mex_sensor_filter is available, heavy logic is executed in C++/MEX
+    % If compiled MEX filters are available (via mex_kf_utils), heavy logic
+    % is executed in C++/MEX
 
     properties (Access = private)
         prev_innovations
@@ -56,7 +57,7 @@ classdef DivergenceGuard < handle
             try
                 force_matlab_env = getenv('FORCE_MATLAB_FILTERS');
                 force_matlab = ~isempty(force_matlab_env) && strcmp(force_matlab_env, '1');
-                if ~force_matlab && (exist('mex_sensor_filter','file')==3 || exist('mex_sensor_filter','file')==2)
+                if ~force_matlab && (exist('mex_kf_utils','file')==2)
                     [dx_out, should_skip, was_attenuated] = SensorFilters.divergence_check(sensor_name, innovation, dx_in);
                     return;
                 end
@@ -129,7 +130,7 @@ classdef DivergenceGuard < handle
             try
                 force_matlab_env = getenv('FORCE_MATLAB_FILTERS');
                 force_matlab = ~isempty(force_matlab_env) && strcmp(force_matlab_env, '1');
-                if ~force_matlab && (exist('mex_sensor_filter','file')==3 || exist('mex_sensor_filter','file')==2)
+                if ~force_matlab && (exist('mex_kf_utils','file')==2)
                     P_out = SensorFilters.divergence_regularize(P_in);
                     return;
                 end
