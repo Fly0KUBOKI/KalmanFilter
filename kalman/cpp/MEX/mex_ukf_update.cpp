@@ -1,5 +1,5 @@
 ﻿#include "mex.h"
-#include "../UKF/Core/ukf_core.hpp"
+#include "../include/UKF/ukf_core.hpp"
 #include "mex_type_conv.hpp"
 #include <vector>
 #include <cstring>

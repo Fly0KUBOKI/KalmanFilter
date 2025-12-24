@@ -24,15 +24,10 @@ function run_simulation(seed, skip_data_gen)
 end
 
 function add_paths(proj_root)
-    addpath(genpath(fullfile(proj_root, 'KF')));
     addpath(genpath(fullfile(proj_root, 'ESKF')));
-    addpath(genpath(fullfile(proj_root, 'UKF')));
-    addpath(genpath(fullfile(proj_root, 'EKF')));
     addpath(fullfile(proj_root, 'Graph'));
     addpath(fullfile(proj_root, 'GenerateData'));
-    % MEX バイナリ（bin のみ）を優先して追加
     addpath(fullfile(proj_root, 'cpp', 'bin'));
-    % 古い genpath(cpp) は削除：bin のみで十分
 end
 
 function obs = read_observation(proj_root)

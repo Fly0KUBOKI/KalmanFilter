@@ -284,6 +284,72 @@ classdef ESKF < handle
             obj.P = output.covariance;
         end
 
+        % --------- KF integration helpers (proxy methods) ---------
+        function reset_sensor_filters(obj)
+            % Reset sensor filters (prefer MEX, fallback to MATLAB instances)
+            try
+                SensorFilters.reset();
+            catch
+                try
+                    if isfield(obj.sensor_filters, 'accel') && ~isempty(obj.sensor_filters.accel)
+                        if ismethod(obj.sensor_filters.accel, 'reset')
+                            obj.sensor_filters.accel.reset();
+                        end
+                    end
+                catch
+                end
+            end
+        end
+
+        function reset_sensor_filters_zero(obj)
+            try
+                SensorFilters.reset_zero();
+            catch
+                % no-op fallback
+            end
+        end
+
+        function R = get_sensor_R(obj, sensor_type)
+            % Return sensor noise covariance via SensorFilters (MEX) or NoiseEstimator
+            try
+                R = SensorFilters.get_R(sensor_type);
+                return;
+            catch
+            end
+            try
+                R = obj.noiseEstimator.getRnoise(sensor_type);
+            catch
+                R = [];
+            end
+        end
+
+        function estimate_noise(obj, sensor_type, innov, H, P)
+            % Update noise estimator (MATLAB side) and notify MEX if present
+            try
+                obj.noiseEstimator.estimate(sensor_type, innov, H, P);
+            catch
+            end
+            try
+                SensorFilters.noise_estimate(sensor_type, innov, H, P);
+            catch
+            end
+        end
+
+        function [dx_out, should_skip, was_attenuated] = divergence_check(obj, sensor_name, innov, dx_in, ctx)
+            % Run divergence guard checks: prefer MATLAB DivergenceGuard, fall back to SensorFilters/MEX
+            try
+                [dx_out, should_skip, was_attenuated] = obj.divergence_guard.check_and_attenuate_update(sensor_name, innov, dx_in, ctx);
+                return;
+            catch
+            end
+            try
+                [dx_out, should_skip, was_attenuated] = SensorFilters.divergence_check(sensor_name, innov, dx_in);
+                return;
+            catch
+            end
+            dx_out = dx_in; should_skip = false; was_attenuated = false;
+        end
+
         function delete(obj)
             % Free C++ persistent state if allocated
             try

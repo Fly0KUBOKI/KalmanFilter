@@ -233,4 +233,3 @@ end
 function value = get_field(s, field, default)
     if isfield(s, field), value = s.(field); else value = default; end
 end
-
