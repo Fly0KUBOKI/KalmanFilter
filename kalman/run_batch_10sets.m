@@ -38,15 +38,8 @@ function run_batch_10sets(use_mex)
     if exist(mex_bin, 'dir')
         addpath(mex_bin);
     end
-    % MATLAB 側ユーティリティやクラスを参照できるようにパスを追加
-    % これにより SensorFilters 等のクラスが解決可能になる
-    addpath(genpath(fullfile(proj_root, 'KF')));
+ 
     addpath(genpath(fullfile(proj_root, 'ESKF')));
-    % NOTE: For Phase6 migration tests, prefer ESKF/MEX implementations.
-    % Temporarily disable legacy EKF/UKF MATLAB folders to validate ESKF-only flow.
-    % If you need legacy behavior, uncomment the following two lines.
-    % addpath(genpath(fullfile(proj_root, 'UKF')));
-    % addpath(genpath(fullfile(proj_root, 'EKF')));
     addpath(fullfile(proj_root, 'Graph'));
     addpath(fullfile(proj_root, 'GenerateData'));
         if exist('mex_sensor_filter','file') == 3
