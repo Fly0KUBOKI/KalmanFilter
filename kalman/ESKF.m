@@ -184,12 +184,22 @@ classdef ESKF < handle
             end
 
             % ヘルパークラス初期化
-            obj.noiseEstimator = NoiseEstimator(10);
-            obj.noiseEstimator.R_accel = ones(3,1) * (sigma_a^2);
-            obj.noiseEstimator.R_gyro  = ones(3,1) * (sigma_g^2);
-            obj.noiseEstimator.R_mag   = ones(3,1) * (sigma_mag^2);
-            obj.noiseEstimator.R_baro  = (sigma_press^2);
-            obj.noiseEstimator.R_gps   = ones(3,1) * (sigma_gps^2);
+            if exist('mex_sensor_filter','file') == 3
+                obj.noiseEstimator = struct();
+                obj.noiseEstimator.getRnoise = @(s) mex_sensor_filter('get_R', s);
+                obj.noiseEstimator.estimate = @(s, innov, H, P) mex_sensor_filter('noise_estimate', s, innov, H, P);
+            else
+                obj.noiseEstimator = NoiseEstimator(10);
+            end
+            % Default R fields (works for struct or class)
+            try
+                obj.noiseEstimator.R_accel = ones(3,1) * (sigma_a^2);
+                obj.noiseEstimator.R_gyro  = ones(3,1) * (sigma_g^2);
+                obj.noiseEstimator.R_mag   = ones(3,1) * (sigma_mag^2);
+                obj.noiseEstimator.R_baro  = (sigma_press^2);
+                obj.noiseEstimator.R_gps   = ones(3,1) * (sigma_gps^2);
+            catch
+            end
 
             obj.sensor_filters = struct();
             % NOTE: Prefer MEX implementations. Create MATLAB instances only
@@ -212,13 +222,21 @@ classdef ESKF < handle
             % MATLAB AccelFilter instance removed for Phase2 MEX — keep placeholder
             obj.accel_filter = [];
 
-            % DivergenceGuard
+            % DivergenceGuard (use MEX if available)
             config = struct('max_velocity', 3, 'max_acceleration', 3, ...
                 'max_allowed_innov', 100, 'max_innov_cap_fraction', 0.6, ...
                 'max_gain_norm', 150, 'innov_change_ratio_threshold', 2.5, ...
                 'attenuation_factor', 0.6, 'max_attitude_variance', (deg2rad(15))^2, ...
                 'max_mag_gain_element', 0.2);
-            obj.divergence_guard = DivergenceGuard(config);
+            if exist('mex_sensor_filter','file') == 3
+                obj.divergence_guard = struct();
+                obj.divergence_guard.check_and_attenuate_update = @(sensor_name, innov, dx_in, ctx) mex_sensor_filter('divergence_check', sensor_name, innov, dx_in);
+                obj.divergence_guard.regularize_covariance = @(P) mex_sensor_filter('divergence_regularize', P);
+                % mex_sensor_filter does not provide check_and_clip_velocity; provide MATLAB fallback
+                obj.divergence_guard.check_and_clip_velocity = @(vel_in, P_in, vel_indices) obj.divergence_check_velocity_impl(vel_in, P_in, vel_indices);
+            else
+                obj.divergence_guard = DivergenceGuard(config);
+            end
             
             % SensorDataBuffer統合 (Common削除)
             obj.prev_accel = zeros(3,1);
@@ -289,7 +307,7 @@ classdef ESKF < handle
         function reset_sensor_filters(obj)
             % Reset sensor filters (prefer MEX, fallback to MATLAB instances)
             if exist('mex_sensor_filter','file') == 3
-                SensorFilters.reset();
+                mex_sensor_filter('reset');
             else
                 if isfield(obj.sensor_filters, 'accel') && ~isempty(obj.sensor_filters.accel)
                     if ismethod(obj.sensor_filters.accel, 'reset')
@@ -300,14 +318,19 @@ classdef ESKF < handle
         end
 
         function reset_sensor_filters_zero(obj)
-            if exist('SensorFilters','file') == 3
+            if exist('mex_sensor_filter','file') == 3
+                mex_sensor_filter('reset_zero');
+            elseif exist('SensorFilters','file') == 3
                 SensorFilters.reset_zero();
             end
         end
 
         function R = get_sensor_R(obj, sensor_type)
-            % Return sensor noise covariance via SensorFilters (MEX) or NoiseEstimator
-            if exist('SensorFilters','file') == 2 || exist('SensorFilters','file') == 3
+            % Return sensor noise covariance via mex_sensor_filter (preferred) or SensorFilters/NoiseEstimator
+            if exist('mex_sensor_filter','file') == 3
+                R = mex_sensor_filter('get_R', sensor_type);
+                return;
+            elseif exist('SensorFilters','file') == 2 || exist('SensorFilters','file') == 3
                 R = SensorFilters.get_R(sensor_type);
                 return;
             end
@@ -316,8 +339,19 @@ classdef ESKF < handle
 
         function estimate_noise(obj, sensor_type, innov, H, P)
             % Update noise estimator (MATLAB side) and notify MEX if present
-            obj.noiseEstimator.estimate(sensor_type, innov, H, P);
-            SensorFilters.noise_estimate(sensor_type, innov, H, P);
+            try
+                if isfield(obj.noiseEstimator, 'estimate')
+                    obj.noiseEstimator.estimate(sensor_type, innov, H, P);
+                elseif exist('mex_sensor_filter','file') == 3
+                    mex_sensor_filter('noise_estimate', sensor_type, innov, H, P);
+                end
+            catch
+            end
+            if exist('mex_sensor_filter','file') == 3
+                try mex_sensor_filter('noise_estimate', sensor_type, innov, H, P); catch, end
+            elseif exist('SensorFilters','file') == 2 || exist('SensorFilters','file') == 3
+                SensorFilters.noise_estimate(sensor_type, innov, H, P);
+            end
         end
 
         function [dx_out, should_skip, was_attenuated] = divergence_check(obj, sensor_name, innov, dx_in, ctx)
@@ -573,7 +607,13 @@ classdef ESKF < handle
                     end
                     obj.prev_accel = a_meas;
                     if ~isempty(obj.w_body) && norm(obj.w_body) > 1.5; return; end
-                    if exist('SensorFilters','file') == 3
+                    if exist('mex_sensor_filter','file') == 3
+                        try
+                            [a_corrected, is_outlier] = mex_sensor_filter('accel', a_meas, zeros(3,1));
+                        catch
+                            a_corrected = a_meas; is_outlier = false;
+                        end
+                    elseif exist('SensorFilters','file') == 3
                         [a_corrected, is_outlier] = SensorFilters.accel(a_meas, zeros(3,1));
                     else
                         a_corrected = a_meas; is_outlier = false;
@@ -597,7 +637,13 @@ classdef ESKF < handle
                         return;
                     end
                     obj.prev_mag = m_meas;
-                    if exist('SensorFilters','file') == 3
+                    if exist('mex_sensor_filter','file') == 3
+                        try
+                            [m_filtered, is_outlier] = mex_sensor_filter('mag', m_meas, obj.prev_mag);
+                        catch
+                            m_filtered = m_meas; is_outlier = false;
+                        end
+                    elseif exist('SensorFilters','file') == 3
                         [m_filtered, is_outlier] = SensorFilters.mag(m_meas, obj.prev_mag);
                     else
                         m_filtered = m_meas; is_outlier = false;
@@ -640,7 +686,15 @@ classdef ESKF < handle
                         return;
                     end
                     obj.prev_baro = pressure;
-                    if exist('SensorFilters','file') == 3
+                    if exist('mex_sensor_filter','file') == 3
+                        try
+                            [alt_baro, is_outlier] = mex_sensor_filter('baro', pressure);
+                        catch
+                            P0 = 101325; ALT_COEFF = 44330;
+                            alt_baro = ALT_COEFF * (1 - (pressure / P0)^0.1903);
+                            is_outlier = false;
+                        end
+                    elseif exist('SensorFilters','file') == 3
                         [alt_baro, is_outlier] = SensorFilters.baro(pressure);
                     else
                         P0 = 101325; ALT_COEFF = 44330;
@@ -758,13 +812,85 @@ classdef ESKF < handle
             % 呼び出しは共通ラッパーに移譲して検証/trace を一元化
             [new_state, dbg_out, mex_debug] = obj.call_meukf_step(state, sensor_data, mex_params, sensor_type, sample);
 
-            % 状態割当
-            obj.p = new_state.p;
-            obj.v = new_state.v;
-            obj.q = new_state.q;
-            obj.ba = new_state.ba;
-            obj.bg = new_state.bg;
-            obj.P = new_state.P;
+            % If MEX provides innovation/H/dx, use them for noise estimation
+            try
+                if isstruct(dbg_out) && isfield(dbg_out, 'innov') && isfield(dbg_out, 'H')
+                    try
+                        obj.estimate_noise(sensor_type, dbg_out.innov, dbg_out.H, obj.P);
+                    catch
+                        % Non-fatal: ensure filter still proceeds if estimator fails
+                    end
+                end
+            catch
+            end
+
+            % If MEX provided a proposed error-state update 'dx', run divergence guard
+            should_apply_mex_state = true;
+            try
+                if isstruct(dbg_out) && isfield(dbg_out, 'dx')
+                    dx_in = dbg_out.dx(:);
+                    ctx = struct('sensor', sensor_type, 'sample', sample);
+                    try
+                        [dx_out, should_skip, was_attenuated] = obj.divergence_check(sensor_type, dbg_out.innov, dx_in, ctx);
+                    catch
+                        should_skip = false; was_attenuated = false; dx_out = dx_in;
+                    end
+
+                    if should_skip
+                        % Skip applying this sensor update entirely
+                        return;
+                    end
+
+                    if was_attenuated && ~isempty(dx_out)
+                        % Apply attenuated error-state to previous state instead of mex full state
+                        dx_apply = dx_out(:);
+                        % position and velocity
+                        new_state.p = state.p + dx_apply(1:3);
+                        new_state.v = state.v + dx_apply(4:6);
+                        % small-angle quaternion correction: dq ~= [1; 0.5*phi]
+                        phi = dx_apply(7:9);
+                        dq = [1; 0.5 * phi(:)];
+                        % quaternion multiply dq * q (both as [w;x;y;z])
+                        q1 = dq; q2 = state.q(:);
+                        w1=q1(1); x1=q1(2); y1=q1(3); z1=q1(4);
+                        w2=q2(1); x2=q2(2); y2=q2(3); z2=q2(4);
+                        qw = w1*w2 - x1*x2 - y1*y2 - z1*z2;
+                        qx = w1*x2 + x1*w2 + y1*z2 - z1*y2;
+                        qy = w1*y2 - x1*z2 + y1*w2 + z1*x2;
+                        qz = w1*z2 + x1*y2 - y1*x2 + z1*w2;
+                        q_new = [qw; qx; qy; qz];
+                        q_new = q_new / norm(q_new);
+                        new_state.q = q_new;
+                        % biases
+                        new_state.ba = state.ba + dx_apply(10:12);
+                        new_state.bg = state.bg + dx_apply(13:15);
+                        % keep covariance returned by mex (may be conservative)
+                        % but ensure symmetry
+                        if isfield(new_state, 'P')
+                            new_state.P = (new_state.P + new_state.P')/2;
+                        else
+                            new_state.P = obj.P;
+                        end
+                        should_apply_mex_state = true;
+                    end
+                end
+            catch
+            end
+
+            % 状態割当（デフォルト: MEXの new_state を使用）
+            if should_apply_mex_state
+                obj.p = new_state.p;
+                obj.v = new_state.v;
+                obj.q = new_state.q;
+                obj.ba = new_state.ba;
+                obj.bg = new_state.bg;
+                % Ensure covariance symmetry before assigning
+                if isfield(new_state, 'P')
+                    obj.P = (new_state.P + new_state.P')/2;
+                else
+                    obj.P = obj.P;
+                end
+            end
         end
 
         function [new_state, dbg_out, mex_debug] = call_meukf_step(obj, state, sensor_data, mex_params, sensor_type, sample)
@@ -937,6 +1063,38 @@ classdef ESKF < handle
                     mex_eskf_free(obj.state_handle);
                 end
             end
+        end
+
+        function [vel_out, P_out, was_clipped] = divergence_check_velocity_impl(obj, vel_in, P_in, vel_indices)
+            % Fallback implementation for check_and_clip_velocity when MEX lacks it
+            vel_out = vel_in;
+            P_out = P_in;
+            was_clipped = false;
+
+            % Define max variances consistent with predict() limits
+            max_var = [100^2*ones(3,1); 20^2*ones(3,1); (deg2rad(45))^2*ones(3,1); 0.1*ones(3,1); 0.01*ones(3,1)];
+
+            % vel_indices are indices into the full state (e.g., 4:6), vel_in is 3x1
+            for ii = 1:length(vel_indices)
+                i = vel_indices(ii);
+                if P_out(i,i) > max_var(i)
+                    factor = sqrt(max_var(i) / P_out(i,i));
+                    P_out(i,:) = P_out(i,:) * factor;
+                    P_out(:,i) = P_out(:,i) * factor;
+                    P_out(i,i) = max_var(i);
+                    was_clipped = true;
+                end
+            end
+
+            % Clip velocity magnitude to configured maximum (default 3 m/s)
+            max_vel = 3.0;
+            if norm(vel_out) > max_vel
+                vel_out = vel_out * (max_vel / norm(vel_out));
+                was_clipped = true;
+            end
+
+            % Ensure symmetry
+            P_out = (P_out + P_out')/2;
         end
     end
 end

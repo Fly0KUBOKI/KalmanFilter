@@ -24,7 +24,6 @@ function run_simulation(seed, skip_data_gen)
 end
 
 function add_paths(proj_root)
-    addpath(genpath(fullfile(proj_root, 'ESKF')));
     addpath(fullfile(proj_root, 'Graph'));
     addpath(fullfile(proj_root, 'GenerateData'));
     addpath(fullfile(proj_root, 'cpp', 'bin'));

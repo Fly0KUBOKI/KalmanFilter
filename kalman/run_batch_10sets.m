@@ -43,11 +43,11 @@ function run_batch_10sets(use_mex)
     addpath(fullfile(proj_root, 'Graph'));
     addpath(fullfile(proj_root, 'GenerateData'));
         if exist('mex_sensor_filter','file') == 3
-            % 明示的ゼロ初期化を優先
+            % 明示的ゼロ初期化を優先 (MEX が利用可能な場合)
             try
-                SensorFilters.reset_zero();
+                mex_sensor_filter('reset_zero');
             catch
-                SensorFilters.reset();
+                try mex_sensor_filter('reset'); catch, end
             end
         end
     
@@ -181,10 +181,27 @@ function run_batch_10sets(use_mex)
             end
             
         catch e
+            % Log concise message and save full stack/report for diagnosis
+            rep = getReport(e, 'extended');
             log_message(log_file, sprintf('Run %d FAILED: %s', run_id, e.message));
+            % Also append the full exception report to the same log
+            try
+                log_message(log_file, rep);
+            catch
+            end
             results_summary(run_id).status = 'FAILED';
             results_summary(run_id).error = e.message;
             results_summary(run_id).pos_rmse = NaN;
+            % Save stack/report to a separate file for quick inspection
+            try
+                errfile = fullfile(fileparts(log_file), sprintf('run_%02d_error_stack.txt', run_id));
+                fid2 = fopen(errfile, 'w');
+                if fid2 ~= -1
+                    fprintf(fid2, '%s\n', rep);
+                    fclose(fid2);
+                end
+            catch
+            end
         end
     end
     
