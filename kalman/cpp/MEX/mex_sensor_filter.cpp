@@ -210,6 +210,94 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         for(int j=0;j<P.cols;++j) for(int i=0;i<P.rows;++i) out[j*P.rows+i]=(double)P(i,j);
         return;
     }
+
+    if (cmdstr == "divergence_clip_velocity") {
+        // Usage: [vel_out, P_out, was_clipped] = mex_sensor_filter('divergence_clip_velocity', vel_in, P_in, vel_indices)
+        if (nrhs < 4) mexErrMsgIdAndTxt("SensorFilter:Usage", "divergence_clip_velocity requires vel_in, P_in, vel_indices");
+        // vel_in (3x1)
+        if (mxGetNumberOfElements(prhs[1]) != 3) mexErrMsgIdAndTxt("SensorFilter:Usage", "vel_in must be length 3");
+        float vel_tmp[3]; mex_conv::mxArrayToFloatArray(prhs[1], vel_tmp, 3);
+        cmath_fx::FixedMatrix vel_in(3,1);
+        for(int i=0;i<3;++i) vel_in(i,0) = vel_tmp[i];
+
+        // P_in (NxN)
+        int P_m = mxGetM(prhs[2]); int P_n = mxGetN(prhs[2]);
+        if (P_m != P_n) mexErrMsgIdAndTxt("SensorFilter:Usage", "P_in must be square");
+        auto P = cmath_fx::FixedMatrix(P_m, P_n);
+        std::vector<float> P_tmp(static_cast<size_t>(P_m) * static_cast<size_t>(P_n));
+        mex_conv::mxArrayToFloatArray(prhs[2], P_tmp.data(), static_cast<size_t>(P_m) * static_cast<size_t>(P_n));
+        for(int j=0;j<P_n;++j) for(int i=0;i<P_m;++i) P(i,j) = P_tmp[j*P_m + i];
+
+        // vel_indices (vector of indices into full state, 1-based)
+        if (!mxIsDouble(prhs[3])) mexErrMsgIdAndTxt("SensorFilter:Usage", "vel_indices must be numeric");
+        int ni = (int)mxGetNumberOfElements(prhs[3]);
+        std::vector<int> vel_indices(ni);
+        double* vid = mxGetPr(prhs[3]);
+        for(int k=0;k<ni;++k) vel_indices[k] = static_cast<int>(vid[k]);
+
+        bool was_clipped = false;
+
+        // Define max variances consistent with MATLAB limits
+        std::vector<float> max_var(P_m);
+        for(int i=0;i<P_m;++i) max_var[i] = 1e6f; // default large
+        if (P_m >= 15) {
+            // position 1:3 -> 100^2
+            for(int i=0;i<3;++i) max_var[i] = 100.0f*100.0f;
+            // velocity 4:6 -> 20^2
+            for(int i=3;i<6;++i) max_var[i] = 20.0f*20.0f;
+            // attitude 7:9 -> (deg2rad(45))^2
+            float d45 = 45.0f * 3.14159265f / 180.0f;
+            for(int i=6;i<9;++i) max_var[i] = d45*d45;
+            // accel bias 10:12
+            for(int i=9;i<12;++i) max_var[i] = 0.1f;
+            // gyro bias 13:15
+            for(int i=12;i<15;++i) max_var[i] = 0.01f;
+        }
+
+        // Clip covariance per-velocity-index
+        for(size_t kk=0; kk<vel_indices.size(); ++kk) {
+            int idx = vel_indices[kk] - 1; // convert to 0-based
+            if (idx < 0 || idx >= P_m) continue;
+            float Pii = P(idx, idx);
+            if (Pii > max_var[idx]) {
+                float factor = sqrtf(max_var[idx] / Pii);
+                for(int j=0;j<P_m;++j) P(idx, j) *= factor;
+                for(int i=0;i<P_m;++i) P(i, idx) *= factor;
+                P(idx, idx) = max_var[idx];
+                was_clipped = true;
+            }
+        }
+
+        // Clip velocity magnitude to max_vel (3.0 m/s)
+        float max_vel = 3.0f;
+        cmath_fx::FixedMatrix vel_out = vel_in;
+        float vnorm = 0.0f;
+        for(int i=0;i<3;++i) vnorm += vel_out(i,0) * vel_out(i,0);
+        vnorm = sqrtf(vnorm);
+        if (vnorm > max_vel) {
+            float scale = max_vel / vnorm;
+            for(int i=0;i<3;++i) vel_out(i,0) *= scale;
+            was_clipped = true;
+        }
+
+        // Ensure symmetry of P
+        for(int i=0;i<P_m;++i) for(int j=i+1;j<P_m;++j) {
+            float v = 0.5f * (P(i,j) + P(j,i));
+            P(i,j) = v; P(j,i) = v;
+        }
+
+        // Return outputs
+        plhs[0] = mxCreateDoubleMatrix(3,1,mxREAL);
+        double* outv = mxGetPr(plhs[0]);
+        for(int i=0;i<3;++i) outv[i] = (double)vel_out(i,0);
+
+        plhs[1] = mxCreateDoubleMatrix(P.rows, P.cols, mxREAL);
+        double* outP = mxGetPr(plhs[1]);
+        for(int j=0;j<P.cols;++j) for(int i=0;i<P.rows;++i) outP[j*P.rows + i] = (double)P(i,j);
+
+        if (nlhs >= 3) plhs[2] = mxCreateLogicalScalar(was_clipped);
+        return;
+    }
     
     mexErrMsgIdAndTxt("SensorFilter:UnknownCmd", "Unknown command");
 }

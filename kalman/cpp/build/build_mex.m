@@ -9,7 +9,7 @@ function build_mex(targets)
     %   - C++ compiler configured (run: mex -setup C++)
     %   - Source files in cpp/mex/, cpp/src/, cpp/include/
 
-    fprintf('=== MEX Build for Kalman Filters ===\n');
+    fprintf('MEX Build for Kalman Filters\n');
     % Usage: build_mex()          -> build all
     %        build_mex({'mex_sensor_filter','mex_meukf_step'})
     %        build_mex('mex_sensor_filter.cpp')
@@ -66,8 +66,6 @@ function build_mex(targets)
         fprintf('Created output directory: %s\n', bin_dir);
     end
     
-    fprintf('C++ root: %s\n', cpp_root);
-    fprintf('MEX sources: %s\n', mex_src_dir);
     fprintf('Output: %s\n\n', bin_dir);
     
     % Check compiler
@@ -76,8 +74,6 @@ function build_mex(targets)
         if isempty(cc)
             warning('C++ compiler not configured. Run: mex -setup C++');
             mex('-setup', 'C++');
-        else
-            fprintf('Compiler: %s\n\n', cc.Name);
         end
     catch
         warning('Failed to check compiler. Attempting build anyway...');
@@ -111,146 +107,98 @@ function build_mex(targets)
     inc_meukf = ['-I' fullfile(cpp_root, 'MEUKF')];  % for MEUKF headers
     inc_args = {inc_kf_core, inc_ekf_core, inc_eskf, inc_ukf_core, inc_common, inc_meukf};
     
+    % Build: mex_matlab_helpers (Phase 1 helper)
+    if wants('mex_matlab_helpers') && build_single_mex('mex_matlab_helpers.cpp', compile_opts, inc_args, {}, bin_dir)
+        built_count = built_count + 1;
+    end
+
+    if wants('mex_sensor_preprocessor') && build_single_mex('mex_sensor_preprocessor.cpp', compile_opts, inc_args, {}, bin_dir)
+        built_count = built_count + 1;
+    end
+
     try
         % Build: mex_kalman_filter_core
-        fprintf('=== [1/7] mex_kalman_filter_core ===\n');
         if wants('mex_kalman_filter_core') && build_single_mex('mex_kalman_filter_core.cpp', compile_opts, inc_args, {}, bin_dir)
             built_count = built_count + 1;
         end
-        
+
         % Build: mex_ukf_sigma_points
-        fprintf('\n=== [2/7] mex_ukf_sigma_points ===\n');
         if wants('mex_ukf_sigma_points') && build_single_mex('mex_ukf_sigma_points.cpp', compile_opts, inc_args, {}, bin_dir)
             built_count = built_count + 1;
         end
-        
+
         % Build: mex_eskf_core (legacy)
-        fprintf('\n=== [3/7] mex_eskf_core (legacy) ===\n');
         eskf_core_cpp = fullfile(cpp_root, 'ESKF', 'eskf_core.cpp');
         if exist('mex_eskf_core.cpp', 'file') && exist(eskf_core_cpp, 'file')
-            fprintf('Sources: mex_eskf_core.cpp + eskf_core.cpp\n');
-            % if build_single_mex('mex_eskf_core.cpp', compile_opts, inc_args, {eskf_core_cpp}, bin_dir)
-            %     built_count = built_count + 1;
-            % end
-            fprintf('Skipping mex_eskf_core (locked)\n');
+            % Skip locked legacy target
         else
-            warning('ESKF sources not found, skipping');
+            % ESKF sources missing -> skip
         end
-        
-        % Build: mex_eskf_math (NEW - stateless computation library)
-        fprintf('\n=== [4/7] mex_eskf_math (NEW - pure computation) ===\n');
+
+        % mex_eskf_math
         eskf_math_cpp = fullfile(src_dir, 'ESKF', 'eskf_math.cpp');
         if exist('mex_eskf_math.cpp', 'file') && exist(eskf_math_cpp, 'file')
-            fprintf('Sources: mex_eskf_math.cpp + eskf_math.cpp\n');
             if wants('mex_eskf_math') && build_single_mex('mex_eskf_math.cpp', compile_opts, inc_args, {eskf_math_cpp}, bin_dir)
                 built_count = built_count + 1;
             end
-        else
-            warning('ESKF math sources not found, skipping');
         end
 
-        % Build: mex_eskf_init (NEW - ESKF object initialization)
-        fprintf('\n=== [5/7] mex_eskf_init (NEW - ESKF init) ===\n');
+        % mex_eskf_init
         if exist('mex_eskf_init.cpp', 'file')
-            fprintf('Sources: mex_eskf_init.cpp\n');
             if wants('mex_eskf_init') && build_single_mex('mex_eskf_init.cpp', compile_opts, inc_args, {}, bin_dir)
                 built_count = built_count + 1;
             end
-        else
-            % not an error; optional target
-        end
-        
-        % Build: mex_eskf_get_state
-        fprintf('\n=== mex_eskf_get_state ===\n');
-        if exist('mex_eskf_get_state.cpp', 'file')
-            if wants('mex_eskf_get_state') && build_single_mex('mex_eskf_get_state.cpp', compile_opts, inc_args, {}, bin_dir)
-                built_count = built_count + 1;
-            end
         end
 
-        % Build: mex_eskf_free
-        fprintf('\n=== mex_eskf_free ===\n');
-        if exist('mex_eskf_free.cpp', 'file')
-            if wants('mex_eskf_free') && build_single_mex('mex_eskf_free.cpp', compile_opts, inc_args, {}, bin_dir)
-                built_count = built_count + 1;
-            end
+        % mex_eskf_get_state / free / set_state / step_handle
+        if exist('mex_eskf_get_state.cpp', 'file') && wants('mex_eskf_get_state')
+            if build_single_mex('mex_eskf_get_state.cpp', compile_opts, inc_args, {}, bin_dir), built_count = built_count + 1; end
         end
-        
-        % Build: mex_eskf_set_state
-        fprintf('\n=== mex_eskf_set_state ===\n');
-        if exist('mex_eskf_set_state.cpp', 'file')
-            if wants('mex_eskf_set_state') && build_single_mex('mex_eskf_set_state.cpp', compile_opts, inc_args, {}, bin_dir)
-                built_count = built_count + 1;
-            end
+        if exist('mex_eskf_free.cpp', 'file') && wants('mex_eskf_free')
+            if build_single_mex('mex_eskf_free.cpp', compile_opts, inc_args, {}, bin_dir), built_count = built_count + 1; end
+        end
+        if exist('mex_eskf_set_state.cpp', 'file') && wants('mex_eskf_set_state')
+            if build_single_mex('mex_eskf_set_state.cpp', compile_opts, inc_args, {}, bin_dir), built_count = built_count + 1; end
+        end
+        if exist('mex_eskf_step_handle.cpp', 'file') && wants('mex_eskf_step_handle')
+            if build_single_mex('mex_eskf_step_handle.cpp', compile_opts, inc_args, {}, bin_dir), built_count = built_count + 1; end
         end
 
-        % Build: mex_eskf_step_handle (NEW - handle-based wrapper)
-        fprintf('\n=== mex_eskf_step_handle ===\n');
-        if exist('mex_eskf_step_handle.cpp', 'file')
-            if wants('mex_eskf_step_handle') && build_single_mex('mex_eskf_step_handle.cpp', compile_opts, inc_args, {}, bin_dir)
-                built_count = built_count + 1;
-            end
-        end
+        % mex_eskf_step (wrapper) - skipped here
 
-        % Build: mex_eskf_step (wrapper calling mex_unified_filter)
-        fprintf('\n=== mex_eskf_step (wrapper) ===\n');
-        if exist('mex_eskf_step.cpp', 'file')
-            fprintf('Skipping intermediate mex_eskf_step build; will build with unified sources later.\n');
-        end
-        
-        % Build: mex_quaternion_lib
-        fprintf('\n=== [5/7] mex_quaternion_lib ===\n');
-        % if build_single_mex('mex_quaternion_lib.cpp', compile_opts, inc_args, {}, bin_dir)
-        %     built_count = built_count + 1;
-        % end
-        fprintf('Skipping mex_quaternion_lib (locked)\n');
-        
-        % Build: mex_ukf_update
-        fprintf('\n=== [6/7] mex_ukf_update ===\n');
+        % mex_quaternion_lib - locked/skipped
+
+        % mex_ukf_update
         if wants('mex_ukf_update') && build_single_mex('mex_ukf_update.cpp', compile_opts, inc_args, {}, bin_dir)
             built_count = built_count + 1;
         end
 
-        % Build: mex_meukf_step
-        fprintf('\n=== [7/9] mex_meukf_step ===\n');
+        % mex_meukf_step
         meukf_core_cpp = fullfile(cpp_root, 'MEUKF', 'meukf_core.cpp');
         if exist('mex_meukf_step.cpp', 'file') && exist(meukf_core_cpp, 'file')
-            fprintf('Sources: mex_meukf_step.cpp + meukf_core.cpp\n');
-            % Build with new name to avoid lock
             if wants('mex_meukf_step') && build_single_mex('mex_meukf_step.cpp', compile_opts, inc_args, {meukf_core_cpp}, bin_dir, 'mex_meukf_step_v2')
                 built_count = built_count + 1;
             end
-        else
-            warning('MEUKF sources not found, skipping');
         end
-        
-        % Build: mex_sensor_filter (NEW - for incremental testing)
-        fprintf('\n=== [8/9] mex_sensor_filter ===\n');
+
+        % mex_sensor_filter
         if wants('mex_sensor_filter') && build_single_mex('mex_sensor_filter.cpp', compile_opts, inc_args, {}, bin_dir)
             built_count = built_count + 1;
         end
-        
-        % Build: mex_unified_filter (NEW - unified C++ interface)
-        fprintf('\n=== [9/10] mex_unified_filter ===\n');
+
+        % mex_unified_filter
         unified_cpp = fullfile(cpp_root, 'MEUKF', 'unified_filter.cpp');
         if exist('mex_unified_filter.cpp', 'file') && exist(unified_cpp, 'file') && exist(meukf_core_cpp, 'file')
-            fprintf('Sources: mex_unified_filter.cpp + unified_filter.cpp + meukf_core.cpp\n');
             if wants('mex_unified_filter') && build_single_mex('mex_unified_filter.cpp', compile_opts, inc_args, {unified_cpp, meukf_core_cpp}, bin_dir)
                 built_count = built_count + 1;
             end
-        else
-            warning('Unified filter sources not found, skipping');
         end
-        
-        % Build: mex_eskf_step (NEW - ESKF統合: 予測+全センサー更新)
-        fprintf('\n=== [10/10] mex_eskf_step ===\n');
+
+        % mex_eskf_step final
         if exist('mex_eskf_step.cpp', 'file') && exist(unified_cpp, 'file') && exist(meukf_core_cpp, 'file')
-            fprintf('Sources: mex_eskf_step.cpp + unified_filter.cpp + meukf_core.cpp\n');
             if wants('mex_eskf_step') && build_single_mex('mex_eskf_step.cpp', compile_opts, inc_args, {unified_cpp, meukf_core_cpp}, bin_dir)
                 built_count = built_count + 1;
             end
-        else
-            warning('ESKF step sources not found, skipping');
         end
         
     catch ME
@@ -314,21 +262,23 @@ function success = build_single_mex(mex_file, compile_opts, inc_args, extra_sour
         catch
         end
 
-        % Build
-        fprintf('Compiling...\n');
-        mex(mex_args{:});
-        
-        % Check output
+        % Build (suppress verbose mex output; show concise result)
         mex_output = [output_name '.' mexext];
-
-        if exist(mex_output, 'file')
-            % Copy to output directory
-            dest_file = fullfile(output_dir, mex_output);
-            copyfile(mex_output, dest_file, 'f');
-            fprintf('Built: %s\n', mex_output);
-            success = true;
-        else
-            warning('Output file not generated: %s', mex_output);
+        fprintf('Compiling %s... ', output_name);
+        try
+            cmd_out = evalc('mex(mex_args{:});'); %# capture mex stdout/stderr
+            if exist(mex_output, 'file')
+                dest_file = fullfile(output_dir, mex_output);
+                copyfile(mex_output, dest_file, 'f');
+                fprintf('OK\n');
+                success = true;
+            else
+                fprintf('FAILED\n');
+                warning('Output file not generated: %s', mex_output);
+            end
+        catch ME
+            fprintf('ERROR\n');
+            warning('Failed to build %s: %s', mex_file, ME.message);
         end
     catch ME
         warning('Failed to build %s: %s', mex_file, ME.message);
