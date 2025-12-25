@@ -205,6 +205,12 @@ function build_mex(targets)
                 built_count = built_count + 1;
             end
         end
+        % Phase 5: mex_filter_management
+        if exist('mex_filter_management.cpp', 'file')
+            if wants('mex_filter_management') && build_single_mex('mex_filter_management.cpp', compile_opts, inc_args, {}, bin_dir)
+                built_count = built_count + 1;
+            end
+        end
         
     catch ME
         build_success = false;
