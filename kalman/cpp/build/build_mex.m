@@ -116,6 +116,11 @@ function build_mex(targets)
         built_count = built_count + 1;
     end
 
+    % Phase 4: mex_adaptive_predict (predict() 全体の C++ 化ラッパ)
+    if wants('mex_adaptive_predict') && build_single_mex('mex_adaptive_predict.cpp', compile_opts, inc_args, {fullfile(src_dir, 'ESKF', 'eskf_core.cpp')}, bin_dir)
+        built_count = built_count + 1;
+    end
+
     try
         % Build: mex_kalman_filter_core
         if wants('mex_kalman_filter_core') && build_single_mex('mex_kalman_filter_core.cpp', compile_opts, inc_args, {}, bin_dir)
