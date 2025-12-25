@@ -32,10 +32,30 @@ void do_get_field(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 5) mexErrMsgIdAndTxt("mex_matlab_helpers:get_field","Usage: mex_matlab_helpers('get_field', obs, fieldsCell, idx, ncols)");
     const mxArray* obs = prhs[1];
     const mxArray* fields = prhs[2];
-    double idx_d = mxGetScalar(prhs[3]);
+    const mxArray* idx_arr = prhs[3];
     double ncols_d = mxGetScalar(prhs[4]);
-    mwIndex idx = (mwIndex)(idx_d - 1); // MATLAB -> C
     int ncols = (int)ncols_d;
+    
+    // Check if idx is scalar or array
+    bool is_scalar_idx = mxIsScalar(idx_arr);
+    mwSize n_idx = 1;
+    double* idx_data = NULL;
+    std::vector<mwIndex> idx_vec;
+    
+    if (is_scalar_idx) {
+        double idx_d = mxGetScalar(idx_arr);
+        idx_vec.push_back((mwIndex)(idx_d - 1)); // MATLAB -> C
+        n_idx = 1;
+    } else {
+        // Array indices
+        if (!mxIsNumeric(idx_arr)) mexErrMsgIdAndTxt("mex_matlab_helpers:get_field","idx must be numeric");
+        n_idx = mxGetNumberOfElements(idx_arr);
+        idx_data = mxGetPr(idx_arr);
+        idx_vec.resize(n_idx);
+        for (mwSize i = 0; i < n_idx; ++i) {
+            idx_vec[i] = (mwIndex)(idx_data[i] - 1); // MATLAB -> C
+        }
+    }
 
     mwSize n_fields = mxGetNumberOfElements(fields);
     for (mwIndex f = 0; f < n_fields; ++f) {
@@ -47,8 +67,21 @@ void do_get_field(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
                 if (mxIsNumeric(field)) {
                     double* data = mxGetPr(field);
                     mwSize ne = mxGetNumberOfElements(field);
-                    if (idx < ne) {
-                        plhs[0] = mxCreateDoubleScalar(data[idx]);
+                    // Check all indices are valid
+                    bool all_valid = true;
+                    for (mwSize i = 0; i < n_idx; ++i) {
+                        if (idx_vec[i] >= ne) { all_valid = false; break; }
+                    }
+                    if (all_valid) {
+                        if (is_scalar_idx) {
+                            plhs[0] = mxCreateDoubleScalar(data[idx_vec[0]]);
+                        } else {
+                            plhs[0] = mxCreateDoubleMatrix(n_idx, 1, mxREAL);
+                            double* out = mxGetPr(plhs[0]);
+                            for (mwSize i = 0; i < n_idx; ++i) {
+                                out[i] = data[idx_vec[i]];
+                            }
+                        }
                         return;
                     }
                 }
@@ -58,12 +91,27 @@ void do_get_field(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
                     mwSize nrow = mxGetM(field);
                     mwSize ncol = mxGetN(field);
                     double* data = mxGetPr(field);
-                    if (ncol >= 3 && idx < nrow) {
-                        plhs[0] = mxCreateDoubleMatrix(3,1,mxREAL);
-                        double* out = mxGetPr(plhs[0]);
-                        out[0] = data[idx + 0*nrow];
-                        out[1] = data[idx + 1*nrow];
-                        out[2] = data[idx + 2*nrow];
+                    // Check all indices are valid
+                    bool all_valid = true;
+                    for (mwSize i = 0; i < n_idx; ++i) {
+                        if (idx_vec[i] >= nrow) { all_valid = false; break; }
+                    }
+                    if (all_valid && ncol >= 3) {
+                        if (is_scalar_idx) {
+                            plhs[0] = mxCreateDoubleMatrix(3,1,mxREAL);
+                            double* out = mxGetPr(plhs[0]);
+                            out[0] = data[idx_vec[0] + 0*nrow];
+                            out[1] = data[idx_vec[0] + 1*nrow];
+                            out[2] = data[idx_vec[0] + 2*nrow];
+                        } else {
+                            plhs[0] = mxCreateDoubleMatrix(n_idx, 3, mxREAL);
+                            double* out = mxGetPr(plhs[0]);
+                            for (mwSize i = 0; i < n_idx; ++i) {
+                                out[i + 0*n_idx] = data[idx_vec[i] + 0*nrow];
+                                out[i + 1*n_idx] = data[idx_vec[i] + 1*nrow];
+                                out[i + 2*n_idx] = data[idx_vec[i] + 2*nrow];
+                            }
+                        }
                         return;
                     }
                 }
@@ -94,12 +142,29 @@ void do_get_field(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
                         mwSize nex = mxGetNumberOfElements(fx);
                         mwSize ney = mxGetNumberOfElements(fy);
                         mwSize nez = mxGetNumberOfElements(fz);
-                        if (idx < nex && idx < ney && idx < nez) {
-                            plhs[0] = mxCreateDoubleMatrix(3,1,mxREAL);
-                            double* out = mxGetPr(plhs[0]);
-                            out[0] = dx[idx];
-                            out[1] = dy[idx];
-                            out[2] = dz[idx];
+                        // Check all indices are valid
+                        bool all_valid = true;
+                        for (mwSize i = 0; i < n_idx; ++i) {
+                            if (idx_vec[i] >= nex || idx_vec[i] >= ney || idx_vec[i] >= nez) {
+                                all_valid = false; break;
+                            }
+                        }
+                        if (all_valid) {
+                            if (is_scalar_idx) {
+                                plhs[0] = mxCreateDoubleMatrix(3,1,mxREAL);
+                                double* out = mxGetPr(plhs[0]);
+                                out[0] = dx[idx_vec[0]];
+                                out[1] = dy[idx_vec[0]];
+                                out[2] = dz[idx_vec[0]];
+                            } else {
+                                plhs[0] = mxCreateDoubleMatrix(n_idx, 3, mxREAL);
+                                double* out = mxGetPr(plhs[0]);
+                                for (mwSize i = 0; i < n_idx; ++i) {
+                                    out[i + 0*n_idx] = dx[idx_vec[i]];
+                                    out[i + 1*n_idx] = dy[idx_vec[i]];
+                                    out[i + 2*n_idx] = dz[idx_vec[i]];
+                                }
+                            }
                             return;
                         }
                     }
@@ -129,14 +194,20 @@ void do_get_field(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
                 int found_count = 0;
                 
                 // First, try to find x, y, z in order
+                std::vector<const mxArray*> found_fields(3, NULL);
                 for (int k=0; k<3 && found_count < 3; k++){
                     const char* nm = try_names[k].c_str();
                     const mxArray* fmx = mxGetField(obs, 0, nm);
                     if (fmx && mxIsNumeric(fmx)) {
                         double* d = mxGetPr(fmx);
                         mwSize ne = mxGetNumberOfElements(fmx);
-                        if (idx < ne) {
-                            vals[found_count] = d[idx];
+                        // Check all indices are valid
+                        bool all_valid = true;
+                        for (mwSize i = 0; i < n_idx; ++i) {
+                            if (idx_vec[i] >= ne) { all_valid = false; break; }
+                        }
+                        if (all_valid) {
+                            found_fields[found_count] = fmx;
                             found_count++;
                         }
                     }
@@ -144,9 +215,21 @@ void do_get_field(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
                 
                 // If we found 3 components, return them
                 if (found_count == 3) {
-                    plhs[0] = mxCreateDoubleMatrix(3,1,mxREAL);
-                    double* out = mxGetPr(plhs[0]);
-                    out[0]=vals[0]; out[1]=vals[1]; out[2]=vals[2];
+                    if (is_scalar_idx) {
+                        plhs[0] = mxCreateDoubleMatrix(3,1,mxREAL);
+                        double* out = mxGetPr(plhs[0]);
+                        out[0] = mxGetPr(found_fields[0])[idx_vec[0]];
+                        out[1] = mxGetPr(found_fields[1])[idx_vec[0]];
+                        out[2] = mxGetPr(found_fields[2])[idx_vec[0]];
+                    } else {
+                        plhs[0] = mxCreateDoubleMatrix(n_idx, 3, mxREAL);
+                        double* out = mxGetPr(plhs[0]);
+                        for (mwSize i = 0; i < n_idx; ++i) {
+                            out[i + 0*n_idx] = mxGetPr(found_fields[0])[idx_vec[i]];
+                            out[i + 1*n_idx] = mxGetPr(found_fields[1])[idx_vec[i]];
+                            out[i + 2*n_idx] = mxGetPr(found_fields[2])[idx_vec[i]];
+                        }
+                    }
                     return;
                 }
             }

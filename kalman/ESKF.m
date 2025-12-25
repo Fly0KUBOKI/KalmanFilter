@@ -378,35 +378,26 @@ classdef ESKF < handle
 
         function data = get_field_impl(obj, obs, field_names, idx, num_cols)
             % Get first matching field from obs according to candidates
-            % Phase 1: MEX実装を使用
-            % 注意: idxが配列の場合はMEXを使わずMATLAB実装を使用（MEXは単一インデックスのみ対応）
-            if exist('mex_matlab_helpers', 'file') == 3 && ~isempty(idx) && isscalar(idx)
-                try
-                    data = mex_matlab_helpers('get_field', obs, field_names, idx, num_cols);
-                    return;
-                catch ME
-                    warning('ESKF:get_field_impl:MEX', 'MEX call failed, using MATLAB fallback: %s', ME.message);
-                end
+            % Phase 1: MEX実装を使用（配列インデックス対応）
+            if exist('mex_matlab_helpers', 'file') ~= 3
+                error('ESKF:get_field_impl:MEX', 'mex_matlab_helpers not found');
             end
-            
-            error('ESKF:utils:get_field', 'None of the fields found: %s', strjoin(field_names, ', '));
+            if isempty(idx)
+                error('ESKF:get_field_impl:empty_idx', 'idx is empty');
+            end
+            data = mex_matlab_helpers('get_field', obs, field_names, idx, num_cols);
         end
 
         function tf = has_field_impl(obj, obs, field_names)
-            % Phase 1
-            if exist('mex_matlab_helpers', 'file') == 3
-                try
-                    tf = mex_matlab_helpers('has_field', obs, field_names);
-                    return;
-                catch ME
-                    warning('ESKF:has_field_impl:MEX', 'MEX call failed, using MATLAB fallback: %s', ME.message);
-                end
+            % Phase 1: MEX実装を使用
+            if exist('mex_matlab_helpers', 'file') ~= 3
+                error('ESKF:has_field_impl:MEX', 'mex_matlab_helpers not found');
             end
-            
+            tf = mex_matlab_helpers('has_field', obs, field_names);
         end
 
         function predict(obj, a_meas, w_meas)
-            % 予測ステップ (C++実装: mex_meukf_step_v2)
+            % 予測ステップ (Phase 4: mex_adaptive_predict使用)
             
             % NaN check
             if any(isnan(obj.p)) || any(isnan(obj.v)) || any(isnan(obj.q)) || any(isnan(obj.P(:)))
@@ -441,73 +432,23 @@ classdef ESKF < handle
                 a_for_vel = a_meas;
             end
             
-            % Adaptive Q (MATLAB側で計算)
-            Q_adapted = obj.Q;
-            if obj.adaptive_q_enabled
-                a_norm = norm(a_meas);
-                gravity_error = abs(a_norm - 9.81);
-                accel_scale = 1.0 + (gravity_error / 3.0);
-                w_norm = norm(w_meas);
-                gyro_scale = 1.0 + (w_norm / deg2rad(15.0));
-                q_scale = max(accel_scale, gyro_scale);
-                q_scale = min(q_scale, 5.0);
-                Q_adapted = obj.Q_nominal * q_scale;
+            % Phase 4: mex_adaptive_predictを使用
+            if exist('mex_adaptive_predict', 'file') ~= 3
+                error('ESKF:predict:MEX', 'mex_adaptive_predict not found');
             end
+            % MEX関数呼び出し
+            [p_new, v_new, q_new, ba_new, bg_new, P_new] = mex_adaptive_predict('predict', ...
+                obj.p, obj.v, obj.q, obj.ba, obj.bg, obj.P, ...
+                a_for_vel, w_meas, obj.dt, obj.Q_nominal, obj.adaptive_q_enabled, ...
+                zeros(3,1), zeros(3,1), obj.g);
             
-            % C++ MEX用パラメータ準備
-            dt2 = obj.dt^2;
-            noise_accel = diag(Q_adapted(4:6, 4:6)) / dt2;
-            noise_gyro = diag(Q_adapted(7:9, 7:9)) / dt2;
-            noise_ba = diag(Q_adapted(10:12, 10:12)) / obj.dt;
-            noise_bg = diag(Q_adapted(13:15, 13:15)) / obj.dt;
-            
-            % センサー構造体
-            sensor_data.accel = a_for_vel;
-            sensor_data.gyro = w_meas;
-            sensor_data.mag = zeros(3,1);
-            sensor_data.gps_pos = zeros(3,1);
-            sensor_data.alt_baro = 0;
-            sensor_data.dt = obj.dt;
-            
-            % 更新フラグ (予測のみ)
-            sensor_data.update_accel = false;
-            sensor_data.update_gyro = false;
-            sensor_data.update_mag = false;
-            sensor_data.update_gps = false;
-            sensor_data.update_baro = false;
-            
-            % パラメータ構造体
-            mex_params.g = obj.g;
-            mex_params.mag_ref = [50; 0; 0]; % Dummy
-            mex_params.noise_accel = noise_accel;
-            mex_params.noise_gyro = noise_gyro;
-            mex_params.noise_ba = noise_ba;
-            mex_params.noise_bg = noise_bg;
-            mex_params.noise_mag = zeros(3,1);
-            mex_params.noise_gps = zeros(3,1);
-            mex_params.noise_baro = 0;
-            mex_params.alpha = 1e-3;
-            mex_params.beta = 2;
-            mex_params.kappa = 0;
-            
-            % 状態構造体
-            state_in.p = obj.p;
-            state_in.v = obj.v;
-            state_in.q = obj.q;
-            state_in.ba = obj.ba;
-            state_in.bg = obj.bg;
-            state_in.P = obj.P;
-
-            % C++ MEX呼び出し（共通ラッパーを経由）
-            state_out = obj.call_meukf_step(state_in, sensor_data, mex_params);
-
             % 状態更新
-            obj.p = state_out.p;
-            obj.v = state_out.v;
-            obj.q = state_out.q;
-            obj.ba = state_out.ba;
-            obj.bg = state_out.bg;
-            obj.P = state_out.P;
+            obj.p = p_new;
+            obj.v = v_new;
+            obj.q = q_new;
+            obj.ba = ba_new;
+            obj.bg = bg_new;
+            obj.P = P_new;
 
             % 角速度を保存
             obj.w_body = w_meas;
@@ -590,97 +531,85 @@ classdef ESKF < handle
 
         function update_sensor_impl(obj, sensor_type, varargin)
             % 統合センサー更新: 変更検知、MEX優先フィルタ、異常判定、C++更新呼出し
-            % Phase 3: MEX前処理を使用（フォールバック付き）
+            % Phase 3: MEX前処理を使用
             switch sensor_type
                 case 'accel'
                     a_meas = varargin{1};
                     
                     % Phase 3: MEX前処理を使用
-                    if exist('mex_sensor_preprocessor', 'file') == 3
-                        try
-                            [a_corrected, is_outlier, no_change] = mex_sensor_preprocessor('preprocess_accel', a_meas, obj.prev_accel);
-                            if no_change
-                                return; % 変更なし
-                            end
-                            if any(isnan(a_corrected)) || is_outlier
-                                return;
-                            end
-                            obj.prev_accel = a_meas;
-                            % w_bodyチェック
-                            if ~isempty(obj.w_body) && norm(obj.w_body) > 1.5
-                                return;
-                            end
-                            sample = [];
-                            if ~isempty(varargin) && length(varargin) >= 2
-                                sample = varargin{2};
-                            end
-                            if ~isempty(sample)
-                                do_cpp_update(obj, 'accel', a_corrected, sample);
-                            else
-                                do_cpp_update(obj, 'accel', a_corrected);
-                            end
-                            return;
-                        catch ME
-                            warning('ESKF:update_sensor_impl:accel:MEX', 'MEX preprocess failed, using MATLAB fallback: %s', ME.message);
-                        end
+                    if exist('mex_sensor_preprocessor', 'file') ~= 3
+                        error('ESKF:update_sensor_impl:accel:MEX', 'mex_sensor_preprocessor not found');
+                    end
+                    [a_corrected, is_outlier, no_change] = mex_sensor_preprocessor('preprocess_accel', a_meas, obj.prev_accel);
+                    if no_change
+                        return; % 変更なし
+                    end
+                    if any(isnan(a_corrected)) || is_outlier
+                        return;
+                    end
+                    obj.prev_accel = a_meas;
+                    % w_bodyチェック
+                    if ~isempty(obj.w_body) && norm(obj.w_body) > 1.5
+                        return;
+                    end
+                    sample = [];
+                    if ~isempty(varargin) && length(varargin) >= 2
+                        sample = varargin{2};
+                    end
+                    if ~isempty(sample)
+                        do_cpp_update(obj, 'accel', a_corrected, sample);
+                    else
+                        do_cpp_update(obj, 'accel', a_corrected);
                     end
 
                 case 'mag'
                     m_meas = varargin{1};
                     
                     % Phase 3: MEX前処理を使用
-                    if exist('mex_sensor_preprocessor', 'file') == 3
-                        try
-                            [m_filtered, is_outlier, no_change] = mex_sensor_preprocessor('preprocess_mag', m_meas, obj.prev_mag);
-                            if no_change
-                                return; % 変更なし
-                            end
-                            if any(isnan(m_filtered)) || is_outlier
-                                return;
-                            end
-                            obj.prev_mag = m_meas;
-                            sample = [];
-                            if ~isempty(varargin) && length(varargin) >= 2
-                                sample = varargin{2};
-                            end
-                            if ~isempty(sample)
-                                do_cpp_update(obj, 'mag', m_filtered, sample);
-                            else
-                                do_cpp_update(obj, 'mag', m_filtered);
-                            end
-                            return;
-                        catch ME
-                            warning('ESKF:update_sensor_impl:mag:MEX', 'MEX preprocess failed, using MATLAB fallback: %s', ME.message);
-                        end
+                    if exist('mex_sensor_preprocessor', 'file') ~= 3
+                        error('ESKF:update_sensor_impl:mag:MEX', 'mex_sensor_preprocessor not found');
+                    end
+                    [m_filtered, is_outlier, no_change] = mex_sensor_preprocessor('preprocess_mag', m_meas, obj.prev_mag);
+                    if no_change
+                        return; % 変更なし
+                    end
+                    if any(isnan(m_filtered)) || is_outlier
+                        return;
+                    end
+                    obj.prev_mag = m_meas;
+                    sample = [];
+                    if ~isempty(varargin) && length(varargin) >= 2
+                        sample = varargin{2};
+                    end
+                    if ~isempty(sample)
+                        do_cpp_update(obj, 'mag', m_filtered, sample);
+                    else
+                        do_cpp_update(obj, 'mag', m_filtered);
                     end
 
                 case 'gps'
                     lat = varargin{1}; lon = varargin{2}; alt = varargin{3};
                     
                     % Phase 3: MEX前処理を使用
-                    if exist('mex_sensor_preprocessor', 'file') == 3
-                        try
-                            [z_gps, is_outlier, no_change] = mex_sensor_preprocessor('preprocess_gps', lat, lon, alt, obj.gps_origin);
-                            if no_change
-                                return; % 変更なし
-                            end
-                            if is_outlier
-                                return;
-                            end
-                            obj.prev_gps_lat = lat; obj.prev_gps_lon = lon; obj.prev_gps_alt = alt;
-                            sample = [];
-                            if ~isempty(varargin) && length(varargin) >= 4
-                                sample = varargin{4};
-                            end
-                            if ~isempty(sample)
-                                do_cpp_update(obj, 'gps', z_gps, sample);
-                            else
-                                do_cpp_update(obj, 'gps', z_gps);
-                            end
-                            return;
-                        catch ME
-                            warning('ESKF:update_sensor_impl:gps:MEX', 'MEX preprocess failed, using MATLAB fallback: %s', ME.message);
-                        end
+                    if exist('mex_sensor_preprocessor', 'file') ~= 3
+                        error('ESKF:update_sensor_impl:gps:MEX', 'mex_sensor_preprocessor not found');
+                    end
+                    [z_gps, is_outlier, no_change] = mex_sensor_preprocessor('preprocess_gps', lat, lon, alt, obj.gps_origin);
+                    if no_change
+                        return; % 変更なし
+                    end
+                    if is_outlier
+                        return;
+                    end
+                    obj.prev_gps_lat = lat; obj.prev_gps_lon = lon; obj.prev_gps_alt = alt;
+                    sample = [];
+                    if ~isempty(varargin) && length(varargin) >= 4
+                        sample = varargin{4};
+                    end
+                    if ~isempty(sample)
+                        do_cpp_update(obj, 'gps', z_gps, sample);
+                    else
+                        do_cpp_update(obj, 'gps', z_gps);
                     end
 
                 case 'baro'
@@ -693,29 +622,25 @@ classdef ESKF < handle
                     obj.prev_baro = pressure;
                     
                     % Phase 3: MEX前処理を使用
-                    if exist('mex_sensor_preprocessor', 'file') == 3
-                        try
-                            [alt_baro, is_outlier] = mex_sensor_preprocessor('preprocess_baro', pressure);
-                            if any(isnan(alt_baro)) || is_outlier
-                                return;
-                            end
-                            weight_factor = 1.0 / obj.baro_weight;
-                            obj.P(3,3) = obj.P(3,3) * weight_factor;
-                            sample = [];
-                            if ~isempty(varargin) && length(varargin) >= 2
-                                sample = varargin{2};
-                            end
-                            if ~isempty(sample)
-                                do_cpp_update(obj, 'baro', alt_baro, sample);
-                            else
-                                do_cpp_update(obj, 'baro', alt_baro);
-                            end
-                            obj.P(3,3) = obj.P(3,3) / weight_factor;
-                            return;
-                        catch ME
-                            warning('ESKF:update_sensor_impl:baro:MEX', 'MEX preprocess failed, using MATLAB fallback: %s', ME.message);
-                        end
+                    if exist('mex_sensor_preprocessor', 'file') ~= 3
+                        error('ESKF:update_sensor_impl:baro:MEX', 'mex_sensor_preprocessor not found');
                     end
+                    [alt_baro, is_outlier] = mex_sensor_preprocessor('preprocess_baro', pressure);
+                    if any(isnan(alt_baro)) || is_outlier
+                        return;
+                    end
+                    weight_factor = 1.0 / obj.baro_weight;
+                    obj.P(3,3) = obj.P(3,3) * weight_factor;
+                    sample = [];
+                    if ~isempty(varargin) && length(varargin) >= 2
+                        sample = varargin{2};
+                    end
+                    if ~isempty(sample)
+                        do_cpp_update(obj, 'baro', alt_baro, sample);
+                    else
+                        do_cpp_update(obj, 'baro', alt_baro);
+                    end
+                    obj.P(3,3) = obj.P(3,3) / weight_factor;
                     
                 otherwise
                     error('Unknown sensor update method: %s', sensor_type);
