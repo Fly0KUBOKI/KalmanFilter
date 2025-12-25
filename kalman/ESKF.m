@@ -378,6 +378,18 @@ classdef ESKF < handle
 
         function data = get_field_impl(obj, obs, field_names, idx, num_cols)
             % Get first matching field from obs according to candidates
+            % Phase 1: MEX実装を使用（フォールバック付き）
+            % 注意: idxが配列の場合はMEXを使わずMATLAB実装を使用（MEXは単一インデックスのみ対応）
+            if exist('mex_matlab_helpers', 'file') == 3 && ~isempty(idx) && isscalar(idx)
+                try
+                    data = mex_matlab_helpers('get_field', obs, field_names, idx, num_cols);
+                    return;
+                catch ME
+                    warning('ESKF:get_field_impl:MEX', 'MEX call failed, using MATLAB fallback: %s', ME.message);
+                end
+            end
+            
+            % MATLAB フォールバック（既存実装）
             for i = 1:length(field_names)
                 if isfield(obs, field_names{i})
                     if num_cols == 1
@@ -406,6 +418,17 @@ classdef ESKF < handle
         end
 
         function tf = has_field_impl(obj, obs, field_names)
+            % Phase 1: MEX実装を使用（フォールバック付き）
+            if exist('mex_matlab_helpers', 'file') == 3
+                try
+                    tf = mex_matlab_helpers('has_field', obs, field_names);
+                    return;
+                catch ME
+                    warning('ESKF:has_field_impl:MEX', 'MEX call failed, using MATLAB fallback: %s', ME.message);
+                end
+            end
+            
+            % MATLAB フォールバック（既存実装）
             tf = false;
             for ii = 1:length(field_names)
                 if isfield(obs, field_names{ii})

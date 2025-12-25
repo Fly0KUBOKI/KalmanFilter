@@ -53,6 +53,7 @@ void do_get_field(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
                     }
                 }
             } else if (ncols == 3) {
+                // Check if field is a 3-column matrix
                 if (mxIsNumeric(field) && mxGetNumberOfElements(field) >= 3) {
                     mwSize nrow = mxGetM(field);
                     mwSize ncol = mxGetN(field);
@@ -66,24 +67,83 @@ void do_get_field(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
                         return;
                     }
                 }
+                // Try to find x, y, z components
                 std::string base = fname;
-                if (base.size() > 2 && base.substr(base.size()-2) == "_x") base = base.substr(0, base.size()-2);
+                // Remove "_x" suffix if present
+                if (base.size() > 2 && base.substr(base.size()-2) == "_x") {
+                    base = base.substr(0, base.size()-2);
+                }
+                
+                // Special handling for single-character + 'x' pattern (like 'ax', 'wx', 'mx')
+                // If fname is "ax", "wx", "mx", etc., extract the first character
+                if (base.size() == 2 && base[1] == 'x') {
+                    char base_char = base[0];
+                    // Try direct pattern: ax, ay, az
+                    std::string x_name = std::string(1, base_char) + "x";
+                    std::string y_name = std::string(1, base_char) + "y";
+                    std::string z_name = std::string(1, base_char) + "z";
+                    
+                    const mxArray* fx = mxGetField(obs, 0, x_name.c_str());
+                    const mxArray* fy = mxGetField(obs, 0, y_name.c_str());
+                    const mxArray* fz = mxGetField(obs, 0, z_name.c_str());
+                    
+                    if (fx && fy && fz && mxIsNumeric(fx) && mxIsNumeric(fy) && mxIsNumeric(fz)) {
+                        double* dx = mxGetPr(fx);
+                        double* dy = mxGetPr(fy);
+                        double* dz = mxGetPr(fz);
+                        mwSize nex = mxGetNumberOfElements(fx);
+                        mwSize ney = mxGetNumberOfElements(fy);
+                        mwSize nez = mxGetNumberOfElements(fz);
+                        if (idx < nex && idx < ney && idx < nez) {
+                            plhs[0] = mxCreateDoubleMatrix(3,1,mxREAL);
+                            double* out = mxGetPr(plhs[0]);
+                            out[0] = dx[idx];
+                            out[1] = dy[idx];
+                            out[2] = dz[idx];
+                            return;
+                        }
+                    }
+                }
+                
+                // Build candidate field names for other patterns
                 std::vector<std::string> try_names;
-                try_names.push_back(base + "_x"); try_names.push_back(base + "_y"); try_names.push_back(base + "_z");
-                try_names.push_back(base + "x"); try_names.push_back(base + "y"); try_names.push_back(base + "z");
+                // Try standard format: base_x, base_y, base_z
+                try_names.push_back(base + "_x");
+                try_names.push_back(base + "_y");
+                try_names.push_back(base + "_z");
+                // Try short format: basex, basey, basez
+                try_names.push_back(base + "x");
+                try_names.push_back(base + "y");
+                try_names.push_back(base + "z");
+                
+                // Special case: if base is a single character (like 'a', 'w', 'm'), try ay, az format
+                if (base.size() == 1) {
+                    char base_char = base[0];
+                    try_names.push_back(std::string(1, base_char) + "y");
+                    try_names.push_back(std::string(1, base_char) + "z");
+                }
+                
+                // Try each candidate
                 bool ok = true;
                 double vals[3] = {0,0,0};
-                for (int k=0;k<3;k++){
+                int found_count = 0;
+                
+                // First, try to find x, y, z in order
+                for (int k=0; k<3 && found_count < 3; k++){
                     const char* nm = try_names[k].c_str();
                     const mxArray* fmx = mxGetField(obs, 0, nm);
-                    if (!fmx) { ok = false; break; }
-                    if (!mxIsNumeric(fmx)) { ok = false; break; }
-                    double* d = mxGetPr(fmx);
-                    mwSize ne = mxGetNumberOfElements(fmx);
-                    if (idx >= ne) { ok = false; break; }
-                    vals[k] = d[idx];
+                    if (fmx && mxIsNumeric(fmx)) {
+                        double* d = mxGetPr(fmx);
+                        mwSize ne = mxGetNumberOfElements(fmx);
+                        if (idx < ne) {
+                            vals[found_count] = d[idx];
+                            found_count++;
+                        }
+                    }
                 }
-                if (ok) {
+                
+                // If we found 3 components, return them
+                if (found_count == 3) {
                     plhs[0] = mxCreateDoubleMatrix(3,1,mxREAL);
                     double* out = mxGetPr(plhs[0]);
                     out[0]=vals[0]; out[1]=vals[1]; out[2]=vals[2];

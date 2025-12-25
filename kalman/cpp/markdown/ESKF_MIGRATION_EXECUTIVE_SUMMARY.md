@@ -365,6 +365,54 @@ run_simulation(42, true)
 
 ---
 
-**状態**: ✅ 計画完成・ドキュメント作成完了  
-**次ステップ**: Phase 1 の mex_matlab_helpers.cpp 実装開始
+**状態**: ⚠️ Phase 1-5のMEXファイルはビルド済みだが、ESKF.mに統合されていない  
+**次ステップ**: Phase 6（Phase 1統合）またはPhase 7（Phase 4統合）から開始
+
+---
+
+## 統合フェーズ（Phase 6-10）
+
+**現状の問題**: MEXファイルはビルド済みだが、ESKF.mで使用されていないため、パフォーマンス向上の効果が得られていない。
+
+### 統合優先順位
+
+1. **Phase 7: Phase 4統合（predict）** ⭐⭐⭐ **最重要**
+   - 最大のパフォーマンス向上が期待される
+   - 推定工数: 2-3日
+   - 影響: 1.5倍以上の高速化が期待
+
+2. **Phase 8: Phase 3統合（update_sensor_impl前処理）**
+   - 推定工数: 1-2日
+   - 影響: センサー前処理の高速化
+
+3. **Phase 9: Phase 5統合（reset, ZUPT）**
+   - 推定工数: 1日
+   - 影響: フィルタ管理の高速化
+
+4. **Phase 6: Phase 1統合（get_field, has_field）**
+   - 推定工数: 0.5日
+   - 影響: 軽微な高速化
+
+5. **Phase 10: Phase 2完了（divergence_check_velocity）**
+   - 推定工数: 0.5日
+   - 影響: 軽微な高速化
+
+### 統合スケジュール（再計画）
+
+```
+Week 1
+├─ Day 1-2: Phase 7統合（predict）⭐最重要⭐
+│  └─ テスト: run_simulation + run_batch_10sets + 数値精度確認
+├─ Day 3: Phase 8統合（update_sensor_impl前処理）
+│  └─ テスト: run_simulation + run_batch_10sets
+└─ Day 4-5: Phase 9統合（reset, ZUPT）
+   └─ テスト: run_batch_10sets
+
+Week 2
+├─ Day 1: Phase 6統合（get_field, has_field）
+└─ Day 2: Phase 10完了（divergence_check_velocity）
+   └─ 最終検証: run_batch_10sets + パフォーマンス測定
+```
+
+**総推定工数**: 5-7日
 

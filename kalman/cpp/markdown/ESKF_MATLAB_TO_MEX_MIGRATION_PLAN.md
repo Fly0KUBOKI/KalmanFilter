@@ -642,15 +642,278 @@ AdaptivePredictor::predict_step(...);  // こちらをフェーズ4で実装
 
 ---
 
-## 10. 参考資料
+## 10. 統合フェーズ（Phase 6-10）
+
+**現状**: Phase 1-5のMEXファイルはビルド済みだが、ESKF.mに統合されていない。
+
+### Phase 6: Phase 1統合（基盤レイヤー）
+
+**対象**: `get_field_impl()`, `has_field_impl()`
+
+**実装手順**:
+```matlab
+% get_field_impl() の置き換え
+function data = get_field_impl(obj, obs, field_names, idx, num_cols)
+    if exist('mex_matlab_helpers', 'file') == 3
+        data = mex_matlab_helpers('get_field', obs, field_names, idx, num_cols);
+    else
+        % MATLAB フォールバック（既存実装）
+        for i = 1:length(field_names)
+            if isfield(obs, field_names{i})
+                % ...既存ロジック...
+            end
+        end
+    end
+end
+
+% has_field_impl() の置き換え
+function tf = has_field_impl(obj, obs, field_names)
+    if exist('mex_matlab_helpers', 'file') == 3
+        tf = mex_matlab_helpers('has_field', obs, field_names);
+    else
+        % MATLAB フォールバック
+        tf = false;
+        for ii = 1:length(field_names)
+            if isfield(obs, field_names{ii})
+                tf = true; return;
+            end
+        end
+    end
+end
+```
+
+**テスト**: `run_simulation(42, true)` で動作確認
+
+---
+
+### Phase 7: Phase 4統合（予測ステップ）⭐最重要⭐
+
+**対象**: `predict()` メソッド
+
+**実装手順**:
+```matlab
+function predict(obj, a_meas, w_meas)
+    % NaN check
+    if any(isnan(obj.p)) || any(isnan(obj.v)) || any(isnan(obj.q)) || any(isnan(obj.P(:)))
+        warning('ESKF:predict:NaN', 'NaN detected before predict');
+        return;
+    end
+    
+    % MEX実装を使用（存在する場合）
+    if exist('mex_adaptive_predict', 'file') == 3
+        % 状態構造体準備
+        state_in.p = obj.p(:);
+        state_in.v = obj.v(:);
+        state_in.q = obj.q(:);
+        state_in.ba = obj.ba(:);
+        state_in.bg = obj.bg(:);
+        state_in.P = obj.P;
+        
+        % パラメータ準備
+        params.g = obj.g;
+        params.dt = obj.dt;
+        params.Q_nominal = obj.Q_nominal;
+        params.adaptive_q_enabled = obj.adaptive_q_enabled;
+        params.enable_gyro_filter = isprop(obj, 'enable_gyro_filter') && obj.enable_gyro_filter;
+        params.enable_accel_filter = ~isempty(obj.accel_filter);
+        params.velocity_damping = obj.velocity_damping;
+        params.w_body_prev = obj.w_body;
+        
+        % MEX呼び出し
+        state_out = mex_adaptive_predict('predict', state_in, a_meas, w_meas, params);
+        
+        % 状態更新
+        obj.p = state_out.p;
+        obj.v = state_out.v;
+        obj.q = state_out.q;
+        obj.ba = state_out.ba;
+        obj.bg = state_out.bg;
+        obj.P = state_out.P;
+        
+        % 補助変数更新
+        obj.w_body = w_meas;
+        obj.quaternion_norm = norm(obj.q);
+        
+        return;
+    end
+    
+    % MATLAB フォールバック（既存実装）
+    % ...既存のpredict()ロジック...
+end
+```
+
+**テスト**: 
+- `run_simulation(42, true)` で動作確認
+- `run_batch_10sets()` で回帰テスト
+- 数値精度確認（位置RMS < 1e-3 m, 速度RMS < 1e-4 m/s）
+
+---
+
+### Phase 8: Phase 3統合（センサー前処理）
+
+**対象**: `update_sensor_impl()` の前処理部分
+
+**実装手順**:
+```matlab
+function update_sensor_impl(obj, sensor_type, varargin)
+    switch sensor_type
+        case 'accel'
+            a_meas = varargin{1};
+            
+            % MEX前処理を使用
+            if exist('mex_sensor_preprocessor', 'file') == 3
+                [a_corrected, is_outlier] = mex_sensor_preprocessor('preprocess_accel', a_meas, obj.prev_accel);
+                if is_outlier || any(isnan(a_corrected))
+                    return;
+                end
+                obj.prev_accel = a_meas;
+                do_cpp_update(obj, 'accel', a_corrected);
+            else
+                % MATLAB フォールバック（既存実装）
+                % ...既存ロジック...
+            end
+            
+        case 'mag'
+            m_meas = varargin{1};
+            if exist('mex_sensor_preprocessor', 'file') == 3
+                [m_filtered, is_outlier] = mex_sensor_preprocessor('preprocess_mag', m_meas, obj.prev_mag);
+                if is_outlier || any(isnan(m_filtered))
+                    return;
+                end
+                obj.prev_mag = m_meas;
+                do_cpp_update(obj, 'mag', m_filtered);
+            else
+                % MATLAB フォールバック
+            end
+            
+        case 'gps'
+            lat = varargin{1}; lon = varargin{2}; alt = varargin{3};
+            if exist('mex_sensor_preprocessor', 'file') == 3
+                [z_gps, is_outlier] = mex_sensor_preprocessor('preprocess_gps', lat, lon, alt, obj.gps_origin);
+                if is_outlier
+                    return;
+                end
+                obj.prev_gps_lat = lat; obj.prev_gps_lon = lon; obj.prev_gps_alt = alt;
+                do_cpp_update(obj, 'gps', z_gps);
+            else
+                % MATLAB フォールバック
+            end
+            
+        case 'baro'
+            pressure = varargin{1};
+            if exist('mex_sensor_preprocessor', 'file') == 3
+                [alt_baro, is_outlier] = mex_sensor_preprocessor('preprocess_baro', pressure);
+                if is_outlier || any(isnan(alt_baro))
+                    return;
+                end
+                obj.prev_baro = pressure;
+                do_cpp_update(obj, 'baro', alt_baro);
+            else
+                % MATLAB フォールバック
+            end
+    end
+end
+```
+
+**テスト**: `run_simulation(42, true)` + `run_batch_10sets()`
+
+---
+
+### Phase 9: Phase 5統合（フィルタ管理）
+
+**対象**: `check_and_reset_impl()`, `reset_filter_impl()`, `check_stationary_impl()`, `update_zupt_impl()`
+
+**実装手順**:
+```matlab
+function check_and_reset_impl(obj, obs, k)
+    if isempty(k); return; end
+    
+    if exist('mex_filter_management', 'file') == 3
+        % MEX実装を使用
+        diverged = mex_filter_management('check_divergence', obj.P);
+        if diverged
+            if ~isempty(obs)
+                reset_filter_impl(obj, obs, k);
+            else
+                [obj.p, obj.v, obj.q, obj.ba, obj.bg, obj.P] = ...
+                    mex_filter_management('reset_state', obj.p, obj.v, obj.q, obj.ba, obj.bg, obj.P, 0.01);
+            end
+        end
+    else
+        % MATLAB フォールバック（既存実装）
+        % ...既存ロジック...
+    end
+end
+
+function is_stat = check_stationary_impl(obj, a_meas, w_meas)
+    if exist('mex_filter_management', 'file') == 3
+        % MEX実装（必要に応じて実装）
+        % 現状はMATLAB実装を維持
+    end
+    % MATLAB フォールバック（既存実装）
+    % ...既存ロジック...
+end
+
+function update_zupt_impl(obj)
+    if ~obj.is_stationary; return; end
+    
+    if exist('mex_filter_management', 'file') == 3
+        [v_out, P_out] = mex_filter_management('apply_zupt', obj.v, obj.P);
+        obj.v = v_out;
+        obj.P = P_out;
+    else
+        % MATLAB フォールバック（既存実装）
+        % ...既存ロジック...
+    end
+end
+```
+
+**テスト**: `run_batch_10sets()` でリセット・ZUPT動作確認
+
+---
+
+### Phase 10: Phase 2完了（発散チェック）
+
+**対象**: `divergence_check_velocity_impl()`
+
+**実装手順**:
+```matlab
+function [vel_out, P_out, was_clipped] = divergence_check_velocity_impl(obj, vel_in, P_in, vel_indices)
+    if exist('mex_sensor_filter', 'file') == 3
+        % mex_sensor_filterにdivergence_clip_velocity機能を追加する必要がある
+        % または、既存のMATLAB実装を維持
+    end
+    % MATLAB フォールバック（既存実装）
+    % ...既存ロジック...
+end
+```
+
+---
+
+## 11. 統合スケジュール（再計画）
+
+| Phase | 作業内容 | 推定工数 | 優先度 |
+|-------|---------|---------|--------|
+| **Phase 6** | Phase 1統合（get_field, has_field） | 0.5日 | 低 |
+| **Phase 7** | Phase 4統合（predict）⭐ | 2-3日 | **最高** |
+| **Phase 8** | Phase 3統合（update_sensor_impl前処理） | 1-2日 | 高 |
+| **Phase 9** | Phase 5統合（reset, ZUPT） | 1日 | 中 |
+| **Phase 10** | Phase 2完了（divergence_check_velocity） | 0.5日 | 低 |
+| **総計** | | 5-7日 | |
+
+---
+
+## 12. 参考資料
 
 - [型混在分析レポート](TYPE_MIX_REPORT.md): float/double混在の既知問題
 - [既存ビルド手順](../../cpp/build/build_mex.m): MEX コンパイル方法
 - [ESKF クラス](../../ESKF.m): 現在の実装
 - [テスト スクリプト](../../run_simulation.m): 単体テスト
 - [バッチテスト](../../run_batch_10sets.m): 回帰テスト
+- [進捗状況](MIGRATION_PROGRESS.md): 最新の進捗状況
 
 ---
 
-**次ステップ**: Phase 1 の`mex_matlab_helpers.cpp`実装開始
+**現状**: Phase 1-5のMEXファイルはビルド済み  
+**次ステップ**: Phase 6（Phase 1統合）から開始、またはPhase 7（Phase 4統合）を優先
 
