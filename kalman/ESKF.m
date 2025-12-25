@@ -482,6 +482,12 @@ classdef ESKF < handle
             end
             
             [obj.v, obj.P, ~] = obj.divergence_guard.check_and_clip_velocity(obj.v, obj.P, 4:6);
+            
+            % 予測後の速度発散チェック（早期検出）
+            if norm(obj.v) > 10.0
+                warning('ESKF:predict:velocity_divergence', 'Velocity too large after predict: %.2f m/s, clipping to 10 m/s', norm(obj.v));
+                obj.v = obj.v * (10.0 / norm(obj.v));
+            end
         end
 
         function update_filter(obj, obs, k)
@@ -852,18 +858,31 @@ classdef ESKF < handle
         end
 
         function check_and_reset_impl(obj, obs, k)
-            % 発散チェックとリセット
+            % 発散チェックとリセット (Phase 5: mex_filter_management使用)
             if isempty(k); return; end
             
-            reset_needed = false;
-            reason = '';
+            % Phase 5: MEX発散チェック
+            if exist('mex_filter_management', 'file') ~= 3
+                error('ESKF:check_and_reset_impl:MEX', 'mex_filter_management not found');
+            end
             
+            reset_needed = mex_filter_management('check_divergence', obj.P);
+            
+            % 状態のNaN/Infチェック（MEXではPのみチェック）
             if any(isnan(obj.p)) || any(isnan(obj.v)) || any(isnan(obj.q))
                 reset_needed = true;
-                reason = 'NaN in state';
             elseif any(isinf(obj.p)) || any(isinf(obj.v))
                 reset_needed = true;
-                reason = 'Inf in state';
+            end
+            
+            % 速度発散チェック（速度が異常に大きい場合）
+            if norm(obj.v) > 10.0
+                reset_needed = true;
+            end
+            
+            % 位置発散チェック（位置が異常に大きい場合）
+            if norm(obj.p) > 1000.0
+                reset_needed = true;
             end
             
             if reset_needed
@@ -936,51 +955,17 @@ classdef ESKF < handle
         end
 
         function update_zupt_impl(obj)
-            % ZUPT (Zero Velocity Update): 速度をゼロに補正
+            % ZUPT (Zero Velocity Update): 速度をゼロに補正 (Phase 5: mex_filter_management使用)
             if ~obj.is_stationary; return; end
-            % Prepare sensor/state/params for ZUPT
-            sensor_data = struct('accel', zeros(3,1), 'gyro', zeros(3,1), 'mag', zeros(3,1), ...
-                'gps_pos', zeros(3,1), 'alt_baro', 0, 'dt', obj.dt);
-            params = struct('g', obj.g, 'mag_ref', [50;0;0], 'noise_accel', zeros(3,1), ...
-                'noise_gyro', zeros(3,1), 'noise_ba', zeros(3,1), 'noise_bg', zeros(3,1), ...
-                'noise_mag', zeros(3,1), 'noise_gps', zeros(3,1), 'noise_baro', 0, ...
-                'alpha', 1e-3, 'beta', 2, 'kappa', 0, 'noise_zupt', [0.01^2;0.01^2;0.01^2]);
-
-            sensor_data.update_accel = false;
-            sensor_data.update_gyro = false;
-            sensor_data.update_mag = false;
-            sensor_data.update_gps = false;
-            sensor_data.update_baro = false;
-            sensor_data.update_zupt = true;
-
-            mex_params.g = params.g(:);
-            mex_params.mag_ref = params.mag_ref(:);
-            mex_params.noise_accel = params.noise_accel(:);
-            mex_params.noise_gyro = params.noise_gyro(:);
-            mex_params.noise_ba = params.noise_ba(:);
-            mex_params.noise_bg = params.noise_bg(:);
-            mex_params.noise_mag = params.noise_mag(:);
-            mex_params.noise_gps = params.noise_gps(:);
-            mex_params.noise_baro = params.noise_baro;
-            mex_params.noise_zupt = params.noise_zupt(:);
-            mex_params.alpha = params.alpha;
-            mex_params.beta = params.beta;
-            mex_params.kappa = params.kappa;
-
-            state.p = obj.p(:);
-            state.v = obj.v(:);
-            state.q = obj.q(:);
-            state.ba = obj.ba(:);
-            state.bg = obj.bg(:);
-            state.P = obj.P;
-
-            new_state = obj.call_meukf_step(state, sensor_data, mex_params, 'zupt', []);
-            obj.p = new_state.p;
-            obj.v = new_state.v;
-            obj.q = new_state.q;
-            obj.ba = new_state.ba;
-            obj.bg = new_state.bg;
-            obj.P = new_state.P;
+            
+            % Phase 5: MEX ZUPT適用
+            if exist('mex_filter_management', 'file') ~= 3
+                error('ESKF:update_zupt_impl:MEX', 'mex_filter_management not found');
+            end
+            
+            [v_new, P_new] = mex_filter_management('apply_zupt', obj.v, obj.P);
+            obj.v = v_new;
+            obj.P = P_new;
         end
 
         function delete(obj)
