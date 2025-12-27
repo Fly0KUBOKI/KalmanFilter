@@ -225,6 +225,20 @@ function build_mex(targets)
             end
         end
         
+        % Phase 2: mex_eskf_update_postprocess
+        if exist('mex_eskf_update_postprocess.cpp', 'file')
+            if wants('mex_eskf_update_postprocess') && build_single_mex('mex_eskf_update_postprocess.cpp', compile_opts, inc_args, {}, bin_dir)
+                built_count = built_count + 1;
+            end
+        end
+        
+        % Phase 3: mex_eskf_sensor_update
+        if exist('mex_eskf_sensor_update.cpp', 'file')
+            if wants('mex_eskf_sensor_update') && build_single_mex('mex_eskf_sensor_update.cpp', compile_opts, inc_args, {}, bin_dir)
+                built_count = built_count + 1;
+            end
+        end
+        
     catch ME
         build_success = false;
         fprintf('\nBuild failed!\n');

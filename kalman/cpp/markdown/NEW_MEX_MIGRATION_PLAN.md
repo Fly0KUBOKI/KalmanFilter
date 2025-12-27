@@ -85,64 +85,27 @@
 
 ---
 
-### Phase 2: do_cpp_update()の後処理部分をMEX化
+### Phase 2: do_cpp_update()の後処理部分をMEX化 ✅ **完了**
+
+**完了日**: 2025年12月27日
 
 **目標**: `do_cpp_update()`の後処理部分（divergence_guard, 状態適用、クォータニオン演算）をMEX化
 
-**対象コード** (ESKF.m: 436-477行):
-```matlab
-if isstruct(dbg_out) && isfield(dbg_out, 'innov') && isfield(dbg_out, 'H')
-    obj.noiseEstimator.estimate(sensor_type, dbg_out.innov, dbg_out.H, obj.P);
-end
-
-should_apply_mex_state = true;
-if isstruct(dbg_out) && isfield(dbg_out, 'dx')
-    dx_in = dbg_out.dx(:);
-    ctx = struct('sensor', sensor_type, 'sample', sample);
-    [dx_out, should_skip, was_attenuated] = obj.divergence_guard.check_and_attenuate_update(sensor_type, dbg_out.innov, dx_in, ctx);
-    if should_skip, return; end
-
-    if was_attenuated && ~isempty(dx_out)
-        dx_apply = dx_out(:);
-        new_state.p = state.p + dx_apply(1:3);
-        new_state.v = state.v + dx_apply(4:6);
-        phi = dx_apply(7:9);
-        dq = [1; 0.5 * phi(:)];
-        q1 = dq; q2 = state.q(:);
-        [w1, x1, y1, z1] = deal(q1(1), q1(2), q1(3), q1(4));
-        [w2, x2, y2, z2] = deal(q2(1), q2(2), q2(3), q2(4));
-        q_new = [w1*w2 - x1*x2 - y1*y2 - z1*z2; ...
-                 w1*x2 + x1*w2 + y1*z2 - z1*y2; ...
-                 w1*y2 - x1*z2 + y1*w2 + z1*x2; ...
-                 w1*z2 + x1*y2 - y1*x2 + z1*w2];
-        q_new = q_new / norm(q_new);
-        new_state.q = q_new;
-        new_state.ba = state.ba + dx_apply(10:12);
-        new_state.bg = state.bg + dx_apply(13:15);
-        if isfield(new_state, 'P')
-            new_state.P = (new_state.P + new_state.P')/2;
-        else
-            new_state.P = obj.P;
-        end
-    end
-end
-
-if should_apply_mex_state
-    [obj.p, obj.v, obj.q, obj.ba, obj.bg] = deal(new_state.p, new_state.v, new_state.q, new_state.ba, new_state.bg);
-    if isfield(new_state, 'P')
-        obj.P = (new_state.P + new_state.P')/2;
-    end
-end
-```
-
 **実装内容**:
-1. `mex_eskf_update_postprocess`を作成
-2. MATLAB実装をそのままC++に移植
-3. `do_cpp_update()`から呼び出し
+1. ✅ `mex_eskf_update_postprocess.cpp`を作成
+2. ✅ MATLAB実装をそのままC++に移植（`mex_sensor_filter('divergence_check')`を使用）
+3. ✅ `do_cpp_update()`から呼び出し（環境変数`USE_MEX_UPDATE_POSTPROCESS`で制御）
+4. ✅ `run_batch_10sets.m`で環境変数を自動設定
 
-**検証**:
-- `run_batch_10sets()`で10/10成功を確認
-- Phase 1と結果を比較
+**検証結果**:
+- ✅ `run_batch_10sets(true)`で10/10成功を確認
+- ✅ Position RMSE: Mean=0.7818m（Phase 1と同等）
+- ✅ Velocity RMSE: Mean=0.5766 m/s（Phase 1と同等）
+- ✅ Attitude RMSE: Roll=0.2607°, Pitch=0.2812°, Yaw=0.6052°（Phase 1と同等）
+
+**ファイル**:
+- `kalman/cpp/MEX/mex_eskf_update_postprocess.cpp`: MEX実装
+- `kalman/ESKF.m` (do_cpp_update関数内): MEX呼び出しロジック
 
 ---
 

@@ -163,9 +163,8 @@ classdef ESKF < handle
             [obj.enable_accel_z_integration, obj.accel_z_threshold, obj.accel_z_damping, obj.baro_weight] = ...
                 deal(true, 0.5, 0.1, 0.2);
             
-            % 段階的MEX置き換え用フラグ（環境変数から読み込み）
+            % オプション設定
             obj.options = struct('preproc_in_matlab', true);
-            obj.options.use_mex_predict_postprocess = strcmp(getenv('USE_MEX_PREDICT_POSTPROCESS'), '1');
         end
 
         function output = call_unified_filter(obj, input_struct)
@@ -232,18 +231,11 @@ classdef ESKF < handle
             obj.w_body = w_meas;
             obj.quaternion_norm = norm(obj.q);
             
-            % 段階的MEX置き換え: predict()の後処理部分
-            % MEX実装のみを使用（Phase 1完了）
-            use_mex_postprocess = isfield(obj.options, 'use_mex_predict_postprocess') && obj.options.use_mex_predict_postprocess;
-            if use_mex_postprocess && exist('mex_eskf_predict_postprocess', 'file') == 3
-                [obj.v, obj.P] = mex_eskf_predict_postprocess('postprocess', ...
-                    obj.v, obj.q, obj.P, a_for_vel, obj.dt, obj.g, ...
-                    obj.enable_accel_z_integration, obj.accel_z_threshold, obj.accel_z_damping, ...
-                    obj.velocity_damping);
-            else
-                error('ESKF:predict:postprocess', ...
-                    'mex_eskf_predict_postprocess is required. Set USE_MEX_PREDICT_POSTPROCESS=1 and ensure MEX file is built.');
-            end
+            % MEX実装: predict()の後処理部分（Phase 1完了）
+            [obj.v, obj.P] = mex_eskf_predict_postprocess('postprocess', ...
+                obj.v, obj.q, obj.P, a_for_vel, obj.dt, obj.g, ...
+                obj.enable_accel_z_integration, obj.accel_z_threshold, obj.accel_z_damping, ...
+                obj.velocity_damping);
         end
 
         function update_filter(obj, obs, k)
@@ -393,39 +385,18 @@ classdef ESKF < handle
                 obj.noiseEstimator.estimate(sensor_type, dbg_out.innov, dbg_out.H, obj.P);
             end
 
-            should_apply_mex_state = true;
+            % MEX実装: do_cpp_update()の後処理部分（Phase 2完了）
             if isstruct(dbg_out) && isfield(dbg_out, 'dx')
-                dx_in = dbg_out.dx(:);
-                ctx = struct('sensor', sensor_type, 'sample', sample);
-                [dx_out, should_skip, was_attenuated] = obj.divergence_guard.check_and_attenuate_update(sensor_type, dbg_out.innov, dx_in, ctx);
-                if should_skip, return; end
-
-                if was_attenuated && ~isempty(dx_out)
-                    dx_apply = dx_out(:);
-                    new_state.p = state.p + dx_apply(1:3);
-                    new_state.v = state.v + dx_apply(4:6);
-                    phi = dx_apply(7:9);
-                    dq = [1; 0.5 * phi(:)];
-                    q1 = dq; q2 = state.q(:);
-                    [w1, x1, y1, z1] = deal(q1(1), q1(2), q1(3), q1(4));
-                    [w2, x2, y2, z2] = deal(q2(1), q2(2), q2(3), q2(4));
-                    q_new = [w1*w2 - x1*x2 - y1*y2 - z1*z2; ...
-                             w1*x2 + x1*w2 + y1*z2 - z1*y2; ...
-                             w1*y2 - x1*z2 + y1*w2 + z1*x2; ...
-                             w1*z2 + x1*y2 - y1*x2 + z1*w2];
-                    q_new = q_new / norm(q_new);
-                    new_state.q = q_new;
-                    new_state.ba = state.ba + dx_apply(10:12);
-                    new_state.bg = state.bg + dx_apply(13:15);
-                    if isfield(new_state, 'P')
-                        new_state.P = (new_state.P + new_state.P')/2;
-                    else
-                        new_state.P = obj.P;
-                    end
+                new_state_P = obj.P;
+                if isfield(new_state, 'P')
+                    new_state_P = new_state.P;
                 end
-            end
-
-            if should_apply_mex_state
+                [new_p, new_v, new_q, new_ba, new_bg, new_P, should_skip] = mex_eskf_update_postprocess('postprocess', ...
+                    sensor_type, dbg_out.dx(:), dbg_out.innov, ...
+                    state.p(:), state.v(:), state.q(:), state.ba(:), state.bg(:), state.P, new_state_P, sample);
+                if should_skip, return; end
+                [obj.p, obj.v, obj.q, obj.ba, obj.bg, obj.P] = deal(new_p, new_v, new_q, new_ba, new_bg, new_P);
+            else
                 [obj.p, obj.v, obj.q, obj.ba, obj.bg] = deal(new_state.p, new_state.v, new_state.q, new_state.ba, new_state.bg);
                 if isfield(new_state, 'P')
                     obj.P = (new_state.P + new_state.P')/2;
