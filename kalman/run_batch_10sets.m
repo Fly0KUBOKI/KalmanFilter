@@ -54,8 +54,10 @@ function run_batch_10sets(use_mex)
     % MEX / MATLAB フィルタ選択
     if use_mex
         setenv('FORCE_MATLAB_FILTERS', '0');
+        setenv('USE_MEX_PREDICT_POSTPROCESS', '1');  % MEX predict postprocessを有効化
     else
         setenv('FORCE_MATLAB_FILTERS', '1');
+        setenv('USE_MEX_PREDICT_POSTPROCESS', '0');  % MATLAB実装を使用
     end
     
     % ログディレクトリを作成（ログはここに集約し、タイムスタンプ付きで上書きしない）

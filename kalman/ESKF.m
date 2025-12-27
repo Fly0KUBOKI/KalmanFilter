@@ -163,7 +163,9 @@ classdef ESKF < handle
             [obj.enable_accel_z_integration, obj.accel_z_threshold, obj.accel_z_damping, obj.baro_weight] = ...
                 deal(true, 0.5, 0.1, 0.2);
             
+            % 段階的MEX置き換え用フラグ（環境変数から読み込み）
             obj.options = struct('preproc_in_matlab', true);
+            obj.options.use_mex_predict_postprocess = strcmp(getenv('USE_MEX_PREDICT_POSTPROCESS'), '1');
         end
 
         function output = call_unified_filter(obj, input_struct)
@@ -230,34 +232,17 @@ classdef ESKF < handle
             obj.w_body = w_meas;
             obj.quaternion_norm = norm(obj.q);
             
-            if obj.enable_accel_z_integration
-                R = mex_quaternion_lib('to_rotation_matrix', obj.q);
-                a_ned = R * a_for_vel - [0; 0; obj.g(3)];
-                az_excess = a_ned(3);
-                if abs(az_excess) > obj.accel_z_threshold
-                    obj.v(3) = obj.v(3) * (1.0 - obj.accel_z_damping) + az_excess * obj.dt;
-                end
-            end
-            
-            if obj.velocity_damping > 0
-                obj.v(1:2) = obj.v(1:2) * (1.0 - obj.velocity_damping * obj.dt);
-            end
-            
-            obj.P = obj.divergence_guard.regularize_covariance(obj.P);
-            max_var = [100^2*ones(3,1); 20^2*ones(3,1); (deg2rad(45))^2*ones(3,1); 0.1*ones(3,1); 0.01*ones(3,1)];
-            for i = 1:15
-                if obj.P(i,i) > max_var(i)
-                    factor = sqrt(max_var(i) / obj.P(i,i));
-                    obj.P(i,:) = obj.P(i,:) * factor;
-                    obj.P(:,i) = obj.P(:,i) * factor;
-                    obj.P(i,i) = max_var(i);
-                end
-            end
-            
-            [obj.v, obj.P, ~] = obj.divergence_guard.check_and_clip_velocity(obj.v, obj.P, 4:6);
-            
-            if norm(obj.v) > 10.0
-                obj.v = obj.v * (10.0 / norm(obj.v));
+            % 段階的MEX置き換え: predict()の後処理部分
+            % MEX実装のみを使用（Phase 1完了）
+            use_mex_postprocess = isfield(obj.options, 'use_mex_predict_postprocess') && obj.options.use_mex_predict_postprocess;
+            if use_mex_postprocess && exist('mex_eskf_predict_postprocess', 'file') == 3
+                [obj.v, obj.P] = mex_eskf_predict_postprocess('postprocess', ...
+                    obj.v, obj.q, obj.P, a_for_vel, obj.dt, obj.g, ...
+                    obj.enable_accel_z_integration, obj.accel_z_threshold, obj.accel_z_damping, ...
+                    obj.velocity_damping);
+            else
+                error('ESKF:predict:postprocess', ...
+                    'mex_eskf_predict_postprocess is required. Set USE_MEX_PREDICT_POSTPROCESS=1 and ensure MEX file is built.');
             end
         end
 

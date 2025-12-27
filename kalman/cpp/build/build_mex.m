@@ -9,6 +9,12 @@ function build_mex(targets)
     %   - C++ compiler configured (run: mex -setup C++)
     %   - Source files in cpp/mex/, cpp/src/, cpp/include/
 
+    % Clear command window and unload MEX files for clean build
+    clc;
+    clear functions;
+    clear mex;
+    rehash;
+    
     fprintf('MEX Build for Kalman Filters\n');
     % Usage: build_mex()          -> build all
     %        build_mex({'mex_sensor_filter','mex_meukf_step'})
@@ -208,6 +214,13 @@ function build_mex(targets)
         % Phase 5: mex_filter_management
         if exist('mex_filter_management.cpp', 'file')
             if wants('mex_filter_management') && build_single_mex('mex_filter_management.cpp', compile_opts, inc_args, {}, bin_dir)
+                built_count = built_count + 1;
+            end
+        end
+        
+        % Phase 1: mex_eskf_predict_postprocess
+        if exist('mex_eskf_predict_postprocess.cpp', 'file')
+            if wants('mex_eskf_predict_postprocess') && build_single_mex('mex_eskf_predict_postprocess.cpp', compile_opts, inc_args, {}, bin_dir)
                 built_count = built_count + 1;
             end
         end
