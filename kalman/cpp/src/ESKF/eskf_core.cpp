@@ -76,34 +76,71 @@ void ESKFCore::integrate_nominal(
     // 世界座標系での比力
     Vector3 a_world = Rb * a;
     
-    // Forward Euler積分（MATLAB実装と一致させるため、毎回Forward Eulerを使用）
-    Vector3 v_prev = v;
-    Vector3 v_candidate = v + (a_world + g) * dt;
-    
-    // 速度発散防止
-    Scalar max_accel = 200.0;
-    Vector3 dv = v_candidate - v;
-    
-    Scalar dv_norm = 0.0;
-    for (int i=0; i<3; ++i) dv_norm += dv(i,0) * dv(i,0);
-    dv_norm = std::sqrt(dv_norm);
-    
-    Scalar max_dv = max_accel * dt;
-    if (dv_norm > max_dv) {
-        Scalar scale = max_dv / dv_norm;
-        dv = dv * scale;
+    // Adams-Bashforth2 積分
+    if (!prev_initialized) {
+        // 初回: Forward Euler
+        Vector3 v_prev = v;
+        Vector3 v_candidate = v + (a_world + g) * dt;
+        
+        // 速度発散防止
+        Scalar max_accel = 2.0;
+        Vector3 dv = v_candidate - v;
+        
+        Scalar dv_norm = 0.0;
+        for (int i=0; i<3; ++i) dv_norm += dv(i,0) * dv(i,0);
+        dv_norm = std::sqrt(dv_norm);
+        
+        Scalar max_dv = max_accel * dt;
+        if (dv_norm > max_dv) {
+            Scalar scale = max_dv / dv_norm;
+            dv = dv * scale;
+        }
+        
+        v = v + dv;
+        
+        // 速度クリップ
+        Scalar max_velocity = 50.0;
+        for (int i=0; i<3; ++i) {
+            v(i,0) = std::max(std::min(v(i,0), max_velocity), -max_velocity);
+        }
+        
+        // 位置更新
+        p = p + v * dt + (a_world + g) * (0.5 * dt * dt);
+        
+        prev_a_world = a_world;
+        prev_v = v_prev;
+        prev_initialized = true;
+    } else {
+        // AB2
+        Vector3 v_old = v;
+        v = v + (a_world + g) * (1.5 * dt) - (prev_a_world + g) * (0.5 * dt);
+        
+        // 速度発散防止
+        Scalar max_accel = 2.0;
+        Vector3 dv = v - v_old;
+        
+        Scalar dv_norm = 0.0;
+        for (int i=0; i<3; ++i) dv_norm += dv(i,0) * dv(i,0);
+        dv_norm = std::sqrt(dv_norm);
+        
+        Scalar max_dv = max_accel * dt;
+        if (dv_norm > max_dv) {
+            Scalar scale = max_dv / dv_norm;
+            v = v_old + dv * scale;
+        }
+        
+        // 速度クリップ
+        Scalar max_velocity = 50.0;
+        for (int i=0; i<3; ++i) {
+            v(i,0) = std::max(std::min(v(i,0), max_velocity), -max_velocity);
+        }
+        
+        // 位置更新
+        p = p + v_old * (1.5 * dt) - prev_v * (0.5 * dt);
+        
+        prev_v = v_old;
+        prev_a_world = a_world;
     }
-    
-    v = v + dv;
-    
-    // 速度クリップ
-    Scalar max_velocity = 200.0;
-    for (int i=0; i<3; ++i) {
-        v(i,0) = std::max(std::min(v(i,0), max_velocity), -max_velocity);
-    }
-    
-    // 位置更新
-    p = p + v * dt + (a_world + g) * (0.5 * dt * dt);
 }
 
 void ESKFCore::update_accel(

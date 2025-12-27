@@ -22,18 +22,15 @@ void do_preprocess_accel(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prh
     bool is_out = false;
     double corrected[3]; for(int i=0;i<3;i++) corrected[i]=a_meas[i];
     
-    // 変更検知: 変更がない場合は空の出力を返す（呼び出し側で早期リターン）
     if(delta <= buffer_tol){
-        // 変更なしを示すフラグを返す（第3出力として）
         plhs[0] = mxCreateDoubleMatrix(3,1,mxREAL);
         double* out = mxGetPr(plhs[0]);
         out[0]=corrected[0]; out[1]=corrected[1]; out[2]=corrected[2];
-        if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(false); // is_outlier
-        if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(true);  // no_change flag
+        if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(false);
+        if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(true);
         return;
     }
     
-    // ノルムチェック
     double a_norm = sqrt(a_meas[0]*a_meas[0]+a_meas[1]*a_meas[1]+a_meas[2]*a_meas[2]);
     if(a_norm < 0.1 || fabs(a_norm - 9.81) > 3.0) is_out = true;
     
@@ -41,7 +38,7 @@ void do_preprocess_accel(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prh
     double* out = mxGetPr(plhs[0]);
     out[0]=corrected[0]; out[1]=corrected[1]; out[2]=corrected[2];
     if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(is_out);
-    if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(false); // no_change = false
+    if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(false);
 }
 
 void do_preprocess_mag(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
@@ -54,13 +51,12 @@ void do_preprocess_mag(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[
     bool is_out = false;
     double corrected[3] = {m_meas[0], m_meas[1], m_meas[2]};
     
-    // 変更検知
     if(delta <= buffer_tol){
         plhs[0]=mxCreateDoubleMatrix(3,1,mxREAL);
         double* out=mxGetPr(plhs[0]);
         out[0]=corrected[0]; out[1]=corrected[1]; out[2]=corrected[2];
         if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(false);
-        if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(true); // no_change
+        if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(true);
         return;
     }
     
@@ -68,22 +64,19 @@ void do_preprocess_mag(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[
     double* out=mxGetPr(plhs[0]);
     out[0]=corrected[0]; out[1]=corrected[1]; out[2]=corrected[2];
     if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(is_out);
-    if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(false); // no_change = false
+    if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(false);
 }
 
 void do_preprocess_baro(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
     if(nrhs < 2) mexErrMsgIdAndTxt("mex_sensor_preprocessor:usage","preprocess_baro requires (pressure)");
     double p = mxGetScalar(prhs[1]);
     
-    // 変更検知（前回値との比較が必要だが、ここでは単純に処理）
-    // 呼び出し側で変更検知を行うため、ここでは変換のみ
-    
     const double P0 = 101325.0; const double ALT_COEFF = 44330.0;
     double p_frac = p / P0; if(p_frac < 1e-9) p_frac = 1e-9;
     double alt = ALT_COEFF * (1.0 - pow(p_frac, 0.1903));
     plhs[0]=mxCreateDoubleScalar(alt);
     if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(false);
-    if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(false); // no_change = false (呼び出し側で判定)
+    if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(false);
 }
 
 void do_preprocess_gps(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
@@ -91,32 +84,28 @@ void do_preprocess_gps(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[
     double lat = mxGetScalar(prhs[1]); double lon = mxGetScalar(prhs[2]); double alt_in = mxGetScalar(prhs[3]);
     double* origin = mxGetPr(prhs[4]); double lat0 = origin[0]; double lon0 = origin[1]; double alt0 = origin[2];
     
-    // 変更検知
     double buffer_tol = 1e-9;
     double dlat = lat - lat0;
     double dlon = lon - lon0;
     double dalt = alt_in - alt0;
     if(fabs(dlat) <= buffer_tol && fabs(dlon) <= buffer_tol && fabs(dalt) <= buffer_tol){
-        // 変更なし
         plhs[0]=mxCreateDoubleMatrix(3,1,mxREAL);
         double* out=mxGetPr(plhs[0]);
         out[0]=0.0; out[1]=0.0; out[2]=0.0;
         if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(false);
-        if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(true); // no_change
+        if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(true);
         return;
     }
     
-    // 座標変換（MATLAB実装と一致させる: [y_m; x_m; -z_m]）
     double y_m = dlat / 9.0e-6;
     double lat0rad = lat0 * M_PI / 180.0;
     double x_m = dlon / (9.0e-6 / cos(lat0rad));
-    double z_m = -dalt; // MATLAB実装では-z_mを使用
-    // MATLAB実装の順序: [y_m; x_m; -z_m]
+    double z_m = -dalt;
     plhs[0]=mxCreateDoubleMatrix(3,1,mxREAL);
     double* out=mxGetPr(plhs[0]);
     out[0]=y_m; out[1]=x_m; out[2]=z_m;
     if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(false);
-    if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(false); // no_change = false
+    if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(false);
 }
 
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){

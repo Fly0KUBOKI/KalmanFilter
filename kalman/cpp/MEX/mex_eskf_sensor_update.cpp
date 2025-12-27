@@ -1,322 +1,315 @@
 // mex_eskf_sensor_update.cpp
-// MEX wrapper for sensor_updates() - integrates preprocessing + update + postprocessing (Phase 3)
-// This function calls existing MEX functions to minimize code duplication
+// sensor_updates()とdo_cpp_update()を完全に統合したMEX関数
+// 1回のMEX呼び出しでセンサー前処理から状態更新まで実行
 
 #include "mex.h"
-#include "mex_type_conv.hpp"
-#include "../include/Common/Math/fixed_matrix.hpp"
-#include <string>
 #include <cmath>
-#include <vector>
+#include <cstring>
 
-using namespace cmath_fx;
+//=============================================================================
+// 定数
+//=============================================================================
+static const double GRAVITY = 9.80665;
+static const double DEG2RAD = 0.017453292519943295;
 
-// Helper: MATLAB array -> Vector
-template<int R>
-static bool matToVector(const mxArray* arr, Vector<R, float>& out) {
-    if (!arr) return false;
-    if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
-    mwSize rows = mxGetM(arr); mwSize cols = mxGetN(arr);
-    if (rows != R || cols != 1) return false;
-    std::vector<float> tmp(static_cast<size_t>(R));
-    mex_conv::mxArrayToFloatArray(arr, tmp.data(), static_cast<size_t>(R));
-    for (int i = 0; i < R; ++i) out(i, 0) = tmp[i];
-    return true;
+//=============================================================================
+// ヘルパー関数
+//=============================================================================
+static double norm3(const double* v) {
+    return sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
 }
 
-// Helper: MATLAB array -> Matrix
-template<int R, int C>
-static bool matToMatrix(const mxArray* arr, Matrix<R, C, float>& out) {
-    if (!arr) return false;
-    if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
-    mwSize rows = mxGetM(arr); mwSize cols = mxGetN(arr);
-    if (rows != R || cols != C) return false;
-    std::vector<float> tmp(static_cast<size_t>(R) * static_cast<size_t>(C));
-    mex_conv::mxArrayToFloatArray(arr, tmp.data(), static_cast<size_t>(R) * static_cast<size_t>(C));
-    for (int j = 0; j < C; ++j) {
-        for (int i = 0; i < R; ++i) {
-            out(i, j) = tmp[static_cast<size_t>(j) * static_cast<size_t>(R) + static_cast<size_t>(i)];
-        }
+static bool is_nan_any(const double* v, int n) {
+    for (int i = 0; i < n; ++i) {
+        if (mxIsNaN(v[i])) return true;
     }
-    return true;
+    return false;
 }
 
-// Helper: Vector -> MATLAB array
-template<int R>
-static mxArray* vectorToMat(const Vector<R, float>& v) {
-    mxArray* out = mxCreateDoubleMatrix(R, 1, mxREAL);
-    double* pr = mxGetPr(out);
-    for (int i = 0; i < R; ++i) pr[i] = static_cast<double>(v(i, 0));
-    return out;
+static void copy_vec(double* dst, const double* src, int n) {
+    memcpy(dst, src, n * sizeof(double));
 }
 
-// Helper: Matrix -> MATLAB array
-template<int R, int C>
-static mxArray* matrixToMat(const Matrix<R, C, float>& M) {
-    mxArray* out = mxCreateDoubleMatrix(R, C, mxREAL);
-    double* pr = mxGetPr(out);
-    for (int j = 0; j < C; ++j) {
-        for (int i = 0; i < R; ++i) {
-            pr[j * R + i] = static_cast<double>(M(i, j));
-        }
-    }
-    return out;
-}
-
-// Main sensor update function
-// Integrates: preprocessing -> meukf_step -> update_postprocess
-// Input: sensor_type, meas, prev_meas, state (p, v, q, ba, bg, P), params, sample
-// Output: new_state (p, v, q, ba, bg, P), should_skip
-static void handle_sensor_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
-    // Expected args (after 'update' command is removed):
-    // sensor_type (string), meas (3x1 or scalar), prev_meas (3x1 or scalar), 
-    // state_p (3x1), state_v (3x1), state_q (4x1), state_ba (3x1), state_bg (3x1), state_P (15x15),
-    // params (struct), sample, w_body_norm
-    // Total: 12 arguments minimum
+//=============================================================================
+// センサー更新ハンドラ
+// 入力: sensor_type, meas, state_struct
+// state_struct: p, v, q, ba, bg, P, g, dt, w_body, baro_weight, buffer_tolerance,
+//               prev_accel, prev_mag, prev_baro, gps_origin
+// 出力: [p, v, q, ba, bg, P, prev_accel, prev_mag, prev_baro, should_skip]
+//=============================================================================
+static void handle_accel_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
+    // 入力解析
+    const mxArray* meas_arr = prhs[2];
+    const mxArray* state = prhs[3];
     
-    if (nrhs < 12) {
-        mexErrMsgTxt("update: insufficient args. Need: sensor_type, meas, prev_meas, state_p, state_v, state_q, state_ba, state_bg, state_P, params, sample, w_body_norm");
-    }
+    double* meas = mxGetPr(meas_arr);
+    double* p = mxGetPr(mxGetField(state, 0, "p"));
+    double* v = mxGetPr(mxGetField(state, 0, "v"));
+    double* q = mxGetPr(mxGetField(state, 0, "q"));
+    double* ba = mxGetPr(mxGetField(state, 0, "ba"));
+    double* bg = mxGetPr(mxGetField(state, 0, "bg"));
+    double* P = mxGetPr(mxGetField(state, 0, "P"));
+    double* g = mxGetPr(mxGetField(state, 0, "g"));
+    double dt = mxGetScalar(mxGetField(state, 0, "dt"));
+    double* w_body = mxGetPr(mxGetField(state, 0, "w_body"));
+    double* prev_accel = mxGetPr(mxGetField(state, 0, "prev_accel"));
     
-    // Get sensor_type
-    char sensor_type[64];
-    if (!mxIsChar(prhs[0]) || mxGetString(prhs[0], sensor_type, sizeof(sensor_type)) != 0) {
-        mexErrMsgTxt("sensor_type must be a string");
+    double sample = NAN;
+    if (nrhs > 4 && !mxIsEmpty(prhs[4])) {
+        sample = mxGetScalar(prhs[4]);
     }
     
-    // Get measurement and previous measurement
-    const mxArray* meas = prhs[1];
-    const mxArray* prev_meas = prhs[2];
+    bool should_skip = false;
+    double new_prev_accel[3];
+    copy_vec(new_prev_accel, prev_accel, 3);
     
-    // Get state
-    Vector<3, float> state_p, state_v, state_ba, state_bg;
-    Vector<4, float> state_q;
-    Matrix<15, 15, float> state_P;
+    // 前処理: mex_sensor_preprocessor('preprocess_accel', ...)
+    mxArray* prhs_pre[3];
+    mxArray* plhs_pre[3];
+    prhs_pre[0] = mxCreateString("preprocess_accel");
+    mxArray* a_meas_arr = mxCreateDoubleMatrix(3, 1, mxREAL);
+    copy_vec(mxGetPr(a_meas_arr), meas, 3);
+    prhs_pre[1] = a_meas_arr;
+    mxArray* prev_arr = mxCreateDoubleMatrix(3, 1, mxREAL);
+    copy_vec(mxGetPr(prev_arr), prev_accel, 3);
+    prhs_pre[2] = prev_arr;
     
-    if (!matToVector(prhs[3], state_p)) mexErrMsgTxt("state_p read failed");
-    if (!matToVector(prhs[4], state_v)) mexErrMsgTxt("state_v read failed");
-    if (!matToVector(prhs[5], state_q)) mexErrMsgTxt("state_q read failed");
-    if (!matToVector(prhs[6], state_ba)) mexErrMsgTxt("state_ba read failed");
-    if (!matToVector(prhs[7], state_bg)) mexErrMsgTxt("state_bg read failed");
-    if (!matToMatrix(prhs[8], state_P)) mexErrMsgTxt("state_P read failed");
-    
-    const mxArray* params = prhs[9];
-    double sample = mxGetScalar(prhs[10]);
-    double w_body_norm = mxGetScalar(prhs[11]);
-    
-    // Step 1: Preprocessing via mex_sensor_preprocessor
-    mxArray* plhs_preproc[3];
-    mxArray* prhs_preproc[3];
-    
-    std::string preproc_cmd;
-    if (strcmp(sensor_type, "accel") == 0) {
-        preproc_cmd = "preprocess_accel";
-    } else if (strcmp(sensor_type, "mag") == 0) {
-        preproc_cmd = "preprocess_mag";
-    } else if (strcmp(sensor_type, "baro") == 0) {
-        preproc_cmd = "preprocess_baro";
-    } else {
-        // GPS and others use different preprocessing, handle separately
-        preproc_cmd = "preprocess_" + std::string(sensor_type);
-    }
-    
-    prhs_preproc[0] = mxCreateString(preproc_cmd.c_str());
-    prhs_preproc[1] = mxDuplicateArray(meas);
-    prhs_preproc[2] = mxDuplicateArray(prev_meas);
-    
-    int preproc_nrhs = (strcmp(sensor_type, "baro") == 0) ? 2 : 3;
-    mexCallMATLAB(3, plhs_preproc, preproc_nrhs, prhs_preproc, "mex_sensor_preprocessor");
-    
-    // Get preprocessing results: corrected_meas, is_outlier, no_change
-    const mxArray* corrected_meas = plhs_preproc[0];
-    bool is_outlier = mxIsLogicalScalarTrue(plhs_preproc[1]);
-    bool no_change = mxIsLogicalScalarTrue(plhs_preproc[2]);
-    
-    // Check if we should skip this update
-    bool should_skip = no_change || is_outlier;
-    
-    // For accel, also check w_body_norm
-    if (strcmp(sensor_type, "accel") == 0 && w_body_norm > 1.5) {
+    double a_corrected[3];
+    if (mexCallMATLAB(3, plhs_pre, 3, prhs_pre, "mex_sensor_preprocessor") != 0) {
         should_skip = true;
-    }
-    
-    if (should_skip) {
-        // Return original state
-        if (nlhs >= 1) plhs[0] = vectorToMat(state_p);
-        if (nlhs >= 2) plhs[1] = vectorToMat(state_v);
-        if (nlhs >= 3) plhs[2] = vectorToMat(state_q);
-        if (nlhs >= 4) plhs[3] = vectorToMat(state_ba);
-        if (nlhs >= 5) plhs[4] = vectorToMat(state_bg);
-        if (nlhs >= 6) plhs[5] = matrixToMat(state_P);
-        if (nlhs >= 7) plhs[6] = mxCreateLogicalScalar(true);  // should_skip = true
-        
-        // Cleanup
-        mxDestroyArray(plhs_preproc[0]);
-        mxDestroyArray(plhs_preproc[1]);
-        mxDestroyArray(plhs_preproc[2]);
-        mxDestroyArray(prhs_preproc[0]);
-        mxDestroyArray(prhs_preproc[1]);
-        if (preproc_nrhs >= 3) mxDestroyArray(prhs_preproc[2]);
-        return;
-    }
-    
-    // Step 2: Call mex_meukf_step_v2 for the update
-    // Build sensor_data struct
-    mxArray* sensor_data = mxCreateStructMatrix(1, 1, 0, NULL);
-    mxAddField(sensor_data, "accel"); mxSetField(sensor_data, 0, "accel", mxCreateDoubleMatrix(3, 1, mxREAL));
-    mxAddField(sensor_data, "gyro"); mxSetField(sensor_data, 0, "gyro", mxCreateDoubleMatrix(3, 1, mxREAL));
-    mxAddField(sensor_data, "mag"); mxSetField(sensor_data, 0, "mag", mxCreateDoubleMatrix(3, 1, mxREAL));
-    mxAddField(sensor_data, "gps_pos"); mxSetField(sensor_data, 0, "gps_pos", mxCreateDoubleMatrix(3, 1, mxREAL));
-    mxAddField(sensor_data, "alt_baro"); mxSetField(sensor_data, 0, "alt_baro", mxCreateDoubleScalar(0));
-    
-    // Set measurement based on sensor type
-    if (strcmp(sensor_type, "accel") == 0) {
-        mxSetField(sensor_data, 0, "accel", mxDuplicateArray(corrected_meas));
-        mxAddField(sensor_data, "update_accel"); mxSetField(sensor_data, 0, "update_accel", mxCreateLogicalScalar(true));
-        mxAddField(sensor_data, "update_mag"); mxSetField(sensor_data, 0, "update_mag", mxCreateLogicalScalar(false));
-        mxAddField(sensor_data, "update_gps"); mxSetField(sensor_data, 0, "update_gps", mxCreateLogicalScalar(false));
-        mxAddField(sensor_data, "update_baro"); mxSetField(sensor_data, 0, "update_baro", mxCreateLogicalScalar(false));
-    } else if (strcmp(sensor_type, "mag") == 0) {
-        mxSetField(sensor_data, 0, "mag", mxDuplicateArray(corrected_meas));
-        mxAddField(sensor_data, "update_accel"); mxSetField(sensor_data, 0, "update_accel", mxCreateLogicalScalar(false));
-        mxAddField(sensor_data, "update_mag"); mxSetField(sensor_data, 0, "update_mag", mxCreateLogicalScalar(true));
-        mxAddField(sensor_data, "update_gps"); mxSetField(sensor_data, 0, "update_gps", mxCreateLogicalScalar(false));
-        mxAddField(sensor_data, "update_baro"); mxSetField(sensor_data, 0, "update_baro", mxCreateLogicalScalar(false));
-    } else if (strcmp(sensor_type, "baro") == 0) {
-        mxSetField(sensor_data, 0, "alt_baro", mxDuplicateArray(corrected_meas));
-        mxAddField(sensor_data, "update_accel"); mxSetField(sensor_data, 0, "update_accel", mxCreateLogicalScalar(false));
-        mxAddField(sensor_data, "update_mag"); mxSetField(sensor_data, 0, "update_mag", mxCreateLogicalScalar(false));
-        mxAddField(sensor_data, "update_gps"); mxSetField(sensor_data, 0, "update_gps", mxCreateLogicalScalar(false));
-        mxAddField(sensor_data, "update_baro"); mxSetField(sensor_data, 0, "update_baro", mxCreateLogicalScalar(true));
-    }
-    // Add other required fields
-    mxAddField(sensor_data, "update_gyro"); mxSetField(sensor_data, 0, "update_gyro", mxCreateLogicalScalar(false));
-    mxAddField(sensor_data, "update_zupt"); mxSetField(sensor_data, 0, "update_zupt", mxCreateLogicalScalar(false));
-    
-    // Build state struct
-    mxArray* state_struct = mxCreateStructMatrix(1, 1, 0, NULL);
-    mxAddField(state_struct, "p"); mxSetField(state_struct, 0, "p", vectorToMat(state_p));
-    mxAddField(state_struct, "v"); mxSetField(state_struct, 0, "v", vectorToMat(state_v));
-    mxAddField(state_struct, "q"); mxSetField(state_struct, 0, "q", vectorToMat(state_q));
-    mxAddField(state_struct, "ba"); mxSetField(state_struct, 0, "ba", vectorToMat(state_ba));
-    mxAddField(state_struct, "bg"); mxSetField(state_struct, 0, "bg", vectorToMat(state_bg));
-    mxAddField(state_struct, "P"); mxSetField(state_struct, 0, "P", matrixToMat(state_P));
-    
-    // Call mex_meukf_step_v2
-    mxArray* plhs_meukf[3];
-    mxArray* prhs_meukf[3];
-    prhs_meukf[0] = state_struct;
-    prhs_meukf[1] = sensor_data;
-    prhs_meukf[2] = mxDuplicateArray(params);
-    
-    mexCallMATLAB(3, plhs_meukf, 3, prhs_meukf, "mex_meukf_step_v2");
-    
-    // Get new_state from mex_meukf_step_v2
-    mxArray* new_state = plhs_meukf[0];
-    mxArray* dbg_out = plhs_meukf[1];
-    
-    // Extract new state values
-    Vector<3, float> new_p, new_v, new_ba, new_bg;
-    Vector<4, float> new_q;
-    Matrix<15, 15, float> new_P;
-    
-    if (!matToVector(mxGetField(new_state, 0, "p"), new_p)) new_p = state_p;
-    if (!matToVector(mxGetField(new_state, 0, "v"), new_v)) new_v = state_v;
-    if (!matToVector(mxGetField(new_state, 0, "q"), new_q)) new_q = state_q;
-    if (!matToVector(mxGetField(new_state, 0, "ba"), new_ba)) new_ba = state_ba;
-    if (!matToVector(mxGetField(new_state, 0, "bg"), new_bg)) new_bg = state_bg;
-    if (mxGetField(new_state, 0, "P") != NULL) {
-        if (!matToMatrix(mxGetField(new_state, 0, "P"), new_P)) new_P = state_P;
     } else {
-        new_P = state_P;
+        copy_vec(a_corrected, mxGetPr(plhs_pre[0]), 3);
+        bool is_outlier = mxIsLogicalScalarTrue(plhs_pre[1]);
+        bool no_change = mxIsLogicalScalarTrue(plhs_pre[2]);
+        
+        if (no_change || is_nan_any(a_corrected, 3) || is_outlier || (norm3(w_body) > 1.5)) {
+            should_skip = true;
+        } else {
+            copy_vec(new_prev_accel, meas, 3);
+        }
+        for (int i = 0; i < 3; ++i) mxDestroyArray(plhs_pre[i]);
     }
+    for (int i = 0; i < 3; ++i) mxDestroyArray(prhs_pre[i]);
     
-    // Step 3: Call mex_eskf_update_postprocess if dx is available
-    if (dbg_out != NULL && mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "dx") != NULL) {
-        mxArray* plhs_post[7];
-        mxArray* prhs_post[12];
-        prhs_post[0] = mxCreateString("postprocess");
-        prhs_post[1] = mxCreateString(sensor_type);
-        prhs_post[2] = mxDuplicateArray(mxGetField(dbg_out, 0, "dx"));
-        prhs_post[3] = mxDuplicateArray(mxGetField(dbg_out, 0, "innov"));
-        prhs_post[4] = vectorToMat(state_p);
-        prhs_post[5] = vectorToMat(state_v);
-        prhs_post[6] = vectorToMat(state_q);
-        prhs_post[7] = vectorToMat(state_ba);
-        prhs_post[8] = vectorToMat(state_bg);
-        prhs_post[9] = matrixToMat(state_P);
-        prhs_post[10] = matrixToMat(new_P);
-        prhs_post[11] = mxCreateDoubleScalar(sample);
+    // 出力バッファ
+    double out_p[3], out_v[3], out_q[4], out_ba[3], out_bg[3], out_P[15*15];
+    copy_vec(out_p, p, 3);
+    copy_vec(out_v, v, 3);
+    copy_vec(out_q, q, 4);
+    copy_vec(out_ba, ba, 3);
+    copy_vec(out_bg, bg, 3);
+    memcpy(out_P, P, 15*15*sizeof(double));
+    
+    if (!should_skip) {
+        // R取得: mex_sensor_filter('get_R', 'accel')
+        mxArray* prhs_r[2];
+        mxArray* plhs_r[1];
+        prhs_r[0] = mxCreateString("get_R");
+        prhs_r[1] = mxCreateString("accel");
+        double R_noise[3] = {0.01, 0.01, 0.01};
+        if (mexCallMATLAB(1, plhs_r, 2, prhs_r, "mex_sensor_filter") == 0) {
+            double* R = mxGetPr(plhs_r[0]);
+            int n = (int)mxGetNumberOfElements(plhs_r[0]);
+            if (n == 9) {
+                R_noise[0] = R[0]; R_noise[1] = R[4]; R_noise[2] = R[8];
+            } else if (n >= 3) {
+                R_noise[0] = R[0]; R_noise[1] = R[1]; R_noise[2] = R[2];
+            }
+            mxDestroyArray(plhs_r[0]);
+        }
+        mxDestroyArray(prhs_r[0]);
+        mxDestroyArray(prhs_r[1]);
         
-        mexCallMATLAB(7, plhs_post, 12, prhs_post, "mex_eskf_update_postprocess");
+        // sensor_data構造体
+        const char* sd_fields[] = {"accel", "gyro", "mag", "gps_pos", "alt_baro", "dt",
+            "update_accel", "update_gyro", "update_mag", "update_gps", "update_baro", "update_zupt"};
+        mxArray* sensor_data = mxCreateStructMatrix(1, 1, 12, sd_fields);
         
-        // Get final state from postprocess
-        if (!matToVector(plhs_post[0], new_p)) new_p = state_p;
-        if (!matToVector(plhs_post[1], new_v)) new_v = state_v;
-        if (!matToVector(plhs_post[2], new_q)) new_q = state_q;
-        if (!matToVector(plhs_post[3], new_ba)) new_ba = state_ba;
-        if (!matToVector(plhs_post[4], new_bg)) new_bg = state_bg;
-        if (!matToMatrix(plhs_post[5], new_P)) new_P = state_P;
-        bool post_should_skip = mxIsLogicalScalarTrue(plhs_post[6]);
+        mxArray* accel_arr = mxCreateDoubleMatrix(3, 1, mxREAL);
+        copy_vec(mxGetPr(accel_arr), a_corrected, 3);
+        mxSetField(sensor_data, 0, "accel", accel_arr);
         
-        if (post_should_skip) {
-            new_p = state_p;
-            new_v = state_v;
-            new_q = state_q;
-            new_ba = state_ba;
-            new_bg = state_bg;
-            new_P = state_P;
+        double zeros3[3] = {0, 0, 0};
+        mxArray* gyro_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(gyro_arr), zeros3, 3);
+        mxSetField(sensor_data, 0, "gyro", gyro_arr);
+        mxArray* mag_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(mag_arr), zeros3, 3);
+        mxSetField(sensor_data, 0, "mag", mag_arr);
+        mxArray* gps_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(gps_arr), zeros3, 3);
+        mxSetField(sensor_data, 0, "gps_pos", gps_arr);
+        mxSetField(sensor_data, 0, "alt_baro", mxCreateDoubleScalar(0));
+        mxSetField(sensor_data, 0, "dt", mxCreateDoubleScalar(dt));
+        mxSetField(sensor_data, 0, "update_accel", mxCreateLogicalScalar(true));
+        mxSetField(sensor_data, 0, "update_gyro", mxCreateLogicalScalar(false));
+        mxSetField(sensor_data, 0, "update_mag", mxCreateLogicalScalar(false));
+        mxSetField(sensor_data, 0, "update_gps", mxCreateLogicalScalar(false));
+        mxSetField(sensor_data, 0, "update_baro", mxCreateLogicalScalar(false));
+        mxSetField(sensor_data, 0, "update_zupt", mxCreateLogicalScalar(false));
+        
+        // mex_params構造体
+        const char* mp_fields[] = {"g", "mag_ref", "noise_accel", "noise_gyro", "noise_ba", "noise_bg",
+            "noise_mag", "noise_gps", "noise_baro", "noise_zupt", "alpha", "beta", "kappa", "trace_sample"};
+        mxArray* mex_params = mxCreateStructMatrix(1, 1, 14, mp_fields);
+        
+        mxArray* g_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(g_arr), g, 3);
+        mxSetField(mex_params, 0, "g", g_arr);
+        double mag_ref[3] = {50, 0, 0};
+        mxArray* mag_ref_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(mag_ref_arr), mag_ref, 3);
+        mxSetField(mex_params, 0, "mag_ref", mag_ref_arr);
+        
+        for (int i = 0; i < 3; ++i) R_noise[i] *= 1.5;
+        mxArray* na = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(na), R_noise, 3);
+        mxSetField(mex_params, 0, "noise_accel", na);
+        
+        mxArray* ng = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ng), zeros3, 3);
+        mxSetField(mex_params, 0, "noise_gyro", ng);
+        mxArray* nba = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nba), zeros3, 3);
+        mxSetField(mex_params, 0, "noise_ba", nba);
+        mxArray* nbg = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nbg), zeros3, 3);
+        mxSetField(mex_params, 0, "noise_bg", nbg);
+        mxArray* nm = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nm), zeros3, 3);
+        mxSetField(mex_params, 0, "noise_mag", nm);
+        mxArray* ngps = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ngps), zeros3, 3);
+        mxSetField(mex_params, 0, "noise_gps", ngps);
+        mxSetField(mex_params, 0, "noise_baro", mxCreateDoubleScalar(0));
+        mxArray* nz = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nz), zeros3, 3);
+        mxSetField(mex_params, 0, "noise_zupt", nz);
+        mxSetField(mex_params, 0, "alpha", mxCreateDoubleScalar(1e-3));
+        mxSetField(mex_params, 0, "beta", mxCreateDoubleScalar(2));
+        mxSetField(mex_params, 0, "kappa", mxCreateDoubleScalar(0));
+        mxSetField(mex_params, 0, "trace_sample", mxCreateDoubleScalar(sample));
+        
+        // state構造体
+        const char* st_fields[] = {"p", "v", "q", "ba", "bg", "P"};
+        mxArray* state_s = mxCreateStructMatrix(1, 1, 6, st_fields);
+        mxArray* p_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(p_arr), p, 3);
+        mxSetField(state_s, 0, "p", p_arr);
+        mxArray* v_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(v_arr), v, 3);
+        mxSetField(state_s, 0, "v", v_arr);
+        mxArray* q_arr = mxCreateDoubleMatrix(4, 1, mxREAL); copy_vec(mxGetPr(q_arr), q, 4);
+        mxSetField(state_s, 0, "q", q_arr);
+        mxArray* ba_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ba_arr), ba, 3);
+        mxSetField(state_s, 0, "ba", ba_arr);
+        mxArray* bg_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(bg_arr), bg, 3);
+        mxSetField(state_s, 0, "bg", bg_arr);
+        mxArray* P_arr = mxCreateDoubleMatrix(15, 15, mxREAL); memcpy(mxGetPr(P_arr), P, 15*15*8);
+        mxSetField(state_s, 0, "P", P_arr);
+        
+        // mex_meukf_step_v2 呼び出し
+        mxArray* prhs_m[3] = {state_s, sensor_data, mex_params};
+        mxArray* plhs_m[3];
+        if (mexCallMATLAB(3, plhs_m, 3, prhs_m, "mex_meukf_step_v2") == 0) {
+            mxArray* new_state = plhs_m[0];
+            mxArray* dbg_out = plhs_m[1];
+            
+            // noise estimate更新
+            if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "innov") && mxGetField(dbg_out, 0, "H")) {
+                mxArray* prhs_ne[5];
+                mxArray* plhs_ne[1];
+                prhs_ne[0] = mxCreateString("noise_estimate");
+                prhs_ne[1] = mxCreateString("accel");
+                prhs_ne[2] = mxDuplicateArray(mxGetField(dbg_out, 0, "innov"));
+                prhs_ne[3] = mxDuplicateArray(mxGetField(dbg_out, 0, "H"));
+                prhs_ne[4] = mxDuplicateArray(P_arr);
+                mexCallMATLAB(1, plhs_ne, 5, prhs_ne, "mex_sensor_filter");
+                for (int i = 0; i < 5; ++i) mxDestroyArray(prhs_ne[i]);
+                if (plhs_ne[0]) mxDestroyArray(plhs_ne[0]);
+            }
+            
+            // postprocess
+            if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "dx")) {
+                mxArray* prhs_pp[12];
+                mxArray* plhs_pp[7];
+                prhs_pp[0] = mxCreateString("postprocess");
+                prhs_pp[1] = mxCreateString("accel");
+                prhs_pp[2] = mxDuplicateArray(mxGetField(dbg_out, 0, "dx"));
+                prhs_pp[3] = mxDuplicateArray(mxGetField(dbg_out, 0, "innov"));
+                prhs_pp[4] = mxDuplicateArray(p_arr);
+                prhs_pp[5] = mxDuplicateArray(v_arr);
+                prhs_pp[6] = mxDuplicateArray(q_arr);
+                prhs_pp[7] = mxDuplicateArray(ba_arr);
+                prhs_pp[8] = mxDuplicateArray(bg_arr);
+                prhs_pp[9] = mxDuplicateArray(P_arr);
+                prhs_pp[10] = mxDuplicateArray(mxGetField(new_state, 0, "P"));
+                prhs_pp[11] = mxCreateDoubleScalar(sample);
+                
+                if (mexCallMATLAB(7, plhs_pp, 12, prhs_pp, "mex_eskf_update_postprocess") == 0) {
+                    if (!mxIsLogicalScalarTrue(plhs_pp[6])) {
+                        copy_vec(out_p, mxGetPr(plhs_pp[0]), 3);
+                        copy_vec(out_v, mxGetPr(plhs_pp[1]), 3);
+                        copy_vec(out_q, mxGetPr(plhs_pp[2]), 4);
+                        copy_vec(out_ba, mxGetPr(plhs_pp[3]), 3);
+                        copy_vec(out_bg, mxGetPr(plhs_pp[4]), 3);
+                        memcpy(out_P, mxGetPr(plhs_pp[5]), 15*15*8);
+                    }
+                    for (int i = 0; i < 7; ++i) mxDestroyArray(plhs_pp[i]);
+                }
+                for (int i = 0; i < 12; ++i) mxDestroyArray(prhs_pp[i]);
+            } else {
+                copy_vec(out_p, mxGetPr(mxGetField(new_state, 0, "p")), 3);
+                copy_vec(out_v, mxGetPr(mxGetField(new_state, 0, "v")), 3);
+                copy_vec(out_q, mxGetPr(mxGetField(new_state, 0, "q")), 4);
+                copy_vec(out_ba, mxGetPr(mxGetField(new_state, 0, "ba")), 3);
+                copy_vec(out_bg, mxGetPr(mxGetField(new_state, 0, "bg")), 3);
+                if (mxGetField(new_state, 0, "P")) {
+                    double* new_P = mxGetPr(mxGetField(new_state, 0, "P"));
+                    for (int i = 0; i < 15; ++i) {
+                        for (int j = 0; j < 15; ++j) {
+                            out_P[i + j*15] = 0.5 * (new_P[i + j*15] + new_P[j + i*15]);
+                        }
+                    }
+                }
+            }
+            
+            for (int i = 0; i < 3; ++i) mxDestroyArray(plhs_m[i]);
         }
         
-        // Cleanup postprocess
-        for (int i = 0; i < 7; ++i) mxDestroyArray(plhs_post[i]);
-        for (int i = 0; i < 12; ++i) mxDestroyArray(prhs_post[i]);
+        mxDestroyArray(sensor_data);
+        mxDestroyArray(mex_params);
+        mxDestroyArray(state_s);
     }
     
-    // Output final state
-    if (nlhs >= 1) plhs[0] = vectorToMat(new_p);
-    if (nlhs >= 2) plhs[1] = vectorToMat(new_v);
-    if (nlhs >= 3) plhs[2] = vectorToMat(new_q);
-    if (nlhs >= 4) plhs[3] = vectorToMat(new_ba);
-    if (nlhs >= 5) plhs[4] = vectorToMat(new_bg);
-    if (nlhs >= 6) plhs[5] = matrixToMat(new_P);
-    if (nlhs >= 7) plhs[6] = mxCreateLogicalScalar(false);  // should_skip = false
-    
-    // Cleanup
-    mxDestroyArray(plhs_preproc[0]);
-    mxDestroyArray(plhs_preproc[1]);
-    mxDestroyArray(plhs_preproc[2]);
-    mxDestroyArray(prhs_preproc[0]);
-    mxDestroyArray(prhs_preproc[1]);
-    if (preproc_nrhs >= 3) mxDestroyArray(prhs_preproc[2]);
-    mxDestroyArray(plhs_meukf[0]);
-    mxDestroyArray(plhs_meukf[1]);
-    mxDestroyArray(plhs_meukf[2]);
-    mxDestroyArray(sensor_data);
-    mxDestroyArray(state_struct);
-    mxDestroyArray(prhs_meukf[2]);
+    // 出力
+    plhs[0] = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(plhs[0]), out_p, 3);
+    plhs[1] = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(plhs[1]), out_v, 3);
+    plhs[2] = mxCreateDoubleMatrix(4, 1, mxREAL); copy_vec(mxGetPr(plhs[2]), out_q, 4);
+    plhs[3] = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(plhs[3]), out_ba, 3);
+    plhs[4] = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(plhs[4]), out_bg, 3);
+    plhs[5] = mxCreateDoubleMatrix(15, 15, mxREAL); memcpy(mxGetPr(plhs[5]), out_P, 15*15*8);
+    plhs[6] = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(plhs[6]), new_prev_accel, 3);
+    plhs[7] = mxCreateLogicalScalar(should_skip);
 }
 
+//=============================================================================
+// メインハンドラ
+//=============================================================================
+static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 4) {
+        mexErrMsgTxt("update requires: sensor_type, meas, state, [sample]");
+    }
+    
+    char sensor_type[32];
+    mxGetString(prhs[1], sensor_type, sizeof(sensor_type));
+    
+    if (strcmp(sensor_type, "accel") == 0) {
+        handle_accel_update(nlhs, plhs, nrhs, prhs);
+    } else {
+        mexErrMsgTxt("Sensor type not yet implemented in MEX. Use MATLAB fallback.");
+    }
+}
+
+//=============================================================================
+// MEXエントリーポイント
+//=============================================================================
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 1) {
-        mexErrMsgTxt("Usage: mex_eskf_sensor_update('update', sensor_type, meas, prev_meas, state_p, state_v, state_q, state_ba, state_bg, state_P, params, sample, w_body_norm)");
+        mexErrMsgTxt("Usage: [p,v,q,ba,bg,P,prev_accel,skip] = mex_eskf_sensor_update('accel', meas, state, sample)");
     }
     
     if (!mxIsChar(prhs[0])) {
-        mexErrMsgTxt("First argument must be a string");
+        mexErrMsgTxt("First argument must be sensor type string");
     }
     
-    char cmd[64];
-    if (mxGetString(prhs[0], cmd, sizeof(cmd))) {
-        mexErrMsgTxt("Failed to read command string");
-    }
-    
-    std::string cmdstr(cmd);
-    
-    if (cmdstr == "update") {
-        handle_sensor_update(nlhs, plhs, nrhs - 1, prhs + 1);
-    } else {
-        mexErrMsgTxt("Unknown command. Use 'update'");
-    }
+    handle_update(nlhs, plhs, nrhs, prhs);
 }
+
 

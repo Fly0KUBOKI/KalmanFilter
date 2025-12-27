@@ -268,8 +268,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
             }
         }
 
-        // Clip velocity magnitude to max_vel (10.0 m/s to match MATLAB implementation)
-        float max_vel = 10.0f;
+        // Clip velocity magnitude to max_vel (3.0 m/s)
+        float max_vel = 3.0f;
         cmath_fx::FixedMatrix vel_out = vel_in;
         float vnorm = 0.0f;
         for(int i=0;i<3;++i) vnorm += vel_out(i,0) * vel_out(i,0);

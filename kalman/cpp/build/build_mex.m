@@ -225,16 +225,44 @@ function build_mex(targets)
             end
         end
         
-        % Phase 2: mex_eskf_update_postprocess
-        if exist('mex_eskf_update_postprocess.cpp', 'file')
-            if wants('mex_eskf_update_postprocess') && build_single_mex('mex_eskf_update_postprocess.cpp', compile_opts, inc_args, {}, bin_dir)
+        % Full MEX: mex_eskf_full (complete ESKF in MEX)
+        if exist('mex_eskf_full.cpp', 'file')
+            if wants('mex_eskf_full') && build_single_mex('mex_eskf_full.cpp', compile_opts, inc_args, {}, bin_dir)
                 built_count = built_count + 1;
             end
         end
         
-        % Phase 3: mex_eskf_sensor_update
+        % Phase 1: mex_eskf_constructor (ESKF constructor MEX)
+        if exist('mex_eskf_constructor.cpp', 'file')
+            if wants('mex_eskf_constructor') && build_single_mex('mex_eskf_constructor.cpp', compile_opts, inc_args, {}, bin_dir)
+                built_count = built_count + 1;
+            end
+        end
+        
+        % Phase 2: mex_eskf_sensor_updates (sensor_updates MEX)
+        if exist('mex_eskf_sensor_updates.cpp', 'file')
+            if wants('mex_eskf_sensor_updates') && build_single_mex('mex_eskf_sensor_updates.cpp', compile_opts, inc_args, {}, bin_dir)
+                built_count = built_count + 1;
+            end
+        end
+        
+        % mex_eskf_sensor_update (統合版)
         if exist('mex_eskf_sensor_update.cpp', 'file')
             if wants('mex_eskf_sensor_update') && build_single_mex('mex_eskf_sensor_update.cpp', compile_opts, inc_args, {}, bin_dir)
+                built_count = built_count + 1;
+            end
+        end
+        
+        % mex_eskf_do_update (do_cpp_update MEX化)
+        if exist('mex_eskf_do_update.cpp', 'file')
+            if wants('mex_eskf_do_update') && build_single_mex('mex_eskf_do_update.cpp', compile_opts, inc_args, {}, bin_dir)
+                built_count = built_count + 1;
+            end
+        end
+        
+        % mex_eskf_sensor_updates_full (sensor_updates完全MEX化)
+        if exist('mex_eskf_sensor_updates_full.cpp', 'file')
+            if wants('mex_eskf_sensor_updates_full') && build_single_mex('mex_eskf_sensor_updates_full.cpp', compile_opts, inc_args, {}, bin_dir)
                 built_count = built_count + 1;
             end
         end
