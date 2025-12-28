@@ -1,7 +1,7 @@
-﻿#include "meukf_core.hpp"
+﻿#include "../../Inc/MEUKF/meukf_core.hpp"
 #include "mex.h" // Added for debugging
-#include "../Common/Math/math_utils.hpp"
-#include "../Common/Math/quaternion.hpp"
+#include "../../Inc/Common/Math/math_utils.hpp"
+#include "../../Inc/Common/Math/quaternion.hpp"
 #include <cmath>
 #include <cstring>
 #include <algorithm>

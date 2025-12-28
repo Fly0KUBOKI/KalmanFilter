@@ -6,7 +6,7 @@
 //   P_new = mex_eskf_core('predict_covariance', P, q, a_meas, ba, w_meas, bg, Q, dt)
 
 #include "mex.h"
-#include "../ESKF/eskf_core.hpp"
+#include "../Inc/ESKF/eskf_core.hpp"
 #include "mex_type_conv.hpp"
 #include <string>
 #include <cstring>

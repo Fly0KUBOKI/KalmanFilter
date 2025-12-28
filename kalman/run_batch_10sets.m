@@ -1,25 +1,9 @@
 % run_batch_10sets.m
 % 10セットのシミュレーション実行と解析を行うプログラム
 % ログは `kalman/Results/log` に、CSV 等の結果は `kalman/Results` に保存される（ログは上書きされません）
+% 注意: ESKF処理はすべてMEX実装（mex_run_eskf）を使用します
 
-function run_batch_10sets(use_mex)
-    % run_batch_10sets(use_mex)
-    %  use_mex (optional, default=false) : true にすると MEX 実装を優先して実行します
-    if nargin < 1 || isempty(use_mex)
-        % If the environment variable FORCE_MATLAB_FILTERS is set, respect it.
-        % FORCE_MATLAB_FILTERS = '1' -> use MATLAB filters (use_mex = false)
-        % FORCE_MATLAB_FILTERS = '0' -> use MEX filters (use_mex = true)
-        env_force = getenv('FORCE_MATLAB_FILTERS');
-        if ~isempty(env_force)
-            if strcmp(env_force, '1')
-                use_mex = false;
-            else
-                use_mex = true;
-            end
-        else
-            use_mex = false;
-        end
-    end
+function run_batch_10sets()
     % 前回のログとCSVを削除
     cleanup_previous_results();
     
@@ -39,39 +23,25 @@ function run_batch_10sets(use_mex)
         addpath(mex_bin);
     end
  
-    addpath(genpath(fullfile(proj_root, 'ESKF')));
     addpath(fullfile(proj_root, 'Graph'));
     addpath(fullfile(proj_root, 'GenerateData'));
-        if exist('mex_sensor_filter','file') == 3
-            % 明示的ゼロ初期化を優先 (MEX が利用可能な場合)
-            try
-                mex_sensor_filter('reset_zero');
-            catch
-                try mex_sensor_filter('reset'); catch, end
-            end
+    if exist('mex_sensor_filter','file') == 3
+        % 明示的ゼロ初期化を優先 (MEX が利用可能な場合)
+        try
+            mex_sensor_filter('reset_zero');
+        catch
+            try mex_sensor_filter('reset'); catch, end
         end
-    
-    % MEX / MATLAB フィルタ選択
-    if use_mex
-        setenv('FORCE_MATLAB_FILTERS', '0');
-    else
-        setenv('FORCE_MATLAB_FILTERS', '1');
     end
-    % Note: Phase 1 & 2 MEX実装は常に使用されます（条件分岐なし）
     
     % ログディレクトリを作成（ログはここに集約し、タイムスタンプ付きで上書きしない）
     log_dir = fullfile(results_dir, 'log');
     if ~exist(log_dir, 'dir')
         mkdir(log_dir);
     end
-    % モードラベル（MEX or MATLAB）とタイムスタンプを付与して一意化
-    if use_mex
-        mode_label = 'mex';
-    else
-        mode_label = 'matlab';
-    end
+    % タイムスタンプを付与して一意化
     tstr = datestr(now, 'yyyymmdd_HHMMSS');
-    log_file = fullfile(log_dir, sprintf('batch_10sets_log_%s_%s.txt', mode_label, tstr));
+    log_file = fullfile(log_dir, sprintf('batch_10sets_log_%s.txt', tstr));
     fid = fopen(log_file, 'w');
     
     fprintf(fid, '========================================\n');

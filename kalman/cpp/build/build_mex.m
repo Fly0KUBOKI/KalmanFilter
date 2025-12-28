@@ -7,7 +7,7 @@ function build_mex(targets)
     %
     % Requirements:
     %   - C++ compiler configured (run: mex -setup C++)
-    %   - Source files in cpp/mex/, cpp/src/, cpp/include/
+    %   - Source files in cpp/MEX/, cpp/Src/, cpp/Inc/
 
     % Clear command window and unload MEX files for clean build
     clc;
@@ -55,9 +55,10 @@ function build_mex(targets)
     % Path configuration
     build_dir = fileparts(mfilename('fullpath'));
     cpp_root = fileparts(build_dir);
-    mex_src_dir = fullfile(cpp_root, 'mex');
-    src_dir = fullfile(cpp_root, 'src');
-    inc_dir = fullfile(cpp_root, 'include');
+    mex_src_dir = fullfile(cpp_root, 'MEX');
+    src_dir = fullfile(cpp_root, 'Src');
+    inc_dir = fullfile(cpp_root, 'Inc');
+    lib_dir = fullfile(cpp_root, 'Lib');
     bin_dir = fullfile(cpp_root, 'bin');
     
     % Check directories
@@ -66,6 +67,12 @@ function build_mex(targets)
     end
     if ~exist(inc_dir, 'dir')
         error('Include directory not found: %s', inc_dir);
+    end
+    if ~exist(src_dir, 'dir')
+        error('Source directory not found: %s', src_dir);
+    end
+    if ~exist(lib_dir, 'dir')
+        warning('Lib directory not found: %s (creating if needed)', lib_dir);
     end
     if ~exist(bin_dir, 'dir')
         mkdir(bin_dir);
@@ -100,18 +107,20 @@ function build_mex(targets)
     
     % Include paths
     % MEX sources use relative paths like "../KF/Core/kalman_filter_core.hpp"
-    % Map these to the new include/ structure:
-    %   ../KF/Core/ -> include/KF/
-    %   ../UKF/Core/ -> include/UKF/
-    %   ../ESKF/ -> include/ESKF/
-    %   ../Common/ -> include/Common/
+    % Map these to the new Inc/ structure:
+    %   ../KF/Core/ -> Inc/KF/
+    %   ../UKF/Core/ -> Inc/UKF/
+    %   ../ESKF/ -> Inc/ESKF/
+    %   ../Common/ -> Inc/Common/
+    inc_include = ['-I' inc_dir];  % Inc/全体をインクルードパスに追加
     inc_kf_core = ['-I' fullfile(inc_dir, 'KF')];  % for ../KF/Core/...
     inc_ekf_core = ['-I' fullfile(inc_dir, 'EKF')];  % for ../EKF/Core/...
     inc_eskf = ['-I' fullfile(inc_dir, 'ESKF')];  % for ../ESKF/...
     inc_ukf_core = ['-I' fullfile(inc_dir, 'UKF')];  % for ../UKF/Core/...
     inc_common = ['-I' fullfile(inc_dir, 'Common')];  % for ../Common/...
-    inc_meukf = ['-I' fullfile(cpp_root, 'MEUKF')];  % for MEUKF headers
-    inc_args = {inc_kf_core, inc_ekf_core, inc_eskf, inc_ukf_core, inc_common, inc_meukf};
+    inc_meukf = ['-I' fullfile(inc_dir, 'MEUKF')];  % for MEUKF headers
+    inc_lib = ['-I' lib_dir];  % for Lib headers
+    inc_args = {inc_include, inc_kf_core, inc_ekf_core, inc_eskf, inc_ukf_core, inc_common, inc_meukf, inc_lib};
     
     % Build: mex_matlab_helpers (Phase 1 helper)
     if wants('mex_matlab_helpers') && build_single_mex('mex_matlab_helpers.cpp', compile_opts, inc_args, {}, bin_dir)
@@ -133,8 +142,17 @@ function build_mex(targets)
             built_count = built_count + 1;
         end
 
+        % Build: mex_ekf
+        ekf_linear_cpp = fullfile(src_dir, 'EKF', 'ekf_linear_update.cpp');
+        if exist('mex_ekf.cpp', 'file') && exist(ekf_linear_cpp, 'file')
+            if wants('mex_ekf') && build_single_mex('mex_ekf.cpp', compile_opts, inc_args, {ekf_linear_cpp}, bin_dir)
+                built_count = built_count + 1;
+            end
+        end
+
         % Build: mex_ukf_sigma_points
-        if wants('mex_ukf_sigma_points') && build_single_mex('mex_ukf_sigma_points.cpp', compile_opts, inc_args, {}, bin_dir)
+        ukf_sigma_points_cpp = fullfile(src_dir, 'UKF', 'ukf_sigma_points.cpp');
+        if wants('mex_ukf_sigma_points') && build_single_mex('mex_ukf_sigma_points.cpp', compile_opts, inc_args, {ukf_sigma_points_cpp}, bin_dir)
             built_count = built_count + 1;
         end
 
@@ -179,13 +197,19 @@ function build_mex(targets)
 
         % mex_quaternion_lib - locked/skipped
 
+        % mex_ukf (uses ekf_linear_update)
+        ekf_linear_cpp = fullfile(src_dir, 'EKF', 'ekf_linear_update.cpp');
+        if wants('mex_ukf') && build_single_mex('mex_ukf.cpp', compile_opts, inc_args, {ekf_linear_cpp}, bin_dir)
+            built_count = built_count + 1;
+        end
+
         % mex_ukf_update
         if wants('mex_ukf_update') && build_single_mex('mex_ukf_update.cpp', compile_opts, inc_args, {}, bin_dir)
             built_count = built_count + 1;
         end
 
         % mex_meukf_step
-        meukf_core_cpp = fullfile(cpp_root, 'MEUKF', 'meukf_core.cpp');
+        meukf_core_cpp = fullfile(src_dir, 'MEUKF', 'meukf_core.cpp');
         if exist('mex_meukf_step.cpp', 'file') && exist(meukf_core_cpp, 'file')
             if wants('mex_meukf_step') && build_single_mex('mex_meukf_step.cpp', compile_opts, inc_args, {meukf_core_cpp}, bin_dir, 'mex_meukf_step_v2')
                 built_count = built_count + 1;
@@ -198,7 +222,7 @@ function build_mex(targets)
         end
 
         % mex_unified_filter
-        unified_cpp = fullfile(cpp_root, 'MEUKF', 'unified_filter.cpp');
+        unified_cpp = fullfile(src_dir, 'MEUKF', 'unified_filter.cpp');
         if exist('mex_unified_filter.cpp', 'file') && exist(unified_cpp, 'file') && exist(meukf_core_cpp, 'file')
             if wants('mex_unified_filter') && build_single_mex('mex_unified_filter.cpp', compile_opts, inc_args, {unified_cpp, meukf_core_cpp}, bin_dir)
                 built_count = built_count + 1;
@@ -319,11 +343,14 @@ function success = build_single_mex(mex_file, compile_opts, inc_args, extra_sour
         % Remove previous build artifacts that can cause stale linking issues
         mex_output = [output_name '.' mexext];
         try
-            if exist(mex_output, 'file')
+            if exist(mex_output, 'file') == 2  % 2 = file exists
+                % Suppress warning if file doesn't exist
+                warning('off', 'MATLAB:DELETE:FileNotFound');
                 delete(mex_output);
+                warning('on', 'MATLAB:DELETE:FileNotFound');
             end
-        catch
-            % ignore
+        catch ME
+            % ignore deletion errors silently
         end
         % also remove common linker artifacts on Windows
         try

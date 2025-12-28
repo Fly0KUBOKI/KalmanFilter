@@ -1,26 +1,31 @@
 ﻿#include "mex.h"
-#include "../include/MEUKF/unified_filter.hpp"
-#include "../MEUKF/meukf_core.hpp"
+#include "../Inc/MEUKF/unified_types.hpp"  // FilterInput, FilterOutputを直接インクルード
+#include "../Inc/MEUKF/unified_filter.hpp"
+#include "../Inc/MEUKF/meukf_core.hpp"
 #include "mex_type_conv.hpp"
 #include <cstring>
 
 // ヘルパー: MATLAB double から C++ float への変換
 inline float to_float(double d) { return static_cast<float>(d); }
 
-// ヘルパー: MATLABからVector3取得
-void get_vec3(const mxArray* mx_struct, const char* field_name, float* out) {
+// ヘルパー: MATLABからVector3取得（Vec3用）
+void get_vec3(const mxArray* mx_struct, const char* field_name, meukf::Vec3& out) {
     const mxArray* field = mxGetField(mx_struct, 0, field_name);
-    mex_conv::mxArrayToFloatArray(field, out, 3);
+    float tmp[3];
+    mex_conv::mxArrayToFloatArray(field, tmp, 3);
+    for (int i = 0; i < 3; ++i) {
+        out(i, 0) = tmp[i];
+    }
 }
 
-// ヘルパー: Vector3をMATLABへ設定
-void set_vec3(mxArray* mx_struct, const char* field_name, const float* in) {
+// ヘルパー: Vector3をMATLABへ設定（Vec3用）
+void set_vec3(mxArray* mx_struct, const char* field_name, const meukf::Vec3& in) {
     mxArray* field = mxGetField(mx_struct, 0, field_name);
     if (field) {
         double* pr = mxGetPr(field);
-        pr[0] = static_cast<double>(in[0]);
-        pr[1] = static_cast<double>(in[1]);
-        pr[2] = static_cast<double>(in[2]);
+        pr[0] = static_cast<double>(in(0, 0));
+        pr[1] = static_cast<double>(in(1, 0));
+        pr[2] = static_cast<double>(in(2, 0));
     }
 }
 
@@ -38,7 +43,7 @@ bool get_bool(const mxArray* mx_struct, const char* field_name, bool default_val
 }
 
 // FilterInputをMATLAB構造体から読み込み
-void matlab_to_filter_input(const mxArray* mx_input, unified::FilterInput& input) {
+void matlab_to_filter_input(const mxArray* mx_input, meukf::FilterInput& input) {
     input.dt = get_scalar(mx_input, "dt", 0.01f);
     
     get_vec3(mx_input, "accel", input.accel);
@@ -51,17 +56,43 @@ void matlab_to_filter_input(const mxArray* mx_input, unified::FilterInput& input
     input.gps_valid = get_bool(mx_input, "gps_valid", false);
     input.baro_valid = get_bool(mx_input, "baro_valid", false);
     
-    get_vec3(mx_input, "prev_mag", input.prev_mag);
-    get_vec3(mx_input, "prev_gps_pos", input.prev_gps_pos);
-    input.prev_baro_alt = get_scalar(mx_input, "prev_baro_alt", 0.0f);
-    
     get_vec3(mx_input, "g", input.g);
     get_vec3(mx_input, "mag_ref", input.mag_ref);
     
-    input.noise_accel = get_scalar(mx_input, "noise_accel", 0.01f);
-    input.noise_gyro = get_scalar(mx_input, "noise_gyro", 1.74e-4f);
-    input.noise_mag = get_scalar(mx_input, "noise_mag", 0.1f);
-    input.noise_gps = get_scalar(mx_input, "noise_gps", 1.0f);
+    // ノイズパラメータ（Vec3として読み込む）
+    float noise_tmp[3];
+    const mxArray* noise_accel_field = mxGetField(mx_input, 0, "noise_accel");
+    if (noise_accel_field) {
+        mex_conv::mxArrayToFloatArray(noise_accel_field, noise_tmp, 3);
+        for (int i = 0; i < 3; ++i) input.noise_accel(i, 0) = noise_tmp[i];
+    } else {
+        for (int i = 0; i < 3; ++i) input.noise_accel(i, 0) = 0.01f;
+    }
+    
+    const mxArray* noise_gyro_field = mxGetField(mx_input, 0, "noise_gyro");
+    if (noise_gyro_field) {
+        mex_conv::mxArrayToFloatArray(noise_gyro_field, noise_tmp, 3);
+        for (int i = 0; i < 3; ++i) input.noise_gyro(i, 0) = noise_tmp[i];
+    } else {
+        for (int i = 0; i < 3; ++i) input.noise_gyro(i, 0) = 1.74e-4f;
+    }
+    
+    const mxArray* noise_mag_field = mxGetField(mx_input, 0, "noise_mag");
+    if (noise_mag_field) {
+        mex_conv::mxArrayToFloatArray(noise_mag_field, noise_tmp, 3);
+        for (int i = 0; i < 3; ++i) input.noise_mag(i, 0) = noise_tmp[i];
+    } else {
+        for (int i = 0; i < 3; ++i) input.noise_mag(i, 0) = 0.1f;
+    }
+    
+    const mxArray* noise_gps_field = mxGetField(mx_input, 0, "noise_gps");
+    if (noise_gps_field) {
+        mex_conv::mxArrayToFloatArray(noise_gps_field, noise_tmp, 3);
+        for (int i = 0; i < 3; ++i) input.noise_gps(i, 0) = noise_tmp[i];
+    } else {
+        for (int i = 0; i < 3; ++i) input.noise_gps(i, 0) = 1.0f;
+    }
+    
     input.noise_baro = get_scalar(mx_input, "noise_baro", 1.0f);
     
     input.alpha = get_scalar(mx_input, "alpha", 0.001f);
@@ -70,7 +101,7 @@ void matlab_to_filter_input(const mxArray* mx_input, unified::FilterInput& input
 }
 
 // FilterOutputをMATLAB構造体へ書き込み
-mxArray* filter_output_to_matlab(const unified::FilterOutput& output) {
+mxArray* filter_output_to_matlab(const meukf::FilterOutput& output) {
     const char* field_names[] = {
         "position", "velocity", "quaternion", "accel_bias", "gyro_bias",
         "covariance", "roll", "pitch", "yaw",
@@ -97,10 +128,10 @@ mxArray* filter_output_to_matlab(const unified::FilterOutput& output) {
     // Quaternion [qw, qx, qy, qz]
     mxArray* mx_q = mxCreateDoubleMatrix(4, 1, mxREAL);
     double* q_data = mxGetPr(mx_q);
-    q_data[0] = static_cast<double>(output.quaternion[0]);
-    q_data[1] = static_cast<double>(output.quaternion[1]);
-    q_data[2] = static_cast<double>(output.quaternion[2]);
-    q_data[3] = static_cast<double>(output.quaternion[3]);
+    q_data[0] = static_cast<double>(output.quaternion(0, 0));
+    q_data[1] = static_cast<double>(output.quaternion(1, 0));
+    q_data[2] = static_cast<double>(output.quaternion(2, 0));
+    q_data[3] = static_cast<double>(output.quaternion(3, 0));
     mxSetField(mx_output, 0, "quaternion", mx_q);
     
     // Covariance 15x15
@@ -131,30 +162,6 @@ mxArray* filter_output_to_matlab(const unified::FilterOutput& output) {
     return mx_output;
 }
 
-// 現在の状態をFilterOutputに変換 (ESKF state -> FilterOutput)
-void eskf_state_to_filter_output(const mxArray* mx_state, unified::FilterOutput& output) {
-    get_vec3(mx_state, "p", output.position);
-    get_vec3(mx_state, "v", output.velocity);
-    get_vec3(mx_state, "ba", output.accel_bias);
-    get_vec3(mx_state, "bg", output.gyro_bias);
-    
-    // Quaternion
-    const mxArray* q_field = mxGetField(mx_state, 0, "q");
-    float q_tmp[4] = {1.0f, 0.0f, 0.0f, 0.0f};
-    mex_conv::mxArrayToFloatArray(q_field, q_tmp, 4);
-    for (int i = 0; i < 4; ++i) output.quaternion[i] = q_tmp[i];
-    
-    // Covariance
-    const mxArray* P_field = mxGetField(mx_state, 0, "P");
-    float P_tmp[15*15];
-    mex_conv::mxArrayToFloatArray(P_field, P_tmp, 15*15);
-    for (int c = 0; c < 15; ++c) {
-        for (int r = 0; r < 15; ++r) {
-            output.covariance(r, c) = P_tmp[c*15 + r];
-        }
-    }
-}
-
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     // 入力チェック: mex_unified_filter(prev_state, input_struct)
     if (nrhs != 2) {
@@ -170,18 +177,31 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     const mxArray* mx_input = prhs[1];
     
     // MATLAB構造体から変換
-    unified::FilterInput input;
+    meukf::FilterInput input;
     matlab_to_filter_input(mx_input, input);
     
-    unified::FilterOutput prev_output;
-    eskf_state_to_filter_output(mx_prev_state, prev_output);
+    // 前回の状態をFilterStateに変換
+    meukf::FilterState state;
+    get_vec3(mx_prev_state, "p", state.p);
+    get_vec3(mx_prev_state, "v", state.v);
+    const mxArray* q_field = mxGetField(mx_prev_state, 0, "q");
+    float q_tmp[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+    mex_conv::mxArrayToFloatArray(q_field, q_tmp, 4);
+    for (int i = 0; i < 4; ++i) state.q(i, 0) = q_tmp[i];
+    get_vec3(mx_prev_state, "ba", state.ba);
+    get_vec3(mx_prev_state, "bg", state.bg);
+    const mxArray* P_field = mxGetField(mx_prev_state, 0, "P");
+    float P_tmp[15*15];
+    mex_conv::mxArrayToFloatArray(P_field, P_tmp, 15*15);
+    for (int c = 0; c < 15; ++c) {
+        for (int r = 0; r < 15; ++r) {
+            state.P(r, c) = P_tmp[c*15 + r];
+        }
+    }
     
     // UnifiedFilterを使用してupdate
-    unified::UnifiedFilter filter;
-    filter.initialize(prev_output);
-    
-    unified::FilterOutput output;
-    filter.update(input, output);
+    meukf::UnifiedFilter filter;
+    meukf::FilterOutput output = filter.update(state, input);
     
     // 結果をMATLABへ返す
     plhs[0] = filter_output_to_matlab(output);

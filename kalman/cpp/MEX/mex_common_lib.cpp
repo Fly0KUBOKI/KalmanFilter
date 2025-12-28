@@ -1,8 +1,8 @@
 ﻿#include "mex.h"
-#include "../Common/Math/math_utils.hpp"
-#include "../Common/Math/quaternion.hpp"
-#include "../Common/Validation/validation.hpp"
-#include "../include/Common/Sensor/sensor_filter.hpp"
+#include "../Inc/Common/Math/math_utils.hpp"
+#include "../Inc/Common/Math/quaternion.hpp"
+#include "../Inc/Common/Validation/validation.hpp"
+#include "../Inc/Common/Sensor/sensor_filter.hpp"
 #include "mex_type_conv.hpp"
 #include <cstring>
 #include <vector>

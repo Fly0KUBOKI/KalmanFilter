@@ -1,13 +1,11 @@
-﻿#include "../include/MEUKF/unified_filter.hpp"
-#include "../Common/Sensor/sensor_filter.hpp"
-#include "../Common/Math/math_utils.hpp"
-#include "meukf_core.hpp"
+﻿#include "../../Inc/MEUKF/unified_filter.hpp"
+#include "../../Inc/Common/Sensor/sensor_filter.hpp"
+#include "../../Inc/Common/Math/math_utils.hpp"
+#include "../../Inc/MEUKF/meukf_core.hpp"
 #include <cstring>
 #include <cmath>
 
-namespace unified {
-
-using namespace common::sensor;
+namespace meukf {
 
 UnifiedFilter::UnifiedFilter() {
     // デフォルトコンストラクタ
@@ -162,4 +160,4 @@ void UnifiedFilter::reset() {
     current_state_ = FilterOutput();
 }
 
-} // namespace unified
+} // namespace meukf

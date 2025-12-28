@@ -1,6 +1,6 @@
 ﻿#include "mex.h"
-#include "../Common/Math/math_utils.hpp"
-#include "../include/Common/Sensor/sensor_filter.hpp"
+#include "../Inc/Common/Math/math_utils.hpp"
+#include "../Inc/Common/Sensor/sensor_filter.hpp"
 #include <cmath>
 #include <algorithm>
 #include <vector>

@@ -2,7 +2,7 @@
 // MEX wrapper implementing adaptive predict() (Phase 4 scaffolding)
 
 #include "mex.h"
-#include "../include/ESKF/eskf_core.hpp"
+#include "../Inc/ESKF/eskf_core.hpp"
 #include "mex_type_conv.hpp"
 #include <string>
 #include <cmath>

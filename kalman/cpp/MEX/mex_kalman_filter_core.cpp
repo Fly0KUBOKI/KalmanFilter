@@ -5,7 +5,7 @@
 //   K = mex_kalman_filter_core('compute_kalman_gain', P, H, S)
 
 #include "mex.h"
-#include "../KF/Core/kalman_filter_core.hpp"
+#include "../Inc/KF/kalman_filter_core.hpp"
 #include <string>
 #include <cstring>
 // Safe MEX <-> float conversions

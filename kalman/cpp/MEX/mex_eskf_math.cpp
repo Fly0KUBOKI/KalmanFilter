@@ -10,7 +10,7 @@
 //   [x_new, P_new, K, S] = mex_eskf_math('kalman_update', x, P, y, H, R);
 
 #include "mex.h"
-#include "../include/ESKF/eskf_math.hpp"
+#include "../Inc/ESKF/eskf_math.hpp"
 #include "mex_type_conv.hpp"
 #include <string>
 #include <cstring>

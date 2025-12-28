@@ -1,5 +1,5 @@
 ﻿#include "mex.h"
-#include "../Common/Math/quaternion_lib.hpp"
+#include "../Inc/Common/Math/quaternion_lib.hpp"
 #include <cstring>
 #include "mex_type_conv.hpp"
 #include <vector>

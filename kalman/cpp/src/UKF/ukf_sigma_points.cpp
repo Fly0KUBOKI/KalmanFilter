@@ -1,70 +1,113 @@
-﻿#include "ukf_sigma_points.hpp"
+// ukf_sigma_points.cpp
+// Implementation: UKF sigma point generation
+// This file contains the implementation for sigma point generation
+
+#include "../../Inc/UKF/ukf_sigma_points.hpp"
+#include "../../Lib/Matrix/decomposition.hpp"
+#include "../../Lib/Common/types.hpp"
+#include "../../Inc/Common/Math/fixed_matrix.hpp"
 #include <cmath>
+#include <cstring>
 
 namespace ukf {
 
-void SigmaPoints::generate(
-    std::vector<Vector>& sigma_points,
-    Vector& wm,
-    Vector& wc,
-    const Vector& x,
-    const Matrix& P,
-    float alpha,
-    float beta,
-    float kappa
-) {
-    int n = x.size();
-    float lambda = alpha * alpha * (n + kappa) - n;
-    
-    // 重み計算
-    int n_sigma = 2 * n + 1;
-    wm = Vector::Zero(n_sigma);
-    wc = Vector::Zero(n_sigma);
+// Helper: Cholesky decomposition for raw arrays (used by MEX wrapper)
+// This is a temporary helper until we fully migrate to Matrix types
+static bool chol_lower_raw(const float* A, int n, float* L) {
+    std::memset(L, 0, static_cast<size_t>(n * n) * sizeof(float));
 
-    wm(0) = lambda / (n + lambda);
-    wc(0) = wm(0) + (1.0f - alpha * alpha + beta);
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j <= i; ++j) {
+            float sum = 0.0f;
+            for (int k = 0; k < j; ++k) {
+                sum += L[i * n + k] * L[j * n + k];
+            }
 
-    for (int i = 1; i < n_sigma; ++i) {
-        wm(i) = 1.0f / (2.0f * (n + lambda));
-        wc(i) = wm(i);
-    }
-    
-    // シグマポイント生成
-    sigma_points.clear();
-    sigma_points.reserve(n_sigma);
-    
-    // Cholesky分解
-    Matrix P_scaled = (n + lambda) * P;
-    Eigen::LLT<Matrix> llt(P_scaled);
-    
-    Matrix sqrtP;
-    if (llt.info() == Eigen::Success) {
-        sqrtP = llt.matrixL();
-    } else {
-        // 正則化して再試行
-        Matrix P_reg = P_scaled + 1e-9f * Matrix::Identity(n, n);
-        Eigen::LLT<Matrix> llt_reg(P_reg);
-        if (llt_reg.info() == Eigen::Success) {
-            sqrtP = llt_reg.matrixL();
-        } else {
-            // 固有値分解にフォールバック
-            Eigen::SelfAdjointEigenSolver<Matrix> es(P_scaled);
-            Matrix D = es.eigenvalues().cwiseMax(0.0f).asDiagonal();
-            sqrtP = es.eigenvectors() * D.cwiseSqrt();
+            if (i == j) {
+                float val = A[i * n + i] - sum;
+                if (val <= 0.0f) return false; // Not positive definite
+                L[i * n + i] = std::sqrt(val);
+            } else {
+                L[i * n + j] = (A[i * n + j] - sum) / L[j * n + j];
+            }
         }
     }
+    return true;
+}
+
+// Public function for sigma point generation (for MEX wrapper)
+// This function generates sigma points for UKF with dynamic size
+// Note: This is a temporary implementation. Full implementation should use UKFCore template
+void generate_sigma_points_dynamic(
+    const float* x,           // Input: state vector (n x 1)
+    const float* P,            // Input: covariance matrix (n x n, row-major)
+    int n,                     // State dimension
+    float alpha,
+    float beta,
+    float kappa,
+    float* sig,                // Output: sigma points (n x (2n+1), column-major)
+    float* wm,                 // Output: mean weights ((2n+1) x 1)
+    float* wc                  // Output: covariance weights ((2n+1) x 1)
+) {
+    // Calculate lambda
+    float lambda = alpha * alpha * (static_cast<float>(n) + kappa) - static_cast<float>(n);
+    float c = static_cast<float>(n) + lambda;
     
-    // 中心点
-    sigma_points.push_back(x);
-    
-    // +方向
-    for (int i = 0; i < n; ++i) {
-        sigma_points.push_back(x + sqrtP.col(i));
+    // Calculate weights
+    int n_sig = 2 * n + 1;
+    wm[0] = lambda / c;
+    wc[0] = lambda / c + (1.0f - alpha * alpha + beta);
+
+    float w_other = 1.0f / (2.0f * c);
+    for (int i = 1; i < n_sig; ++i) {
+        wm[i] = w_other;
+        wc[i] = w_other;
     }
     
-    // -方向
+    // Scale P: P_scaled = (n + lambda) * P
+    // Note: Using fixed-size arrays to avoid dynamic allocation
+    // Maximum supported dimension is 20 (from lib::MAX_STATE_DIM)
+    const int MAX_DIM = 20;
+    if (n > MAX_DIM) {
+        return; // Dimension too large
+    }
+    
+    float P_scaled[MAX_DIM * MAX_DIM];
+    for (int i = 0; i < n * n; ++i) {
+        P_scaled[i] = c * P[i];
+    }
+
+    // Add small regularization
     for (int i = 0; i < n; ++i) {
-        sigma_points.push_back(x - sqrtP.col(i));
+        P_scaled[i * n + i] += 1e-9f;
+    }
+
+    // Compute Cholesky decomposition
+    float sqrtP[MAX_DIM * MAX_DIM];
+    bool chol_success = chol_lower_raw(P_scaled, n, sqrtP);
+
+    if (!chol_success) {
+        return; // Cholesky decomposition failed
+    }
+    
+    // Generate sigma points
+    // First sigma point: x
+    for (int i = 0; i < n; ++i) {
+        sig[i] = x[i];
+    }
+
+    // Next n sigma points: x + sqrtP columns
+    for (int j = 0; j < n; ++j) {
+        for (int i = 0; i < n; ++i) {
+            sig[i + (j + 1) * n] = x[i] + sqrtP[i * n + j];
+        }
+    }
+
+    // Last n sigma points: x - sqrtP columns
+    for (int j = 0; j < n; ++j) {
+        for (int i = 0; i < n; ++i) {
+            sig[i + (n + j + 1) * n] = x[i] - sqrtP[i * n + j];
+        }
     }
 }
 

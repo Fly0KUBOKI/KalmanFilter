@@ -1,6 +1,6 @@
 ﻿#include "mex.h"
-#include "../include/Common/Sensor/sensor_filter.hpp"
-#include "../include/Common/Math/fixed_matrix.hpp"
+#include "../Inc/Common/Sensor/sensor_filter.hpp"
+#include "../Inc/Common/Math/fixed_matrix.hpp"
 #include "mex_type_conv.hpp"
 #include <string>
 #include <cstdlib>

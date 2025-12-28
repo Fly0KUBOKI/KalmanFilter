@@ -2,8 +2,8 @@
 // MATLAB MEX wrapper for kalman_filter_core::predict_step (nomalloc)
 
 #include "mex.h"
-#include "../KF/Core/kalman_filter_core.hpp"
-#include "../Common/Math/fixed_matrix.hpp"
+#include "../Inc/KF/kalman_filter_core.hpp"
+#include "../Inc/Common/Math/fixed_matrix.hpp"
 
 // Safe MEX <-> float conversions
 #include "mex_type_conv.hpp"

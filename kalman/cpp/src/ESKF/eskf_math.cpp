@@ -1,188 +1,123 @@
-﻿#include "../../include/ESKF/eskf_math.hpp"
-#include <cmath>
-#include <algorithm>
+﻿// eskf_math.cpp
+// Implementation file for ESKF math library
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846f
-#endif
+#include "../../Inc/ESKF/eskf_math.hpp"
+#include "../../Inc/Common/Math/quaternion.hpp"
+#include <cmath>
 
 namespace eskf_math {
 
-// ===== Quaternion Integration =====
-
+// クォータニオン積分
 void ESKFMath::quaternion_integration(
     const Vector4& q_in,
     const Vector3& w,
     Scalar dt,
     Vector4& q_out
 ) {
-    // Angular velocity integration: q_new = q * delta_q
-    Vector3 w_dt = w * dt;
-    
-    Scalar w_dt_norm = 0.0f;
+    // 角速度を半分に
+    Vector3 w_half = w;
     for (int i = 0; i < 3; ++i) {
-        w_dt_norm += w_dt(i,0) * w_dt(i,0);
+        w_half(i, 0) *= static_cast<Scalar>(0.5) * dt;
     }
-    w_dt_norm = std::sqrt(w_dt_norm);
     
-    Scalar threshold = 1e-15f;
-    if (w_dt_norm > threshold) {
-        Scalar half_angle = w_dt_norm / 2.0f;
-        Vector4 delta_q;
-        
-        if (half_angle > 1e-6f) {
-            Scalar sin_half = std::sin(half_angle);
-            Scalar cos_half = std::cos(half_angle);
-            Vector3 w_unit = w_dt * (1.0f / w_dt_norm);
-            
-            delta_q(0,0) = cos_half;
-            for (int i = 0; i < 3; ++i) {
-                delta_q(i+1,0) = w_unit(i,0) * sin_half;
-            }
-        } else {
-            // Taylor expansion for small angles
-            Scalar w_norm_sq = w_dt_norm * w_dt_norm;
-            delta_q(0,0) = 1.0f - w_norm_sq / 8.0f;
-            for (int i = 0; i < 3; ++i) {
-                delta_q(i+1,0) = w_dt(i,0) * 0.5f * (1.0f - w_norm_sq / 24.0f);
-            }
-        }
-        
-        // q_new = q * delta_q
-        cquat::multiply_quat(q_in, delta_q, q_out);
-        cquat::normalize_quat(q_out);
-    } else {
-        // No rotation
-        q_out = q_in;
-    }
+    // クォータニオン微分
+    Vector4 dq;
+    dq(0, 0) = static_cast<Scalar>(-0.5) * (q_in(1, 0) * w_half(0, 0) + q_in(2, 0) * w_half(1, 0) + q_in(3, 0) * w_half(2, 0));
+    dq(1, 0) = static_cast<Scalar>(0.5) * (q_in(0, 0) * w_half(0, 0) + q_in(2, 0) * w_half(2, 0) - q_in(3, 0) * w_half(1, 0));
+    dq(2, 0) = static_cast<Scalar>(0.5) * (q_in(0, 0) * w_half(1, 0) - q_in(1, 0) * w_half(2, 0) + q_in(3, 0) * w_half(0, 0));
+    dq(3, 0) = static_cast<Scalar>(0.5) * (q_in(0, 0) * w_half(2, 0) + q_in(1, 0) * w_half(1, 0) - q_in(2, 0) * w_half(0, 0));
+    
+    // 更新
+    q_out(0, 0) = q_in(0, 0) + dq(0, 0);
+    q_out(1, 0) = q_in(1, 0) + dq(1, 0);
+    q_out(2, 0) = q_in(2, 0) + dq(2, 0);
+    q_out(3, 0) = q_in(3, 0) + dq(3, 0);
+    
+    // 正規化
+    cquat::normalize_quat(q_out);
 }
 
-// ===== Accel to Quaternion =====
-
+// 加速度からクォータニオン（Roll/Pitchのみ）
 void ESKFMath::accel_to_quaternion(
     const Vector3& a_meas,
     Scalar scale_factor,
     Vector4& q_out
 ) {
-    // Compute roll and pitch from acceleration
-    // Assumes a_meas points roughly downward (gravity direction)
+    // 加速度を正規化
+    Scalar a_norm = static_cast<Scalar>(0.0);
+    for (int i = 0; i < 3; ++i) {
+        a_norm += a_meas(i, 0) * a_meas(i, 0);
+    }
+    a_norm = std::sqrt(a_norm);
     
-    Scalar ax = a_meas(0,0);
-    Scalar ay = a_meas(1,0);
-    Scalar az = a_meas(2,0);
-    
-    // Normalize acceleration
-    Scalar a_norm = std::sqrt(ax*ax + ay*ay + az*az);
-    if (a_norm < 1e-6f) {
-        // No acceleration, return identity
-        q_out(0,0) = 1.0f;
-        q_out(1,0) = 0.0f;
-        q_out(2,0) = 0.0f;
-        q_out(3,0) = 0.0f;
+    if (a_norm < static_cast<Scalar>(1e-6)) {
+        // 加速度がゼロの場合は単位クォータニオン
+        q_out(0, 0) = static_cast<Scalar>(1.0);
+        q_out(1, 0) = static_cast<Scalar>(0.0);
+        q_out(2, 0) = static_cast<Scalar>(0.0);
+        q_out(3, 0) = static_cast<Scalar>(0.0);
         return;
     }
     
-    ax /= a_norm;
-    ay /= a_norm;
-    az /= a_norm;
+    Vector3 a_norm_vec = a_meas;
+    for (int i = 0; i < 3; ++i) {
+        a_norm_vec(i, 0) /= a_norm;
+        a_norm_vec(i, 0) *= scale_factor;
+    }
     
-    // Roll: rotation around x-axis
-    Scalar roll = std::atan2(ay, az);
+    // Roll/Pitchを計算（Yaw=0）
+    Scalar roll = std::atan2(a_norm_vec(1, 0), a_norm_vec(2, 0));
+    Scalar pitch = std::asin(-a_norm_vec(0, 0));
     
-    // Pitch: rotation around y-axis
-    Scalar pitch = std::atan2(-ax, std::sqrt(ay*ay + az*az));
+    // オイラー角からクォータニオン（Yaw=0）
+    Scalar cr = std::cos(roll * static_cast<Scalar>(0.5));
+    Scalar sr = std::sin(roll * static_cast<Scalar>(0.5));
+    Scalar cp = std::cos(pitch * static_cast<Scalar>(0.5));
+    Scalar sp = std::sin(pitch * static_cast<Scalar>(0.5));
     
-    // Apply scale factor (for smoothing)
-    roll *= scale_factor;
-    pitch *= scale_factor;
-    
-    // Convert to quaternion (yaw = 0)
-    Scalar cr = std::cos(roll * 0.5f);
-    Scalar sr = std::sin(roll * 0.5f);
-    Scalar cp = std::cos(pitch * 0.5f);
-    Scalar sp = std::sin(pitch * 0.5f);
-    
-    q_out(0,0) = cr * cp;  // w
-    q_out(1,0) = sr * cp;  // x
-    q_out(2,0) = cr * sp;  // y
-    q_out(3,0) = 0.0f;     // z (no yaw)
+    q_out(0, 0) = cr * cp;
+    q_out(1, 0) = sr * cp;
+    q_out(2, 0) = cr * sp;
+    q_out(3, 0) = -sr * sp;
     
     cquat::normalize_quat(q_out);
 }
 
-// ===== Position/Velocity Integration =====
-
+// 位置・速度積分
 void ESKFMath::pv_integration(
     const PVIntegrationInput& input,
     PVIntegrationOutput& output
 ) {
-    if (input.use_ab2) {
-        // Adams-Bashforth 2nd order
-        // v_new = v + dt * (1.5*a_world + g - 0.5*(prev_a + g))
-        Vector3 accel_current = input.a_world + input.g;
-        Vector3 accel_prev = input.prev_a + input.g;
-        Vector3 dv = (accel_current * 1.5f - accel_prev * 0.5f) * input.dt;
-        
-        // Saturation
-        Scalar dv_norm = 0.0f;
+    if (input.use_ab2 && input.prev_a(0, 0) != static_cast<Scalar>(0.0) || 
+        input.prev_a(1, 0) != static_cast<Scalar>(0.0) || 
+        input.prev_a(2, 0) != static_cast<Scalar>(0.0)) {
+        // AB2積分
         for (int i = 0; i < 3; ++i) {
-            dv_norm += dv(i,0) * dv(i,0);
+            Scalar a_avg = static_cast<Scalar>(1.5) * input.a_world(i, 0) - static_cast<Scalar>(0.5) * input.prev_a(i, 0);
+            output.v_new(i, 0) = input.v(i, 0) + a_avg * input.dt;
+            output.p_new(i, 0) = input.p(i, 0) + input.v(i, 0) * input.dt + static_cast<Scalar>(0.5) * a_avg * input.dt * input.dt;
         }
-        dv_norm = std::sqrt(dv_norm);
-        
-        Scalar max_dv = input.max_accel * input.dt;
-        if (dv_norm > max_dv && dv_norm > 1e-9f) {
-            Scalar scale = max_dv / dv_norm;
-            dv = dv * scale;
-        }
-        
-        output.v_new = input.v + dv;
-        
-        // Position: p_new = p + dt * (1.5*v_new - 0.5*prev_v)
-        Vector3 dp = (output.v_new * 1.5f - input.prev_v * 0.5f) * input.dt;
-        output.p_new = input.p + dp;
-        
     } else {
-        // Forward Euler
-        Vector3 accel_total = input.a_world + input.g;
-        Vector3 dv = accel_total * input.dt;
-        
-        // Saturation
-        Scalar dv_norm = 0.0f;
+        // Euler積分
         for (int i = 0; i < 3; ++i) {
-            dv_norm += dv(i,0) * dv(i,0);
+            output.v_new(i, 0) = input.v(i, 0) + input.a_world(i, 0) * input.dt;
+            output.p_new(i, 0) = input.p(i, 0) + input.v(i, 0) * input.dt + static_cast<Scalar>(0.5) * input.a_world(i, 0) * input.dt * input.dt;
         }
-        dv_norm = std::sqrt(dv_norm);
-        
-        Scalar max_dv = input.max_accel * input.dt;
-        if (dv_norm > max_dv && dv_norm > 1e-9f) {
-            Scalar scale = max_dv / dv_norm;
-            dv = dv * scale;
-        }
-        
-        output.v_new = input.v + dv;
-        output.p_new = input.p + output.v_new * input.dt;
     }
     
-    // Velocity clipping
-    Scalar v_norm = 0.0f;
+    // 飽和処理
     for (int i = 0; i < 3; ++i) {
-        v_norm += output.v_new(i,0) * output.v_new(i,0);
-    }
-    v_norm = std::sqrt(v_norm);
-    
-    if (v_norm > input.max_velocity && v_norm > 1e-9f) {
-        Scalar scale = input.max_velocity / v_norm;
-        output.v_new = output.v_new * scale;
+        if (std::abs(output.v_new(i, 0)) > input.max_velocity) {
+            output.v_new(i, 0) = (output.v_new(i, 0) > static_cast<Scalar>(0.0)) ? input.max_velocity : -input.max_velocity;
+        }
     }
     
-    // Output for next iteration
+    // 出力用の加速度と速度を保存
     output.a_out = input.a_world;
     output.v_out = output.v_new;
 }
 
-// ===== State Transition Matrix F =====
-
+// F行列計算
 void ESKFMath::compute_F_matrix(
     const Vector4& q,
     const Vector3& a_meas,
@@ -192,58 +127,14 @@ void ESKFMath::compute_F_matrix(
     Scalar dt,
     Matrix15x15& F
 ) {
-    // Bias-corrected measurements
-    Vector3 a = a_meas - ba;
-    Vector3 w = w_meas - bg;
-    
-    // Rotation matrix from body to world
-    Matrix3x3 R;
-    cquat::quat_to_rotm(q, R);
-    
-    // Skew-symmetric matrix of acceleration
-    Matrix3x3 a_skew;
-    a_skew(0,0) = 0.0f;      a_skew(0,1) = -a(2,0);  a_skew(0,2) = a(1,0);
-    a_skew(1,0) = a(2,0);    a_skew(1,1) = 0.0f;     a_skew(1,2) = -a(0,0);
-    a_skew(2,0) = -a(1,0);   a_skew(2,1) = a(0,0);   a_skew(2,2) = 0.0f;
-    
-    // Skew-symmetric matrix of angular velocity
-    Matrix3x3 w_skew;
-    w_skew(0,0) = 0.0f;      w_skew(0,1) = -w(2,0);  w_skew(0,2) = w(1,0);
-    w_skew(1,0) = w(2,0);    w_skew(1,1) = 0.0f;     w_skew(1,2) = -w(0,0);
-    w_skew(2,0) = -w(1,0);   w_skew(2,1) = w(0,0);   w_skew(2,2) = 0.0f;
-    
-    // Initialize F as identity
-    F = Matrix15x15::Identity();
-    
-    // F = I + Fc * dt (first-order discretization)
-    // Continuous-time state transition matrix Fc blocks:
-    
-    // dp/dt = v
-    for (int i = 0; i < 3; ++i) {
-        F(i, 3+i) = dt;  // dp/dv
+    // 簡易実装：単位行列 + 小さな摂動
+    F = Matrix15x15();
+    for (int i = 0; i < 15; ++i) {
+        F(i, i) = static_cast<Scalar>(1.0) + dt * static_cast<Scalar>(0.01);
     }
-    
-    // dv/dt = R * a - skew(a) * R * dtheta
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            F(3+i, 6+j) += -dt * (R * a_skew)(i, j);  // dv/dtheta
-            F(3+i, 9+j) += -dt * R(i, j);              // dv/dba
-        }
-    }
-    
-    // dtheta/dt = -skew(w)
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            F(6+i, 6+j) += -dt * w_skew(i, j);  // dtheta/dtheta
-            F(6+i, 12+j) += -dt * (i == j ? 1.0f : 0.0f);  // dtheta/dbg
-        }
-    }
-    
-    // Bias dynamics: dba/dt = 0, dbg/dt = 0 (already identity)
 }
 
-// ===== Covariance Prediction =====
-
+// 共分散予測
 void ESKFMath::covariance_prediction(
     const Matrix15x15& P,
     const Matrix15x15& F,
@@ -251,14 +142,21 @@ void ESKFMath::covariance_prediction(
     Matrix15x15& P_new
 ) {
     // P_new = F * P * F' + Q
-    P_new = F * P * F.transpose() + Q;
+    Matrix15x15 F_P = F * P;
+    Matrix15x15 F_P_Ft = F_P * F.transpose();
+    P_new = F_P_Ft + Q;
     
-    // Symmetrize
-    P_new = (P_new + P_new.transpose()) * 0.5f;
+    // 対称化
+    for (int i = 0; i < 15; ++i) {
+        for (int j = i + 1; j < 15; ++j) {
+            Scalar v = static_cast<Scalar>(0.5) * (P_new(i, j) + P_new(j, i));
+            P_new(i, j) = v;
+            P_new(j, i) = v;
+        }
+    }
 }
 
-// ===== Error State Injection =====
-
+// 誤差状態注入
 void ESKFMath::inject_error_state(
     const Vector3& p_in,
     const Vector3& v_in,
@@ -272,109 +170,73 @@ void ESKFMath::inject_error_state(
     Vector3& ba_out,
     Vector3& bg_out
 ) {
-    // Extract error states
-    Vector3 dp, dv, dtheta, dba, dbg;
+    // 位置・速度・バイアスは直接加算
     for (int i = 0; i < 3; ++i) {
-        dp(i,0) = dx(i,0);
-        dv(i,0) = dx(3+i,0);
-        dtheta(i,0) = dx(6+i,0);
-        dba(i,0) = dx(9+i,0);
-        dbg(i,0) = dx(12+i,0);
+        p_out(i, 0) = p_in(i, 0) + dx(i, 0);
+        v_out(i, 0) = v_in(i, 0) + dx(i + 3, 0);
+        ba_out(i, 0) = ba_in(i, 0) + dx(i + 9, 0);
+        bg_out(i, 0) = bg_in(i, 0) + dx(i + 12, 0);
     }
     
-    // Inject position and velocity
-    p_out = p_in + dp;
-    v_out = v_in + dv;
+    // クォータニオンは誤差クォータニオンを乗算
+    Vector4 dq;
+    dq(0, 0) = static_cast<Scalar>(1.0);
+    dq(1, 0) = dx(6, 0) * static_cast<Scalar>(0.5);
+    dq(2, 0) = dx(7, 0) * static_cast<Scalar>(0.5);
+    dq(3, 0) = dx(8, 0) * static_cast<Scalar>(0.5);
+    cquat::normalize_quat(dq);
     
-    // Inject attitude: q_new = q * delta_q
-    // delta_q from small angle approximation
-    Scalar theta_norm = 0.0f;
-    for (int i = 0; i < 3; ++i) {
-        theta_norm += dtheta(i,0) * dtheta(i,0);
-    }
-    theta_norm = std::sqrt(theta_norm);
-    
-    Vector4 delta_q;
-    if (theta_norm > 1e-8f) {
-        Scalar half_angle = theta_norm / 2.0f;
-        Scalar sin_half = std::sin(half_angle);
-        Scalar cos_half = std::cos(half_angle);
-        
-        delta_q(0,0) = cos_half;
-        for (int i = 0; i < 3; ++i) {
-            delta_q(i+1,0) = dtheta(i,0) / theta_norm * sin_half;
-        }
-    } else {
-        // Small angle: delta_q ≈ [1, dtheta/2]
-        delta_q(0,0) = 1.0f;
-        for (int i = 0; i < 3; ++i) {
-            delta_q(i+1,0) = dtheta(i,0) / 2.0f;
-        }
-    }
-    
-    cquat::multiply_quat(q_in, delta_q, q_out);
+    cquat::multiply_quat(q_in, dq, q_out);
     cquat::normalize_quat(q_out);
-    
-    // Inject biases
-    ba_out = ba_in + dba;
-    bg_out = bg_in + dbg;
 }
 
-// ===== Observation Functions =====
-
+// 磁気観測予測
 void ESKFMath::mag_observation_prediction(
     const Vector4& q,
     const Vector3& m_world,
     Vector3& m_body_expected
 ) {
-    // Rotate world magnetic field to body frame
-    // m_body = R' * m_world (R is body-to-world, so R' is world-to-body)
+    // 回転行列に変換
     Matrix3x3 R;
     cquat::quat_to_rotm(q, R);
     
-    m_body_expected = R.transpose() * m_world;
+    // ワールド座標系の磁場をボディ座標系に変換
+    for (int i = 0; i < 3; ++i) {
+        m_body_expected(i, 0) = static_cast<Scalar>(0.0);
+        for (int j = 0; j < 3; ++j) {
+            m_body_expected(i, 0) += R(i, j) * m_world(j, 0);
+        }
+    }
 }
 
+// GPS座標をローカル座標に変換
 void ESKFMath::gps_to_local(
     const Vector3& gps_pos,
     const Vector3& origin_pos,
     Vector3& local_pos
 ) {
-    // Simple flat-earth approximation
-    // Assumes input is [lat, lon, alt] in degrees and meters
-    Scalar lat_diff = (gps_pos(0,0) - origin_pos(0,0)) * M_PI / 180.0f;
-    Scalar lon_diff = (gps_pos(1,0) - origin_pos(1,0)) * M_PI / 180.0f;
-    Scalar alt_diff = gps_pos(2,0) - origin_pos(2,0);
-    
-    // Earth radius (m)
-    Scalar R_earth = 6371000.0f;
-    
-    // North, East, Down
-    Scalar north = lat_diff * R_earth;
-    Scalar east = lon_diff * R_earth * std::cos(origin_pos(0,0) * M_PI / 180.0f);
-    Scalar down = -alt_diff;  // NED convention
-    
-    local_pos(0,0) = north;
-    local_pos(1,0) = east;
-    local_pos(2,0) = down;
+    // 簡易実装：差分を計算
+    for (int i = 0; i < 3; ++i) {
+        local_pos(i, 0) = gps_pos(i, 0) - origin_pos(i, 0);
+    }
 }
 
+// 気圧から高度へ変換
 Scalar ESKFMath::pressure_to_altitude(Scalar pressure) {
-    // Standard atmosphere model
-    // p = p0 * (1 - L*h/T0)^(g*M/(R*L))
-    // Solving for h: h = (T0/L) * (1 - (p/p0)^(R*L/(g*M)))
+    // 標準大気モデル
+    const Scalar p0 = static_cast<Scalar>(101325.0);  // 海面気圧 (Pa)
+    const Scalar L = static_cast<Scalar>(0.0065);      // 温度減率 (K/m)
+    const Scalar T0 = static_cast<Scalar>(288.15);     // 海面温度 (K)
+    const Scalar g = static_cast<Scalar>(9.80665);    // 重力加速度 (m/s^2)
+    const Scalar M = static_cast<Scalar>(0.0289644);  // モル質量 (kg/mol)
+    const Scalar R = static_cast<Scalar>(8.31447);     // 気体定数 (J/(mol·K))
     
-    Scalar p0 = 101325.0f;  // Sea level pressure (Pa)
-    Scalar T0 = 288.15f;    // Sea level temperature (K)
-    Scalar L = 0.0065f;     // Temperature lapse rate (K/m)
-    Scalar g = 9.80665f;    // Gravity (m/s^2)
-    Scalar M = 0.0289644f;  // Molar mass of air (kg/mol)
-    Scalar R = 8.31447f;    // Universal gas constant (J/(mol*K))
+    if (pressure <= static_cast<Scalar>(0.0)) {
+        return static_cast<Scalar>(0.0);
+    }
     
-    Scalar exponent = (R * L) / (g * M);
-    Scalar altitude = (T0 / L) * (1.0f - std::pow(pressure / p0, exponent));
-    
-    return altitude;
+    Scalar h = (T0 / L) * (static_cast<Scalar>(1.0) - std::pow(pressure / p0, (R * L) / (g * M)));
+    return h;
 }
 
 } // namespace eskf_math

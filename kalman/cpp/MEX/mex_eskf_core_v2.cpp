@@ -2,7 +2,7 @@
 // ビルドコマンド: mex mex_eskf_core.cpp eskf_core.cpp kalman_filter_core.cpp -Ic:\...\cpp
 
 #include "mex.h"
-#include "../ESKF/eskf_core.hpp"
+#include "../Inc/ESKF/eskf_core.hpp"
 #include "mex_type_conv.hpp"
 #include <cstring>
 

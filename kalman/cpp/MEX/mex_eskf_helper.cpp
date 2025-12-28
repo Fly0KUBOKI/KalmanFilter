@@ -1,5 +1,5 @@
 ﻿#include "mex.h"
-#include "../ESKF/eskf_helper.hpp"
+#include "../Inc/ESKF/eskf_helper.hpp"
 #include "mex_type_conv.hpp"
 
 using ESKFHelperF = eskf::ESKFHelper<float>;

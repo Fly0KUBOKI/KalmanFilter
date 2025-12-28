@@ -3,7 +3,7 @@
 
 #include "mex.h"
 #include "mex_type_conv.hpp"
-#include "../include/Common/Math/fixed_matrix.hpp"
+#include "../Inc/Common/Math/fixed_matrix.hpp"
 #include <string>
 #include <cmath>
 #include <vector>
