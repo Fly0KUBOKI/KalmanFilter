@@ -267,6 +267,13 @@ function build_mex(targets)
             end
         end
         
+        % mex_run_eskf (ESKF.m完全移行版)
+        if exist('mex_run_eskf.cpp', 'file')
+            if wants('mex_run_eskf') && build_single_mex('mex_run_eskf.cpp', compile_opts, inc_args, {}, bin_dir)
+                built_count = built_count + 1;
+            end
+        end
+        
     catch ME
         build_success = false;
         fprintf('\nBuild failed!\n');

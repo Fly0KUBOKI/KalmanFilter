@@ -1,6 +1,6 @@
 ========================================
 10セット バッチシミュレーション開始
-開始時刻: 28-Dec-2025 01:12:31
+開始時刻: 28-Dec-2025 10:24:54
 ========================================
 
 
@@ -8,140 +8,140 @@
 === Run 1/10 ===
 ========================================
 Run 1: シミュレーション開始...
-Run 1: シミュレーション完了 (32.61秒)
+Run 1: シミュレーション完了 (8.80秒)
 Run 1: 結果保存 -> estimation_01.csv
 Run 1: 解析開始...
 Run 1 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
-  Position RMSE: Overall=0.7919 m, X=0.1752 m, Y=0.1407 m, Z=0.7593 m
+  Position RMSE: Overall=0.7917 m, X=0.1753 m, Y=0.1406 m, Z=0.7591 m
   Velocity RMSE: 0.5790 m/s
-  Roll/Pitch/Yaw RMSE: 0.2711 / 0.2768 / 0.5921 deg
-  Gyro bias (final): [-0.2358, 0.0357, 0.0064] deg/s
+  Roll/Pitch/Yaw RMSE: 0.2721 / 0.2727 / 0.5737 deg
+  Gyro bias (final): [-0.2352, 0.0354, -0.0179] deg/s
   Max Innovation: 0.0000
 
 ========================================
 === Run 2/10 ===
 ========================================
 Run 2: シミュレーション開始...
-Run 2: シミュレーション完了 (32.80秒)
+Run 2: シミュレーション完了 (8.50秒)
 Run 2: 結果保存 -> estimation_02.csv
 Run 2: 解析開始...
 Run 2 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
-  Position RMSE: Overall=0.7624 m, X=0.1757 m, Y=0.1472 m, Z=0.7271 m
-  Velocity RMSE: 0.5804 m/s
-  Roll/Pitch/Yaw RMSE: 0.2672 / 0.3015 / 0.6352 deg
-  Gyro bias (final): [-0.0198, 0.0916, 0.2157] deg/s
+  Position RMSE: Overall=0.7622 m, X=0.1755 m, Y=0.1472 m, Z=0.7270 m
+  Velocity RMSE: 0.5802 m/s
+  Roll/Pitch/Yaw RMSE: 0.2635 / 0.3038 / 0.6523 deg
+  Gyro bias (final): [-0.0205, 0.0943, 0.2182] deg/s
   Max Innovation: 0.0000
 
 ========================================
 === Run 3/10 ===
 ========================================
 Run 3: シミュレーション開始...
-Run 3: シミュレーション完了 (32.65秒)
+Run 3: シミュレーション完了 (8.61秒)
 Run 3: 結果保存 -> estimation_03.csv
 Run 3: 解析開始...
 Run 3 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
-  Position RMSE: Overall=0.8028 m, X=0.1702 m, Y=0.1386 m, Z=0.7722 m
-  Velocity RMSE: 0.5721 m/s
-  Roll/Pitch/Yaw RMSE: 0.2562 / 0.2686 / 0.6472 deg
-  Gyro bias (final): [0.0405, -0.0194, 0.3654] deg/s
+  Position RMSE: Overall=0.8035 m, X=0.1702 m, Y=0.1385 m, Z=0.7730 m
+  Velocity RMSE: 0.5723 m/s
+  Roll/Pitch/Yaw RMSE: 0.2514 / 0.2667 / 0.6526 deg
+  Gyro bias (final): [0.0395, -0.0165, 0.3463] deg/s
   Max Innovation: 0.0000
 
 ========================================
 === Run 4/10 ===
 ========================================
 Run 4: シミュレーション開始...
-Run 4: シミュレーション完了 (26.58秒)
+Run 4: シミュレーション完了 (8.65秒)
 Run 4: 結果保存 -> estimation_04.csv
 Run 4: 解析開始...
 Run 4 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
-  Position RMSE: Overall=0.7534 m, X=0.1539 m, Y=0.1767 m, Z=0.7160 m
+  Position RMSE: Overall=0.7535 m, X=0.1535 m, Y=0.1766 m, Z=0.7162 m
   Velocity RMSE: 0.5851 m/s
-  Roll/Pitch/Yaw RMSE: 0.2827 / 0.2655 / 0.5730 deg
-  Gyro bias (final): [-0.2295, -0.0755, 0.1687] deg/s
+  Roll/Pitch/Yaw RMSE: 0.2837 / 0.2654 / 0.5769 deg
+  Gyro bias (final): [-0.2311, -0.0782, 0.1746] deg/s
   Max Innovation: 0.0000
 
 ========================================
 === Run 5/10 ===
 ========================================
 Run 5: シミュレーション開始...
-Run 5: シミュレーション完了 (26.48秒)
+Run 5: シミュレーション完了 (8.73秒)
 Run 5: 結果保存 -> estimation_05.csv
 Run 5: 解析開始...
 Run 5 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
-  Position RMSE: Overall=0.7678 m, X=0.1620 m, Y=0.1502 m, Z=0.7353 m
+  Position RMSE: Overall=0.7679 m, X=0.1621 m, Y=0.1499 m, Z=0.7355 m
   Velocity RMSE: 0.5722 m/s
-  Roll/Pitch/Yaw RMSE: 0.2730 / 0.2617 / 0.6010 deg
-  Gyro bias (final): [0.0339, 0.0968, -0.1553] deg/s
+  Roll/Pitch/Yaw RMSE: 0.2721 / 0.2622 / 0.5773 deg
+  Gyro bias (final): [0.0368, 0.0995, -0.1313] deg/s
   Max Innovation: 0.0000
 
 ========================================
 === Run 6/10 ===
 ========================================
 Run 6: シミュレーション開始...
-Run 6: シミュレーション完了 (11.95秒)
+Run 6: シミュレーション完了 (8.75秒)
 Run 6: 結果保存 -> estimation_06.csv
 Run 6: 解析開始...
 Run 6 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
-  Position RMSE: Overall=0.7606 m, X=0.1561 m, Y=0.1542 m, Z=0.7282 m
+  Position RMSE: Overall=0.7606 m, X=0.1560 m, Y=0.1543 m, Z=0.7283 m
   Velocity RMSE: 0.5723 m/s
-  Roll/Pitch/Yaw RMSE: 0.2497 / 0.3009 / 0.6027 deg
-  Gyro bias (final): [-0.0018, 0.0590, -0.0868] deg/s
+  Roll/Pitch/Yaw RMSE: 0.2452 / 0.2988 / 0.5778 deg
+  Gyro bias (final): [-0.0033, 0.0612, -0.0994] deg/s
   Max Innovation: 0.0000
 
 ========================================
 === Run 7/10 ===
 ========================================
 Run 7: シミュレーション開始...
-Run 7: シミュレーション完了 (15.22秒)
+Run 7: シミュレーション完了 (8.65秒)
 Run 7: 結果保存 -> estimation_07.csv
 Run 7: 解析開始...
 Run 7 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
-  Position RMSE: Overall=0.7757 m, X=0.1678 m, Y=0.1517 m, Z=0.7419 m
-  Velocity RMSE: 0.5740 m/s
-  Roll/Pitch/Yaw RMSE: 0.2516 / 0.2894 / 0.5662 deg
-  Gyro bias (final): [-0.0844, -0.0326, 0.1883] deg/s
+  Position RMSE: Overall=0.7759 m, X=0.1675 m, Y=0.1516 m, Z=0.7423 m
+  Velocity RMSE: 0.5739 m/s
+  Roll/Pitch/Yaw RMSE: 0.2523 / 0.2895 / 0.5674 deg
+  Gyro bias (final): [-0.0852, -0.0358, 0.1785] deg/s
   Max Innovation: 0.0000
 
 ========================================
 === Run 8/10 ===
 ========================================
 Run 8: シミュレーション開始...
-Run 8: シミュレーション完了 (14.42秒)
+Run 8: シミュレーション完了 (8.71秒)
 Run 8: 結果保存 -> estimation_08.csv
 Run 8: 解析開始...
 Run 8 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
-  Position RMSE: Overall=0.8083 m, X=0.1802 m, Y=0.1559 m, Z=0.7724 m
-  Velocity RMSE: 0.5809 m/s
-  Roll/Pitch/Yaw RMSE: 0.2487 / 0.3003 / 0.6305 deg
-  Gyro bias (final): [0.0747, 0.0655, -0.0062] deg/s
+  Position RMSE: Overall=0.8169 m, X=0.1938 m, Y=0.1673 m, Z=0.7757 m
+  Velocity RMSE: 0.5817 m/s
+  Roll/Pitch/Yaw RMSE: 0.2504 / 0.2975 / 0.6338 deg
+  Gyro bias (final): [0.0740, 0.0679, 0.0070] deg/s
   Max Innovation: 0.0000
 
 ========================================
 === Run 9/10 ===
 ========================================
 Run 9: シミュレーション開始...
-Run 9: シミュレーション完了 (32.64秒)
+Run 9: シミュレーション完了 (8.66秒)
 Run 9: 結果保存 -> estimation_09.csv
 Run 9: 解析開始...
 Run 9 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
-  Position RMSE: Overall=0.7799 m, X=0.1727 m, Y=0.1634 m, Z=0.7428 m
-  Velocity RMSE: 0.5734 m/s
-  Roll/Pitch/Yaw RMSE: 0.2678 / 0.2720 / 0.6064 deg
-  Gyro bias (final): [-0.1122, 0.0845, 0.0411] deg/s
+  Position RMSE: Overall=0.7811 m, X=0.1728 m, Y=0.1629 m, Z=0.7441 m
+  Velocity RMSE: 0.5736 m/s
+  Roll/Pitch/Yaw RMSE: 0.2760 / 0.2749 / 0.6039 deg
+  Gyro bias (final): [-0.1107, 0.0845, 0.0497] deg/s
   Max Innovation: 0.0000
 
 ========================================
 === Run 10/10 ===
 ========================================
 Run 10: シミュレーション開始...
-Run 10: シミュレーション完了 (14.62秒)
+Run 10: シミュレーション完了 (8.67秒)
 Run 10: 結果保存 -> estimation_10.csv
 Run 10: 解析開始...
 Run 10 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
-  Position RMSE: Overall=0.8107 m, X=0.1749 m, Y=0.1602 m, Z=0.7752 m
-  Velocity RMSE: 0.5796 m/s
-  Roll/Pitch/Yaw RMSE: 0.2519 / 0.2849 / 0.6042 deg
-  Gyro bias (final): [0.1306, 0.3925, -0.0434] deg/s
+  Position RMSE: Overall=0.8111 m, X=0.1750 m, Y=0.1605 m, Z=0.7755 m
+  Velocity RMSE: 0.5798 m/s
+  Roll/Pitch/Yaw RMSE: 0.2537 / 0.2843 / 0.6109 deg
+  Gyro bias (final): [0.1303, 0.3893, -0.0401] deg/s
   Max Innovation: 0.0000
 
 ========================================
@@ -150,31 +150,31 @@ Run 10 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; att
 成功: 10/10 (100.0%)
 
 成功したRunの統計:
-Position RMSE (overall): Mean=0.7813, Std=0.0210, Max=0.8107 m
-Position RMSE by axis: X Mean=0.1689, Y Mean=0.1539, Z Mean=0.7471 m
-Position RMSE by axis: X Std=0.0088, Y Std=0.0112, Z Std=0.0214 m
-Position RMSE by axis: X Max=0.1802, Y Max=0.1767, Z Max=0.7752 m
-Velocity RMSE: Mean=0.5769, Std=0.0046, Max=0.5851 m/s
-Roll RMSE: Mean=0.2620, Std=0.0119, Max=0.2827 deg
-Pitch RMSE: Mean=0.2822, Std=0.0154, Max=0.3015 deg
-Yaw RMSE: Mean=0.6059, Std=0.0260, Max=0.6472 deg
+Position RMSE (overall): Mean=0.7824, Std=0.0224, Max=0.8169 m
+Position RMSE by axis: X Mean=0.1702, Y Mean=0.1549, Z Mean=0.7477 m
+Position RMSE by axis: X Std=0.0115, Y Std=0.0120, Z Std=0.0219 m
+Position RMSE by axis: X Max=0.1938, Y Max=0.1766, Z Max=0.7757 m
+Velocity RMSE: Mean=0.5770, Std=0.0047, Max=0.5851 m/s
+Roll RMSE: Mean=0.2620, Std=0.0132, Max=0.2837 deg
+Pitch RMSE: Mean=0.2816, Std=0.0153, Max=0.3038 deg
+Yaw RMSE: Mean=0.6026, Std=0.0333, Max=0.6526 deg
 
 個別結果:
-Run  1: PASS (Pos Overall=0.7919m, X=0.1752m, Y=0.1407m, Z=0.7593m, Att=0.27/0.28/0.59 deg)
-Run  2: PASS (Pos Overall=0.7624m, X=0.1757m, Y=0.1472m, Z=0.7271m, Att=0.27/0.30/0.64 deg)
-Run  3: PASS (Pos Overall=0.8028m, X=0.1702m, Y=0.1386m, Z=0.7722m, Att=0.26/0.27/0.65 deg)
-Run  4: PASS (Pos Overall=0.7534m, X=0.1539m, Y=0.1767m, Z=0.7160m, Att=0.28/0.27/0.57 deg)
-Run  5: PASS (Pos Overall=0.7678m, X=0.1620m, Y=0.1502m, Z=0.7353m, Att=0.27/0.26/0.60 deg)
-Run  6: PASS (Pos Overall=0.7606m, X=0.1561m, Y=0.1542m, Z=0.7282m, Att=0.25/0.30/0.60 deg)
-Run  7: PASS (Pos Overall=0.7757m, X=0.1678m, Y=0.1517m, Z=0.7419m, Att=0.25/0.29/0.57 deg)
-Run  8: PASS (Pos Overall=0.8083m, X=0.1802m, Y=0.1559m, Z=0.7724m, Att=0.25/0.30/0.63 deg)
-Run  9: PASS (Pos Overall=0.7799m, X=0.1727m, Y=0.1634m, Z=0.7428m, Att=0.27/0.27/0.61 deg)
-Run 10: PASS (Pos Overall=0.8107m, X=0.1749m, Y=0.1602m, Z=0.7752m, Att=0.25/0.28/0.60 deg)
+Run  1: PASS (Pos Overall=0.7917m, X=0.1753m, Y=0.1406m, Z=0.7591m, Att=0.27/0.27/0.57 deg)
+Run  2: PASS (Pos Overall=0.7622m, X=0.1755m, Y=0.1472m, Z=0.7270m, Att=0.26/0.30/0.65 deg)
+Run  3: PASS (Pos Overall=0.8035m, X=0.1702m, Y=0.1385m, Z=0.7730m, Att=0.25/0.27/0.65 deg)
+Run  4: PASS (Pos Overall=0.7535m, X=0.1535m, Y=0.1766m, Z=0.7162m, Att=0.28/0.27/0.58 deg)
+Run  5: PASS (Pos Overall=0.7679m, X=0.1621m, Y=0.1499m, Z=0.7355m, Att=0.27/0.26/0.58 deg)
+Run  6: PASS (Pos Overall=0.7606m, X=0.1560m, Y=0.1543m, Z=0.7283m, Att=0.25/0.30/0.58 deg)
+Run  7: PASS (Pos Overall=0.7759m, X=0.1675m, Y=0.1516m, Z=0.7423m, Att=0.25/0.29/0.57 deg)
+Run  8: PASS (Pos Overall=0.8169m, X=0.1938m, Y=0.1673m, Z=0.7757m, Att=0.25/0.30/0.63 deg)
+Run  9: PASS (Pos Overall=0.7811m, X=0.1728m, Y=0.1629m, Z=0.7441m, Att=0.28/0.27/0.60 deg)
+Run 10: PASS (Pos Overall=0.8111m, X=0.1750m, Y=0.1605m, Z=0.7755m, Att=0.25/0.28/0.61 deg)
 
 === 総合判定: 全てのRunが成功 ===
 
 MAT結果保存: batch_10sets_results.mat
 CSVサマリー保存: batch_10sets_summary.csv
 
-終了時刻: 28-Dec-2025 01:16:37
+終了時刻: 28-Dec-2025 10:26:25
 ========================================
