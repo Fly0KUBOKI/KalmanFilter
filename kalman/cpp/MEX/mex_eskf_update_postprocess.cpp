@@ -38,7 +38,7 @@ static void handle_postprocess(int nlhs, mxArray* plhs[], int nrhs, const mxArra
     
     // Get dx (15x1)
     Vector<15, float> dx;
-    if (!matToVector(prhs[1], dx)) {
+    if (!matToVector<15>(prhs[1], dx)) {
         mexErrMsgTxt("dx read failed (expected 15x1)");
     }
     
@@ -50,13 +50,13 @@ static void handle_postprocess(int nlhs, mxArray* plhs[], int nrhs, const mxArra
     Vector<4, float> state_q;
     Matrix<15, 15, float> state_P, new_state_P;
     
-    if (!matToVector(prhs[3], state_p)) mexErrMsgTxt("state_p read failed");
-    if (!matToVector(prhs[4], state_v)) mexErrMsgTxt("state_v read failed");
-    if (!matToVector(prhs[5], state_q)) mexErrMsgTxt("state_q read failed");
-    if (!matToVector(prhs[6], state_ba)) mexErrMsgTxt("state_ba read failed");
-    if (!matToVector(prhs[7], state_bg)) mexErrMsgTxt("state_bg read failed");
-    if (!matToMatrix(prhs[8], state_P)) mexErrMsgTxt("state_P read failed");
-    if (!matToMatrix(prhs[9], new_state_P)) mexErrMsgTxt("new_state_P read failed");
+    if (!matToVector<3>(prhs[3], state_p)) mexErrMsgTxt("state_p read failed");
+    if (!matToVector<3>(prhs[4], state_v)) mexErrMsgTxt("state_v read failed");
+    if (!matToVector<4>(prhs[5], state_q)) mexErrMsgTxt("state_q read failed");
+    if (!matToVector<3>(prhs[6], state_ba)) mexErrMsgTxt("state_ba read failed");
+    if (!matToVector<3>(prhs[7], state_bg)) mexErrMsgTxt("state_bg read failed");
+    if (!matToMatrix<15, 15>(prhs[8], state_P)) mexErrMsgTxt("state_P read failed");
+    if (!matToMatrix<15, 15>(prhs[9], new_state_P)) mexErrMsgTxt("new_state_P read failed");
     
     double sample = mxGetScalar(prhs[10]);
     
@@ -66,14 +66,14 @@ static void handle_postprocess(int nlhs, mxArray* plhs[], int nrhs, const mxArra
     prhs_div[0] = mxCreateString("divergence_check");
     prhs_div[1] = mxCreateString(sensor_type);
     prhs_div[2] = mxDuplicateArray(innov);
-    prhs_div[3] = vectorToMat(dx);
+    prhs_div[3] = vectorToMat<15>(dx);
     // ctx is not used in current implementation, pass empty
     
     mexCallMATLAB(3, plhs_div, 4, prhs_div, "mex_sensor_filter");
     
     // Get outputs: dx_out, should_skip, was_attenuated
     Vector<15, float> dx_out;
-    if (!matToVector(plhs_div[0], dx_out)) {
+    if (!matToVector<15>(plhs_div[0], dx_out)) {
         // If dx_out is empty, use original dx
         dx_out = dx;
     }
@@ -123,12 +123,12 @@ static void handle_postprocess(int nlhs, mxArray* plhs[], int nrhs, const mxArra
     }
     
     // Output: new_p, new_v, new_q, new_ba, new_bg, new_P, should_skip
-    if (nlhs >= 1) plhs[0] = vectorToMat(new_p);
-    if (nlhs >= 2) plhs[1] = vectorToMat(new_v);
-    if (nlhs >= 3) plhs[2] = vectorToMat(new_q);
-    if (nlhs >= 4) plhs[3] = vectorToMat(new_ba);
-    if (nlhs >= 5) plhs[4] = vectorToMat(new_bg);
-    if (nlhs >= 6) plhs[5] = matrixToMat(out_P);
+    if (nlhs >= 1) plhs[0] = vectorToMat<3>(new_p);
+    if (nlhs >= 2) plhs[1] = vectorToMat<3>(new_v);
+    if (nlhs >= 3) plhs[2] = vectorToMat<4>(new_q);
+    if (nlhs >= 4) plhs[3] = vectorToMat<3>(new_ba);
+    if (nlhs >= 5) plhs[4] = vectorToMat<3>(new_bg);
+    if (nlhs >= 6) plhs[5] = matrixToMat<15, 15>(out_P);
     if (nlhs >= 7) plhs[6] = mxCreateLogicalScalar(should_skip);
 }
 

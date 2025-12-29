@@ -15,15 +15,20 @@
 #include <cstring>
 #include <string>
 #include <map>
+#include "../Inc/ESKF/eskf_state.hpp"
+#include "../Inc/ESKF/eskf_runner.hpp"
+#include "../Inc/Common/Math/fixed_matrix.hpp"
 #include "../Inc/Common/Math/quaternion_lib.hpp"
 #include "../Inc/Common/Math/vector_utils.hpp"
+#include "../Inc/Common/Math/statistics.hpp"
 #include "../Inc/Common/filter_management.hpp"
-#include "../Inc/Common/Math/fixed_matrix.hpp"
 #include "../Inc/Common/Sensor/sensor_filter.hpp"
+#include "../Inc/Common/Sensor/sensor_preprocessor.hpp"
 #include "../Inc/ESKF/eskf_postprocess.hpp"
 #include "../Inc/ESKF/eskf_core.hpp"
 #include "../Inc/MEX/mex_type_conversion.hpp"
 #include <vector>
+#include <algorithm>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -31,41 +36,19 @@
 
 using namespace common::math;
 using namespace common::filter;
+using namespace common::sensor;
 using Quat = quat_lib::Quaternion<double>;
 using QuatF = quat_lib::Quaternion<float>;
 using namespace cmath_fx;
 using namespace eskf;
 using namespace mex_conv;
 
-// ESKF State Structure
-struct ESKFState {
-    double p[3], v[3], q[4], ba[3], bg[3];
-    double P[15*15];
-    double Q_nominal[15*15];
-    double g[3];
-    double dt;
-    double gps_origin[3];
-    double prev_accel[3], prev_gyro[3], prev_mag[3];
-    double prev_gps_lat, prev_gps_lon, prev_gps_alt;
-    double prev_baro;
-    double buffer_tolerance;
-    double w_body[3];
-    double velocity_damping;
-    double baro_weight;
-    double zupt_threshold_accel, zupt_threshold_gyro;
-    int zupt_min_duration;
-    int zupt_counter;
-    bool is_stationary;
-    bool adaptive_q_enabled;
-    bool enable_accel_z_integration;
-    double accel_z_threshold, accel_z_damping;
-    double gyro_noise_threshold;
-    int last_reset_step;
-    bool valid;
-};
-
 static std::map<uint64_t, ESKFState*> g_states;
 static uint64_t g_next_handle = 1;
+
+// Static instance of SensorFilterLib for reuse (mex_eskf_do_update統合用)
+// Note: ESKFRunner also has its own filter_lib_, but we keep this for sensor_update/gps_update
+static SensorFilterLib g_filter_lib;
 
 // Utility functions
 static void copy_vec(double* dst, const double* src, int n) {
@@ -77,6 +60,71 @@ static std::string getCmd(const mxArray* a) {
     if (!mxIsChar(a)) return "";
     mxGetString(a, buf, sizeof(buf));
     return std::string(buf);
+}
+
+// Helper functions for field access (mex_eskf_constructor統合用)
+static const mxArray* get_field(const mxArray* s, const char* name) {
+    if (!mxIsStruct(s)) return nullptr;
+    return mxGetField(s, 0, name);
+}
+
+static bool has_field(const mxArray* s, const char* name) {
+    return get_field(s, name) != nullptr;
+}
+
+static bool has_field_any(const mxArray* s, const char* name1, const char* name2) {
+    return has_field(s, name1) || has_field(s, name2);
+}
+
+static const mxArray* get_field_any(const mxArray* s, const char* name1, const char* name2) {
+    const mxArray* f = get_field(s, name1);
+    if (f) return f;
+    return get_field(s, name2);
+}
+
+static double* get_data(const mxArray* arr) {
+    if (!arr) return nullptr;
+    return mxGetPr(arr);
+}
+
+static int get_length(const mxArray* arr) {
+    if (!arr) return 0;
+    return static_cast<int>(mxGetNumberOfElements(arr));
+}
+
+// Constants
+static const double GRAVITY = 9.80665;
+static const double DEG2RAD = 0.017453292519943295;
+static const double RAD2DEG = 57.29577951308232;
+
+// Quaternion helper functions (mex_eskf_constructor統合用)
+static void quaternion_from_euler(double roll, double pitch, double yaw, double* q) {
+    // quaternion_lib.hppのfrom_eulerは度数法を期待するが、ここではラジアンを使用
+    // ラジアンを度数に変換
+    double roll_deg = roll * RAD2DEG;
+    double pitch_deg = pitch * RAD2DEG;
+    double yaw_deg = yaw * RAD2DEG;
+    
+    Quat quat = Quat::from_euler(roll_deg, pitch_deg, yaw_deg);
+    q[0] = quat.w;
+    q[1] = quat.x;
+    q[2] = quat.y;
+    q[3] = quat.z;
+}
+
+static void quaternion_to_rotation_matrix(const double* q, double* R) {
+    Quat quat(q[0], q[1], q[2], q[3]);
+    quat.normalize();
+    
+    // quaternion_lib.hppのto_rotation_matrixはrow-majorで返す
+    // MATLABはcolumn-majorなので変換が必要
+    double R_row[9];
+    quat.to_rotation_matrix(R_row);
+    
+    // row-major -> column-major変換
+    R[0] = R_row[0]; R[3] = R_row[1]; R[6] = R_row[2];
+    R[1] = R_row[3]; R[4] = R_row[4]; R[7] = R_row[5];
+    R[2] = R_row[6]; R[5] = R_row[7]; R[8] = R_row[8];
 }
 
 // quat_to_euler: use quaternion_lib.hpp directly
@@ -106,531 +154,1339 @@ static void getVec3(const mxArray* s, const char* xname, const char* yname, cons
 #define getGyro(obs, idx, out)  getVec3(obs, "wx", "wy", "wz", idx, out)
 #define getMag(obs, idx, out)   getVec3(obs, "mx", "my", "mz", idx, out)
 
-// Predict using ESKFCore directly (mex_adaptive_predict を統合)
+// Predict using ESKFRunner (moved to Src/ESKF/eskf_runner.cpp)
 static void call_predict(ESKFState* s, const double* a_meas, const double* w_meas) {
-    using namespace eskf;  // Ensure namespace is available in this function
-    using PredictParams = eskf::PredictPostprocessParams;  // Type alias for clarity
-    
-    // Convert double to float for ESKFCore (uses float internally)
-    Vector<3, float> p_f, v_f, ba_f, bg_f, a_meas_f, w_meas_f, g_f;
-    Vector<4, float> q_f;
-    Matrix<15, 15, float> P_f, Qnom_f, Qadapt_f, Pnew_f;
-    Vector<3, float> gyro_thr_f, accel_thr_f;
-    
-    // Convert inputs
-    for (int i = 0; i < 3; ++i) {
-        p_f(i, 0) = static_cast<float>(s->p[i]);
-        v_f(i, 0) = static_cast<float>(s->v[i]);
-        ba_f(i, 0) = static_cast<float>(s->ba[i]);
-        bg_f(i, 0) = static_cast<float>(s->bg[i]);
-        a_meas_f(i, 0) = static_cast<float>(a_meas[i]);
-        w_meas_f(i, 0) = static_cast<float>(w_meas[i]);
-        g_f(i, 0) = static_cast<float>(s->g[i]);
-        gyro_thr_f(i, 0) = 0.0f;  // Default thresholds
-        accel_thr_f(i, 0) = 0.0f;
-    }
-    for (int i = 0; i < 4; ++i) {
-        q_f(i, 0) = static_cast<float>(s->q[i]);
-    }
-    for (int i = 0; i < 15; ++i) {
-        for (int j = 0; j < 15; ++j) {
-            P_f(i, j) = static_cast<float>(s->P[i + j*15]);
-            Qnom_f(i, j) = static_cast<float>(s->Q_nominal[i + j*15]);
-        }
-    }
-    
-    float dt_f = static_cast<float>(s->dt);
-    
-    // Adaptive Q scaling
-    Qadapt_f = Qnom_f;
-    if (s->adaptive_q_enabled) {
-        ESKFCore::compute_adaptive_Q(Qnom_f, a_meas_f, w_meas_f, Qadapt_f);
-    }
-    
-    // Integrate nominal state
-    ESKFCore::integrate_nominal(p_f, v_f, q_f, ba_f, bg_f, a_meas_f, w_meas_f, dt_f, g_f, gyro_thr_f, accel_thr_f);
-    
-    // Predict covariance
-    ESKFCore::predict_covariance(P_f, q_f, a_meas_f, ba_f, w_meas_f, bg_f, Qadapt_f, dt_f, Pnew_f);
-    
-    // Ensure symmetry
-    for (int i = 0; i < 15; ++i) {
-        for (int j = i + 1; j < 15; ++j) {
-            float v = 0.5f * (Pnew_f(i, j) + Pnew_f(j, i));
-            Pnew_f(i, j) = v;
-            Pnew_f(j, i) = v;
-        }
-    }
-    
-    // Copy Pnew_f to P_f for postprocessing
-    P_f = Pnew_f;
-    
-    copy_vec(s->w_body, w_meas, 3);
-    
-    // Predict postprocess (mex_eskf_predict_postprocess を統合)
-    // Note: v_f, q_f, P_f, g_f, dt_f are already declared above
-    // Only need a_for_vel_f for postprocessing
-    Vector<3, float> a_for_vel_f;
-    for (int i = 0; i < 3; ++i) {
-        a_for_vel_f(i, 0) = static_cast<float>(a_meas[i]);
-    }
-    bool enable_accel_z = s->enable_accel_z_integration;
-    float accel_z_threshold = static_cast<float>(s->accel_z_threshold);
-    float accel_z_damping = static_cast<float>(s->accel_z_damping);
-    float velocity_damping = static_cast<float>(s->velocity_damping);
-    
-    // 1. accel_z_integration - Direct C++ implementation using quaternion_lib.hpp
-    if (enable_accel_z) {
-        // Convert Vector<4, float> to Quaternion<float>
-        QuatF quat(q_f(0, 0), q_f(1, 0), q_f(2, 0), q_f(3, 0));
-        quat.normalize();
-        
-        // Get rotation matrix (row-major order from quaternion_lib)
-        float R_row[9];
-        quat.to_rotation_matrix(R_row);
-        
-        // Convert row-major to column-major with transpose
-        // mex_quaternion_lib returns transposed matrix for MATLAB (column-major)
-        // So we need to transpose: R(i,j) = R_row[j*3 + i]
-        Matrix<3, 3, float> R;
-        for (int i = 0; i < 3; ++i) {
-            for (int j = 0; j < 3; ++j) {
-                // Transpose: row-major R_row to column-major R
-                R(i, j) = R_row[j * 3 + i];
-            }
-        }
-        
-        // Calculate R * a_for_vel (matrix-vector multiplication)
-        Vector<3, float> Ra;
-        for (int i = 0; i < 3; ++i) {
-            Ra(i, 0) = 0.0f;
-            for (int j = 0; j < 3; ++j) {
-                Ra(i, 0) += R(i, j) * a_for_vel_f(j, 0);
-            }
-        }
-        
-        // Calculate (R * a_for_vel) - [0; 0; g(3)]
-        Vector<3, float> a_ned;
-        a_ned(0, 0) = Ra(0, 0);
-        a_ned(1, 0) = Ra(1, 0);
-        a_ned(2, 0) = Ra(2, 0) - g_f(2, 0);
-        
-        float az_excess = a_ned(2, 0);
-        if (std::abs(az_excess) > accel_z_threshold) {
-            v_f(2, 0) = v_f(2, 0) * (1.0f - accel_z_damping) + az_excess * dt_f;
-        }
-    }
-    
-    // 2-6. 後処理（velocity_damping, P normalization, velocity clipping）
-    PredictParams params;
-    params.enable_accel_z_integration = false;  // 既に上で処理済み
-    params.accel_z_threshold = accel_z_threshold;
-    params.accel_z_damping = accel_z_damping;
-    params.velocity_damping = velocity_damping;
-    eskf::predict_postprocess(v_f, q_f, P_f, a_for_vel_f, dt_f, g_f, params);
-    
-    // 3. divergence_guard.regularize_covariance (mex_sensor_filter を統合)
-    using namespace common::sensor;
-    static SensorFilterLib filter_lib;  // Static instance for reuse
-    // Convert Matrix<15,15,float> to FixedMatrix (cm)
-    cm P_fixed(15, 15);
-    for (int i = 0; i < 15; ++i) {
-        for (int j = 0; j < 15; ++j) {
-            P_fixed(i, j) = P_f(i, j);
-        }
-    }
-    filter_lib.divergence_guard.regularize_covariance(P_fixed);
-    // Convert back to Matrix<15,15,float>
-    for (int i = 0; i < 15; ++i) {
-        for (int j = 0; j < 15; ++j) {
-            P_f(i, j) = P_fixed(i, j);
-        }
-    }
-    
-    // 5. divergence_guard.check_and_clip_velocity (mex_sensor_filter を統合)
-    // vel_indices = [4, 5, 6] (1-based in MATLAB, but we use 0-based internally: 3, 4, 5)
-    std::vector<int> vel_indices = {3, 4, 5};
-    bool was_clipped = false;
-    
-    // Define max variances consistent with MATLAB limits
-    std::vector<float> max_var(15);
-    for(int i=0; i<15; ++i) max_var[i] = 1e6f; // default large
-    // position 0:2 -> 100^2
-    for(int i=0; i<3; ++i) max_var[i] = 100.0f*100.0f;
-    // velocity 3:5 -> 20^2
-    for(int i=3; i<6; ++i) max_var[i] = 20.0f*20.0f;
-    // attitude 6:8 -> (deg2rad(45))^2
-    float d45 = 45.0f * 3.14159265f / 180.0f;
-    for(int i=6; i<9; ++i) max_var[i] = d45*d45;
-    // accel bias 9:11
-    for(int i=9; i<12; ++i) max_var[i] = 0.1f;
-    // gyro bias 12:14
-    for(int i=12; i<15; ++i) max_var[i] = 0.01f;
-    
-    // Clip covariance per-velocity-index
-    for(size_t kk=0; kk<vel_indices.size(); ++kk) {
-        int idx = vel_indices[kk];
-        if (idx < 0 || idx >= 15) continue;
-        float Pii = P_f(idx, idx);
-        if (Pii > max_var[idx]) {
-            float factor = sqrtf(max_var[idx] / Pii);
-            for(int j=0; j<15; ++j) P_f(idx, j) *= factor;
-            for(int i=0; i<15; ++i) P_f(i, idx) *= factor;
-            P_f(idx, idx) = max_var[idx];
-            was_clipped = true;
-        }
-    }
-    
-    // Clip velocity magnitude to max_vel (3.0 m/s)
-    float max_vel = 3.0f;
-    float vnorm = 0.0f;
-    for(int i=0; i<3; ++i) vnorm += v_f(i, 0) * v_f(i, 0);
-    vnorm = sqrtf(vnorm);
-    if (vnorm > max_vel) {
-        float scale = max_vel / vnorm;
-        for(int i=0; i<3; ++i) v_f(i, 0) *= scale;
-        was_clipped = true;
-    }
-    
-    // Ensure symmetry of P
-    for(int i=0; i<15; ++i) {
-        for(int j=i+1; j<15; ++j) {
-            float v = 0.5f * (P_f(i, j) + P_f(j, i));
-            P_f(i, j) = v;
-            P_f(j, i) = v;
-        }
-    }
-    
-    // Convert back to double (all state variables)
-    for (int i = 0; i < 3; ++i) {
-        s->p[i] = static_cast<double>(p_f(i, 0));
-        s->v[i] = static_cast<double>(v_f(i, 0));
-        s->ba[i] = static_cast<double>(ba_f(i, 0));
-        s->bg[i] = static_cast<double>(bg_f(i, 0));
-    }
-    for (int i = 0; i < 4; ++i) {
-        s->q[i] = static_cast<double>(q_f(i, 0));
-    }
-    for (int i = 0; i < 15; ++i) {
-        for (int j = 0; j < 15; ++j) {
-            s->P[i + j*15] = static_cast<double>(P_f(i, j));
-        }
-    }
+    ESKFRunner::predict(s, a_meas, w_meas);
 }
 
-// Call sensor update
+// Helper function: check if any value is NaN
+static bool is_nan_any(const double* v, int n) {
+    for (int i = 0; i < n; ++i) {
+        if (std::isnan(v[i])) return true;
+    }
+    return false;
+}
+
+// Helper function: compute 3D vector norm
+static double norm3(const double* v) {
+    return std::sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+}
+
+// Call sensor update (mex_eskf_sensor_updates_full を統合、前処理はsensor_preprocessor.hppを使用)
 static void call_sensor_update(ESKFState* s, const char* type, const double* meas, int meas_len, double sample) {
-    // Create state struct
-    const char* fields[] = {"p","v","q","ba","bg","P","g","dt","w_body","prev_accel","prev_mag","prev_baro","buffer_tolerance","baro_weight","gps_origin"};
-    mxArray* state = mxCreateStructMatrix(1,1,15,fields);
+    // 出力バッファ
+    double out_p[3], out_v[3], out_q[4], out_ba[3], out_bg[3], out_P[15*15];
+    copy_vec(out_p, s->p, 3);
+    copy_vec(out_v, s->v, 3);
+    copy_vec(out_q, s->q, 4);
+    copy_vec(out_ba, s->ba, 3);
+    copy_vec(out_bg, s->bg, 3);
+    memcpy(out_P, s->P, 15*15*sizeof(double));
     
-    mxArray* f_p = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_p), s->p, 3);
-    mxSetField(state, 0, "p", f_p);
-    mxArray* f_v = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_v), s->v, 3);
-    mxSetField(state, 0, "v", f_v);
-    mxArray* f_q = mxCreateDoubleMatrix(4,1,mxREAL); copy_vec(mxGetPr(f_q), s->q, 4);
-    mxSetField(state, 0, "q", f_q);
-    mxArray* f_ba = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_ba), s->ba, 3);
-    mxSetField(state, 0, "ba", f_ba);
-    mxArray* f_bg = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_bg), s->bg, 3);
-    mxSetField(state, 0, "bg", f_bg);
-    mxArray* f_P = mxCreateDoubleMatrix(15,15,mxREAL); memcpy(mxGetPr(f_P), s->P, 15*15*8);
-    mxSetField(state, 0, "P", f_P);
-    mxArray* f_g = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_g), s->g, 3);
-    mxSetField(state, 0, "g", f_g);
-    mxSetField(state, 0, "dt", mxCreateDoubleScalar(s->dt));
-    mxArray* f_wb = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_wb), s->w_body, 3);
-    mxSetField(state, 0, "w_body", f_wb);
-    mxArray* f_pa = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_pa), s->prev_accel, 3);
-    mxSetField(state, 0, "prev_accel", f_pa);
-    mxArray* f_pm = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_pm), s->prev_mag, 3);
-    mxSetField(state, 0, "prev_mag", f_pm);
-    mxSetField(state, 0, "prev_baro", mxCreateDoubleScalar(s->prev_baro));
-    mxSetField(state, 0, "buffer_tolerance", mxCreateDoubleScalar(s->buffer_tolerance));
-    mxSetField(state, 0, "baro_weight", mxCreateDoubleScalar(s->baro_weight));
-    mxArray* f_go = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_go), s->gps_origin, 3);
-    mxSetField(state, 0, "gps_origin", f_go);
+    bool should_skip = true;
     
-    mxArray* prhs[4];
-    mxArray* plhs[9]; // max outputs (gps has 9)
-    
-    prhs[0] = mxCreateString(type);
-    prhs[1] = mxCreateDoubleMatrix(meas_len, 1, mxREAL); copy_vec(mxGetPr(prhs[1]), meas, meas_len);
-    prhs[2] = state;
-    prhs[3] = mxIsNaN(sample) ? mxCreateDoubleMatrix(0,0,mxREAL) : mxCreateDoubleScalar(sample);
-    
-    int nlhs_out = 7;
-    if (strcmp(type, "gps") == 0) nlhs_out = 9;
-    
-    if (mexCallMATLAB(nlhs_out, plhs, 4, prhs, "mex_eskf_sensor_updates_full") == 0) {
-        copy_vec(s->p, mxGetPr(plhs[0]), 3);
-        copy_vec(s->v, mxGetPr(plhs[1]), 3);
-        copy_vec(s->q, mxGetPr(plhs[2]), 4);
-        copy_vec(s->ba, mxGetPr(plhs[3]), 3);
-        copy_vec(s->bg, mxGetPr(plhs[4]), 3);
-        memcpy(s->P, mxGetPr(plhs[5]), 15*15*8);
-        
-        if (strcmp(type, "accel") == 0) {
-            copy_vec(s->prev_accel, mxGetPr(plhs[6]), 3);
-        } else if (strcmp(type, "mag") == 0) {
-            copy_vec(s->prev_mag, mxGetPr(plhs[6]), 3);
-        } else if (strcmp(type, "baro") == 0) {
-            s->prev_baro = mxGetScalar(plhs[6]);
-        } else if (strcmp(type, "gps") == 0) {
-            s->prev_gps_lat = mxGetScalar(plhs[6]);
-            s->prev_gps_lon = mxGetScalar(plhs[7]);
-            s->prev_gps_alt = mxGetScalar(plhs[8]);
+    if (strcmp(type, "accel") == 0) {
+        // Accel前処理 (sensor_preprocessor.hppを使用)
+        Vector<3, float> a_meas_f, prev_accel_f;
+        for (int i = 0; i < 3; ++i) {
+            a_meas_f(i, 0) = static_cast<float>(meas[i]);
+            prev_accel_f(i, 0) = static_cast<float>(s->prev_accel[i]);
         }
-        for (int i=0; i<nlhs_out; i++) mxDestroyArray(plhs[i]);
+        
+        PreprocessResult pre_result = preprocess_accel(a_meas_f, prev_accel_f, s->buffer_tolerance);
+        
+        double a_corrected[3];
+        for (int i = 0; i < 3; ++i) {
+            a_corrected[i] = static_cast<double>(pre_result.output(i, 0));
+        }
+        
+        if (!pre_result.no_change && !is_nan_any(a_corrected, 3) && !pre_result.is_outlier && (norm3(s->w_body) <= 1.5)) {
+            should_skip = false;
+            copy_vec(s->prev_accel, meas, 3);
+        }
+        
+        if (!should_skip) {
+            // mex_eskf_do_updateロジックを統合（mex_sensor_filter呼び出しを直接C++関数に置き換え）
+            const char* sensor_type = "accel";
+            const double* meas = a_corrected;
+            int meas_len = 3;
+            
+            // R取得（mex_sensor_filter → g_filter_lib.noise_estimator.get_R_matrix()に置き換え）
+            double R_noise[3] = {0.01, 0.01, 0.01};
+            {
+                cm R = g_filter_lib.noise_estimator.get_R_matrix(sensor_type);
+                int n = R.rows * R.cols;
+                if (n == 9) {
+                    R_noise[0] = static_cast<double>(R(0, 0));
+                    R_noise[1] = static_cast<double>(R(1, 1));
+                    R_noise[2] = static_cast<double>(R(2, 2));
+                } else if (n >= 3) {
+                    R_noise[0] = static_cast<double>(R(0, 0));
+                    R_noise[1] = static_cast<double>(R(1, 0));
+                    R_noise[2] = static_cast<double>(R(2, 0));
+                } else if (n == 1) {
+                    R_noise[0] = R_noise[1] = R_noise[2] = static_cast<double>(R(0, 0));
+                }
+            }
+            
+            // sensor_data構造体を構築
+            const char* sd_fields[] = {"accel", "gyro", "mag", "gps_pos", "alt_baro", "dt",
+                "update_accel", "update_gyro", "update_mag", "update_gps", "update_baro", "update_zupt"};
+            mxArray* sensor_data = mxCreateStructMatrix(1, 1, 12, sd_fields);
+            
+            double zeros3[3] = {0, 0, 0};
+            mxArray* accel_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(accel_arr), meas, 3);
+            mxArray* gyro_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(gyro_arr), zeros3, 3);
+            mxArray* mag_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(mag_arr), zeros3, 3);
+            mxArray* gps_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(gps_arr), zeros3, 3);
+            
+            mxSetField(sensor_data, 0, "accel", accel_arr);
+            mxSetField(sensor_data, 0, "gyro", gyro_arr);
+            mxSetField(sensor_data, 0, "mag", mag_arr);
+            mxSetField(sensor_data, 0, "gps_pos", gps_arr);
+            mxSetField(sensor_data, 0, "alt_baro", mxCreateDoubleScalar(0));
+            mxSetField(sensor_data, 0, "dt", mxCreateDoubleScalar(s->dt));
+            mxSetField(sensor_data, 0, "update_accel", mxCreateLogicalScalar(true));
+            mxSetField(sensor_data, 0, "update_gyro", mxCreateLogicalScalar(false));
+            mxSetField(sensor_data, 0, "update_mag", mxCreateLogicalScalar(false));
+            mxSetField(sensor_data, 0, "update_gps", mxCreateLogicalScalar(false));
+            mxSetField(sensor_data, 0, "update_baro", mxCreateLogicalScalar(false));
+            mxSetField(sensor_data, 0, "update_zupt", mxCreateLogicalScalar(false));
+            
+            // mex_params構造体
+            const char* mp_fields[] = {"g", "mag_ref", "noise_accel", "noise_gyro", "noise_ba", "noise_bg",
+                "noise_mag", "noise_gps", "noise_baro", "noise_zupt", "alpha", "beta", "kappa", "trace_sample"};
+            mxArray* mex_params = mxCreateStructMatrix(1, 1, 14, mp_fields);
+            
+            mxArray* g_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(g_arr), s->g, 3);
+            mxSetField(mex_params, 0, "g", g_arr);
+            double mag_ref[3] = {50, 0, 0};
+            mxArray* mag_ref_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(mag_ref_arr), mag_ref, 3);
+            mxSetField(mex_params, 0, "mag_ref", mag_ref_arr);
+            
+            mxArray* na = mxCreateDoubleMatrix(3, 1, mxREAL);
+            for (int i = 0; i < 3; ++i) R_noise[i] *= 1.5;
+            copy_vec(mxGetPr(na), R_noise, 3);
+            mxArray* ng = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ng), zeros3, 3);
+            mxArray* nba = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nba), zeros3, 3);
+            mxArray* nbg = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nbg), zeros3, 3);
+            mxArray* nm = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nm), zeros3, 3);
+            mxArray* ngps = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ngps), zeros3, 3);
+            mxArray* nz = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nz), zeros3, 3);
+            
+            mxSetField(mex_params, 0, "noise_accel", na);
+            mxSetField(mex_params, 0, "noise_gyro", ng);
+            mxSetField(mex_params, 0, "noise_ba", nba);
+            mxSetField(mex_params, 0, "noise_bg", nbg);
+            mxSetField(mex_params, 0, "noise_mag", nm);
+            mxSetField(mex_params, 0, "noise_gps", ngps);
+            mxSetField(mex_params, 0, "noise_baro", mxCreateDoubleScalar(0));
+            mxSetField(mex_params, 0, "noise_zupt", nz);
+            mxSetField(mex_params, 0, "alpha", mxCreateDoubleScalar(1e-3));
+            mxSetField(mex_params, 0, "beta", mxCreateDoubleScalar(2));
+            mxSetField(mex_params, 0, "kappa", mxCreateDoubleScalar(0));
+            mxSetField(mex_params, 0, "trace_sample", mxCreateDoubleScalar(sample));
+            
+            // state構造体
+            const char* st_fields[] = {"p", "v", "q", "ba", "bg", "P"};
+            mxArray* state_s = mxCreateStructMatrix(1, 1, 6, st_fields);
+            mxArray* p_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(p_arr), out_p, 3);
+            mxArray* v_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(v_arr), out_v, 3);
+            mxArray* q_arr = mxCreateDoubleMatrix(4, 1, mxREAL); copy_vec(mxGetPr(q_arr), out_q, 4);
+            mxArray* ba_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ba_arr), out_ba, 3);
+            mxArray* bg_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(bg_arr), out_bg, 3);
+            mxArray* P_arr = mxCreateDoubleMatrix(15, 15, mxREAL); memcpy(mxGetPr(P_arr), out_P, 15*15*8);
+            mxSetField(state_s, 0, "p", p_arr);
+            mxSetField(state_s, 0, "v", v_arr);
+            mxSetField(state_s, 0, "q", q_arr);
+            mxSetField(state_s, 0, "ba", ba_arr);
+            mxSetField(state_s, 0, "bg", bg_arr);
+            mxSetField(state_s, 0, "P", P_arr);
+            
+            // mex_meukf_step_v2 呼び出し（維持）
+            mxArray* prhs_m[3] = {state_s, sensor_data, mex_params};
+            mxArray* plhs_m[3];
+            if (mexCallMATLAB(3, plhs_m, 3, prhs_m, "mex_meukf_step_v2") == 0) {
+                mxArray* new_state = plhs_m[0];
+                mxArray* dbg_out = plhs_m[1];
+                
+                // noise estimate更新（mex_sensor_filter → g_filter_lib.noise_estimator.estimate()に置き換え）
+                if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "innov") && mxGetField(dbg_out, 0, "H")) {
+                    // Convert innov to cm
+                    Vector<3, float> innov_vec;
+                    if (matToVector<3>(mxGetField(dbg_out, 0, "innov"), innov_vec)) {
+                        cm innov_cm(3, 1);
+                        for (int i = 0; i < 3; ++i) innov_cm(i, 0) = innov_vec(i, 0);
+                        
+                        // Convert H to cm
+                        int H_rows = mxGetM(mxGetField(dbg_out, 0, "H"));
+                        int H_cols = mxGetN(mxGetField(dbg_out, 0, "H"));
+                        cm H_cm(H_rows, H_cols);
+                        std::vector<float> H_tmp(static_cast<size_t>(H_rows) * static_cast<size_t>(H_cols));
+                        mex_conv::mxArrayToFloatArray(mxGetField(dbg_out, 0, "H"), H_tmp.data(), static_cast<size_t>(H_rows) * static_cast<size_t>(H_cols));
+                        for (int j = 0; j < H_cols; ++j) {
+                            for (int i = 0; i < H_rows; ++i) {
+                                H_cm(i, j) = H_tmp[static_cast<size_t>(j) * static_cast<size_t>(H_rows) + static_cast<size_t>(i)];
+                            }
+                        }
+                        
+                        // Convert P to cm
+                        cm P_cm(15, 15);
+                        std::vector<float> P_tmp(15 * 15);
+                        mex_conv::mxArrayToFloatArray(P_arr, P_tmp.data(), 15 * 15);
+                        for (int j = 0; j < 15; ++j) {
+                            for (int i = 0; i < 15; ++i) {
+                                P_cm(i, j) = P_tmp[static_cast<size_t>(j) * 15 + static_cast<size_t>(i)];
+                            }
+                        }
+                        
+                        // Call noise_estimator.estimate directly
+                        g_filter_lib.noise_estimator.estimate(sensor_type, innov_cm, H_cm, P_cm);
+                    }
+                }
+                
+                // postprocess (mex_eskf_update_postprocess を統合)
+                if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "dx")) {
+                    // Get dx (15x1)
+                    Vector<15, float> dx;
+                    if (!matToVector<15>(mxGetField(dbg_out, 0, "dx"), dx)) {
+                        // Fallback: use new_state directly
+                        copy_vec(out_p, mxGetPr(mxGetField(new_state, 0, "p")), 3);
+                        copy_vec(out_v, mxGetPr(mxGetField(new_state, 0, "v")), 3);
+                        copy_vec(out_q, mxGetPr(mxGetField(new_state, 0, "q")), 4);
+                        copy_vec(out_ba, mxGetPr(mxGetField(new_state, 0, "ba")), 3);
+                        copy_vec(out_bg, mxGetPr(mxGetField(new_state, 0, "bg")), 3);
+                        if (mxGetField(new_state, 0, "P")) {
+                            double* new_P = mxGetPr(mxGetField(new_state, 0, "P"));
+                            for (int i = 0; i < 15; ++i) {
+                                for (int j = 0; j < 15; ++j) {
+                                    out_P[i + j*15] = 0.5 * (new_P[i + j*15] + new_P[j + i*15]);
+                                }
+                            }
+                        }
+                        should_skip = false;
+                    } else {
+                        // Get innov
+                        const mxArray* innov = mxGetField(dbg_out, 0, "innov");
+                        
+                        // Get state
+                        Vector<3, float> state_p, state_v, state_ba, state_bg;
+                        Vector<4, float> state_q;
+                        Matrix<15, 15, float> state_P, new_state_P;
+                        
+                        if (!matToVector<3>(p_arr, state_p)) state_p = Vector<3, float>::Zero();
+                        if (!matToVector<3>(v_arr, state_v)) state_v = Vector<3, float>::Zero();
+                        if (!matToVector<4>(q_arr, state_q)) state_q = Vector<4, float>::Zero();
+                        if (!matToVector<3>(ba_arr, state_ba)) state_ba = Vector<3, float>::Zero();
+                        if (!matToVector<3>(bg_arr, state_bg)) state_bg = Vector<3, float>::Zero();
+                        if (!matToMatrix<15, 15>(P_arr, state_P)) state_P = Matrix<15, 15, float>::Zero();
+                        if (mxGetField(new_state, 0, "P")) {
+                            if (!matToMatrix<15, 15>(mxGetField(new_state, 0, "P"), new_state_P)) {
+                                new_state_P = state_P;
+                            }
+                        } else {
+                            new_state_P = state_P;
+                        }
+                        
+                        // Call divergence_guard.check_and_attenuate directly (mex_sensor_filter → g_filter_lib.divergence_guard.check_and_attenuate()に置き換え)
+                        cm innov_cm;
+                        if (mxGetField(dbg_out, 0, "innov")) {
+                            int innov_len = mxGetM(mxGetField(dbg_out, 0, "innov"));
+                            innov_cm.resize(innov_len, 1);
+                            std::vector<float> innov_tmp(static_cast<size_t>(innov_len));
+                            mex_conv::mxArrayToFloatArray(mxGetField(dbg_out, 0, "innov"), innov_tmp.data(), static_cast<size_t>(innov_len));
+                            for (int i = 0; i < innov_len; ++i) innov_cm(i, 0) = innov_tmp[i];
+                        }
+                        
+                        cm dx_cm(15, 1);
+                        for (int i = 0; i < 15; ++i) dx_cm(i, 0) = dx(i, 0);
+                        
+                        bool was_attenuated = false;
+                        bool should_skip_div = g_filter_lib.divergence_guard.check_and_attenuate(sensor_type, innov_cm, dx_cm, was_attenuated);
+                        
+                        // Get dx_out from dx_cm
+                        Vector<15, float> dx_out;
+                        for (int i = 0; i < 15; ++i) dx_out(i, 0) = dx_cm(i, 0);
+                        
+                        should_skip = should_skip_div;
+                        
+                        // Output: new_state (p, v, q, ba, bg, P), should_skip
+                        Vector<3, float> new_p, new_v, new_ba, new_bg;
+                        Vector<4, float> new_q;
+                        Matrix<15, 15, float> out_P_mat = new_state_P;
+                        
+                        if (should_skip) {
+                            // Return original state
+                            new_p = state_p;
+                            new_v = state_v;
+                            new_q = state_q;
+                            new_ba = state_ba;
+                            new_bg = state_bg;
+                            out_P_mat = state_P;
+                        } else if (was_attenuated) {
+                            // Apply dx_out
+                            UpdatePostprocessResult updated = update_state_from_dx(dx_out, state_p, state_v, state_q, state_ba, state_bg, new_state_P);
+                            new_p = updated.p;
+                            new_v = updated.v;
+                            new_q = updated.q;
+                            new_ba = updated.ba;
+                            new_bg = updated.bg;
+                            out_P_mat = updated.P;
+                        } else {
+                            // Use new_state directly (no attenuation)
+                            UpdatePostprocessResult updated = update_state_from_dx(dx, state_p, state_v, state_q, state_ba, state_bg, new_state_P);
+                            new_p = updated.p;
+                            new_v = updated.v;
+                            new_q = updated.q;
+                            new_ba = updated.ba;
+                            new_bg = updated.bg;
+                            out_P_mat = updated.P;
+                        }
+                        
+                        // Convert back to double arrays
+                        for (int i = 0; i < 3; ++i) {
+                            out_p[i] = static_cast<double>(new_p(i, 0));
+                            out_v[i] = static_cast<double>(new_v(i, 0));
+                            out_ba[i] = static_cast<double>(new_ba(i, 0));
+                            out_bg[i] = static_cast<double>(new_bg(i, 0));
+                        }
+                        for (int i = 0; i < 4; ++i) {
+                            out_q[i] = static_cast<double>(new_q(i, 0));
+                        }
+                        for (int i = 0; i < 15; ++i) {
+                            for (int j = 0; j < 15; ++j) {
+                                out_P[i + j*15] = static_cast<double>(out_P_mat(i, j));
+                            }
+                        }
+                    }
+                } else {
+                    copy_vec(out_p, mxGetPr(mxGetField(new_state, 0, "p")), 3);
+                    copy_vec(out_v, mxGetPr(mxGetField(new_state, 0, "v")), 3);
+                    copy_vec(out_q, mxGetPr(mxGetField(new_state, 0, "q")), 4);
+                    copy_vec(out_ba, mxGetPr(mxGetField(new_state, 0, "ba")), 3);
+                    copy_vec(out_bg, mxGetPr(mxGetField(new_state, 0, "bg")), 3);
+                    if (mxGetField(new_state, 0, "P")) {
+                        double* new_P = mxGetPr(mxGetField(new_state, 0, "P"));
+                        for (int i = 0; i < 15; ++i) {
+                            for (int j = 0; j < 15; ++j) {
+                                out_P[i + j*15] = 0.5 * (new_P[i + j*15] + new_P[j + i*15]);
+                            }
+                        }
+                    }
+                }
+                
+                for (int i = 0; i < 3; ++i) mxDestroyArray(plhs_m[i]);
+            }
+            
+            mxDestroyArray(sensor_data);
+            mxDestroyArray(mex_params);
+            mxDestroyArray(state_s);
+        }
+        
+        // 出力を状態にコピー
+        copy_vec(s->p, out_p, 3);
+        copy_vec(s->v, out_v, 3);
+        copy_vec(s->q, out_q, 4);
+        copy_vec(s->ba, out_ba, 3);
+        copy_vec(s->bg, out_bg, 3);
+        memcpy(s->P, out_P, 15*15*sizeof(double));
+        
+    } else if (strcmp(type, "mag") == 0) {
+        // Mag前処理 (sensor_preprocessor.hppを使用)
+        Vector<3, float> m_meas_f, prev_mag_f;
+        for (int i = 0; i < 3; ++i) {
+            m_meas_f(i, 0) = static_cast<float>(meas[i]);
+            prev_mag_f(i, 0) = static_cast<float>(s->prev_mag[i]);
+        }
+        
+        PreprocessResult pre_result = preprocess_mag(m_meas_f, prev_mag_f, s->buffer_tolerance);
+        
+        double m_filtered[3];
+        for (int i = 0; i < 3; ++i) {
+            m_filtered[i] = static_cast<double>(pre_result.output(i, 0));
+        }
+        
+        if (!pre_result.no_change && !is_nan_any(m_filtered, 3) && !pre_result.is_outlier) {
+            should_skip = false;
+            copy_vec(s->prev_mag, meas, 3);
+        }
+        
+        if (!should_skip) {
+            // mex_eskf_do_updateロジックを統合（mex_sensor_filter呼び出しを直接C++関数に置き換え）
+            const char* sensor_type = "mag";
+            const double* meas = m_filtered;
+            int meas_len = 3;
+            
+            // R取得（mex_sensor_filter → g_filter_lib.noise_estimator.get_R_matrix()に置き換え）
+            double R_noise[3] = {0.01, 0.01, 0.01};
+            {
+                cm R = g_filter_lib.noise_estimator.get_R_matrix(sensor_type);
+                int n = R.rows * R.cols;
+                if (n == 9) {
+                    R_noise[0] = static_cast<double>(R(0, 0));
+                    R_noise[1] = static_cast<double>(R(1, 1));
+                    R_noise[2] = static_cast<double>(R(2, 2));
+                } else if (n >= 3) {
+                    R_noise[0] = static_cast<double>(R(0, 0));
+                    R_noise[1] = static_cast<double>(R(1, 0));
+                    R_noise[2] = static_cast<double>(R(2, 0));
+                } else if (n == 1) {
+                    R_noise[0] = R_noise[1] = R_noise[2] = static_cast<double>(R(0, 0));
+                }
+            }
+            
+            // sensor_data構造体を構築
+            const char* sd_fields[] = {"accel", "gyro", "mag", "gps_pos", "alt_baro", "dt",
+                "update_accel", "update_gyro", "update_mag", "update_gps", "update_baro", "update_zupt"};
+            mxArray* sensor_data = mxCreateStructMatrix(1, 1, 12, sd_fields);
+            
+            double zeros3[3] = {0, 0, 0};
+            mxArray* accel_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(accel_arr), zeros3, 3);
+            mxArray* gyro_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(gyro_arr), zeros3, 3);
+            mxArray* mag_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(mag_arr), meas, 3);
+            mxArray* gps_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(gps_arr), zeros3, 3);
+            
+            mxSetField(sensor_data, 0, "accel", accel_arr);
+            mxSetField(sensor_data, 0, "gyro", gyro_arr);
+            mxSetField(sensor_data, 0, "mag", mag_arr);
+            mxSetField(sensor_data, 0, "gps_pos", gps_arr);
+            mxSetField(sensor_data, 0, "alt_baro", mxCreateDoubleScalar(0));
+            mxSetField(sensor_data, 0, "dt", mxCreateDoubleScalar(s->dt));
+            mxSetField(sensor_data, 0, "update_accel", mxCreateLogicalScalar(false));
+            mxSetField(sensor_data, 0, "update_gyro", mxCreateLogicalScalar(false));
+            mxSetField(sensor_data, 0, "update_mag", mxCreateLogicalScalar(true));
+            mxSetField(sensor_data, 0, "update_gps", mxCreateLogicalScalar(false));
+            mxSetField(sensor_data, 0, "update_baro", mxCreateLogicalScalar(false));
+            mxSetField(sensor_data, 0, "update_zupt", mxCreateLogicalScalar(false));
+            
+            // mex_params構造体
+            const char* mp_fields[] = {"g", "mag_ref", "noise_accel", "noise_gyro", "noise_ba", "noise_bg",
+                "noise_mag", "noise_gps", "noise_baro", "noise_zupt", "alpha", "beta", "kappa", "trace_sample"};
+            mxArray* mex_params = mxCreateStructMatrix(1, 1, 14, mp_fields);
+            
+            mxArray* g_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(g_arr), s->g, 3);
+            mxSetField(mex_params, 0, "g", g_arr);
+            double mag_ref[3] = {50, 0, 0};
+            mxArray* mag_ref_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(mag_ref_arr), mag_ref, 3);
+            mxSetField(mex_params, 0, "mag_ref", mag_ref_arr);
+            
+            mxArray* na = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(na), zeros3, 3);
+            mxArray* ng = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ng), zeros3, 3);
+            mxArray* nba = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nba), zeros3, 3);
+            mxArray* nbg = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nbg), zeros3, 3);
+            mxArray* nm = mxCreateDoubleMatrix(3, 1, mxREAL);
+            for (int i = 0; i < 3; ++i) R_noise[i] *= 1.5;
+            copy_vec(mxGetPr(nm), R_noise, 3);
+            mxArray* ngps = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ngps), zeros3, 3);
+            mxArray* nz = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nz), zeros3, 3);
+            
+            mxSetField(mex_params, 0, "noise_accel", na);
+            mxSetField(mex_params, 0, "noise_gyro", ng);
+            mxSetField(mex_params, 0, "noise_ba", nba);
+            mxSetField(mex_params, 0, "noise_bg", nbg);
+            mxSetField(mex_params, 0, "noise_mag", nm);
+            mxSetField(mex_params, 0, "noise_gps", ngps);
+            mxSetField(mex_params, 0, "noise_baro", mxCreateDoubleScalar(0));
+            mxSetField(mex_params, 0, "noise_zupt", nz);
+            mxSetField(mex_params, 0, "alpha", mxCreateDoubleScalar(1e-3));
+            mxSetField(mex_params, 0, "beta", mxCreateDoubleScalar(2));
+            mxSetField(mex_params, 0, "kappa", mxCreateDoubleScalar(0));
+            mxSetField(mex_params, 0, "trace_sample", mxCreateDoubleScalar(sample));
+            
+            // state構造体
+            const char* st_fields[] = {"p", "v", "q", "ba", "bg", "P"};
+            mxArray* state_s = mxCreateStructMatrix(1, 1, 6, st_fields);
+            mxArray* p_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(p_arr), out_p, 3);
+            mxArray* v_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(v_arr), out_v, 3);
+            mxArray* q_arr = mxCreateDoubleMatrix(4, 1, mxREAL); copy_vec(mxGetPr(q_arr), out_q, 4);
+            mxArray* ba_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ba_arr), out_ba, 3);
+            mxArray* bg_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(bg_arr), out_bg, 3);
+            mxArray* P_arr = mxCreateDoubleMatrix(15, 15, mxREAL); memcpy(mxGetPr(P_arr), out_P, 15*15*8);
+            mxSetField(state_s, 0, "p", p_arr);
+            mxSetField(state_s, 0, "v", v_arr);
+            mxSetField(state_s, 0, "q", q_arr);
+            mxSetField(state_s, 0, "ba", ba_arr);
+            mxSetField(state_s, 0, "bg", bg_arr);
+            mxSetField(state_s, 0, "P", P_arr);
+            
+            // mex_meukf_step_v2 呼び出し（維持）
+            mxArray* prhs_m[3] = {state_s, sensor_data, mex_params};
+            mxArray* plhs_m[3];
+            if (mexCallMATLAB(3, plhs_m, 3, prhs_m, "mex_meukf_step_v2") == 0) {
+                mxArray* new_state = plhs_m[0];
+                mxArray* dbg_out = plhs_m[1];
+                
+                // noise estimate更新（mex_sensor_filter → g_filter_lib.noise_estimator.estimate()に置き換え）
+                if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "innov") && mxGetField(dbg_out, 0, "H")) {
+                    // Convert innov to cm
+                    Vector<3, float> innov_vec;
+                    if (matToVector<3>(mxGetField(dbg_out, 0, "innov"), innov_vec)) {
+                        cm innov_cm(3, 1);
+                        for (int i = 0; i < 3; ++i) innov_cm(i, 0) = innov_vec(i, 0);
+                        
+                        // Convert H to cm
+                        int H_rows = mxGetM(mxGetField(dbg_out, 0, "H"));
+                        int H_cols = mxGetN(mxGetField(dbg_out, 0, "H"));
+                        cm H_cm(H_rows, H_cols);
+                        std::vector<float> H_tmp(static_cast<size_t>(H_rows) * static_cast<size_t>(H_cols));
+                        mex_conv::mxArrayToFloatArray(mxGetField(dbg_out, 0, "H"), H_tmp.data(), static_cast<size_t>(H_rows) * static_cast<size_t>(H_cols));
+                        for (int j = 0; j < H_cols; ++j) {
+                            for (int i = 0; i < H_rows; ++i) {
+                                H_cm(i, j) = H_tmp[static_cast<size_t>(j) * static_cast<size_t>(H_rows) + static_cast<size_t>(i)];
+                            }
+                        }
+                        
+                        // Convert P to cm
+                        cm P_cm(15, 15);
+                        std::vector<float> P_tmp(15 * 15);
+                        mex_conv::mxArrayToFloatArray(P_arr, P_tmp.data(), 15 * 15);
+                        for (int j = 0; j < 15; ++j) {
+                            for (int i = 0; i < 15; ++i) {
+                                P_cm(i, j) = P_tmp[static_cast<size_t>(j) * 15 + static_cast<size_t>(i)];
+                            }
+                        }
+                        
+                        // Call noise_estimator.estimate directly
+                        g_filter_lib.noise_estimator.estimate(sensor_type, innov_cm, H_cm, P_cm);
+                    }
+                }
+                
+                // postprocess (mex_eskf_update_postprocess を統合)
+                if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "dx")) {
+                    // Get dx (15x1)
+                    Vector<15, float> dx;
+                    if (!matToVector<15>(mxGetField(dbg_out, 0, "dx"), dx)) {
+                        // Fallback: use new_state directly
+                        copy_vec(out_p, mxGetPr(mxGetField(new_state, 0, "p")), 3);
+                        copy_vec(out_v, mxGetPr(mxGetField(new_state, 0, "v")), 3);
+                        copy_vec(out_q, mxGetPr(mxGetField(new_state, 0, "q")), 4);
+                        copy_vec(out_ba, mxGetPr(mxGetField(new_state, 0, "ba")), 3);
+                        copy_vec(out_bg, mxGetPr(mxGetField(new_state, 0, "bg")), 3);
+                        if (mxGetField(new_state, 0, "P")) {
+                            double* new_P = mxGetPr(mxGetField(new_state, 0, "P"));
+                            for (int i = 0; i < 15; ++i) {
+                                for (int j = 0; j < 15; ++j) {
+                                    out_P[i + j*15] = 0.5 * (new_P[i + j*15] + new_P[j + i*15]);
+                                }
+                            }
+                        }
+                        should_skip = false;
+                    } else {
+                        // Get innov
+                        const mxArray* innov = mxGetField(dbg_out, 0, "innov");
+                        
+                        // Get state
+                        Vector<3, float> state_p, state_v, state_ba, state_bg;
+                        Vector<4, float> state_q;
+                        Matrix<15, 15, float> state_P, new_state_P;
+                        
+                        if (!matToVector<3>(p_arr, state_p)) state_p = Vector<3, float>::Zero();
+                        if (!matToVector<3>(v_arr, state_v)) state_v = Vector<3, float>::Zero();
+                        if (!matToVector<4>(q_arr, state_q)) state_q = Vector<4, float>::Zero();
+                        if (!matToVector<3>(ba_arr, state_ba)) state_ba = Vector<3, float>::Zero();
+                        if (!matToVector<3>(bg_arr, state_bg)) state_bg = Vector<3, float>::Zero();
+                        if (!matToMatrix<15, 15>(P_arr, state_P)) state_P = Matrix<15, 15, float>::Zero();
+                        if (mxGetField(new_state, 0, "P")) {
+                            if (!matToMatrix<15, 15>(mxGetField(new_state, 0, "P"), new_state_P)) {
+                                new_state_P = state_P;
+                            }
+                        } else {
+                            new_state_P = state_P;
+                        }
+                        
+                        // Call divergence_guard.check_and_attenuate directly (mex_sensor_filter → g_filter_lib.divergence_guard.check_and_attenuate()に置き換え)
+                        cm innov_cm;
+                        if (mxGetField(dbg_out, 0, "innov")) {
+                            int innov_len = mxGetM(mxGetField(dbg_out, 0, "innov"));
+                            innov_cm.resize(innov_len, 1);
+                            std::vector<float> innov_tmp(static_cast<size_t>(innov_len));
+                            mex_conv::mxArrayToFloatArray(mxGetField(dbg_out, 0, "innov"), innov_tmp.data(), static_cast<size_t>(innov_len));
+                            for (int i = 0; i < innov_len; ++i) innov_cm(i, 0) = innov_tmp[i];
+                        }
+                        
+                        cm dx_cm(15, 1);
+                        for (int i = 0; i < 15; ++i) dx_cm(i, 0) = dx(i, 0);
+                        
+                        bool was_attenuated = false;
+                        bool should_skip_div = g_filter_lib.divergence_guard.check_and_attenuate(sensor_type, innov_cm, dx_cm, was_attenuated);
+                        
+                        // Get dx_out from dx_cm
+                        Vector<15, float> dx_out;
+                        for (int i = 0; i < 15; ++i) dx_out(i, 0) = dx_cm(i, 0);
+                        
+                        should_skip = should_skip_div;
+                        
+                        // Output: new_state (p, v, q, ba, bg, P), should_skip
+                        Vector<3, float> new_p, new_v, new_ba, new_bg;
+                        Vector<4, float> new_q;
+                        Matrix<15, 15, float> out_P_mat = new_state_P;
+                        
+                        if (should_skip) {
+                            // Return original state
+                            new_p = state_p;
+                            new_v = state_v;
+                            new_q = state_q;
+                            new_ba = state_ba;
+                            new_bg = state_bg;
+                            out_P_mat = state_P;
+                        } else if (was_attenuated) {
+                            // Apply dx_out
+                            UpdatePostprocessResult updated = update_state_from_dx(dx_out, state_p, state_v, state_q, state_ba, state_bg, new_state_P);
+                            new_p = updated.p;
+                            new_v = updated.v;
+                            new_q = updated.q;
+                            new_ba = updated.ba;
+                            new_bg = updated.bg;
+                            out_P_mat = updated.P;
+                        } else {
+                            // Use new_state directly (no attenuation)
+                            UpdatePostprocessResult updated = update_state_from_dx(dx, state_p, state_v, state_q, state_ba, state_bg, new_state_P);
+                            new_p = updated.p;
+                            new_v = updated.v;
+                            new_q = updated.q;
+                            new_ba = updated.ba;
+                            new_bg = updated.bg;
+                            out_P_mat = updated.P;
+                        }
+                        
+                        // Convert back to double arrays
+                        for (int i = 0; i < 3; ++i) {
+                            out_p[i] = static_cast<double>(new_p(i, 0));
+                            out_v[i] = static_cast<double>(new_v(i, 0));
+                            out_ba[i] = static_cast<double>(new_ba(i, 0));
+                            out_bg[i] = static_cast<double>(new_bg(i, 0));
+                        }
+                        for (int i = 0; i < 4; ++i) {
+                            out_q[i] = static_cast<double>(new_q(i, 0));
+                        }
+                        for (int i = 0; i < 15; ++i) {
+                            for (int j = 0; j < 15; ++j) {
+                                out_P[i + j*15] = static_cast<double>(out_P_mat(i, j));
+                            }
+                        }
+                    }
+                } else {
+                    copy_vec(out_p, mxGetPr(mxGetField(new_state, 0, "p")), 3);
+                    copy_vec(out_v, mxGetPr(mxGetField(new_state, 0, "v")), 3);
+                    copy_vec(out_q, mxGetPr(mxGetField(new_state, 0, "q")), 4);
+                    copy_vec(out_ba, mxGetPr(mxGetField(new_state, 0, "ba")), 3);
+                    copy_vec(out_bg, mxGetPr(mxGetField(new_state, 0, "bg")), 3);
+                    if (mxGetField(new_state, 0, "P")) {
+                        double* new_P = mxGetPr(mxGetField(new_state, 0, "P"));
+                        for (int i = 0; i < 15; ++i) {
+                            for (int j = 0; j < 15; ++j) {
+                                out_P[i + j*15] = 0.5 * (new_P[i + j*15] + new_P[j + i*15]);
+                            }
+                        }
+                    }
+                }
+                
+                for (int i = 0; i < 3; ++i) mxDestroyArray(plhs_m[i]);
+            }
+            
+            mxDestroyArray(sensor_data);
+            mxDestroyArray(mex_params);
+            mxDestroyArray(state_s);
+        }
+        
+        // 出力を状態にコピー
+        copy_vec(s->p, out_p, 3);
+        copy_vec(s->v, out_v, 3);
+        copy_vec(s->q, out_q, 4);
+        copy_vec(s->ba, out_ba, 3);
+        copy_vec(s->bg, out_bg, 3);
+        memcpy(s->P, out_P, 15*15*sizeof(double));
+        
+    } else if (strcmp(type, "baro") == 0) {
+        // Baro前処理 (sensor_preprocessor.hppを使用)
+        double pressure = meas[0];
+        double new_prev_baro = s->prev_baro;
+        
+        if (std::fabs(pressure - s->prev_baro) > s->buffer_tolerance) {
+            new_prev_baro = pressure;
+            
+            double alt_baro = preprocess_baro(pressure);
+            
+            if (!std::isnan(alt_baro)) {
+                should_skip = false;
+                
+                // baro_weight適用
+                double weight_factor = 1.0 / s->baro_weight;
+                out_P[2 + 2*15] *= weight_factor;  // P(3,3)
+                
+                // mex_eskf_do_updateロジックを統合（mex_sensor_filter呼び出しを直接C++関数に置き換え）
+                const char* sensor_type = "baro";
+                double meas_arr[1] = {alt_baro};
+                const double* meas_ptr = meas_arr;
+                int meas_len = 1;
+                
+                // R取得（mex_sensor_filter → g_filter_lib.noise_estimator.get_R_matrix()に置き換え）
+                double R_noise[3] = {0.01, 0.01, 0.01};
+                {
+                    cm R = g_filter_lib.noise_estimator.get_R_matrix(sensor_type);
+                    int n = R.rows * R.cols;
+                    if (n == 9) {
+                        R_noise[0] = static_cast<double>(R(0, 0));
+                        R_noise[1] = static_cast<double>(R(1, 1));
+                        R_noise[2] = static_cast<double>(R(2, 2));
+                    } else if (n >= 3) {
+                        R_noise[0] = static_cast<double>(R(0, 0));
+                        R_noise[1] = static_cast<double>(R(1, 0));
+                        R_noise[2] = static_cast<double>(R(2, 0));
+                    } else if (n == 1) {
+                        R_noise[0] = R_noise[1] = R_noise[2] = static_cast<double>(R(0, 0));
+                    }
+                }
+                
+                // sensor_data構造体を構築
+                const char* sd_fields[] = {"accel", "gyro", "mag", "gps_pos", "alt_baro", "dt",
+                    "update_accel", "update_gyro", "update_mag", "update_gps", "update_baro", "update_zupt"};
+                mxArray* sensor_data = mxCreateStructMatrix(1, 1, 12, sd_fields);
+                
+                double zeros3[3] = {0, 0, 0};
+                mxArray* accel_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(accel_arr), zeros3, 3);
+                mxArray* gyro_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(gyro_arr), zeros3, 3);
+                mxArray* mag_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(mag_arr), zeros3, 3);
+                mxArray* gps_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(gps_arr), zeros3, 3);
+                
+                mxSetField(sensor_data, 0, "accel", accel_arr);
+                mxSetField(sensor_data, 0, "gyro", gyro_arr);
+                mxSetField(sensor_data, 0, "mag", mag_arr);
+                mxSetField(sensor_data, 0, "gps_pos", gps_arr);
+                mxDestroyArray(mxGetField(sensor_data, 0, "alt_baro"));
+                mxSetField(sensor_data, 0, "alt_baro", mxCreateDoubleScalar(alt_baro));
+                mxSetField(sensor_data, 0, "dt", mxCreateDoubleScalar(s->dt));
+                mxSetField(sensor_data, 0, "update_accel", mxCreateLogicalScalar(false));
+                mxSetField(sensor_data, 0, "update_gyro", mxCreateLogicalScalar(false));
+                mxSetField(sensor_data, 0, "update_mag", mxCreateLogicalScalar(false));
+                mxSetField(sensor_data, 0, "update_gps", mxCreateLogicalScalar(false));
+                mxSetField(sensor_data, 0, "update_baro", mxCreateLogicalScalar(true));
+                mxSetField(sensor_data, 0, "update_zupt", mxCreateLogicalScalar(false));
+                
+                // mex_params構造体
+                const char* mp_fields[] = {"g", "mag_ref", "noise_accel", "noise_gyro", "noise_ba", "noise_bg",
+                    "noise_mag", "noise_gps", "noise_baro", "noise_zupt", "alpha", "beta", "kappa", "trace_sample"};
+                mxArray* mex_params = mxCreateStructMatrix(1, 1, 14, mp_fields);
+                
+                mxArray* g_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(g_arr), s->g, 3);
+                mxSetField(mex_params, 0, "g", g_arr);
+                double mag_ref[3] = {50, 0, 0};
+                mxArray* mag_ref_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(mag_ref_arr), mag_ref, 3);
+                mxSetField(mex_params, 0, "mag_ref", mag_ref_arr);
+                
+                mxArray* na = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(na), zeros3, 3);
+                mxArray* ng = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ng), zeros3, 3);
+                mxArray* nba = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nba), zeros3, 3);
+                mxArray* nbg = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nbg), zeros3, 3);
+                mxArray* nm = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nm), zeros3, 3);
+                mxArray* ngps = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ngps), zeros3, 3);
+                mxDestroyArray(mxGetField(mex_params, 0, "noise_baro"));
+                mxSetField(mex_params, 0, "noise_baro", mxCreateDoubleScalar(R_noise[0]));
+                mxArray* nz = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nz), zeros3, 3);
+                
+                mxSetField(mex_params, 0, "noise_accel", na);
+                mxSetField(mex_params, 0, "noise_gyro", ng);
+                mxSetField(mex_params, 0, "noise_ba", nba);
+                mxSetField(mex_params, 0, "noise_bg", nbg);
+                mxSetField(mex_params, 0, "noise_mag", nm);
+                mxSetField(mex_params, 0, "noise_gps", ngps);
+                mxSetField(mex_params, 0, "noise_zupt", nz);
+                mxSetField(mex_params, 0, "alpha", mxCreateDoubleScalar(1e-3));
+                mxSetField(mex_params, 0, "beta", mxCreateDoubleScalar(2));
+                mxSetField(mex_params, 0, "kappa", mxCreateDoubleScalar(0));
+                mxSetField(mex_params, 0, "trace_sample", mxCreateDoubleScalar(sample));
+                
+                // state構造体
+                const char* st_fields[] = {"p", "v", "q", "ba", "bg", "P"};
+                mxArray* state_s = mxCreateStructMatrix(1, 1, 6, st_fields);
+                mxArray* p_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(p_arr), out_p, 3);
+                mxArray* v_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(v_arr), out_v, 3);
+                mxArray* q_arr = mxCreateDoubleMatrix(4, 1, mxREAL); copy_vec(mxGetPr(q_arr), out_q, 4);
+                mxArray* ba_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ba_arr), out_ba, 3);
+                mxArray* bg_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(bg_arr), out_bg, 3);
+                mxArray* P_arr = mxCreateDoubleMatrix(15, 15, mxREAL); memcpy(mxGetPr(P_arr), out_P, 15*15*8);
+                mxSetField(state_s, 0, "p", p_arr);
+                mxSetField(state_s, 0, "v", v_arr);
+                mxSetField(state_s, 0, "q", q_arr);
+                mxSetField(state_s, 0, "ba", ba_arr);
+                mxSetField(state_s, 0, "bg", bg_arr);
+                mxSetField(state_s, 0, "P", P_arr);
+                
+                // mex_meukf_step_v2 呼び出し（維持）
+                mxArray* prhs_m[3] = {state_s, sensor_data, mex_params};
+                mxArray* plhs_m[3];
+                if (mexCallMATLAB(3, plhs_m, 3, prhs_m, "mex_meukf_step_v2") == 0) {
+                    mxArray* new_state = plhs_m[0];
+                    mxArray* dbg_out = plhs_m[1];
+                    
+                    // noise estimate更新（mex_sensor_filter → g_filter_lib.noise_estimator.estimate()に置き換え）
+                    if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "innov") && mxGetField(dbg_out, 0, "H")) {
+                        // Convert innov to cm
+                        Vector<1, float> innov_vec;
+                        if (matToVector<1>(mxGetField(dbg_out, 0, "innov"), innov_vec)) {
+                            cm innov_cm(1, 1);
+                            for (int i = 0; i < 1; ++i) innov_cm(i, 0) = innov_vec(i, 0);
+                            
+                            // Convert H to cm
+                            int H_rows = mxGetM(mxGetField(dbg_out, 0, "H"));
+                            int H_cols = mxGetN(mxGetField(dbg_out, 0, "H"));
+                            cm H_cm(H_rows, H_cols);
+                            std::vector<float> H_tmp(static_cast<size_t>(H_rows) * static_cast<size_t>(H_cols));
+                            mex_conv::mxArrayToFloatArray(mxGetField(dbg_out, 0, "H"), H_tmp.data(), static_cast<size_t>(H_rows) * static_cast<size_t>(H_cols));
+                            for (int j = 0; j < H_cols; ++j) {
+                                for (int i = 0; i < H_rows; ++i) {
+                                    H_cm(i, j) = H_tmp[static_cast<size_t>(j) * static_cast<size_t>(H_rows) + static_cast<size_t>(i)];
+                                }
+                            }
+                            
+                            // Convert P to cm
+                            cm P_cm(15, 15);
+                            std::vector<float> P_tmp(15 * 15);
+                            mex_conv::mxArrayToFloatArray(P_arr, P_tmp.data(), 15 * 15);
+                            for (int j = 0; j < 15; ++j) {
+                                for (int i = 0; i < 15; ++i) {
+                                    P_cm(i, j) = P_tmp[static_cast<size_t>(j) * 15 + static_cast<size_t>(i)];
+                                }
+                            }
+                            
+                            // Call noise_estimator.estimate directly
+                            g_filter_lib.noise_estimator.estimate(sensor_type, innov_cm, H_cm, P_cm);
+                        }
+                    }
+                    
+                    // postprocess (mex_eskf_update_postprocess を統合)
+                    if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "dx")) {
+                        // Get dx (15x1)
+                        Vector<15, float> dx;
+                        if (!matToVector(mxGetField(dbg_out, 0, "dx"), dx)) {
+                            // Fallback: use new_state directly
+                            copy_vec(out_p, mxGetPr(mxGetField(new_state, 0, "p")), 3);
+                            copy_vec(out_v, mxGetPr(mxGetField(new_state, 0, "v")), 3);
+                            copy_vec(out_q, mxGetPr(mxGetField(new_state, 0, "q")), 4);
+                            copy_vec(out_ba, mxGetPr(mxGetField(new_state, 0, "ba")), 3);
+                            copy_vec(out_bg, mxGetPr(mxGetField(new_state, 0, "bg")), 3);
+                            if (mxGetField(new_state, 0, "P")) {
+                                double* new_P = mxGetPr(mxGetField(new_state, 0, "P"));
+                                for (int i = 0; i < 15; ++i) {
+                                    for (int j = 0; j < 15; ++j) {
+                                        out_P[i + j*15] = 0.5 * (new_P[i + j*15] + new_P[j + i*15]);
+                                    }
+                                }
+                            }
+                            should_skip = false;
+                        } else {
+                            // Get innov
+                            const mxArray* innov = mxGetField(dbg_out, 0, "innov");
+                            
+                            // Get state
+                            Vector<3, float> state_p, state_v, state_ba, state_bg;
+                            Vector<4, float> state_q;
+                            Matrix<15, 15, float> state_P, new_state_P;
+                            
+                            if (!matToVector(p_arr, state_p)) state_p = Vector<3, float>::Zero();
+                            if (!matToVector(v_arr, state_v)) state_v = Vector<3, float>::Zero();
+                            if (!matToVector(q_arr, state_q)) state_q = Vector<4, float>::Zero();
+                            if (!matToVector(ba_arr, state_ba)) state_ba = Vector<3, float>::Zero();
+                            if (!matToVector(bg_arr, state_bg)) state_bg = Vector<3, float>::Zero();
+                            if (!matToMatrix(P_arr, state_P)) state_P = Matrix<15, 15, float>::Zero();
+                            if (mxGetField(new_state, 0, "P")) {
+                                if (!matToMatrix<15, 15>(mxGetField(new_state, 0, "P"), new_state_P)) {
+                                    new_state_P = state_P;
+                                }
+                            } else {
+                                new_state_P = state_P;
+                            }
+                            
+                            // Call divergence_guard.check_and_attenuate directly (mex_sensor_filter → g_filter_lib.divergence_guard.check_and_attenuate()に置き換え)
+                            cm innov_cm;
+                            if (mxGetField(dbg_out, 0, "innov")) {
+                                int innov_len = mxGetM(mxGetField(dbg_out, 0, "innov"));
+                                innov_cm.resize(innov_len, 1);
+                                std::vector<float> innov_tmp(static_cast<size_t>(innov_len));
+                                mex_conv::mxArrayToFloatArray(mxGetField(dbg_out, 0, "innov"), innov_tmp.data(), static_cast<size_t>(innov_len));
+                                for (int i = 0; i < innov_len; ++i) innov_cm(i, 0) = innov_tmp[i];
+                            }
+                            
+                            cm dx_cm(15, 1);
+                            for (int i = 0; i < 15; ++i) dx_cm(i, 0) = dx(i, 0);
+                            
+                            bool was_attenuated = false;
+                            bool should_skip_div = g_filter_lib.divergence_guard.check_and_attenuate(sensor_type, innov_cm, dx_cm, was_attenuated);
+                            
+                            // Get dx_out from dx_cm
+                            Vector<15, float> dx_out;
+                            for (int i = 0; i < 15; ++i) dx_out(i, 0) = dx_cm(i, 0);
+                            
+                            should_skip = should_skip_div;
+                            
+                            // Output: new_state (p, v, q, ba, bg, P), should_skip
+                            Vector<3, float> new_p, new_v, new_ba, new_bg;
+                            Vector<4, float> new_q;
+                            Matrix<15, 15, float> out_P_mat = new_state_P;
+                            
+                            if (should_skip) {
+                                // Return original state
+                                new_p = state_p;
+                                new_v = state_v;
+                                new_q = state_q;
+                                new_ba = state_ba;
+                                new_bg = state_bg;
+                                out_P_mat = state_P;
+                            } else if (was_attenuated) {
+                                // Apply dx_out
+                                UpdatePostprocessResult updated = update_state_from_dx(dx_out, state_p, state_v, state_q, state_ba, state_bg, new_state_P);
+                                new_p = updated.p;
+                                new_v = updated.v;
+                                new_q = updated.q;
+                                new_ba = updated.ba;
+                                new_bg = updated.bg;
+                                out_P_mat = updated.P;
+                            } else {
+                                // Use new_state directly (no attenuation)
+                                UpdatePostprocessResult updated = update_state_from_dx(dx, state_p, state_v, state_q, state_ba, state_bg, new_state_P);
+                                new_p = updated.p;
+                                new_v = updated.v;
+                                new_q = updated.q;
+                                new_ba = updated.ba;
+                                new_bg = updated.bg;
+                                out_P_mat = updated.P;
+                            }
+                            
+                            // Convert back to double arrays
+                            for (int i = 0; i < 3; ++i) {
+                                out_p[i] = static_cast<double>(new_p(i, 0));
+                                out_v[i] = static_cast<double>(new_v(i, 0));
+                                out_ba[i] = static_cast<double>(new_ba(i, 0));
+                                out_bg[i] = static_cast<double>(new_bg(i, 0));
+                            }
+                            for (int i = 0; i < 4; ++i) {
+                                out_q[i] = static_cast<double>(new_q(i, 0));
+                            }
+                            for (int i = 0; i < 15; ++i) {
+                                for (int j = 0; j < 15; ++j) {
+                                    out_P[i + j*15] = static_cast<double>(out_P_mat(i, j));
+                                }
+                            }
+                        }
+                    } else {
+                        copy_vec(out_p, mxGetPr(mxGetField(new_state, 0, "p")), 3);
+                        copy_vec(out_v, mxGetPr(mxGetField(new_state, 0, "v")), 3);
+                        copy_vec(out_q, mxGetPr(mxGetField(new_state, 0, "q")), 4);
+                        copy_vec(out_ba, mxGetPr(mxGetField(new_state, 0, "ba")), 3);
+                        copy_vec(out_bg, mxGetPr(mxGetField(new_state, 0, "bg")), 3);
+                        if (mxGetField(new_state, 0, "P")) {
+                            double* new_P = mxGetPr(mxGetField(new_state, 0, "P"));
+                            for (int i = 0; i < 15; ++i) {
+                                for (int j = 0; j < 15; ++j) {
+                                    out_P[i + j*15] = 0.5 * (new_P[i + j*15] + new_P[j + i*15]);
+                                }
+                            }
+                        }
+                    }
+                    
+                    for (int i = 0; i < 3; ++i) mxDestroyArray(plhs_m[i]);
+                }
+                
+                mxDestroyArray(sensor_data);
+                mxDestroyArray(mex_params);
+                mxDestroyArray(state_s);
+                
+                // baro_weight復元
+                out_P[2 + 2*15] /= weight_factor;
+            }
+        }
+        
+        // 出力を状態にコピー
+        copy_vec(s->p, out_p, 3);
+        copy_vec(s->v, out_v, 3);
+        copy_vec(s->q, out_q, 4);
+        copy_vec(s->ba, out_ba, 3);
+        copy_vec(s->bg, out_bg, 3);
+        memcpy(s->P, out_P, 15*15*sizeof(double));
+        s->prev_baro = new_prev_baro;
     }
-    
-    mxDestroyArray(prhs[0]);
-    mxDestroyArray(prhs[1]);
-    mxDestroyArray(state);
-    mxDestroyArray(prhs[3]);
 }
 
-// Call GPS sensor update (special case with multiple meas)
+// Call GPS sensor update (special case with multiple meas) - mex_eskf_sensor_updates_full を統合
 static void call_gps_update(ESKFState* s, double lat, double lon, double alt, double sample) {
-    const char* fields[] = {"p","v","q","ba","bg","P","g","dt","gps_origin"};
-    mxArray* state = mxCreateStructMatrix(1,1,9,fields);
+    // 出力バッファ
+    double out_p[3], out_v[3], out_q[4], out_ba[3], out_bg[3], out_P[15*15];
+    copy_vec(out_p, s->p, 3);
+    copy_vec(out_v, s->v, 3);
+    copy_vec(out_q, s->q, 4);
+    copy_vec(out_ba, s->ba, 3);
+    copy_vec(out_bg, s->bg, 3);
+    memcpy(out_P, s->P, 15*15*sizeof(double));
     
-    mxArray* f_p = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_p), s->p, 3);
-    mxSetField(state, 0, "p", f_p);
-    mxArray* f_v = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_v), s->v, 3);
-    mxSetField(state, 0, "v", f_v);
-    mxArray* f_q = mxCreateDoubleMatrix(4,1,mxREAL); copy_vec(mxGetPr(f_q), s->q, 4);
-    mxSetField(state, 0, "q", f_q);
-    mxArray* f_ba = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_ba), s->ba, 3);
-    mxSetField(state, 0, "ba", f_ba);
-    mxArray* f_bg = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_bg), s->bg, 3);
-    mxSetField(state, 0, "bg", f_bg);
-    mxArray* f_P = mxCreateDoubleMatrix(15,15,mxREAL); memcpy(mxGetPr(f_P), s->P, 15*15*8);
-    mxSetField(state, 0, "P", f_P);
-    mxArray* f_g = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_g), s->g, 3);
-    mxSetField(state, 0, "g", f_g);
-    mxSetField(state, 0, "dt", mxCreateDoubleScalar(s->dt));
-    mxArray* f_go = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(f_go), s->gps_origin, 3);
-    mxSetField(state, 0, "gps_origin", f_go);
+    bool should_skip = true;
     
-    mxArray* prhs[6];
-    mxArray* plhs[9];
-    
-    prhs[0] = mxCreateString("gps");
-    prhs[1] = mxCreateDoubleScalar(lat);
-    prhs[2] = mxCreateDoubleScalar(lon);
-    prhs[3] = mxCreateDoubleScalar(alt);
-    prhs[4] = state;
-    prhs[5] = mxIsNaN(sample) ? mxCreateDoubleMatrix(0,0,mxREAL) : mxCreateDoubleScalar(sample);
-    
-    if (mexCallMATLAB(9, plhs, 6, prhs, "mex_eskf_sensor_updates_full") == 0) {
-        copy_vec(s->p, mxGetPr(plhs[0]), 3);
-        copy_vec(s->v, mxGetPr(plhs[1]), 3);
-        copy_vec(s->q, mxGetPr(plhs[2]), 4);
-        copy_vec(s->ba, mxGetPr(plhs[3]), 3);
-        copy_vec(s->bg, mxGetPr(plhs[4]), 5);
-        memcpy(s->P, mxGetPr(plhs[5]), 15*15*8);
-        s->prev_gps_lat = mxGetScalar(plhs[6]);
-        s->prev_gps_lon = mxGetScalar(plhs[7]);
-        s->prev_gps_alt = mxGetScalar(plhs[8]);
-        for (int i=0; i<9; i++) mxDestroyArray(plhs[i]);
+    // GPS前処理 (sensor_preprocessor.hppを使用)
+    Vector<3, float> gps_origin_f;
+    for (int i = 0; i < 3; ++i) {
+        gps_origin_f(i, 0) = static_cast<float>(s->gps_origin[i]);
     }
     
-    for (int i=0; i<6; i++) mxDestroyArray(prhs[i]);
+    PreprocessResult pre_result = preprocess_gps(lat, lon, alt, gps_origin_f, s->buffer_tolerance);
+    
+    double z_gps[3];
+    for (int i = 0; i < 3; ++i) {
+        z_gps[i] = static_cast<double>(pre_result.output(i, 0));
+    }
+    
+    if (!pre_result.no_change && !pre_result.is_outlier) {
+        should_skip = false;
+    }
+    
+    if (!should_skip) {
+        // mex_eskf_do_updateロジックを統合（mex_sensor_filter呼び出しを直接C++関数に置き換え）
+        const char* sensor_type = "gps";
+        const double* meas = z_gps;
+        int meas_len = 3;
+        
+        // R取得（mex_sensor_filter → g_filter_lib.noise_estimator.get_R_matrix()に置き換え）
+        double R_noise[3] = {0.01, 0.01, 0.01};
+        {
+            cm R = g_filter_lib.noise_estimator.get_R_matrix(sensor_type);
+            int n = R.rows * R.cols;
+            if (n == 9) {
+                R_noise[0] = static_cast<double>(R(0, 0));
+                R_noise[1] = static_cast<double>(R(1, 1));
+                R_noise[2] = static_cast<double>(R(2, 2));
+            } else if (n >= 3) {
+                R_noise[0] = static_cast<double>(R(0, 0));
+                R_noise[1] = static_cast<double>(R(1, 0));
+                R_noise[2] = static_cast<double>(R(2, 0));
+            } else if (n == 1) {
+                R_noise[0] = R_noise[1] = R_noise[2] = static_cast<double>(R(0, 0));
+            }
+        }
+        
+        // sensor_data構造体を構築
+        const char* sd_fields[] = {"accel", "gyro", "mag", "gps_pos", "alt_baro", "dt",
+            "update_accel", "update_gyro", "update_mag", "update_gps", "update_baro", "update_zupt"};
+        mxArray* sensor_data = mxCreateStructMatrix(1, 1, 12, sd_fields);
+        
+        double zeros3[3] = {0, 0, 0};
+        mxArray* accel_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(accel_arr), zeros3, 3);
+        mxArray* gyro_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(gyro_arr), zeros3, 3);
+        mxArray* mag_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(mag_arr), zeros3, 3);
+        mxArray* gps_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(gps_arr), meas, 3);
+        
+        mxSetField(sensor_data, 0, "accel", accel_arr);
+        mxSetField(sensor_data, 0, "gyro", gyro_arr);
+        mxSetField(sensor_data, 0, "mag", mag_arr);
+        mxSetField(sensor_data, 0, "gps_pos", gps_arr);
+        mxSetField(sensor_data, 0, "alt_baro", mxCreateDoubleScalar(0));
+        mxSetField(sensor_data, 0, "dt", mxCreateDoubleScalar(s->dt));
+        mxSetField(sensor_data, 0, "update_accel", mxCreateLogicalScalar(false));
+        mxSetField(sensor_data, 0, "update_gyro", mxCreateLogicalScalar(false));
+        mxSetField(sensor_data, 0, "update_mag", mxCreateLogicalScalar(false));
+        mxSetField(sensor_data, 0, "update_gps", mxCreateLogicalScalar(true));
+        mxSetField(sensor_data, 0, "update_baro", mxCreateLogicalScalar(false));
+        mxSetField(sensor_data, 0, "update_zupt", mxCreateLogicalScalar(false));
+        
+        // mex_params構造体
+        const char* mp_fields[] = {"g", "mag_ref", "noise_accel", "noise_gyro", "noise_ba", "noise_bg",
+            "noise_mag", "noise_gps", "noise_baro", "noise_zupt", "alpha", "beta", "kappa", "trace_sample"};
+        mxArray* mex_params = mxCreateStructMatrix(1, 1, 14, mp_fields);
+        
+        mxArray* g_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(g_arr), s->g, 3);
+        mxSetField(mex_params, 0, "g", g_arr);
+        double mag_ref[3] = {50, 0, 0};
+        mxArray* mag_ref_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(mag_ref_arr), mag_ref, 3);
+        mxSetField(mex_params, 0, "mag_ref", mag_ref_arr);
+        
+        mxArray* na = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(na), zeros3, 3);
+        mxArray* ng = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ng), zeros3, 3);
+        mxArray* nba = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nba), zeros3, 3);
+        mxArray* nbg = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nbg), zeros3, 3);
+        mxArray* nm = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nm), zeros3, 3);
+        mxArray* ngps = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ngps), R_noise, 3);
+        mxArray* nz = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nz), zeros3, 3);
+        
+        mxSetField(mex_params, 0, "noise_accel", na);
+        mxSetField(mex_params, 0, "noise_gyro", ng);
+        mxSetField(mex_params, 0, "noise_ba", nba);
+        mxSetField(mex_params, 0, "noise_bg", nbg);
+        mxSetField(mex_params, 0, "noise_mag", nm);
+        mxSetField(mex_params, 0, "noise_gps", ngps);
+        mxSetField(mex_params, 0, "noise_baro", mxCreateDoubleScalar(0));
+        mxSetField(mex_params, 0, "noise_zupt", nz);
+        mxSetField(mex_params, 0, "alpha", mxCreateDoubleScalar(1e-3));
+        mxSetField(mex_params, 0, "beta", mxCreateDoubleScalar(2));
+        mxSetField(mex_params, 0, "kappa", mxCreateDoubleScalar(0));
+        mxSetField(mex_params, 0, "trace_sample", mxCreateDoubleScalar(sample));
+        
+        // state構造体
+        const char* st_fields[] = {"p", "v", "q", "ba", "bg", "P"};
+        mxArray* state_s = mxCreateStructMatrix(1, 1, 6, st_fields);
+        mxArray* p_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(p_arr), out_p, 3);
+        mxArray* v_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(v_arr), out_v, 3);
+        mxArray* q_arr = mxCreateDoubleMatrix(4, 1, mxREAL); copy_vec(mxGetPr(q_arr), out_q, 4);
+        mxArray* ba_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ba_arr), out_ba, 3);
+        mxArray* bg_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(bg_arr), out_bg, 3);
+        mxArray* P_arr = mxCreateDoubleMatrix(15, 15, mxREAL); memcpy(mxGetPr(P_arr), out_P, 15*15*8);
+        mxSetField(state_s, 0, "p", p_arr);
+        mxSetField(state_s, 0, "v", v_arr);
+        mxSetField(state_s, 0, "q", q_arr);
+        mxSetField(state_s, 0, "ba", ba_arr);
+        mxSetField(state_s, 0, "bg", bg_arr);
+        mxSetField(state_s, 0, "P", P_arr);
+        
+        // mex_meukf_step_v2 呼び出し（維持）
+        mxArray* prhs_m[3] = {state_s, sensor_data, mex_params};
+        mxArray* plhs_m[3];
+        if (mexCallMATLAB(3, plhs_m, 3, prhs_m, "mex_meukf_step_v2") == 0) {
+            mxArray* new_state = plhs_m[0];
+            mxArray* dbg_out = plhs_m[1];
+            
+            // noise estimate更新（mex_sensor_filter → g_filter_lib.noise_estimator.estimate()に置き換え）
+            if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "innov") && mxGetField(dbg_out, 0, "H")) {
+                // Convert innov to cm
+                Vector<3, float> innov_vec;
+                if (matToVector(mxGetField(dbg_out, 0, "innov"), innov_vec)) {
+                    cm innov_cm(3, 1);
+                    for (int i = 0; i < 3; ++i) innov_cm(i, 0) = innov_vec(i, 0);
+                    
+                    // Convert H to cm
+                    int H_rows = mxGetM(mxGetField(dbg_out, 0, "H"));
+                    int H_cols = mxGetN(mxGetField(dbg_out, 0, "H"));
+                    cm H_cm(H_rows, H_cols);
+                    std::vector<float> H_tmp(static_cast<size_t>(H_rows) * static_cast<size_t>(H_cols));
+                    mex_conv::mxArrayToFloatArray(mxGetField(dbg_out, 0, "H"), H_tmp.data(), static_cast<size_t>(H_rows) * static_cast<size_t>(H_cols));
+                    for (int j = 0; j < H_cols; ++j) {
+                        for (int i = 0; i < H_rows; ++i) {
+                            H_cm(i, j) = H_tmp[static_cast<size_t>(j) * static_cast<size_t>(H_rows) + static_cast<size_t>(i)];
+                        }
+                    }
+                    
+                    // Convert P to cm
+                    cm P_cm(15, 15);
+                    std::vector<float> P_tmp(15 * 15);
+                    mex_conv::mxArrayToFloatArray(P_arr, P_tmp.data(), 15 * 15);
+                    for (int j = 0; j < 15; ++j) {
+                        for (int i = 0; i < 15; ++i) {
+                            P_cm(i, j) = P_tmp[static_cast<size_t>(j) * 15 + static_cast<size_t>(i)];
+                        }
+                    }
+                    
+                    // Call noise_estimator.estimate directly
+                    g_filter_lib.noise_estimator.estimate(sensor_type, innov_cm, H_cm, P_cm);
+                }
+            }
+            
+            // postprocess (mex_eskf_update_postprocess を統合)
+            if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "dx")) {
+                // Get dx (15x1)
+                Vector<15, float> dx;
+                if (!matToVector(mxGetField(dbg_out, 0, "dx"), dx)) {
+                    // Fallback: use new_state directly
+                    copy_vec(out_p, mxGetPr(mxGetField(new_state, 0, "p")), 3);
+                    copy_vec(out_v, mxGetPr(mxGetField(new_state, 0, "v")), 3);
+                    copy_vec(out_q, mxGetPr(mxGetField(new_state, 0, "q")), 4);
+                    copy_vec(out_ba, mxGetPr(mxGetField(new_state, 0, "ba")), 3);
+                    copy_vec(out_bg, mxGetPr(mxGetField(new_state, 0, "bg")), 3);
+                    if (mxGetField(new_state, 0, "P")) {
+                        double* new_P = mxGetPr(mxGetField(new_state, 0, "P"));
+                        for (int i = 0; i < 15; ++i) {
+                            for (int j = 0; j < 15; ++j) {
+                                out_P[i + j*15] = 0.5 * (new_P[i + j*15] + new_P[j + i*15]);
+                            }
+                        }
+                    }
+                    should_skip = false;
+                } else {
+                    // Get innov
+                    const mxArray* innov = mxGetField(dbg_out, 0, "innov");
+                    
+                    // Get state
+                    Vector<3, float> state_p, state_v, state_ba, state_bg;
+                    Vector<4, float> state_q;
+                    Matrix<15, 15, float> state_P, new_state_P;
+                    
+                    if (!matToVector(p_arr, state_p)) state_p = Vector<3, float>::Zero();
+                    if (!matToVector(v_arr, state_v)) state_v = Vector<3, float>::Zero();
+                    if (!matToVector(q_arr, state_q)) state_q = Vector<4, float>::Zero();
+                    if (!matToVector(ba_arr, state_ba)) state_ba = Vector<3, float>::Zero();
+                    if (!matToVector(bg_arr, state_bg)) state_bg = Vector<3, float>::Zero();
+                    if (!matToMatrix(P_arr, state_P)) state_P = Matrix<15, 15, float>::Zero();
+                    if (mxGetField(new_state, 0, "P")) {
+                        if (!matToMatrix(mxGetField(new_state, 0, "P"), new_state_P)) {
+                            new_state_P = state_P;
+                        }
+                    } else {
+                        new_state_P = state_P;
+                    }
+                    
+                    // Call divergence_guard.check_and_attenuate directly (mex_sensor_filter → g_filter_lib.divergence_guard.check_and_attenuate()に置き換え)
+                    cm innov_cm;
+                    if (mxGetField(dbg_out, 0, "innov")) {
+                        int innov_len = mxGetM(mxGetField(dbg_out, 0, "innov"));
+                        innov_cm.resize(innov_len, 1);
+                        std::vector<float> innov_tmp(static_cast<size_t>(innov_len));
+                        mex_conv::mxArrayToFloatArray(mxGetField(dbg_out, 0, "innov"), innov_tmp.data(), static_cast<size_t>(innov_len));
+                        for (int i = 0; i < innov_len; ++i) innov_cm(i, 0) = innov_tmp[i];
+                    }
+                    
+                    cm dx_cm(15, 1);
+                    for (int i = 0; i < 15; ++i) dx_cm(i, 0) = dx(i, 0);
+                    
+                    bool was_attenuated = false;
+                    bool should_skip_div = g_filter_lib.divergence_guard.check_and_attenuate(sensor_type, innov_cm, dx_cm, was_attenuated);
+                    
+                    // Get dx_out from dx_cm
+                    Vector<15, float> dx_out;
+                    for (int i = 0; i < 15; ++i) dx_out(i, 0) = dx_cm(i, 0);
+                    
+                    should_skip = should_skip_div;
+                    
+                    // Output: new_state (p, v, q, ba, bg, P), should_skip
+                    Vector<3, float> new_p, new_v, new_ba, new_bg;
+                    Vector<4, float> new_q;
+                    Matrix<15, 15, float> out_P_mat = new_state_P;
+                    
+                    if (should_skip) {
+                        // Return original state
+                        new_p = state_p;
+                        new_v = state_v;
+                        new_q = state_q;
+                        new_ba = state_ba;
+                        new_bg = state_bg;
+                        out_P_mat = state_P;
+                    } else if (was_attenuated) {
+                        // Apply dx_out
+                        UpdatePostprocessResult updated = update_state_from_dx(dx_out, state_p, state_v, state_q, state_ba, state_bg, new_state_P);
+                        new_p = updated.p;
+                        new_v = updated.v;
+                        new_q = updated.q;
+                        new_ba = updated.ba;
+                        new_bg = updated.bg;
+                        out_P_mat = updated.P;
+                    } else {
+                        // Use new_state directly (no attenuation)
+                        UpdatePostprocessResult updated = update_state_from_dx(dx, state_p, state_v, state_q, state_ba, state_bg, new_state_P);
+                        new_p = updated.p;
+                        new_v = updated.v;
+                        new_q = updated.q;
+                        new_ba = updated.ba;
+                        new_bg = updated.bg;
+                        out_P_mat = updated.P;
+                    }
+                    
+                    // Convert back to double arrays
+                    for (int i = 0; i < 3; ++i) {
+                        out_p[i] = static_cast<double>(new_p(i, 0));
+                        out_v[i] = static_cast<double>(new_v(i, 0));
+                        out_ba[i] = static_cast<double>(new_ba(i, 0));
+                        out_bg[i] = static_cast<double>(new_bg(i, 0));
+                    }
+                    for (int i = 0; i < 4; ++i) {
+                        out_q[i] = static_cast<double>(new_q(i, 0));
+                    }
+                    for (int i = 0; i < 15; ++i) {
+                        for (int j = 0; j < 15; ++j) {
+                            out_P[i + j*15] = static_cast<double>(out_P_mat(i, j));
+                        }
+                    }
+                }
+            } else {
+                copy_vec(out_p, mxGetPr(mxGetField(new_state, 0, "p")), 3);
+                copy_vec(out_v, mxGetPr(mxGetField(new_state, 0, "v")), 3);
+                copy_vec(out_q, mxGetPr(mxGetField(new_state, 0, "q")), 4);
+                copy_vec(out_ba, mxGetPr(mxGetField(new_state, 0, "ba")), 3);
+                copy_vec(out_bg, mxGetPr(mxGetField(new_state, 0, "bg")), 3);
+                if (mxGetField(new_state, 0, "P")) {
+                    double* new_P = mxGetPr(mxGetField(new_state, 0, "P"));
+                    for (int i = 0; i < 15; ++i) {
+                        for (int j = 0; j < 15; ++j) {
+                            out_P[i + j*15] = 0.5 * (new_P[i + j*15] + new_P[j + i*15]);
+                        }
+                    }
+                }
+            }
+            
+            for (int i = 0; i < 3; ++i) mxDestroyArray(plhs_m[i]);
+        }
+        
+        mxDestroyArray(sensor_data);
+        mxDestroyArray(mex_params);
+        mxDestroyArray(state_s);
+    }
+    
+    // 出力を状態にコピー
+    copy_vec(s->p, out_p, 3);
+    copy_vec(s->v, out_v, 3);
+    copy_vec(s->q, out_q, 4);
+    copy_vec(s->ba, out_ba, 3);
+    copy_vec(s->bg, out_bg, 3);
+    memcpy(s->P, out_P, 15*15*sizeof(double));
+    s->prev_gps_lat = lat;
+    s->prev_gps_lon = lon;
+    s->prev_gps_alt = alt;
 }
 
-// Reset check (実装はSrc/Common/filter_management.cppに移動)
+// Reset check (moved to Src/ESKF/eskf_runner.cpp)
 static void check_and_reset(ESKFState* s, int k) {
-    // Check for divergence (implementation moved to Src/Common/filter_management.cpp)
-    // Convert P matrix to Matrix type
-    Matrix<15, 15, float> P_float;
-    for (int i = 0; i < 15; ++i) {
-        for (int j = 0; j < 15; ++j) {
-            P_float(i, j) = static_cast<float>(s->P[i + j*15]);
-        }
-    }
-    
-    Vector<3, float> p_float, v_float, ba_float, bg_float;
-    Vector<4, float> q_float;
-    for (int i = 0; i < 3; ++i) {
-        p_float(i, 0) = static_cast<float>(s->p[i]);
-        v_float(i, 0) = static_cast<float>(s->v[i]);
-        ba_float(i, 0) = static_cast<float>(s->ba[i]);
-        bg_float(i, 0) = static_cast<float>(s->bg[i]);
-    }
-    for (int i = 0; i < 4; ++i) {
-        q_float(i, 0) = static_cast<float>(s->q[i]);
-    }
-    
-    bool need_reset = check_state_divergence(p_float, v_float, q_float, ba_float, bg_float, P_float);
-    
-    if (need_reset) {
-        s->last_reset_step = k;
-        
-        // Reset state using filter_management directly (mex_filter_management を統合)
-        using namespace common::filter;
-        Vector<3, float> v_float, ba_float, bg_float;
-        Vector<4, float> q_float;
-        Matrix<15, 15, float> P_float;
-        
-        // Reset P matrix using setIdentityScaled (reset_scale = 0.01)
-        float reset_scale = 0.01f;
-        setIdentityScaled(P_float, reset_scale);
-        
-        // Convert current state to float type
-        for (int i = 0; i < 3; ++i) {
-            v_float(i, 0) = static_cast<float>(s->v[i]);
-            ba_float(i, 0) = static_cast<float>(s->ba[i]);
-            bg_float(i, 0) = static_cast<float>(s->bg[i]);
-        }
-        for (int i = 0; i < 4; ++i) {
-            q_float(i, 0) = static_cast<float>(s->q[i]);
-        }
-        for (int i = 0; i < 15; ++i) {
-            for (int j = 0; j < 15; ++j) {
-                P_float(i, j) = static_cast<float>(s->P[i + j*15]);
-            }
-        }
-        
-        // Reset processing
-        reset_state_on_divergence(v_float, ba_float, bg_float, q_float, P_float);
-        
-        // Convert results back to double type
-        for (int i = 0; i < 3; ++i) {
-            s->v[i] = static_cast<double>(v_float(i, 0));
-            s->ba[i] = static_cast<double>(ba_float(i, 0));
-            s->bg[i] = static_cast<double>(bg_float(i, 0));
-        }
-        for (int i = 0; i < 4; ++i) {
-            s->q[i] = static_cast<double>(q_float(i, 0));
-        }
-        for (int i = 0; i < 15; ++i) {
-            for (int j = 0; j < 15; ++j) {
-                s->P[i + j*15] = static_cast<double>(P_float(i, j));
-            }
-        }
-    }
+    ESKFRunner::check_and_reset(s, k);
 }
 
-// ZUPT check and update (implementation moved to Src/Common/filter_management.cpp)
+// ZUPT check and update (moved to Src/ESKF/eskf_runner.cpp)
 static void zupt_check_and_update(ESKFState* s, const double* a_meas, const double* w_meas) {
-    // ZUPT check (implementation moved to Src/Common/filter_management.cpp)
-    Vector<3, float> a_float, w_float;
-    for (int i = 0; i < 3; ++i) {
-        a_float(i, 0) = static_cast<float>(a_meas[i]);
-        w_float(i, 0) = static_cast<float>(w_meas[i]);
-    }
-    
-    bool stationary = check_zupt_condition(a_float, w_float, 
-                                           static_cast<float>(s->zupt_threshold_accel),
-                                           static_cast<float>(s->zupt_threshold_gyro));
-    
-    if (stationary) {
-        s->zupt_counter++;
-    } else {
-        s->zupt_counter = 0;
-    }
-    
-    s->is_stationary = (s->zupt_counter >= s->zupt_min_duration);
-    
-    if (s->is_stationary) {
-        // ZUPT update using ESKFCore directly (mex_eskf_zupt を統合)
-        using namespace eskf;
-        Vector<3, float> v_in, v_out;
-        Matrix<15, 15, float> P_in, P_out;
-        
-        // Convert double to float
-        for (int i = 0; i < 3; ++i) {
-            v_in(i, 0) = static_cast<float>(s->v[i]);
-        }
-        for (int i = 0; i < 15; ++i) {
-            for (int j = 0; j < 15; ++j) {
-                P_in(i, j) = static_cast<float>(s->P[i + j*15]);
-            }
-        }
-        
-        // Call ESKFCore::update_zupt
-        ESKFCore::update_zupt(v_in, P_in, v_out, P_out);
-        
-        // Convert back to double
-        for (int i = 0; i < 3; ++i) {
-            s->v[i] = static_cast<double>(v_out(i, 0));
-        }
-        for (int i = 0; i < 15; ++i) {
-            for (int j = 0; j < 15; ++j) {
-                s->P[i + j*15] = static_cast<double>(P_out(i, j));
-            }
-        }
-    }
+    ESKFRunner::zupt_check_and_update(s, a_meas, w_meas);
 }
 
-// Initialize using mex_eskf_constructor
+// Initialize (mex_eskf_constructor を統合、初期化ロジックはESKFRunner::initializeに移動)
 static uint64_t do_init(const mxArray* obs, double static_time, double dt) {
     ESKFState* s = new ESKFState();
-    memset(s, 0, sizeof(ESKFState));
-    s->valid = true;
-    s->dt = dt;
     
-    // Call mex_eskf_constructor
-    mxArray* prhs[4];
-    mxArray* plhs[1];
+    // 静止サンプル数の計算
+    int N_static = static_cast<int>(floor(static_time / dt));
     
-    prhs[0] = mxCreateString("init");
-    prhs[1] = const_cast<mxArray*>(obs);
-    prhs[2] = mxCreateDoubleScalar(static_time);
-    prhs[3] = mxCreateDoubleScalar(dt);
+    // MATLABデータの読み込み
+    const mxArray* ax_arr = get_field_any(obs, "ax", "accel_x");
+    const mxArray* ay_arr = get_field_any(obs, "ay", "accel_y");
+    const mxArray* az_arr = get_field_any(obs, "az", "accel_z");
+    const mxArray* wx_arr = get_field_any(obs, "wx", "gyro_x");
+    const mxArray* wy_arr = get_field_any(obs, "wy", "gyro_y");
+    const mxArray* wz_arr = get_field_any(obs, "wz", "gyro_z");
+    const mxArray* mx_arr = get_field_any(obs, "mx", "mag_x");
+    const mxArray* my_arr = get_field_any(obs, "my", "mag_y");
+    const mxArray* mz_arr = get_field_any(obs, "mz", "mag_z");
+    const mxArray* pressure_arr = get_field_any(obs, "pressure", "baro");
+    const mxArray* lat_arr = get_field_any(obs, "lat", "gps_lat");
+    const mxArray* lon_arr = get_field_any(obs, "lon", "gps_lon");
+    const mxArray* alt_arr = get_field_any(obs, "alt", "gps_alt");
     
-    if (mexCallMATLAB(1, plhs, 4, prhs, "mex_eskf_constructor") == 0) {
-        mxArray* init_data = plhs[0];
-        
-        // Extract state
-        copy_vec(s->p, mxGetPr(mxGetField(init_data, 0, "p")), 3);
-        copy_vec(s->v, mxGetPr(mxGetField(init_data, 0, "v")), 3);
-        copy_vec(s->q, mxGetPr(mxGetField(init_data, 0, "q")), 4);
-        copy_vec(s->ba, mxGetPr(mxGetField(init_data, 0, "ba")), 3);
-        copy_vec(s->bg, mxGetPr(mxGetField(init_data, 0, "bg")), 3);
-        memcpy(s->P, mxGetPr(mxGetField(init_data, 0, "P")), 15*15*8);
-        memcpy(s->Q_nominal, mxGetPr(mxGetField(init_data, 0, "Q_nominal")), 15*15*8);
-        copy_vec(s->g, mxGetPr(mxGetField(init_data, 0, "g")), 3);
-        s->dt = mxGetScalar(mxGetField(init_data, 0, "dt"));
-        copy_vec(s->gps_origin, mxGetPr(mxGetField(init_data, 0, "gps_origin")), 3);
-        s->gyro_noise_threshold = mxGetScalar(mxGetField(init_data, 0, "gyro_noise_threshold"));
-        
-        copy_vec(s->prev_accel, mxGetPr(mxGetField(init_data, 0, "prev_accel")), 3);
-        copy_vec(s->prev_gyro, mxGetPr(mxGetField(init_data, 0, "prev_gyro")), 3);
-        copy_vec(s->prev_mag, mxGetPr(mxGetField(init_data, 0, "prev_mag")), 3);
-        s->prev_gps_lat = mxGetScalar(mxGetField(init_data, 0, "prev_gps_lat"));
-        s->prev_gps_lon = mxGetScalar(mxGetField(init_data, 0, "prev_gps_lon"));
-        s->prev_gps_alt = mxGetScalar(mxGetField(init_data, 0, "prev_gps_alt"));
-        s->prev_baro = mxGetScalar(mxGetField(init_data, 0, "prev_baro"));
-        s->buffer_tolerance = mxGetScalar(mxGetField(init_data, 0, "buffer_tolerance"));
-        
-        s->zupt_threshold_accel = mxGetScalar(mxGetField(init_data, 0, "zupt_threshold_accel"));
-        s->zupt_threshold_gyro = mxGetScalar(mxGetField(init_data, 0, "zupt_threshold_gyro"));
-        s->zupt_min_duration = (int)mxGetScalar(mxGetField(init_data, 0, "zupt_min_duration"));
-        s->zupt_counter = (int)mxGetScalar(mxGetField(init_data, 0, "zupt_counter"));
-        s->is_stationary = mxIsLogicalScalarTrue(mxGetField(init_data, 0, "is_stationary"));
-        
-        s->adaptive_q_enabled = mxIsLogicalScalarTrue(mxGetField(init_data, 0, "adaptive_q_enabled"));
-        s->velocity_damping = mxGetScalar(mxGetField(init_data, 0, "velocity_damping"));
-        
-        s->enable_accel_z_integration = mxIsLogicalScalarTrue(mxGetField(init_data, 0, "enable_accel_z_integration"));
-        s->accel_z_threshold = mxGetScalar(mxGetField(init_data, 0, "accel_z_threshold"));
-        s->accel_z_damping = mxGetScalar(mxGetField(init_data, 0, "accel_z_damping"));
-        s->baro_weight = mxGetScalar(mxGetField(init_data, 0, "baro_weight"));
-        
-        copy_vec(s->w_body, mxGetPr(mxGetField(init_data, 0, "w_body")), 3);
-        s->last_reset_step = (int)mxGetScalar(mxGetField(init_data, 0, "last_reset_step"));
-        
-        mxDestroyArray(init_data);
-    } else {
-        delete s;
-        mexErrMsgIdAndTxt("mex_run_eskf:init", "mex_eskf_constructor failed");
-    }
+    int n_samples = ax_arr ? get_length(ax_arr) : 0;
+    if (N_static > n_samples) N_static = n_samples;
     
-    mxDestroyArray(prhs[0]);
-    mxDestroyArray(prhs[2]);
-    mxDestroyArray(prhs[3]);
+    // ESKFRunner::InitParams構造体の準備
+    ESKFRunner::InitParams params;
+    params.dt = dt;
+    params.N_static = N_static;
+    
+    params.has_accel = (ax_arr && ay_arr && az_arr);
+    params.has_gyro = (wx_arr && wy_arr && wz_arr);
+    params.has_mag = (mx_arr && my_arr && mz_arr);
+    params.has_baro = (pressure_arr != nullptr);
+    params.has_gps = (lat_arr && lon_arr && alt_arr);
+    
+    params.ax = params.has_accel ? get_data(ax_arr) : nullptr;
+    params.ay = params.has_accel ? get_data(ay_arr) : nullptr;
+    params.az = params.has_accel ? get_data(az_arr) : nullptr;
+    params.wx = params.has_gyro ? get_data(wx_arr) : nullptr;
+    params.wy = params.has_gyro ? get_data(wy_arr) : nullptr;
+    params.wz = params.has_gyro ? get_data(wz_arr) : nullptr;
+    params.mx = params.has_mag ? get_data(mx_arr) : nullptr;
+    params.my = params.has_mag ? get_data(my_arr) : nullptr;
+    params.mz = params.has_mag ? get_data(mz_arr) : nullptr;
+    params.pressure = params.has_baro ? get_data(pressure_arr) : nullptr;
+    params.lat = params.has_gps ? get_data(lat_arr) : nullptr;
+    params.lon = params.has_gps ? get_data(lon_arr) : nullptr;
+    params.alt = params.has_gps ? get_data(alt_arr) : nullptr;
+    
+    // ESKFRunner::initializeを呼び出し（初期化ロジックはSrc/ESKF/eskf_runner.cppに移動）
+    ESKFRunner::initialize(s, params);
     
     uint64_t handle = g_next_handle++;
     g_states[handle] = s;

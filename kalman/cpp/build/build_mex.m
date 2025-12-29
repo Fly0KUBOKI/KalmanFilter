@@ -166,11 +166,7 @@ function build_mex(targets)
         end
     end
 
-    % mex_sensor_preprocessor (実装はSrc/Common/Sensor/sensor_preprocessor.cppに移動)
-    sensor_preprocessor_cpp = fullfile(src_dir, 'Common', 'Sensor', 'sensor_preprocessor.cpp');
-    if wants('mex_sensor_preprocessor') && build_single_mex('mex_sensor_preprocessor.cpp', compile_opts, inc_args, {sensor_preprocessor_cpp}, bin_dir, [], log_fid)
-        built_count = built_count + 1;
-    end
+    % mex_sensor_preprocessor - REMOVED: integrated into mex_run_eskf.cpp (uses sensor_preprocessor.hpp directly)
 
     % Phase 4: mex_adaptive_predict - REMOVED: integrated into mex_run_eskf.cpp (uses ESKFCore directly)
 
@@ -262,7 +258,7 @@ function build_mex(targets)
             end
         end
 
-        % mex_sensor_filter (still needed by mex_eskf_do_update and mex_eskf_sensor_updates_full)
+        % mex_sensor_filter (still needed by mex_meukf_step_v2 and other MEX files)
         if wants('mex_sensor_filter') && build_single_mex('mex_sensor_filter.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
             built_count = built_count + 1;
         end
@@ -312,12 +308,12 @@ function build_mex(targets)
             end
         end
         
-        % Phase 1: mex_eskf_constructor (ESKF constructor MEX)
-        if exist('mex_eskf_constructor.cpp', 'file')
-            if wants('mex_eskf_constructor') && build_single_mex('mex_eskf_constructor.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
-                built_count = built_count + 1;
-            end
-        end
+        % Phase 1: mex_eskf_constructor - REMOVED: integrated into mex_run_eskf.cpp
+        % if exist('mex_eskf_constructor.cpp', 'file')
+        %     if wants('mex_eskf_constructor') && build_single_mex('mex_eskf_constructor.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
+        %         built_count = built_count + 1;
+        %     end
+        % end
         
         % Phase 2: mex_eskf_sensor_updates (sensor_updates MEX)
         if exist('mex_eskf_sensor_updates.cpp', 'file')
@@ -333,30 +329,30 @@ function build_mex(targets)
             end
         end
         
-        % mex_eskf_do_update (do_cpp_update MEX化) (mex_eskf_update_postprocess を統合)
-        eskf_postprocess_cpp = fullfile(src_dir, 'ESKF', 'eskf_postprocess.cpp');
-        filter_management_cpp = fullfile(src_dir, 'Common', 'filter_management.cpp');
-        if exist('mex_eskf_do_update.cpp', 'file')
-            if wants('mex_eskf_do_update') && build_single_mex('mex_eskf_do_update.cpp', compile_opts, inc_args, {eskf_postprocess_cpp, filter_management_cpp}, bin_dir, [], log_fid)
-                built_count = built_count + 1;
-            end
-        end
+        % mex_eskf_do_update - REMOVED: integrated into mex_run_eskf.cpp (mex_sensor_filter呼び出しを直接C++関数に置き換え)
+        % eskf_postprocess_cpp = fullfile(src_dir, 'ESKF', 'eskf_postprocess.cpp');
+        % filter_management_cpp = fullfile(src_dir, 'Common', 'filter_management.cpp');
+        % if exist('mex_eskf_do_update.cpp', 'file')
+        %     if wants('mex_eskf_do_update') && build_single_mex('mex_eskf_do_update.cpp', compile_opts, inc_args, {eskf_postprocess_cpp, filter_management_cpp}, bin_dir, [], log_fid)
+        %         built_count = built_count + 1;
+        %     end
+        % end
         
-        % mex_eskf_sensor_updates_full (sensor_updates完全MEX化)
-        if exist('mex_eskf_sensor_updates_full.cpp', 'file')
-            if wants('mex_eskf_sensor_updates_full') && build_single_mex('mex_eskf_sensor_updates_full.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
-                built_count = built_count + 1;
-            end
-        end
+        % mex_eskf_sensor_updates_full - REMOVED: integrated into mex_run_eskf.cpp
         
         % mex_run_eskf (ESKF.m完全移行版)
         % 統合済み: mex_eskf_predict_postprocess, mex_adaptive_predict, mex_quaternion_lib,
-        %           mex_eskf_zupt, mex_filter_management, mex_sensor_filter
+        %           mex_eskf_zupt, mex_filter_management, mex_sensor_filter (一部), mex_sensor_preprocessor,
+        %           mex_eskf_sensor_updates_full, mex_eskf_do_update (mex_sensor_filter呼び出しを直接C++関数に置き換え),
+        %           mex_eskf_constructor
+        % コアロジックはSrc/ESKF/eskf_runner.cppに分離
         filter_management_cpp = fullfile(src_dir, 'Common', 'filter_management.cpp');
         eskf_postprocess_cpp = fullfile(src_dir, 'ESKF', 'eskf_postprocess.cpp');
         eskf_core_cpp = fullfile(src_dir, 'ESKF', 'eskf_core.cpp');
+        sensor_preprocessor_cpp = fullfile(src_dir, 'Common', 'Sensor', 'sensor_preprocessor.cpp');
+        eskf_runner_cpp = fullfile(src_dir, 'ESKF', 'eskf_runner.cpp');
         if exist('mex_run_eskf.cpp', 'file')
-            if wants('mex_run_eskf') && build_single_mex('mex_run_eskf.cpp', compile_opts, inc_args, {filter_management_cpp, eskf_postprocess_cpp, eskf_core_cpp}, bin_dir, [], log_fid)
+            if wants('mex_run_eskf') && build_single_mex('mex_run_eskf.cpp', compile_opts, inc_args, {filter_management_cpp, eskf_postprocess_cpp, eskf_core_cpp, sensor_preprocessor_cpp, eskf_runner_cpp}, bin_dir, [], log_fid)
                 built_count = built_count + 1;
             end
         end

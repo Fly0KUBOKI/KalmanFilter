@@ -70,3 +70,4 @@ mxArray* matrixToMat(const Matrix<R, C, float>& M) {
 
 #endif // MEX_MEX_TYPE_CONVERSION_HPP
 
+

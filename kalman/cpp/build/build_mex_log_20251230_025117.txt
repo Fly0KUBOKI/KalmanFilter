@@ -1,0 +1,381 @@
+=== MEX Build Log Started at 30-Dec-2025 02:51:17 ===
+Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20251230_025117.txt
+
+MEX Build for Kalman Filters
+Clearing bin directory: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+Compiling mex_meukf_step_v2... 'Microsoft Visual C++ 2022' でビルドしています。
+MEX は正常に完了しました。
+OK
+Compiling mex_sensor_filter... 'Microsoft Visual C++ 2022' でビルドしています。
+MEX は正常に完了しました。
+OK
+Compiling mex_eskf_update_postprocess... ERROR
+Error: mex_eskf_update_postprocess.cpp
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(64): error C2530: 'eskf::dx': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(65): error C2143: 構文エラー: ';' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(65): error C2888: 'cmath_fx::Matrix<N,1,T> = cmath_fx::Matrix<3,1,float>': シンボルは名前空間 'eskf' 内で定義できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(65): warning C4228: 非標準の拡張機能が使用されています: 宣言子リストにあるコンマの後の修飾子は無視されます。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(65): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(65): error C2530: 'eskf::state_p': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(66): error C2143: 構文エラー: ';' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(66): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(66): error C2373: 'cmath_fx::Vector': 再定義されています。異なる型修飾子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(65): note: 'cmath_fx::Vector' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(66): warning C4228: 非標準の拡張機能が使用されています: 宣言子リストにあるコンマの後の修飾子は無視されます。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(66): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(66): error C2530: 'eskf::state_v': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(67): error C2143: 構文エラー: ';' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(67): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(67): error C2373: 'cmath_fx::Vector': 再定義されています。異なる型修飾子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(65): note: 'cmath_fx::Vector' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(67): warning C4228: 非標準の拡張機能が使用されています: 宣言子リストにあるコンマの後の修飾子は無視されます。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(67): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(67): error C2530: 'eskf::state_q': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(68): error C2143: 構文エラー: ';' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(68): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(68): error C2373: 'cmath_fx::Vector': 再定義されています。異なる型修飾子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(65): note: 'cmath_fx::Vector' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(68): warning C4228: 非標準の拡張機能が使用されています: 宣言子リストにあるコンマの後の修飾子は無視されます。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(68): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(68): error C2530: 'eskf::state_ba': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(69): error C2143: 構文エラー: ';' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(69): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(69): error C2373: 'cmath_fx::Vector': 再定義されています。異なる型修飾子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(65): note: 'cmath_fx::Vector' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(69): warning C4228: 非標準の拡張機能が使用されています: 宣言子リストにあるコンマの後の修飾子は無視されます。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(69): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(69): error C2530: 'eskf::state_bg': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(70): error C2143: 構文エラー: ';' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(70): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(70): error C2888: 'cmath_fx::Matrix<15,15,float>': シンボルは名前空間 'eskf' 内で定義できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(70): warning C4228: 非標準の拡張機能が使用されています: 宣言子リストにあるコンマの後の修飾子は無視されます。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(71): error C2059: 構文エラー: ')'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(70): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/ESKF/eskf_postprocess.hpp(70): error C2530: 'eskf::new_state_P': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(17): error C2061: 構文エラー: 識別子 'Vector'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(31): error C2061: 構文エラー: 識別子 'Matrix'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(49): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(49): error C2988: 認識できないテンプレートの宣言または定義です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(49): error C2143: 構文エラー: ',' が '<' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(58): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(58): error C2988: 認識できないテンプレートの宣言または定義です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(58): error C2143: 構文エラー: ',' が '<' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(40): error C2446: '<': 'int' 型から 'const cmath_fx::Matrix<15,1,float>' 型への変換ができません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(40): note: 'cmath_fx::Matrix<15,1,float>::Matrix': オーバーロードされた関数ですべての引数の型を変換できませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/fixed_matrix.hpp(270): note: 'cmath_fx::Matrix<15,1,float>::Matrix(cmath_fx::Matrix<15,1,float> &&)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(40): note: 'cmath_fx::Matrix<15,1,float>::Matrix(cmath_fx::Matrix<15,1,float> &&)': 引数 1 を 'int' から 'cmath_fx::Matrix<15,1,float> &&' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(40): note: 理由: 'int' から 'cmath_fx::Matrix<15,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(40): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/fixed_matrix.hpp(270): note: または 'cmath_fx::Matrix<15,1,float>::Matrix(const cmath_fx::Matrix<15,1,float> &)'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(40): note: 'cmath_fx::Matrix<15,1,float>::Matrix(const cmath_fx::Matrix<15,1,float> &)': 引数 1 を 'int' から 'const cmath_fx::Matrix<15,1,float> &' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(40): note: 理由: 'int' から 'const cmath_fx::Matrix<15,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(40): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(40): note: 引数リスト '(int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(40): error C2062: 型 'float' は不要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(41): error C2672: 'matToVector': 一致するオーバーロードされた関数が見つかりませんでした。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(17): note: 'bool mex_conv::matToVector(const mxArray *)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(41): note: 'bool mex_conv::matToVector(const mxArray *)': 1 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(49): error C2446: '<': 'int' 型から 'const cmath_fx::Matrix<15,1,float>' 型への変換ができません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(49): note: 'cmath_fx::Matrix<15,1,float>::Matrix': オーバーロードされた関数ですべての引数の型を変換できませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/fixed_matrix.hpp(270): note: 'cmath_fx::Matrix<15,1,float>::Matrix(cmath_fx::Matrix<15,1,float> &&)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(49): note: 'cmath_fx::Matrix<15,1,float>::Matrix(cmath_fx::Matrix<15,1,float> &&)': 引数 1 を 'int' から 'cmath_fx::Matrix<15,1,float> &&' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(49): note: 理由: 'int' から 'cmath_fx::Matrix<15,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(49): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/fixed_matrix.hpp(270): note: または 'cmath_fx::Matrix<15,1,float>::Matrix(const cmath_fx::Matrix<15,1,float> &)'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(49): note: 'cmath_fx::Matrix<15,1,float>::Matrix(const cmath_fx::Matrix<15,1,float> &)': 引数 1 を 'int' から 'const cmath_fx::Matrix<15,1,float> &' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(49): note: 理由: 'int' から 'const cmath_fx::Matrix<15,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(49): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(49): note: 引数リスト '(int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(49): error C2062: 型 'float' は不要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(50): error C2446: '<': 'int' 型から 'const cmath_fx::Matrix<15,1,float>' 型への変換ができません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(50): note: 'cmath_fx::Matrix<15,1,float>::Matrix': オーバーロードされた関数ですべての引数の型を変換できませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/fixed_matrix.hpp(270): note: 'cmath_fx::Matrix<15,1,float>::Matrix(cmath_fx::Matrix<15,1,float> &&)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(50): note: 'cmath_fx::Matrix<15,1,float>::Matrix(cmath_fx::Matrix<15,1,float> &&)': 引数 1 を 'int' から 'cmath_fx::Matrix<15,1,float> &&' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(50): note: 理由: 'int' から 'cmath_fx::Matrix<15,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(50): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/fixed_matrix.hpp(270): note: または 'cmath_fx::Matrix<15,1,float>::Matrix(const cmath_fx::Matrix<15,1,float> &)'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(50): note: 'cmath_fx::Matrix<15,1,float>::Matrix(const cmath_fx::Matrix<15,1,float> &)': 引数 1 を 'int' から 'const cmath_fx::Matrix<15,1,float> &' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(50): note: 理由: 'int' から 'const cmath_fx::Matrix<15,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(50): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(50): note: 引数リスト '(int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(50): error C2062: 型 'float' は不要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(51): error C2062: 型 'float' は不要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(53): error C2672: 'matToVector': 一致するオーバーロードされた関数が見つかりませんでした。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(17): note: 'bool mex_conv::matToVector(const mxArray *)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(53): note: 'bool mex_conv::matToVector(const mxArray *)': 1 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(54): error C2672: 'matToVector': 一致するオーバーロードされた関数が見つかりませんでした。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(17): note: 'bool mex_conv::matToVector(const mxArray *)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(54): note: 'bool mex_conv::matToVector(const mxArray *)': 1 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(55): error C2672: 'matToVector': 一致するオーバーロードされた関数が見つかりませんでした。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(17): note: 'bool mex_conv::matToVector(const mxArray *)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(55): note: 'bool mex_conv::matToVector(const mxArray *)': 1 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(56): error C2672: 'matToVector': 一致するオーバーロードされた関数が見つかりませんでした。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(17): note: 'bool mex_conv::matToVector(const mxArray *)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(56): note: 'bool mex_conv::matToVector(const mxArray *)': 1 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(57): error C2672: 'matToVector': 一致するオーバーロードされた関数が見つかりませんでした。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(17): note: 'bool mex_conv::matToVector(const mxArray *)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(57): note: 'bool mex_conv::matToVector(const mxArray *)': 1 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(58): error C2065: 'state_P': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(59): error C2672: 'matToMatrix': 一致するオーバーロードされた関数が見つかりませんでした。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(31): note: 'bool mex_conv::matToMatrix(const mxArray *)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(59): note: 'bool mex_conv::matToMatrix(const mxArray *)': 1 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(69): error C2672: 'vectorToMat': 一致するオーバーロードされた関数が見つかりませんでした。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(49): note: 'mxArray *mex_conv::vectorToMat(const int)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(69): note: 'mxArray *mex_conv::vectorToMat(const int)': 'R' の テンプレート 引数を推測できませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(75): error C2446: '<': 'int' 型から 'const cmath_fx::Matrix<15,1,float>' 型への変換ができません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(75): note: 'cmath_fx::Matrix<15,1,float>::Matrix': オーバーロードされた関数ですべての引数の型を変換できませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/fixed_matrix.hpp(270): note: 'cmath_fx::Matrix<15,1,float>::Matrix(cmath_fx::Matrix<15,1,float> &&)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(75): note: 'cmath_fx::Matrix<15,1,float>::Matrix(cmath_fx::Matrix<15,1,float> &&)': 引数 1 を 'int' から 'cmath_fx::Matrix<15,1,float> &&' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(75): note: 理由: 'int' から 'cmath_fx::Matrix<15,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(75): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/fixed_matrix.hpp(270): note: または 'cmath_fx::Matrix<15,1,float>::Matrix(const cmath_fx::Matrix<15,1,float> &)'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(75): note: 'cmath_fx::Matrix<15,1,float>::Matrix(const cmath_fx::Matrix<15,1,float> &)': 引数 1 を 'int' から 'const cmath_fx::Matrix<15,1,float> &' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(75): note: 理由: 'int' から 'const cmath_fx::Matrix<15,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(75): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(75): note: 引数リスト '(int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(75): error C2062: 型 'float' は不要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(76): error C2065: 'dx_out': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(78): error C2065: 'dx_out': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(93): error C2446: '<': 'int' 型から 'const cmath_fx::Matrix<15,1,float>' 型への変換ができません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(93): note: 'cmath_fx::Matrix<15,1,float>::Matrix': オーバーロードされた関数ですべての引数の型を変換できませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/fixed_matrix.hpp(270): note: 'cmath_fx::Matrix<15,1,float>::Matrix(cmath_fx::Matrix<15,1,float> &&)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(93): note: 'cmath_fx::Matrix<15,1,float>::Matrix(cmath_fx::Matrix<15,1,float> &&)': 引数 1 を 'int' から 'cmath_fx::Matrix<15,1,float> &&' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(93): note: 理由: 'int' から 'cmath_fx::Matrix<15,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(93): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/fixed_matrix.hpp(270): note: または 'cmath_fx::Matrix<15,1,float>::Matrix(const cmath_fx::Matrix<15,1,float> &)'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(93): note: 'cmath_fx::Matrix<15,1,float>::Matrix(const cmath_fx::Matrix<15,1,float> &)': 引数 1 を 'int' から 'const cmath_fx::Matrix<15,1,float> &' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(93): note: 理由: 'int' から 'const cmath_fx::Matrix<15,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(93): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(93): note: 引数リスト '(int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(93): error C2062: 型 'float' は不要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(94): error C2446: '<': 'int' 型から 'const cmath_fx::Matrix<15,1,float>' 型への変換ができません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(94): note: 'cmath_fx::Matrix<15,1,float>::Matrix': オーバーロードされた関数ですべての引数の型を変換できませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/fixed_matrix.hpp(270): note: 'cmath_fx::Matrix<15,1,float>::Matrix(cmath_fx::Matrix<15,1,float> &&)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(94): note: 'cmath_fx::Matrix<15,1,float>::Matrix(cmath_fx::Matrix<15,1,float> &&)': 引数 1 を 'int' から 'cmath_fx::Matrix<15,1,float> &&' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(94): note: 理由: 'int' から 'cmath_fx::Matrix<15,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(94): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/fixed_matrix.hpp(270): note: または 'cmath_fx::Matrix<15,1,float>::Matrix(const cmath_fx::Matrix<15,1,float> &)'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(94): note: 'cmath_fx::Matrix<15,1,float>::Matrix(const cmath_fx::Matrix<15,1,float> &)': 引数 1 を 'int' から 'const cmath_fx::Matrix<15,1,float> &' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(94): note: 理由: 'int' から 'const cmath_fx::Matrix<15,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(94): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(94): note: 引数リスト '(int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(94): error C2062: 型 'float' は不要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(95): error C2062: 型 'float' は不要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(99): error C2065: 'new_p': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(100): error C2065: 'new_v': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(101): error C2065: 'new_q': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(102): error C2065: 'new_ba': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(103): error C2065: 'new_bg': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(104): error C2065: 'out_P': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(104): error C2065: 'state_P': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(107): error C2065: 'dx_out': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(107): error C3861: 'update_state_from_dx': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(108): error C2065: 'new_p': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(109): error C2065: 'new_v': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(110): error C2065: 'new_q': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(111): error C2065: 'new_ba': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(112): error C2065: 'new_bg': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(113): error C2065: 'out_P': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(116): error C3861: 'update_state_from_dx': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(117): error C2065: 'new_p': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(118): error C2065: 'new_v': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(119): error C2065: 'new_q': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(120): error C2065: 'new_ba': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(121): error C2065: 'new_bg': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(122): error C2065: 'out_P': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(126): error C2065: 'new_p': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(127): error C2065: 'new_v': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(128): error C2065: 'new_q': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(129): error C2065: 'new_ba': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(130): error C2065: 'new_bg': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_update_postprocess.cpp(131): error C2065: 'out_P': 定義されていない識別子です。
+
+
+Compiling mex_run_eskf... ERROR
+Error: mex_run_eskf.cpp
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(14): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(14): error C2146: 構文エラー: ';' が、識別子 'norm3' の前に必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(14): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(14): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(28): error C2065: 'dst': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(28): error C2059: 構文エラー: 'const'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(28): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(28): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/filter_management.hpp(1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(22): error C2530: 'common::sensor::a_meas': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(23): error C2143: 構文エラー: ';' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(23): error C2888: 'cmath_fx::Matrix<N,1,T> = cmath_fx::Matrix<3,1,float>': シンボルは名前空間 'sensor' 内で定義できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(23): warning C4228: 非標準の拡張機能が使用されています: 宣言子リストにあるコンマの後の修飾子は無視されます。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(23): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(23): error C2530: 'common::sensor::prev_a': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(24): error C2062: 型 'double' は不要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(25): error C2059: 構文エラー: ')'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(30): error C2530: 'common::sensor::m_meas': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(31): error C2143: 構文エラー: ';' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(31): error C2086: 'const cmath_fx::Matrix<3,1,float> cmath_fx::Vector': 再定義されました。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(23): note: 'cmath_fx::Vector' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(31): warning C4228: 非標準の拡張機能が使用されています: 宣言子リストにあるコンマの後の修飾子は無視されます。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(31): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(31): error C2530: 'common::sensor::prev_m': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(32): error C2062: 型 'double' は不要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(33): error C2059: 構文エラー: ')'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(64): error C2530: 'eskf::dx': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(65): error C2143: 構文エラー: ';' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(65): error C2371: 'cmath_fx::Vector': 再定義されています。異なる基本型です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(23): note: 'cmath_fx::Vector' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(65): warning C4228: 非標準の拡張機能が使用されています: 宣言子リストにあるコンマの後の修飾子は無視されます。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(65): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(65): error C2530: 'eskf::state_p': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(66): error C2143: 構文エラー: ';' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(66): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(66): error C2373: 'cmath_fx::Vector': 再定義されています。異なる型修飾子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(23): note: 'cmath_fx::Vector' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(66): warning C4228: 非標準の拡張機能が使用されています: 宣言子リストにあるコンマの後の修飾子は無視されます。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(66): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(66): error C2530: 'eskf::state_v': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(67): error C2143: 構文エラー: ';' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(67): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(67): error C2373: 'cmath_fx::Vector': 再定義されています。異なる型修飾子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(23): note: 'cmath_fx::Vector' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(67): warning C4228: 非標準の拡張機能が使用されています: 宣言子リストにあるコンマの後の修飾子は無視されます。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(67): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(67): error C2530: 'eskf::state_q': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(68): error C2143: 構文エラー: ';' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(68): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(68): error C2373: 'cmath_fx::Vector': 再定義されています。異なる型修飾子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(23): note: 'cmath_fx::Vector' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(68): warning C4228: 非標準の拡張機能が使用されています: 宣言子リストにあるコンマの後の修飾子は無視されます。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(68): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(68): error C2530: 'eskf::state_ba': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(69): error C2143: 構文エラー: ';' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(69): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(69): error C2373: 'cmath_fx::Vector': 再定義されています。異なる型修飾子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(23): note: 'cmath_fx::Vector' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(69): warning C4228: 非標準の拡張機能が使用されています: 宣言子リストにあるコンマの後の修飾子は無視されます。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(69): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(69): error C2530: 'eskf::state_bg': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(70): error C2143: 構文エラー: ';' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(70): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(70): error C2888: 'cmath_fx::Matrix<15,15,float>': シンボルは名前空間 'eskf' 内で定義できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(70): warning C4228: 非標準の拡張機能が使用されています: 宣言子リストにあるコンマの後の修飾子は無視されます。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(71): error C2059: 構文エラー: ')'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(70): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(70): error C2530: 'eskf::new_state_P': 参照が初期化されずに宣言されています。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/statistics.hpp(1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/statistics.hpp(62): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/statistics.hpp(62): error C2086: 'int common::math::T': 再定義されました。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(14): note: 'common::math::T' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/statistics.hpp(62): error C2146: 構文エラー: ';' が、識別子 'compute_std_3d' の前に必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/statistics.hpp(62): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/statistics.hpp(62): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(17): error C2061: 構文エラー: 識別子 'Vector'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(31): error C2061: 構文エラー: 識別子 'Matrix'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(49): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(49): error C2988: 認識できないテンプレートの宣言または定義です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(49): error C2143: 構文エラー: ',' が '<' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(58): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(58): error C2988: 認識できないテンプレートの宣言または定義です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(58): error C2143: 構文エラー: ',' が '<' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(122): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(125): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(125): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(125): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(126): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(126): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(126): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(127): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(127): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(127): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(190): error C2446: '<': 'int' 型から 'const cmath_fx::Matrix<3,1,float>' 型への変換ができません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(190): note: 'cmath_fx::Matrix<3,1,float>::Matrix': オーバーロードされた関数ですべての引数の型を変換できませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\Common\Math\fixed_matrix.hpp(270): note: 'cmath_fx::Matrix<3,1,float>::Matrix(cmath_fx::Matrix<3,1,float> &&)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(190): note: 'cmath_fx::Matrix<3,1,float>::Matrix(cmath_fx::Matrix<3,1,float> &&)': 引数 1 を 'int' から 'cmath_fx::Matrix<3,1,float> &&' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(190): note: 理由: 'int' から 'cmath_fx::Matrix<3,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(190): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\Common\Math\fixed_matrix.hpp(270): note: または 'cmath_fx::Matrix<3,1,float>::Matrix(const cmath_fx::Matrix<3,1,float> &)'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(190): note: 'cmath_fx::Matrix<3,1,float>::Matrix(const cmath_fx::Matrix<3,1,float> &)': 引数 1 を 'int' から 'const cmath_fx::Matrix<3,1,float> &' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(190): note: 理由: 'int' から 'const cmath_fx::Matrix<3,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(190): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(190): note: 引数リスト '(int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(190): error C2062: 型 'float' は不要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(192): error C3861: 'a_meas_f': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(193): error C3861: 'prev_accel_f': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(196): error C2065: 'a_meas_f': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(196): error C2065: 'prev_accel_f': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(196): error C3861: 'preprocess_accel': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(215): error C2065: 'sensor_type': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(218): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(219): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(220): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(222): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(223): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(224): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(226): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(226): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(226): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(231): error C2143: 構文エラー: ';' が '}' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(232): error C2065: 'sd_fields': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(235): error C2065: 'meas_corrected': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(254): error C2143: 構文エラー: ';' が '}' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(255): error C2065: 'mp_fields': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(264): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(265): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(266): error C2065: 'zeros3': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(267): error C2065: 'zeros3': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(268): error C2065: 'zeros3': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(269): error C2065: 'zeros3': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(270): error C2065: 'zeros3': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(271): error C2065: 'zeros3': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(287): error C2065: 'st_fields': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(303): error C2065: 'prhs_m': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(309): error C2446: '<': 'int' 型から 'const cmath_fx::Matrix<3,1,float>' 型への変換ができません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(309): note: 'cmath_fx::Matrix<3,1,float>::Matrix': オーバーロードされた関数ですべての引数の型を変換できませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\Common\Math\fixed_matrix.hpp(270): note: 'cmath_fx::Matrix<3,1,float>::Matrix(cmath_fx::Matrix<3,1,float> &&)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(309): note: 'cmath_fx::Matrix<3,1,float>::Matrix(cmath_fx::Matrix<3,1,float> &&)': 引数 1 を 'int' から 'cmath_fx::Matrix<3,1,float> &&' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(309): note: 理由: 'int' から 'cmath_fx::Matrix<3,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(309): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\Common\Math\fixed_matrix.hpp(270): note: または 'cmath_fx::Matrix<3,1,float>::Matrix(const cmath_fx::Matrix<3,1,float> &)'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(309): note: 'cmath_fx::Matrix<3,1,float>::Matrix(const cmath_fx::Matrix<3,1,float> &)': 引数 1 を 'int' から 'const cmath_fx::Matrix<3,1,float> &' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(309): note: 理由: 'int' から 'const cmath_fx::Matrix<3,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(309): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(309): note: 引数リスト '(int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(309): error C2062: 型 'float' は不要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(310): error C2065: 'innov_vec': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(312): error C3861: 'innov_vec': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(315): warning C4267: '初期化中': 'size_t' から 'int' に変換しました。データが失われているかもしれません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(316): warning C4267: '初期化中': 'size_t' から 'int' に変換しました。データが失われているかもしれません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(337): error C2065: 'sensor_type': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(342): error C2065: 'dbg_out': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(342): error C2065: 'dbg_out': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(344): error C2446: '<': 'int' 型から 'const cmath_fx::Matrix<3,1,float>' 型への変換ができません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(344): note: 'cmath_fx::Matrix<3,1,float>::Matrix': オーバーロードされた関数ですべての引数の型を変換できませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\Common\Math\fixed_matrix.hpp(270): note: 'cmath_fx::Matrix<3,1,float>::Matrix(cmath_fx::Matrix<3,1,float> &&)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(344): note: 'cmath_fx::Matrix<3,1,float>::Matrix(cmath_fx::Matrix<3,1,float> &&)': 引数 1 を 'int' から 'cmath_fx::Matrix<3,1,float> &&' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(344): note: 理由: 'int' から 'cmath_fx::Matrix<3,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(344): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\Common\Math\fixed_matrix.hpp(270): note: または 'cmath_fx::Matrix<3,1,float>::Matrix(const cmath_fx::Matrix<3,1,float> &)'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(344): note: 'cmath_fx::Matrix<3,1,float>::Matrix(const cmath_fx::Matrix<3,1,float> &)': 引数 1 を 'int' から 'const cmath_fx::Matrix<3,1,float> &' へ変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(344): note: 理由: 'int' から 'const cmath_fx::Matrix<3,1,float>' へは変換できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(344): note: 変換には 2 番目のユーザー定義変換演算子またはコンストラクターが必要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(344): note: 引数リスト '(int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(344): error C2062: 型 'float' は不要です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(345): error C2065: 'dbg_out': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(345): fatal error C1003: プログラム内のエラーが 100 個を超えました。コンパイルは中断されます。
+
+
+
+=== Build Complete ===
+Successfully built 2 MEX file(s)
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+To use MEX files, add to MATLAB path:
+  addpath('C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin')
+
+=== MEX Build Log Ended at 30-Dec-2025 02:51:24 ===

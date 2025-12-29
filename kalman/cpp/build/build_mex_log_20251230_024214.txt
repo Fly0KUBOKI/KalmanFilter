@@ -1,0 +1,195 @@
+=== MEX Build Log Started at 30-Dec-2025 02:42:14 ===
+Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20251230_024214.txt
+
+MEX Build for Kalman Filters
+Clearing bin directory: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+Compiling mex_meukf_step_v2... 'Microsoft Visual C++ 2022' でビルドしています。
+MEX は正常に完了しました。
+OK
+Compiling mex_sensor_filter... 'Microsoft Visual C++ 2022' でビルドしています。
+MEX は正常に完了しました。
+OK
+Compiling mex_eskf_update_postprocess... 'Microsoft Visual C++ 2022' でビルドしています。
+MEX は正常に完了しました。
+OK
+Compiling mex_run_eskf... ERROR
+Error: mex_run_eskf.cpp
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/filter_management.hpp(1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Sensor/sensor_preprocessor.hpp(1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../ESKF/eskf_postprocess.hpp(1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/Common/Math/statistics.hpp(1): warning C4819: ファイルは、現在のコード ページ (932) で表示できない文字を含んでいます。データの損失を防ぐために、ファイルを Unicode 形式で保存してください。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(122): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(125): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(125): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(125): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(126): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(126): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(126): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(127): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(127): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(127): error C2065: 'R_row': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(215): error C2065: 'sensor_type': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(218): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(219): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(220): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(222): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(223): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(224): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(226): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(226): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(226): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(231): error C2143: 構文エラー: ';' が '}' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(232): error C2065: 'sd_fields': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(235): error C2065: 'meas_corrected': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(254): error C2143: 構文エラー: ';' が '}' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(255): error C2065: 'mp_fields': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(264): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(265): error C2065: 'R_noise': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(266): error C2065: 'zeros3': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(267): error C2065: 'zeros3': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(268): error C2065: 'zeros3': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(269): error C2065: 'zeros3': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(270): error C2065: 'zeros3': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(271): error C2065: 'zeros3': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(287): error C2065: 'st_fields': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(303): error C2065: 'prhs_m': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(315): warning C4267: '初期化中': 'size_t' から 'int' に変換しました。データが失われているかもしれません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(316): warning C4267: '初期化中': 'size_t' から 'int' に変換しました。データが失われているかもしれません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(337): error C2065: 'sensor_type': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(342): error C2065: 'dbg_out': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(342): error C2065: 'dbg_out': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(345): error C2065: 'dbg_out': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(345): error C2672: 'matToVector': 一致するオーバーロードされた関数が見つかりませんでした。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(17): note: 'bool mex_conv::matToVector(const mxArray *,cmath_fx::Matrix<R,1,float> &)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(347): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(347): error C2660: 'copy_vec': 関数に 2 個の引数を指定できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(55): note: 'copy_vec' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(30): note: 'void common::math::copy_vec(T *,const T *,size_t)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(347): note: 'void common::math::copy_vec(T *,const T *,size_t)': 3 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(347): note: 引数リスト '(double [3], int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(348): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(348): error C2660: 'copy_vec': 関数に 2 個の引数を指定できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(55): note: 'copy_vec' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(30): note: 'void common::math::copy_vec(T *,const T *,size_t)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(348): note: 'void common::math::copy_vec(T *,const T *,size_t)': 3 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(348): note: 引数リスト '(double [3], int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(349): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(349): error C2660: 'copy_vec': 関数に 2 個の引数を指定できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(55): note: 'copy_vec' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(30): note: 'void common::math::copy_vec(T *,const T *,size_t)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(349): note: 'void common::math::copy_vec(T *,const T *,size_t)': 3 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(349): note: 引数リスト '(double [4], int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(350): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(350): error C2660: 'copy_vec': 関数に 2 個の引数を指定できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(55): note: 'copy_vec' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(30): note: 'void common::math::copy_vec(T *,const T *,size_t)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(350): note: 'void common::math::copy_vec(T *,const T *,size_t)': 3 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(350): note: 引数リスト '(double [3], int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(351): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(351): error C2660: 'copy_vec': 関数に 2 個の引数を指定できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(55): note: 'copy_vec' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(30): note: 'void common::math::copy_vec(T *,const T *,size_t)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(351): note: 'void common::math::copy_vec(T *,const T *,size_t)': 3 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(351): note: 引数リスト '(double [3], int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(352): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(353): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(363): error C2065: 'dbg_out': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(376): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(377): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(377): error C2672: 'matToMatrix': 一致するオーバーロードされた関数が見つかりませんでした。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\../Inc/MEX/mex_type_conversion.hpp(31): note: 'bool mex_conv::matToMatrix(const mxArray *,cmath_fx::Matrix<R,C,float> &)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(386): error C2065: 'dbg_out': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(387): error C2065: 'dbg_out': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(390): error C2065: 'dbg_out': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(398): error C2065: 'sensor_type': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(456): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(456): error C2660: 'copy_vec': 関数に 2 個の引数を指定できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(55): note: 'copy_vec' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(30): note: 'void common::math::copy_vec(T *,const T *,size_t)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(456): note: 'void common::math::copy_vec(T *,const T *,size_t)': 3 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(456): note: 引数リスト '(double [3], int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(457): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(457): error C2660: 'copy_vec': 関数に 2 個の引数を指定できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(55): note: 'copy_vec' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(30): note: 'void common::math::copy_vec(T *,const T *,size_t)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(457): note: 'void common::math::copy_vec(T *,const T *,size_t)': 3 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(457): note: 引数リスト '(double [3], int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(458): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(458): error C2660: 'copy_vec': 関数に 2 個の引数を指定できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(55): note: 'copy_vec' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(30): note: 'void common::math::copy_vec(T *,const T *,size_t)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(458): note: 'void common::math::copy_vec(T *,const T *,size_t)': 3 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(458): note: 引数リスト '(double [4], int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(459): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(459): error C2660: 'copy_vec': 関数に 2 個の引数を指定できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(55): note: 'copy_vec' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(30): note: 'void common::math::copy_vec(T *,const T *,size_t)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(459): note: 'void common::math::copy_vec(T *,const T *,size_t)': 3 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(459): note: 引数リスト '(double [3], int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(460): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(460): error C2660: 'copy_vec': 関数に 2 個の引数を指定できません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(55): note: 'copy_vec' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Inc\ESKF\../Common/Math/vector_utils.hpp(30): note: 'void common::math::copy_vec(T *,const T *,size_t)' の可能性があります
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(460): note: 'void common::math::copy_vec(T *,const T *,size_t)': 3 引数が必要です - 2 が指定されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(460): note: 引数リスト '(double [3], int)' を一致させようとしているとき
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(461): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(462): error C2065: 'new_state': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(474): error C2065: 'sensor_data': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(474): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(474): error C2365: 'mxDestroyArray': 再定義; 以前の定義は '関数' でした。
+C:\Program Files\MATLAB\R2025b\extern\include\matrix.h(965): note: 'mxDestroyArray' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(475): error C2065: 'mex_params': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(475): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(475): error C2365: 'mxDestroyArray': 再定義; 以前の定義は '関数' でした。
+C:\Program Files\MATLAB\R2025b\extern\include\matrix.h(965): note: 'mxDestroyArray' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(476): error C2065: 'state_s': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(476): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(476): error C2365: 'mxDestroyArray': 再定義; 以前の定義は '関数' でした。
+C:\Program Files\MATLAB\R2025b\extern\include\matrix.h(965): note: 'mxDestroyArray' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(477): error C2059: 構文エラー: '}'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(477): error C2143: 構文エラー: ';' が '}' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(481): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(481): error C2065: 'out_v': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(481): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(481): error C2365: 'copy_vec': 再定義; 以前の定義は '関数' でした。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(55): note: 'copy_vec' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(482): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(482): error C2065: 'out_q': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(482): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(482): error C2365: 'copy_vec': 再定義; 以前の定義は '関数' でした。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(55): note: 'copy_vec' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(483): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(483): error C2065: 'out_ba': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(483): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(483): error C2365: 'copy_vec': 再定義; 以前の定義は '関数' でした。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(55): note: 'copy_vec' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(484): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(484): error C2065: 'out_bg': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(484): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(484): error C2365: 'copy_vec': 再定義; 以前の定義は '関数' でした。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(55): note: 'copy_vec' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(485): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(485): error C2065: 'out_P': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(485): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポートしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(485): error C2365: 'memcpy': 再定義; 以前の定義は '関数' でした。
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.41.34120\include\vcruntime_string.h(43): note: 'memcpy' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(487): error C2059: 構文エラー: '}'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(487): error C2143: 構文エラー: ';' が '}' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(490): error C2059: 構文エラー: 'for'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(490): error C2143: 構文エラー: ')' が ';' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp(490): fatal error C1003: プログラム内のエラーが 100 個を超えました。コンパイルは中断されます。
+
+
+
+=== Build Complete ===
+Successfully built 3 MEX file(s)
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+To use MEX files, add to MATLAB path:
+  addpath('C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin')
+
+=== MEX Build Log Ended at 30-Dec-2025 02:42:22 ===
