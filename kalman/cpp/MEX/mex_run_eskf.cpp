@@ -19,6 +19,11 @@
 #include "../Inc/Common/Math/vector_utils.hpp"
 #include "../Inc/Common/filter_management.hpp"
 #include "../Inc/Common/Math/fixed_matrix.hpp"
+#include "../Inc/Common/Sensor/sensor_filter.hpp"
+#include "../Inc/ESKF/eskf_postprocess.hpp"
+#include "../Inc/ESKF/eskf_core.hpp"
+#include "../Inc/MEX/mex_type_conversion.hpp"
+#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -27,7 +32,10 @@
 using namespace common::math;
 using namespace common::filter;
 using Quat = quat_lib::Quaternion<double>;
+using QuatF = quat_lib::Quaternion<float>;
 using namespace cmath_fx;
+using namespace eskf;
+using namespace mex_conv;
 
 // ESKF State Structure
 struct ESKFState {
@@ -60,6 +68,10 @@ static std::map<uint64_t, ESKFState*> g_states;
 static uint64_t g_next_handle = 1;
 
 // Utility functions
+static void copy_vec(double* dst, const double* src, int n) {
+    memcpy(dst, src, n * sizeof(double));
+}
+
 static std::string getCmd(const mxArray* a) {
     char buf[256] = {0};
     if (!mxIsChar(a)) return "";
@@ -94,65 +106,216 @@ static void getVec3(const mxArray* s, const char* xname, const char* yname, cons
 #define getGyro(obs, idx, out)  getVec3(obs, "wx", "wy", "wz", idx, out)
 #define getMag(obs, idx, out)   getVec3(obs, "mx", "my", "mz", idx, out)
 
-// Call mex_adaptive_predict
+// Predict using ESKFCore directly (mex_adaptive_predict を統合)
 static void call_predict(ESKFState* s, const double* a_meas, const double* w_meas) {
-    mxArray* prhs[14];
-    mxArray* plhs[6];
+    using namespace eskf;  // Ensure namespace is available in this function
+    using PredictParams = eskf::PredictPostprocessParams;  // Type alias for clarity
     
-    prhs[0] = mxCreateString("predict");
-    prhs[1] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs[1]), s->p, 3);
-    prhs[2] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs[2]), s->v, 3);
-    prhs[3] = mxCreateDoubleMatrix(4,1,mxREAL); copy_vec(mxGetPr(prhs[3]), s->q, 4);
-    prhs[4] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs[4]), s->ba, 3);
-    prhs[5] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs[5]), s->bg, 3);
-    prhs[6] = mxCreateDoubleMatrix(15,15,mxREAL); memcpy(mxGetPr(prhs[6]), s->P, 15*15*8);
-    prhs[7] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs[7]), a_meas, 3);
-    prhs[8] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs[8]), w_meas, 3);
-    prhs[9] = mxCreateDoubleScalar(s->dt);
-    prhs[10] = mxCreateDoubleMatrix(15,15,mxREAL); memcpy(mxGetPr(prhs[10]), s->Q_nominal, 15*15*8);
-    prhs[11] = mxCreateLogicalScalar(s->adaptive_q_enabled);
-    double zeros3[3] = {0,0,0};
-    prhs[12] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs[12]), zeros3, 3);
-    prhs[13] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs[13]), zeros3, 3);
-    // Note: g is passed via prhs[13] = zeros for gyro_bias_prev, we need to add g separately
-    // Actually mex_adaptive_predict takes 14 args, the last one is g
-    mxDestroyArray(prhs[13]);
-    prhs[13] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs[13]), s->g, 3);
+    // Convert double to float for ESKFCore (uses float internally)
+    Vector<3, float> p_f, v_f, ba_f, bg_f, a_meas_f, w_meas_f, g_f;
+    Vector<4, float> q_f;
+    Matrix<15, 15, float> P_f, Qnom_f, Qadapt_f, Pnew_f;
+    Vector<3, float> gyro_thr_f, accel_thr_f;
     
-    if (mexCallMATLAB(6, plhs, 14, prhs, "mex_adaptive_predict") == 0) {
-        copy_vec(s->p, mxGetPr(plhs[0]), 3);
-        copy_vec(s->v, mxGetPr(plhs[1]), 3);
-        copy_vec(s->q, mxGetPr(plhs[2]), 4);
-        copy_vec(s->ba, mxGetPr(plhs[3]), 3);
-        copy_vec(s->bg, mxGetPr(plhs[4]), 3);
-        memcpy(s->P, mxGetPr(plhs[5]), 15*15*8);
-        for (int i=0; i<6; i++) mxDestroyArray(plhs[i]);
+    // Convert inputs
+    for (int i = 0; i < 3; ++i) {
+        p_f(i, 0) = static_cast<float>(s->p[i]);
+        v_f(i, 0) = static_cast<float>(s->v[i]);
+        ba_f(i, 0) = static_cast<float>(s->ba[i]);
+        bg_f(i, 0) = static_cast<float>(s->bg[i]);
+        a_meas_f(i, 0) = static_cast<float>(a_meas[i]);
+        w_meas_f(i, 0) = static_cast<float>(w_meas[i]);
+        g_f(i, 0) = static_cast<float>(s->g[i]);
+        gyro_thr_f(i, 0) = 0.0f;  // Default thresholds
+        accel_thr_f(i, 0) = 0.0f;
     }
-    for (int i=0; i<14; i++) mxDestroyArray(prhs[i]);
+    for (int i = 0; i < 4; ++i) {
+        q_f(i, 0) = static_cast<float>(s->q[i]);
+    }
+    for (int i = 0; i < 15; ++i) {
+        for (int j = 0; j < 15; ++j) {
+            P_f(i, j) = static_cast<float>(s->P[i + j*15]);
+            Qnom_f(i, j) = static_cast<float>(s->Q_nominal[i + j*15]);
+        }
+    }
+    
+    float dt_f = static_cast<float>(s->dt);
+    
+    // Adaptive Q scaling
+    Qadapt_f = Qnom_f;
+    if (s->adaptive_q_enabled) {
+        ESKFCore::compute_adaptive_Q(Qnom_f, a_meas_f, w_meas_f, Qadapt_f);
+    }
+    
+    // Integrate nominal state
+    ESKFCore::integrate_nominal(p_f, v_f, q_f, ba_f, bg_f, a_meas_f, w_meas_f, dt_f, g_f, gyro_thr_f, accel_thr_f);
+    
+    // Predict covariance
+    ESKFCore::predict_covariance(P_f, q_f, a_meas_f, ba_f, w_meas_f, bg_f, Qadapt_f, dt_f, Pnew_f);
+    
+    // Ensure symmetry
+    for (int i = 0; i < 15; ++i) {
+        for (int j = i + 1; j < 15; ++j) {
+            float v = 0.5f * (Pnew_f(i, j) + Pnew_f(j, i));
+            Pnew_f(i, j) = v;
+            Pnew_f(j, i) = v;
+        }
+    }
+    
+    // Copy Pnew_f to P_f for postprocessing
+    P_f = Pnew_f;
     
     copy_vec(s->w_body, w_meas, 3);
     
-    // Call mex_eskf_predict_postprocess
-    mxArray* prhs2[11];
-    mxArray* plhs2[2];
-    prhs2[0] = mxCreateString("postprocess");
-    prhs2[1] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs2[1]), s->v, 3);
-    prhs2[2] = mxCreateDoubleMatrix(4,1,mxREAL); copy_vec(mxGetPr(prhs2[2]), s->q, 4);
-    prhs2[3] = mxCreateDoubleMatrix(15,15,mxREAL); memcpy(mxGetPr(prhs2[3]), s->P, 15*15*8);
-    prhs2[4] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs2[4]), a_meas, 3);
-    prhs2[5] = mxCreateDoubleScalar(s->dt);
-    prhs2[6] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs2[6]), s->g, 3);
-    prhs2[7] = mxCreateLogicalScalar(s->enable_accel_z_integration);
-    prhs2[8] = mxCreateDoubleScalar(s->accel_z_threshold);
-    prhs2[9] = mxCreateDoubleScalar(s->accel_z_damping);
-    prhs2[10] = mxCreateDoubleScalar(s->velocity_damping);
-    
-    if (mexCallMATLAB(2, plhs2, 11, prhs2, "mex_eskf_predict_postprocess") == 0) {
-        copy_vec(s->v, mxGetPr(plhs2[0]), 3);
-        memcpy(s->P, mxGetPr(plhs2[1]), 15*15*8);
-        for (int i=0; i<2; i++) mxDestroyArray(plhs2[i]);
+    // Predict postprocess (mex_eskf_predict_postprocess を統合)
+    // Note: v_f, q_f, P_f, g_f, dt_f are already declared above
+    // Only need a_for_vel_f for postprocessing
+    Vector<3, float> a_for_vel_f;
+    for (int i = 0; i < 3; ++i) {
+        a_for_vel_f(i, 0) = static_cast<float>(a_meas[i]);
     }
-    for (int i=0; i<11; i++) mxDestroyArray(prhs2[i]);
+    bool enable_accel_z = s->enable_accel_z_integration;
+    float accel_z_threshold = static_cast<float>(s->accel_z_threshold);
+    float accel_z_damping = static_cast<float>(s->accel_z_damping);
+    float velocity_damping = static_cast<float>(s->velocity_damping);
+    
+    // 1. accel_z_integration - Direct C++ implementation using quaternion_lib.hpp
+    if (enable_accel_z) {
+        // Convert Vector<4, float> to Quaternion<float>
+        QuatF quat(q_f(0, 0), q_f(1, 0), q_f(2, 0), q_f(3, 0));
+        quat.normalize();
+        
+        // Get rotation matrix (row-major order from quaternion_lib)
+        float R_row[9];
+        quat.to_rotation_matrix(R_row);
+        
+        // Convert row-major to column-major with transpose
+        // mex_quaternion_lib returns transposed matrix for MATLAB (column-major)
+        // So we need to transpose: R(i,j) = R_row[j*3 + i]
+        Matrix<3, 3, float> R;
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                // Transpose: row-major R_row to column-major R
+                R(i, j) = R_row[j * 3 + i];
+            }
+        }
+        
+        // Calculate R * a_for_vel (matrix-vector multiplication)
+        Vector<3, float> Ra;
+        for (int i = 0; i < 3; ++i) {
+            Ra(i, 0) = 0.0f;
+            for (int j = 0; j < 3; ++j) {
+                Ra(i, 0) += R(i, j) * a_for_vel_f(j, 0);
+            }
+        }
+        
+        // Calculate (R * a_for_vel) - [0; 0; g(3)]
+        Vector<3, float> a_ned;
+        a_ned(0, 0) = Ra(0, 0);
+        a_ned(1, 0) = Ra(1, 0);
+        a_ned(2, 0) = Ra(2, 0) - g_f(2, 0);
+        
+        float az_excess = a_ned(2, 0);
+        if (std::abs(az_excess) > accel_z_threshold) {
+            v_f(2, 0) = v_f(2, 0) * (1.0f - accel_z_damping) + az_excess * dt_f;
+        }
+    }
+    
+    // 2-6. 後処理（velocity_damping, P normalization, velocity clipping）
+    PredictParams params;
+    params.enable_accel_z_integration = false;  // 既に上で処理済み
+    params.accel_z_threshold = accel_z_threshold;
+    params.accel_z_damping = accel_z_damping;
+    params.velocity_damping = velocity_damping;
+    eskf::predict_postprocess(v_f, q_f, P_f, a_for_vel_f, dt_f, g_f, params);
+    
+    // 3. divergence_guard.regularize_covariance (mex_sensor_filter を統合)
+    using namespace common::sensor;
+    static SensorFilterLib filter_lib;  // Static instance for reuse
+    // Convert Matrix<15,15,float> to FixedMatrix (cm)
+    cm P_fixed(15, 15);
+    for (int i = 0; i < 15; ++i) {
+        for (int j = 0; j < 15; ++j) {
+            P_fixed(i, j) = P_f(i, j);
+        }
+    }
+    filter_lib.divergence_guard.regularize_covariance(P_fixed);
+    // Convert back to Matrix<15,15,float>
+    for (int i = 0; i < 15; ++i) {
+        for (int j = 0; j < 15; ++j) {
+            P_f(i, j) = P_fixed(i, j);
+        }
+    }
+    
+    // 5. divergence_guard.check_and_clip_velocity (mex_sensor_filter を統合)
+    // vel_indices = [4, 5, 6] (1-based in MATLAB, but we use 0-based internally: 3, 4, 5)
+    std::vector<int> vel_indices = {3, 4, 5};
+    bool was_clipped = false;
+    
+    // Define max variances consistent with MATLAB limits
+    std::vector<float> max_var(15);
+    for(int i=0; i<15; ++i) max_var[i] = 1e6f; // default large
+    // position 0:2 -> 100^2
+    for(int i=0; i<3; ++i) max_var[i] = 100.0f*100.0f;
+    // velocity 3:5 -> 20^2
+    for(int i=3; i<6; ++i) max_var[i] = 20.0f*20.0f;
+    // attitude 6:8 -> (deg2rad(45))^2
+    float d45 = 45.0f * 3.14159265f / 180.0f;
+    for(int i=6; i<9; ++i) max_var[i] = d45*d45;
+    // accel bias 9:11
+    for(int i=9; i<12; ++i) max_var[i] = 0.1f;
+    // gyro bias 12:14
+    for(int i=12; i<15; ++i) max_var[i] = 0.01f;
+    
+    // Clip covariance per-velocity-index
+    for(size_t kk=0; kk<vel_indices.size(); ++kk) {
+        int idx = vel_indices[kk];
+        if (idx < 0 || idx >= 15) continue;
+        float Pii = P_f(idx, idx);
+        if (Pii > max_var[idx]) {
+            float factor = sqrtf(max_var[idx] / Pii);
+            for(int j=0; j<15; ++j) P_f(idx, j) *= factor;
+            for(int i=0; i<15; ++i) P_f(i, idx) *= factor;
+            P_f(idx, idx) = max_var[idx];
+            was_clipped = true;
+        }
+    }
+    
+    // Clip velocity magnitude to max_vel (3.0 m/s)
+    float max_vel = 3.0f;
+    float vnorm = 0.0f;
+    for(int i=0; i<3; ++i) vnorm += v_f(i, 0) * v_f(i, 0);
+    vnorm = sqrtf(vnorm);
+    if (vnorm > max_vel) {
+        float scale = max_vel / vnorm;
+        for(int i=0; i<3; ++i) v_f(i, 0) *= scale;
+        was_clipped = true;
+    }
+    
+    // Ensure symmetry of P
+    for(int i=0; i<15; ++i) {
+        for(int j=i+1; j<15; ++j) {
+            float v = 0.5f * (P_f(i, j) + P_f(j, i));
+            P_f(i, j) = v;
+            P_f(j, i) = v;
+        }
+    }
+    
+    // Convert back to double (all state variables)
+    for (int i = 0; i < 3; ++i) {
+        s->p[i] = static_cast<double>(p_f(i, 0));
+        s->v[i] = static_cast<double>(v_f(i, 0));
+        s->ba[i] = static_cast<double>(ba_f(i, 0));
+        s->bg[i] = static_cast<double>(bg_f(i, 0));
+    }
+    for (int i = 0; i < 4; ++i) {
+        s->q[i] = static_cast<double>(q_f(i, 0));
+    }
+    for (int i = 0; i < 15; ++i) {
+        for (int j = 0; j < 15; ++j) {
+            s->P[i + j*15] = static_cast<double>(P_f(i, j));
+        }
+    }
 }
 
 // Call sensor update
@@ -304,28 +467,15 @@ static void check_and_reset(ESKFState* s, int k) {
     if (need_reset) {
         s->last_reset_step = k;
         
-        // Call mex_filter_management('reset_state', ...) for proper reset
-        mxArray* reset_prhs[7];
-        mxArray* reset_plhs[6];
-        reset_prhs[0] = mxCreateString("reset_state");
-        reset_prhs[1] = mxCreateDoubleMatrix(3,1,mxREAL); memcpy(mxGetPr(reset_prhs[1]), s->p, 3*8);
-        reset_prhs[2] = mxCreateDoubleMatrix(3,1,mxREAL); memcpy(mxGetPr(reset_prhs[2]), s->v, 3*8);
-        reset_prhs[3] = mxCreateDoubleMatrix(4,1,mxREAL); memcpy(mxGetPr(reset_prhs[3]), s->q, 4*8);
-        reset_prhs[4] = mxCreateDoubleMatrix(3,1,mxREAL); memcpy(mxGetPr(reset_prhs[4]), s->ba, 3*8);
-        reset_prhs[5] = mxCreateDoubleMatrix(3,1,mxREAL); memcpy(mxGetPr(reset_prhs[5]), s->bg, 3*8);
-        reset_prhs[6] = mxCreateDoubleMatrix(15,15,mxREAL); memcpy(mxGetPr(reset_prhs[6]), s->P, 15*15*8);
-        
-        if (mexCallMATLAB(6, reset_plhs, 7, reset_prhs, "mex_filter_management") == 0) {
-            // Only use the returned P matrix
-            memcpy(s->P, mxGetPr(reset_plhs[5]), 15*15*8);
-            for (int i=0; i<6; i++) mxDestroyArray(reset_plhs[i]);
-        }
-        for (int i=0; i<7; i++) mxDestroyArray(reset_prhs[i]);
-        
-        // Manual resets as in MATLAB reset('filter') (implementation moved to Src/Common/filter_management.cpp)
+        // Reset state using filter_management directly (mex_filter_management を統合)
+        using namespace common::filter;
         Vector<3, float> v_float, ba_float, bg_float;
         Vector<4, float> q_float;
         Matrix<15, 15, float> P_float;
+        
+        // Reset P matrix using setIdentityScaled (reset_scale = 0.01)
+        float reset_scale = 0.01f;
+        setIdentityScaled(P_float, reset_scale);
         
         // Convert current state to float type
         for (int i = 0; i < 3; ++i) {
@@ -384,20 +534,33 @@ static void zupt_check_and_update(ESKFState* s, const double* a_meas, const doub
     s->is_stationary = (s->zupt_counter >= s->zupt_min_duration);
     
     if (s->is_stationary) {
-        // ZUPT update via mex_eskf_zupt
-        mxArray* prhs2[3];
-        mxArray* plhs2[2];
-        prhs2[0] = mxCreateString("update");
-        prhs2[1] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs2[1]), s->v, 3);
-        prhs2[2] = mxCreateDoubleMatrix(15,15,mxREAL); memcpy(mxGetPr(prhs2[2]), s->P, 15*15*8);
+        // ZUPT update using ESKFCore directly (mex_eskf_zupt を統合)
+        using namespace eskf;
+        Vector<3, float> v_in, v_out;
+        Matrix<15, 15, float> P_in, P_out;
         
-        if (mexCallMATLAB(2, plhs2, 3, prhs2, "mex_eskf_zupt") == 0) {
-            copy_vec(s->v, mxGetPr(plhs2[0]), 3);
-            memcpy(s->P, mxGetPr(plhs2[1]), 15*15*8);
-            mxDestroyArray(plhs2[0]);
-            mxDestroyArray(plhs2[1]);
+        // Convert double to float
+        for (int i = 0; i < 3; ++i) {
+            v_in(i, 0) = static_cast<float>(s->v[i]);
         }
-        for (int i=0; i<3; i++) mxDestroyArray(prhs2[i]);
+        for (int i = 0; i < 15; ++i) {
+            for (int j = 0; j < 15; ++j) {
+                P_in(i, j) = static_cast<float>(s->P[i + j*15]);
+            }
+        }
+        
+        // Call ESKFCore::update_zupt
+        ESKFCore::update_zupt(v_in, P_in, v_out, P_out);
+        
+        // Convert back to double
+        for (int i = 0; i < 3; ++i) {
+            s->v[i] = static_cast<double>(v_out(i, 0));
+        }
+        for (int i = 0; i < 15; ++i) {
+            for (int j = 0; j < 15; ++j) {
+                s->P[i + j*15] = static_cast<double>(P_out(i, j));
+            }
+        }
     }
 }
 

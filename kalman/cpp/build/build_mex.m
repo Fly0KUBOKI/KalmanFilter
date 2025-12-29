@@ -97,6 +97,15 @@ function build_mex(targets)
     if ~exist(bin_dir, 'dir')
         mkdir(bin_dir);
         log_print('Created output directory: %s\n', bin_dir);
+    else
+        % Clear bin directory before build
+        log_print('Clearing bin directory: %s\n', bin_dir);
+        bin_files = dir(fullfile(bin_dir, '*.*'));
+        for i = 1:length(bin_files)
+            if ~bin_files(i).isdir && ~strcmp(bin_files(i).name, '.') && ~strcmp(bin_files(i).name, '..')
+                delete(fullfile(bin_dir, bin_files(i).name));
+            end
+        end
     end
     
     log_print('Output: %s\n\n', bin_dir);
@@ -163,10 +172,7 @@ function build_mex(targets)
         built_count = built_count + 1;
     end
 
-    % Phase 4: mex_adaptive_predict (predict() 全体の C++ 化ラッパ)
-    if wants('mex_adaptive_predict') && build_single_mex('mex_adaptive_predict.cpp', compile_opts, inc_args, {fullfile(src_dir, 'ESKF', 'eskf_core.cpp')}, bin_dir, [], log_fid)
-        built_count = built_count + 1;
-    end
+    % Phase 4: mex_adaptive_predict - REMOVED: integrated into mex_run_eskf.cpp (uses ESKFCore directly)
 
     try
         % Build: mex_kalman_filter_core
@@ -231,12 +237,7 @@ function build_mex(targets)
 
         % mex_eskf_step (wrapper) - skipped here
 
-        % mex_quaternion_lib
-        if exist('mex_quaternion_lib.cpp', 'file')
-            if wants('mex_quaternion_lib') && build_single_mex('mex_quaternion_lib.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
-                built_count = built_count + 1;
-            end
-        end
+        % mex_quaternion_lib - REMOVED: integrated into mex_run_eskf.cpp (uses quaternion_lib.hpp directly)
 
         % mex_ukf (uses ekf_linear_update)
         ekf_linear_cpp = fullfile(src_dir, 'EKF', 'ekf_linear_update.cpp');
@@ -261,7 +262,7 @@ function build_mex(targets)
             end
         end
 
-        % mex_sensor_filter
+        % mex_sensor_filter (still needed by mex_eskf_do_update and mex_eskf_sensor_updates_full)
         if wants('mex_sensor_filter') && build_single_mex('mex_sensor_filter.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
             built_count = built_count + 1;
         end
@@ -280,13 +281,8 @@ function build_mex(targets)
                 built_count = built_count + 1;
             end
         end
-        % Phase 5: mex_filter_management (実装はSrc/Common/filter_management.cppに移動)
+        % Phase 5: mex_filter_management - REMOVED: integrated into mex_run_eskf.cpp (uses setIdentityScaled directly)
         filter_management_cpp = fullfile(src_dir, 'Common', 'filter_management.cpp');
-        if exist('mex_filter_management.cpp', 'file')
-            if wants('mex_filter_management') && build_single_mex('mex_filter_management.cpp', compile_opts, inc_args, {filter_management_cpp}, bin_dir, [], log_fid)
-                built_count = built_count + 1;
-            end
-        end
         
         % Phase 1: mex_eskf_predict_postprocess (実装はSrc/Common/filter_management.cppとSrc/ESKF/eskf_postprocess.cppに移動)
         filter_management_cpp = fullfile(src_dir, 'Common', 'filter_management.cpp');
@@ -306,13 +302,8 @@ function build_mex(targets)
             end
         end
         
-        % Phase 1: mex_eskf_zupt
+        % Phase 1: mex_eskf_zupt - REMOVED: integrated into mex_run_eskf.cpp (uses ESKFCore::update_zupt directly)
         eskf_core_cpp = fullfile(src_dir, 'ESKF', 'eskf_core.cpp');
-        if exist('mex_eskf_zupt.cpp', 'file')
-            if wants('mex_eskf_zupt') && build_single_mex('mex_eskf_zupt.cpp', compile_opts, inc_args, {eskf_core_cpp}, bin_dir, [], log_fid)
-                built_count = built_count + 1;
-            end
-        end
         
         % Full MEX: mex_eskf_full (complete ESKF in MEX)
         if exist('mex_eskf_full.cpp', 'file')
@@ -358,11 +349,14 @@ function build_mex(targets)
             end
         end
         
-        % mex_run_eskf (ESKF.m完全移行版) (mex_eskf_predict_postprocess を統合)
+        % mex_run_eskf (ESKF.m完全移行版)
+        % 統合済み: mex_eskf_predict_postprocess, mex_adaptive_predict, mex_quaternion_lib,
+        %           mex_eskf_zupt, mex_filter_management, mex_sensor_filter
         filter_management_cpp = fullfile(src_dir, 'Common', 'filter_management.cpp');
         eskf_postprocess_cpp = fullfile(src_dir, 'ESKF', 'eskf_postprocess.cpp');
+        eskf_core_cpp = fullfile(src_dir, 'ESKF', 'eskf_core.cpp');
         if exist('mex_run_eskf.cpp', 'file')
-            if wants('mex_run_eskf') && build_single_mex('mex_run_eskf.cpp', compile_opts, inc_args, {filter_management_cpp, eskf_postprocess_cpp}, bin_dir, [], log_fid)
+            if wants('mex_run_eskf') && build_single_mex('mex_run_eskf.cpp', compile_opts, inc_args, {filter_management_cpp, eskf_postprocess_cpp, eskf_core_cpp}, bin_dir, [], log_fid)
                 built_count = built_count + 1;
             end
         end
