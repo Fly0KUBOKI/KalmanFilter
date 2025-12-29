@@ -1,12 +1,19 @@
 // mex_eskf_sensor_updates_full.cpp
 // sensor_updates() 全体をMEX化（前処理 + do_cpp_update統合）
+// mex_eskf_do_update を統合
 
 #include "mex.h"
 #include <cmath>
 #include <cstring>
 #include "../Inc/Common/Math/vector_utils.hpp"
+#include "../Inc/Common/Math/quaternion_lib.hpp"
+#include "../Inc/ESKF/eskf_postprocess.hpp"
+#include "../Inc/MEX/mex_type_conversion.hpp"
 
 using namespace common::math;
+using namespace cmath_fx;
+using namespace eskf;
+using namespace mex_conv;
 
 // MATLAB用のNaNチェック（mxIsNaNを使用）
 static bool is_nan_any_matlab(const double* v, int n) {

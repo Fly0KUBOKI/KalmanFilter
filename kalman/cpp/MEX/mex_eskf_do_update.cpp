@@ -1,13 +1,20 @@
 // mex_eskf_do_update.cpp
 // do_cpp_update() を完全にMEX化
 // 構造体構築のオーバーヘッドを削減
+// mex_eskf_update_postprocess を統合
 
 #include "mex.h"
 #include <cmath>
 #include <cstring>
 #include "../Inc/Common/Math/vector_utils.hpp"
+#include "../Inc/Common/Math/quaternion_lib.hpp"
+#include "../Inc/ESKF/eskf_postprocess.hpp"
+#include "../Inc/MEX/mex_type_conversion.hpp"
 
 using namespace common::math;
+using namespace cmath_fx;
+using namespace eskf;
+using namespace mex_conv;
 
 //=============================================================================
 // メインハンドラ
@@ -200,36 +207,125 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
             if (plhs_ne[0]) mxDestroyArray(plhs_ne[0]);
         }
 
-        // postprocess
+        // postprocess (mex_eskf_update_postprocess を統合)
         if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "dx")) {
-            mxArray* prhs_pp[12];
-            mxArray* plhs_pp[7];
-            prhs_pp[0] = mxCreateString("postprocess");
-            prhs_pp[1] = mxCreateString(sensor_type);
-            prhs_pp[2] = mxDuplicateArray(mxGetField(dbg_out, 0, "dx"));
-            prhs_pp[3] = mxDuplicateArray(mxGetField(dbg_out, 0, "innov"));
-            prhs_pp[4] = mxDuplicateArray(p_arr);
-            prhs_pp[5] = mxDuplicateArray(v_arr);
-            prhs_pp[6] = mxDuplicateArray(q_arr);
-            prhs_pp[7] = mxDuplicateArray(ba_arr);
-            prhs_pp[8] = mxDuplicateArray(bg_arr);
-            prhs_pp[9] = mxDuplicateArray(P_arr);
-            prhs_pp[10] = mxDuplicateArray(mxGetField(new_state, 0, "P"));
-            prhs_pp[11] = mxCreateDoubleScalar(sample);
-
-            if (mexCallMATLAB(7, plhs_pp, 12, prhs_pp, "mex_eskf_update_postprocess") == 0) {
-                should_skip = mxIsLogicalScalarTrue(plhs_pp[6]);
-                if (!should_skip) {
-                    copy_vec(out_p, mxGetPr(plhs_pp[0]), 3);
-                    copy_vec(out_v, mxGetPr(plhs_pp[1]), 3);
-                    copy_vec(out_q, mxGetPr(plhs_pp[2]), 4);
-                    copy_vec(out_ba, mxGetPr(plhs_pp[3]), 3);
-                    copy_vec(out_bg, mxGetPr(plhs_pp[4]), 3);
-                    memcpy(out_P, mxGetPr(plhs_pp[5]), 15*15*8);
+            // Get dx (15x1)
+            Vector<15, float> dx;
+            if (!matToVector(mxGetField(dbg_out, 0, "dx"), dx)) {
+                // Fallback: use new_state directly
+                copy_vec(out_p, mxGetPr(mxGetField(new_state, 0, "p")), 3);
+                copy_vec(out_v, mxGetPr(mxGetField(new_state, 0, "v")), 3);
+                copy_vec(out_q, mxGetPr(mxGetField(new_state, 0, "q")), 4);
+                copy_vec(out_ba, mxGetPr(mxGetField(new_state, 0, "ba")), 3);
+                copy_vec(out_bg, mxGetPr(mxGetField(new_state, 0, "bg")), 3);
+                if (mxGetField(new_state, 0, "P")) {
+                    double* new_P = mxGetPr(mxGetField(new_state, 0, "P"));
+                    for (int i = 0; i < 15; ++i) {
+                        for (int j = 0; j < 15; ++j) {
+                            out_P[i + j*15] = 0.5 * (new_P[i + j*15] + new_P[j + i*15]);
+                        }
+                    }
                 }
-                for (int i = 0; i < 7; ++i) mxDestroyArray(plhs_pp[i]);
+                should_skip = false;
+            } else {
+                // Get innov
+                const mxArray* innov = mxGetField(dbg_out, 0, "innov");
+                
+                // Get state
+                Vector<3, float> state_p, state_v, state_ba, state_bg;
+                Vector<4, float> state_q;
+                Matrix<15, 15, float> state_P, new_state_P;
+                
+                if (!matToVector(p_arr, state_p)) state_p = Vector<3, float>::Zero();
+                if (!matToVector(v_arr, state_v)) state_v = Vector<3, float>::Zero();
+                if (!matToVector(q_arr, state_q)) state_q = Vector<4, float>::Zero();
+                if (!matToVector(ba_arr, state_ba)) state_ba = Vector<3, float>::Zero();
+                if (!matToVector(bg_arr, state_bg)) state_bg = Vector<3, float>::Zero();
+                if (!matToMatrix(P_arr, state_P)) state_P = Matrix<15, 15, float>::Zero();
+                if (mxGetField(new_state, 0, "P")) {
+                    if (!matToMatrix(mxGetField(new_state, 0, "P"), new_state_P)) {
+                        new_state_P = state_P;
+                    }
+                } else {
+                    new_state_P = state_P;
+                }
+                
+                // Call divergence_guard.check_and_attenuate_update via mex_sensor_filter
+                mxArray* plhs_div[3];
+                mxArray* prhs_div[4];
+                prhs_div[0] = mxCreateString("divergence_check");
+                prhs_div[1] = mxCreateString(sensor_type);
+                prhs_div[2] = mxDuplicateArray(innov);
+                prhs_div[3] = vectorToMat(dx);
+                
+                mexCallMATLAB(3, plhs_div, 4, prhs_div, "mex_sensor_filter");
+                
+                // Get outputs: dx_out, should_skip, was_attenuated
+                Vector<15, float> dx_out;
+                if (!matToVector(plhs_div[0], dx_out)) {
+                    dx_out = dx;
+                }
+                should_skip = mxIsLogicalScalarTrue(plhs_div[1]);
+                bool was_attenuated = mxIsLogicalScalarTrue(plhs_div[2]);
+                
+                // Cleanup divergence call
+                mxDestroyArray(plhs_div[0]);
+                mxDestroyArray(plhs_div[1]);
+                mxDestroyArray(plhs_div[2]);
+                mxDestroyArray(prhs_div[0]);
+                mxDestroyArray(prhs_div[1]);
+                mxDestroyArray(prhs_div[2]);
+                mxDestroyArray(prhs_div[3]);
+                
+                // Output: new_state (p, v, q, ba, bg, P), should_skip
+                Vector<3, float> new_p, new_v, new_ba, new_bg;
+                Vector<4, float> new_q;
+                Matrix<15, 15, float> out_P_mat = new_state_P;
+                
+                if (should_skip) {
+                    // Return original state
+                    new_p = state_p;
+                    new_v = state_v;
+                    new_q = state_q;
+                    new_ba = state_ba;
+                    new_bg = state_bg;
+                    out_P_mat = state_P;
+                } else if (was_attenuated) {
+                    // Apply dx_out
+                    UpdatePostprocessResult updated = update_state_from_dx(dx_out, state_p, state_v, state_q, state_ba, state_bg, new_state_P);
+                    new_p = updated.p;
+                    new_v = updated.v;
+                    new_q = updated.q;
+                    new_ba = updated.ba;
+                    new_bg = updated.bg;
+                    out_P_mat = updated.P;
+                } else {
+                    // Use new_state directly (no attenuation)
+                    UpdatePostprocessResult updated = update_state_from_dx(dx, state_p, state_v, state_q, state_ba, state_bg, new_state_P);
+                    new_p = updated.p;
+                    new_v = updated.v;
+                    new_q = updated.q;
+                    new_ba = updated.ba;
+                    new_bg = updated.bg;
+                    out_P_mat = updated.P;
+                }
+                
+                // Convert back to double arrays
+                for (int i = 0; i < 3; ++i) {
+                    out_p[i] = static_cast<double>(new_p(i, 0));
+                    out_v[i] = static_cast<double>(new_v(i, 0));
+                    out_ba[i] = static_cast<double>(new_ba(i, 0));
+                    out_bg[i] = static_cast<double>(new_bg(i, 0));
+                }
+                for (int i = 0; i < 4; ++i) {
+                    out_q[i] = static_cast<double>(new_q(i, 0));
+                }
+                for (int i = 0; i < 15; ++i) {
+                    for (int j = 0; j < 15; ++j) {
+                        out_P[i + j*15] = static_cast<double>(out_P_mat(i, j));
+                    }
+                }
             }
-            for (int i = 0; i < 12; ++i) mxDestroyArray(prhs_pp[i]);
         } else {
             copy_vec(out_p, mxGetPr(mxGetField(new_state, 0, "p")), 3);
             copy_vec(out_v, mxGetPr(mxGetField(new_state, 0, "v")), 3);
