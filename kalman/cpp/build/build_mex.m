@@ -157,7 +157,9 @@ function build_mex(targets)
         end
     end
 
-    if wants('mex_sensor_preprocessor') && build_single_mex('mex_sensor_preprocessor.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
+    % mex_sensor_preprocessor (実装はSrc/Common/Sensor/sensor_preprocessor.cppに移動)
+    sensor_preprocessor_cpp = fullfile(src_dir, 'Common', 'Sensor', 'sensor_preprocessor.cpp');
+    if wants('mex_sensor_preprocessor') && build_single_mex('mex_sensor_preprocessor.cpp', compile_opts, inc_args, {sensor_preprocessor_cpp}, bin_dir, [], log_fid)
         built_count = built_count + 1;
     end
 
@@ -278,30 +280,36 @@ function build_mex(targets)
                 built_count = built_count + 1;
             end
         end
-        % Phase 5: mex_filter_management
+        % Phase 5: mex_filter_management (実装はSrc/Common/filter_management.cppに移動)
+        filter_management_cpp = fullfile(src_dir, 'Common', 'filter_management.cpp');
         if exist('mex_filter_management.cpp', 'file')
-            if wants('mex_filter_management') && build_single_mex('mex_filter_management.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
+            if wants('mex_filter_management') && build_single_mex('mex_filter_management.cpp', compile_opts, inc_args, {filter_management_cpp}, bin_dir, [], log_fid)
                 built_count = built_count + 1;
             end
         end
         
-        % Phase 1: mex_eskf_predict_postprocess
+        % Phase 1: mex_eskf_predict_postprocess (実装はSrc/Common/filter_management.cppとSrc/ESKF/eskf_postprocess.cppに移動)
+        filter_management_cpp = fullfile(src_dir, 'Common', 'filter_management.cpp');
+        eskf_postprocess_cpp = fullfile(src_dir, 'ESKF', 'eskf_postprocess.cpp');
         if exist('mex_eskf_predict_postprocess.cpp', 'file')
-            if wants('mex_eskf_predict_postprocess') && build_single_mex('mex_eskf_predict_postprocess.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
+            if wants('mex_eskf_predict_postprocess') && build_single_mex('mex_eskf_predict_postprocess.cpp', compile_opts, inc_args, {filter_management_cpp, eskf_postprocess_cpp}, bin_dir, [], log_fid)
                 built_count = built_count + 1;
             end
         end
         
-        % Phase 1: mex_eskf_update_postprocess
+        % Phase 1: mex_eskf_update_postprocess (実装はSrc/ESKF/eskf_postprocess.cppとSrc/Common/filter_management.cppに移動)
+        eskf_postprocess_cpp = fullfile(src_dir, 'ESKF', 'eskf_postprocess.cpp');
+        filter_management_cpp = fullfile(src_dir, 'Common', 'filter_management.cpp');
         if exist('mex_eskf_update_postprocess.cpp', 'file')
-            if wants('mex_eskf_update_postprocess') && build_single_mex('mex_eskf_update_postprocess.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
+            if wants('mex_eskf_update_postprocess') && build_single_mex('mex_eskf_update_postprocess.cpp', compile_opts, inc_args, {eskf_postprocess_cpp, filter_management_cpp}, bin_dir, [], log_fid)
                 built_count = built_count + 1;
             end
         end
         
         % Phase 1: mex_eskf_zupt
+        eskf_core_cpp = fullfile(src_dir, 'ESKF', 'eskf_core.cpp');
         if exist('mex_eskf_zupt.cpp', 'file')
-            if wants('mex_eskf_zupt') && build_single_mex('mex_eskf_zupt.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
+            if wants('mex_eskf_zupt') && build_single_mex('mex_eskf_zupt.cpp', compile_opts, inc_args, {eskf_core_cpp}, bin_dir, [], log_fid)
                 built_count = built_count + 1;
             end
         end
@@ -348,9 +356,10 @@ function build_mex(targets)
             end
         end
         
-        % mex_run_eskf (ESKF.m完全移行版)
+        % mex_run_eskf (ESKF.m完全移行版) (実装はSrc/Common/filter_management.cppに移動)
+        filter_management_cpp = fullfile(src_dir, 'Common', 'filter_management.cpp');
         if exist('mex_run_eskf.cpp', 'file')
-            if wants('mex_run_eskf') && build_single_mex('mex_run_eskf.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
+            if wants('mex_run_eskf') && build_single_mex('mex_run_eskf.cpp', compile_opts, inc_args, {filter_management_cpp}, bin_dir, [], log_fid)
                 built_count = built_count + 1;
             end
         end
@@ -420,8 +429,14 @@ function success = build_single_mex(mex_file, compile_opts, inc_args, extra_sour
         return;
     end
     
-    if ~exist(mex_file, 'file')
-        warning('Source not found: %s', mex_file);
+    % mex_fileを絶対パスに変換（mex_src_dirからの相対パスとして扱う）
+    build_dir = fileparts(mfilename('fullpath'));
+    cpp_root = fileparts(build_dir);
+    mex_src_dir = fullfile(cpp_root, 'MEX');
+    mex_file_full = fullfile(mex_src_dir, mex_file);
+    
+    if ~exist(mex_file_full, 'file')
+        warning('Source not found: %s', mex_file_full);
         return;
     end
     
@@ -433,11 +448,13 @@ function success = build_single_mex(mex_file, compile_opts, inc_args, extra_sour
             if length(src) < 4 || ~strcmp(src(end-3:end), '.bak')
                 if exist(src, 'file')
                     valid_extra_sources{end+1} = src;
+                else
+                    warning('Extra source not found: %s', src);
                 end
             end
         end
         
-        all_sources = [{mex_file}, valid_extra_sources];
+        all_sources = [{mex_file_full}, valid_extra_sources];
         mex_args = [compile_opts, inc_args, {'-output', output_name}, all_sources];
         mex_output = [output_name '.' mexext];
         

@@ -5,65 +5,19 @@
 #include "mex.h"
 #include "mex_type_conv.hpp"
 #include "../Inc/Common/Math/fixed_matrix.hpp"
-#include "../Common/Math/quaternion_lib.hpp"
+#include "../Inc/Common/Math/quaternion_lib.hpp"
+#include "../Inc/Common/filter_management.hpp"
+#include "../Inc/ESKF/eskf_postprocess.hpp"
+#include "../Inc/MEX/mex_type_conversion.hpp"
 #include <string>
 #include <cmath>
 #include <vector>
 
 using namespace cmath_fx;
 using Quat = quat_lib::Quaternion<float>;
-
-// Helper: MATLAB array -> Vector
-template<int R>
-static bool matToVector(const mxArray* arr, Vector<R, float>& out) {
-    if (!arr) return false;
-    if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
-    mwSize rows = mxGetM(arr); mwSize cols = mxGetN(arr);
-    if (rows != R || cols != 1) return false;
-    std::vector<float> tmp(static_cast<size_t>(R));
-    mex_conv::mxArrayToFloatArray(arr, tmp.data(), static_cast<size_t>(R));
-    for (int i = 0; i < R; ++i) out(i, 0) = tmp[i];
-    return true;
-}
-
-// Helper: MATLAB array -> Matrix
-template<int R, int C>
-static bool matToMatrix(const mxArray* arr, Matrix<R, C, float>& out) {
-    if (!arr) return false;
-    if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
-    mwSize rows = mxGetM(arr); mwSize cols = mxGetN(arr);
-    if (rows != R || cols != C) return false;
-    std::vector<float> tmp(static_cast<size_t>(R) * static_cast<size_t>(C));
-    mex_conv::mxArrayToFloatArray(arr, tmp.data(), static_cast<size_t>(R) * static_cast<size_t>(C));
-    for (int j = 0; j < C; ++j) {
-        for (int i = 0; i < R; ++i) {
-            out(i, j) = tmp[static_cast<size_t>(j) * static_cast<size_t>(R) + static_cast<size_t>(i)];
-        }
-    }
-    return true;
-}
-
-// Helper: Vector -> MATLAB array
-template<int R>
-static mxArray* vectorToMat(const Vector<R, float>& v) {
-    mxArray* out = mxCreateDoubleMatrix(R, 1, mxREAL);
-    double* pr = mxGetPr(out);
-    for (int i = 0; i < R; ++i) pr[i] = static_cast<double>(v(i, 0));
-    return out;
-}
-
-// Helper: Matrix -> MATLAB array
-template<int R, int C>
-static mxArray* matrixToMat(const Matrix<R, C, float>& M) {
-    mxArray* out = mxCreateDoubleMatrix(R, C, mxREAL);
-    double* pr = mxGetPr(out);
-    for (int j = 0; j < C; ++j) {
-        for (int i = 0; i < R; ++i) {
-            pr[j * R + i] = static_cast<double>(M(i, j));
-        }
-    }
-    return out;
-}
+using namespace common::filter;
+using namespace eskf;
+using namespace mex_conv;
 
 // Get rotation matrix from quaternion using mex_quaternion_lib to match MATLAB exactly
 static Matrix<3, 3, float> quaternionToRotationMatrix(const Vector<4, float>& q) {
@@ -169,13 +123,18 @@ static void handle_postprocess(int nlhs, mxArray* plhs[], int nrhs, const mxArra
         mxDestroyArray(plhs_sub[0]);
     }
     
-    // 2. velocity_damping
-    if (velocity_damping > 0.0f) {
-        v(0, 0) = v(0, 0) * (1.0f - velocity_damping * dt);
-        v(1, 0) = v(1, 0) * (1.0f - velocity_damping * dt);
-    }
+    // 2-6. 後処理（velocity_damping, P normalization, velocity clipping）
+    // MATLAB呼び出し部分を除いた純粋なC++ロジックはSrc/ESKF/eskf_postprocess.cppに移動
+    // 注意: accel_z_integrationはMATLAB呼び出しを含むため、上で処理済み
+    // その他の後処理（velocity_damping, P normalization, velocity clipping）を実行
+    PredictPostprocessParams params;
+    params.enable_accel_z_integration = false;  // 既に上で処理済み
+    params.accel_z_threshold = accel_z_threshold;
+    params.accel_z_damping = accel_z_damping;
+    params.velocity_damping = velocity_damping;
+    predict_postprocess(v, q, P, a_for_vel, dt, g, params);
     
-    // 3. divergence_guard.regularize_covariance (via mex_sensor_filter)
+    // 3. divergence_guard.regularize_covariance (via mex_sensor_filter) - MATLAB呼び出しが必要なためMEXファイル内に残す
     mxArray* plhs_reg[1];
     mxArray* prhs_reg[2];
     prhs_reg[0] = mxCreateString("divergence_regularize");
@@ -188,27 +147,7 @@ static void handle_postprocess(int nlhs, mxArray* plhs[], int nrhs, const mxArra
     mxDestroyArray(prhs_reg[0]);
     mxDestroyArray(prhs_reg[1]);
     
-    // 4. P normalization (max_var check) - MATLAB implementation
-    float max_var[15];
-    max_var[0] = max_var[1] = max_var[2] = 100.0f * 100.0f;  // position
-    max_var[3] = max_var[4] = max_var[5] = 20.0f * 20.0f;    // velocity
-    // Use high-precision value for deg2rad(45) to match MATLAB
-    // deg2rad(45) = 0.7853981633974483 (double precision)
-    float deg45_rad = 0.7853981633974483f;  // deg2rad(45) in double precision, cast to float
-    max_var[6] = max_var[7] = max_var[8] = deg45_rad * deg45_rad;  // attitude
-    max_var[9] = max_var[10] = max_var[11] = 0.1f;  // accel bias
-    max_var[12] = max_var[13] = max_var[14] = 0.01f;  // gyro bias
-    
-    for (int i = 0; i < 15; ++i) {
-        if (P(i, i) > max_var[i]) {
-            float factor = std::sqrt(max_var[i] / P(i, i));
-            for (int j = 0; j < 15; ++j) {
-                P(i, j) = P(i, j) * factor;
-                P(j, i) = P(j, i) * factor;
-            }
-            P(i, i) = max_var[i];
-        }
-    }
+    // 4. P normalizationはpredict_postprocess内で実行済み
     
     // 5. divergence_guard.check_and_clip_velocity (via mex_sensor_filter)
     mxArray* plhs_clip[3];
@@ -236,17 +175,7 @@ static void handle_postprocess(int nlhs, mxArray* plhs[], int nrhs, const mxArra
     mxDestroyArray(prhs_clip[2]);
     mxDestroyArray(prhs_clip[3]);
     
-    // 6. Velocity norm check (clip to 10.0 m/s) - MATLAB implementation
-    // Note: This is executed AFTER divergence_clip_velocity in MATLAB implementation (lines 270-272)
-    // Even though divergence_clip_velocity also performs velocity clipping internally,
-    // MATLAB implementation explicitly checks again here, so we must match this behavior.
-    float v_norm = 0.0f;
-    for (int i = 0; i < 3; ++i) v_norm += v(i, 0) * v(i, 0);
-    v_norm = std::sqrt(v_norm);
-    if (v_norm > 10.0f) {
-        float scale = 10.0f / v_norm;
-        for (int i = 0; i < 3; ++i) v(i, 0) *= scale;
-    }
+    // 6. Velocity norm checkはpredict_postprocess内で実行済み
     
     // Output
     plhs[0] = vectorToMat(v);

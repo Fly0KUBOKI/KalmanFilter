@@ -48,69 +48,42 @@ static int get_length(const mxArray* arr) {
 }
 
 //=============================================================================
-// 数学関数
+// 数学関数（実装はInc/Common/Math/statistics.hppに移動）
 //=============================================================================
-static void compute_mean(const double* data, int n, double* mean) {
-    *mean = 0.0;
-    for (int i = 0; i < n; ++i) {
-        *mean += data[i];
-    }
-    *mean /= n;
-}
+#include "../Inc/Common/Math/statistics.hpp"
+#include "../Inc/Common/Math/quaternion_lib.hpp"
 
-static void compute_mean_3d(const double* ax, const double* ay, const double* az, 
-                            int n, double* mean_x, double* mean_y, double* mean_z) {
-    *mean_x = *mean_y = *mean_z = 0.0;
-    for (int i = 0; i < n; ++i) {
-        *mean_x += ax[i];
-        *mean_y += ay[i];
-        *mean_z += az[i];
-    }
-    *mean_x /= n;
-    *mean_y /= n;
-    *mean_z /= n;
-}
+using namespace common::math;
+using Quat = quat_lib::Quaternion<double>;
 
-static double compute_std(const double* data, int n, double mean) {
-    if (n < 2) return 0.0;
-    double sum_sq = 0.0;
-    for (int i = 0; i < n; ++i) {
-        double diff = data[i] - mean;
-        sum_sq += diff * diff;
-    }
-    return sqrt(sum_sq / (n - 1));
-}
-
-static double compute_std_3d(const double* ax, const double* ay, const double* az, 
-                              int n, double mean_x, double mean_y, double mean_z) {
-    double std_x = compute_std(ax, n, mean_x);
-    double std_y = compute_std(ay, n, mean_y);
-    double std_z = compute_std(az, n, mean_z);
-    return (std_x + std_y + std_z) / 3.0;
-}
-
-//=============================================================================
-// クォータニオン関数
-//=============================================================================
+// クォータニオン関数（既存のquaternion_lib.hppを使用）
 static void quaternion_from_euler(double roll, double pitch, double yaw, double* q) {
-    // roll, pitch, yaw はラジアン
-    double cr = cos(roll * 0.5), sr = sin(roll * 0.5);
-    double cp = cos(pitch * 0.5), sp = sin(pitch * 0.5);
-    double cy = cos(yaw * 0.5), sy = sin(yaw * 0.5);
+    // quaternion_lib.hppのfrom_eulerは度数法を期待するが、ここではラジアンを使用
+    // ラジアンを度数に変換
+    double roll_deg = roll * 57.29577951308232;  // RAD2DEG
+    double pitch_deg = pitch * 57.29577951308232;
+    double yaw_deg = yaw * 57.29577951308232;
     
-    q[0] = cr * cp * cy + sr * sp * sy;  // w
-    q[1] = sr * cp * cy - cr * sp * sy;  // x
-    q[2] = cr * sp * cy + sr * cp * sy;  // y
-    q[3] = cr * cp * sy - sr * sp * cy;  // z
+    Quat quat = Quat::from_euler(roll_deg, pitch_deg, yaw_deg);
+    q[0] = quat.w;
+    q[1] = quat.x;
+    q[2] = quat.y;
+    q[3] = quat.z;
 }
 
 static void quaternion_to_rotation_matrix(const double* q, double* R) {
-    double w = q[0], x = q[1], y = q[2], z = q[3];
+    Quat quat(q[0], q[1], q[2], q[3]);
+    quat.normalize();
     
-    // Column-major for MATLAB
-    R[0] = 1.0 - 2.0*(y*y + z*z);  R[3] = 2.0*(x*y - w*z);        R[6] = 2.0*(x*z + w*y);
-    R[1] = 2.0*(x*y + w*z);        R[4] = 1.0 - 2.0*(x*x + z*z);  R[7] = 2.0*(y*z - w*x);
-    R[2] = 2.0*(x*z - w*y);        R[5] = 2.0*(y*z + w*x);        R[8] = 1.0 - 2.0*(x*x + y*y);
+    // quaternion_lib.hppのto_rotation_matrixはrow-majorで返す
+    // MATLABはcolumn-majorなので変換が必要
+    double R_row[9];
+    quat.to_rotation_matrix(R_row);
+    
+    // row-major -> column-major変換
+    R[0] = R_row[0]; R[3] = R_row[1]; R[6] = R_row[2];
+    R[1] = R_row[3]; R[4] = R_row[4]; R[7] = R_row[5];
+    R[2] = R_row[6]; R[5] = R_row[7]; R[8] = R_row[8];
 }
 
 //=============================================================================
@@ -160,7 +133,7 @@ static void handle_init(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs
         double* ay = get_data(ay_arr);
         double* az = get_data(az_arr);
         
-        // 加速度平均と標準偏差
+        // 加速度平均と標準偏差（実装はInc/Common/Math/statistics.hppに移動）
         double accel_mean_x, accel_mean_y, accel_mean_z;
         compute_mean_3d(ax, ay, az, N_static, &accel_mean_x, &accel_mean_y, &accel_mean_z);
         sigma_a = compute_std_3d(ax, ay, az, N_static, accel_mean_x, accel_mean_y, accel_mean_z);
@@ -186,7 +159,7 @@ static void handle_init(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs
             sigma_g = DEG2RAD * sigma_g_deg;
             if (sigma_g < 0.001) sigma_g = 0.001;
             
-            // gyro_noise_threshold の計算
+            // gyro_noise_threshold の計算（実装はInc/Common/Math/statistics.hppに移動）
             double std_wx = compute_std(wx, N_static, gyro_mean_x);
             double std_wy = compute_std(wy, N_static, gyro_mean_y);
             double std_wz = compute_std(wz, N_static, gyro_mean_z);

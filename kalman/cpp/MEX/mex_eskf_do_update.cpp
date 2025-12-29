@@ -5,13 +5,9 @@
 #include "mex.h"
 #include <cmath>
 #include <cstring>
+#include "../Inc/Common/Math/vector_utils.hpp"
 
-//=============================================================================
-// ヘルパー関数
-//=============================================================================
-static void copy_vec(double* dst, const double* src, int n) {
-    memcpy(dst, src, n * sizeof(double));
-}
+using namespace common::math;
 
 //=============================================================================
 // メインハンドラ

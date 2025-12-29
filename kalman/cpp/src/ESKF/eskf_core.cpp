@@ -4,6 +4,7 @@
 #include "../../Inc/ESKF/eskf_core.hpp"
 #include "../../Inc/KF/kalman_filter_core.hpp"
 #include "../../Inc/Common/Math/quaternion.hpp"
+#include "../../Inc/Common/Math/math_utils.hpp"
 #include <cmath>
 
 namespace eskf {
@@ -189,6 +190,172 @@ void ESKFCore::gps_to_local(const Vector3& gps_pos, const Vector3& origin, Vecto
     // 簡易実装：GPS座標をローカル座標に変換
     for (int i = 0; i < 3; ++i) {
         local_pos(i, 0) = gps_pos(i, 0) - origin(i, 0);
+    }
+}
+
+void ESKFCore::compute_adaptive_Q(
+    const Matrix15x15& Q_nominal,
+    const Vector3& a_meas,
+    const Vector3& w_meas,
+    Matrix15x15& Q_adapted
+) {
+    // 初期化
+    Q_adapted = Q_nominal;
+    
+    // 加速度ノルム計算
+    Scalar a_norm = static_cast<Scalar>(0.0);
+    for (int i = 0; i < 3; ++i) {
+        a_norm += a_meas(i, 0) * a_meas(i, 0);
+    }
+    a_norm = std::sqrt(a_norm);
+    
+    // 重力誤差に基づくスケール
+    Scalar gravity_error = std::fabs(a_norm - static_cast<Scalar>(9.81));
+    Scalar accel_scale = static_cast<Scalar>(1.0) + (gravity_error / static_cast<Scalar>(3.0));
+    
+    // 角速度ノルム計算
+    Scalar w_norm = static_cast<Scalar>(0.0);
+    for (int i = 0; i < 3; ++i) {
+        w_norm += w_meas(i, 0) * w_meas(i, 0);
+    }
+    w_norm = std::sqrt(w_norm);
+    
+    // 角速度に基づくスケール（15 deg/s = 15 * π/180 rad/s）
+    Scalar deg2rad15 = static_cast<Scalar>(15.0) * static_cast<Scalar>(3.14159265) / static_cast<Scalar>(180.0);
+    Scalar gyro_scale = static_cast<Scalar>(1.0) + (w_norm / deg2rad15);
+    
+    // 最大スケールを選択し、上限を適用
+    Scalar q_scale = std::fmax(accel_scale, gyro_scale);
+    if (q_scale > static_cast<Scalar>(5.0)) {
+        q_scale = static_cast<Scalar>(5.0);
+    }
+    
+    // Q_nominalをスケール
+    for (int j = 0; j < 15; ++j) {
+        for (int i = 0; i < 15; ++i) {
+            Q_adapted(i, j) = Q_nominal(i, j) * q_scale;
+        }
+    }
+}
+
+// ZUPT更新（Kalman filter update）
+void ESKFCore::update_zupt(
+    const Vector3& v_in,
+    const Matrix15x15& P_in,
+    Vector3& v_out,
+    Matrix15x15& P_out
+) {
+    using Matrix15x3 = cmath_fx::Matrix<15, 3, Scalar>;
+    using namespace common::math;
+    
+    // ZUPT: Observe velocity = 0
+    // z = [0;0;0], h = v
+    // y = z - h = -v
+    Vector3 y;
+    y(0, 0) = -v_in(0, 0);
+    y(1, 0) = -v_in(1, 0);
+    y(2, 0) = -v_in(2, 0);
+    
+    // H = [0, I, 0, 0, 0] (observation matrix)
+    // S = H*P*H' + R
+    // H*P*H' is simply the velocity block of P (indices 3,4,5)
+    Matrix3x3 P_vv;
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            P_vv(i, j) = P_in(3 + i, 3 + j);
+        }
+    }
+    
+    // R: ZUPT noise covariance (diagonal)
+    // MATLAB実装では noise_zupt = [0.01^2; 0.01^2; 0.01^2] = [0.0001; 0.0001; 0.0001]
+    Matrix3x3 R = Matrix3x3::Zero();
+    float noise_zupt[3] = {0.0001f, 0.0001f, 0.0001f}; // ZUPT noise variance (0.01^2)
+    for (int i = 0; i < 3; ++i) {
+        R(i, i) = noise_zupt[i];
+    }
+    
+    // S = P_vv + R
+    Matrix3x3 S = P_vv + R;
+    
+    // Invert S
+    Matrix3x3 S_inv;
+    bool S_is_singular = !MathUtils::invert3x3(S, S_inv);
+    
+    if (S_is_singular) {
+        // Fallback: Sが特異な場合は、単純に速度を0にして共分散を減らす
+        v_out(0, 0) = 0.0f;
+        v_out(1, 0) = 0.0f;
+        v_out(2, 0) = 0.0f;
+        
+        // P_out = P_in (copy)
+        P_out = P_in;
+        
+        // Reduce velocity variances by factor (indices 3,4,5)
+        float factor = 0.01f;
+        P_out(3, 3) *= factor;
+        P_out(4, 4) *= factor;
+        P_out(5, 5) *= factor;
+        
+        // Also update off-diagonal elements for symmetry
+        for (int i = 0; i < 15; ++i) {
+            if (i != 3) {
+                float val = 0.5f * (P_out(i, 3) + P_out(3, i));
+                P_out(i, 3) = val * factor;
+                P_out(3, i) = val * factor;
+            }
+            if (i != 4) {
+                float val = 0.5f * (P_out(i, 4) + P_out(4, i));
+                P_out(i, 4) = val * factor;
+                P_out(4, i) = val * factor;
+            }
+            if (i != 5) {
+                float val = 0.5f * (P_out(i, 5) + P_out(5, i));
+                P_out(i, 5) = val * factor;
+                P_out(5, i) = val * factor;
+            }
+        }
+    } else {
+        // Normal Kalman filter update
+        // K = P * H' * S_inv
+        // P * H' is the block of columns 3,4,5 of P
+        Matrix15x3 PHt;
+        for (int i = 0; i < 15; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                PHt(i, j) = P_in(i, 3 + j);
+            }
+        }
+        
+        // K = PHt * S_inv
+        Matrix15x3 K = PHt * S_inv;
+        
+        // dx = K * y
+        Vector15 dx = K * y;
+        
+        // Update velocity: v_out = v_in + dx[3:5]
+        v_out(0, 0) = v_in(0, 0) + dx(3, 0);
+        v_out(1, 0) = v_in(1, 0) + dx(4, 0);
+        v_out(2, 0) = v_in(2, 0) + dx(5, 0);
+        
+        // Update Covariance: P = (I - K*H) * P
+        // K*H is 15x15, but only columns 3,4,5 are non-zero (equal to K)
+        Matrix15x15 KH = Matrix15x15::Zero();
+        for (int i = 0; i < 15; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                KH(i, 3 + j) = K(i, j);
+            }
+        }
+        
+        Matrix15x15 I_mat = Matrix15x15::Identity();
+        P_out = (I_mat - KH) * P_in;
+        
+        // Symmetrize P_out
+        for (int i = 0; i < 15; ++i) {
+            for (int j = i + 1; j < 15; ++j) {
+                float val = 0.5f * (P_out(i, j) + P_out(j, i));
+                P_out(i, j) = val;
+                P_out(j, i) = val;
+            }
+        }
     }
 }
 

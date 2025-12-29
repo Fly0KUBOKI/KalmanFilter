@@ -253,6 +253,37 @@ public:
     
     // ========== 行列分解 ==========
     
+    // 3x3行列の逆行列計算（ガウス消去法）
+    // A: 入力行列 (3x3)
+    // A_inv: 逆行列 (3x3) [出力]
+    // 戻り値: 成功時true、特異行列の場合はfalse
+    template<typename T>
+    static bool invert3x3(const cmath_fx::Matrix<3, 3, T>& A, cmath_fx::Matrix<3, 3, T>& A_inv) {
+        // 行列式を計算
+        T det = A(0,0) * (A(1,1)*A(2,2) - A(2,1)*A(1,2))
+              - A(0,1) * (A(1,0)*A(2,2) - A(2,0)*A(1,2))
+              + A(0,2) * (A(1,0)*A(2,1) - A(2,0)*A(1,1));
+        
+        if (std::abs(det) < static_cast<T>(1e-10)) {
+            return false;
+        }
+        
+        T inv_det = static_cast<T>(1.0) / det;
+        
+        // 随伴行列を計算
+        A_inv(0,0) = (A(1,1)*A(2,2) - A(2,1)*A(1,2)) * inv_det;
+        A_inv(0,1) = (A(0,2)*A(2,1) - A(0,1)*A(2,2)) * inv_det;
+        A_inv(0,2) = (A(0,1)*A(1,2) - A(0,2)*A(1,1)) * inv_det;
+        A_inv(1,0) = (A(1,2)*A(2,0) - A(1,0)*A(2,2)) * inv_det;
+        A_inv(1,1) = (A(0,0)*A(2,2) - A(0,2)*A(2,0)) * inv_det;
+        A_inv(1,2) = (A(1,0)*A(0,2) - A(0,0)*A(1,2)) * inv_det;
+        A_inv(2,0) = (A(1,0)*A(2,1) - A(2,0)*A(1,1)) * inv_det;
+        A_inv(2,1) = (A(2,0)*A(0,1) - A(0,0)*A(2,1)) * inv_det;
+        A_inv(2,2) = (A(0,0)*A(1,1) - A(1,0)*A(0,1)) * inv_det;
+        
+        return true;
+    }
+    
     // 安全なCholesky分解（正定値でない場合は正則化）
     static bool safe_cholesky(const cm& A, cm& L) {
         if (A.rows != A.cols) return false;

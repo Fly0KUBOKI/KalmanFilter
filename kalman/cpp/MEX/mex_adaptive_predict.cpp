@@ -87,20 +87,10 @@ static void handle_predict(int nlhs, mxArray* plhs[], int nrhs, const mxArray* p
     if (nrhs >= 14) matToVector(prhs[13], accel_thr);
     if (nrhs >= 15) matToVector(prhs[14], g);
 
-    // Adaptive Q scaling (match MATLAB logic)
+    // Adaptive Q scaling (実装はSrc/ESKF/eskf_core.cppに移動)
     Matrix15x15 Qadapt = Qnom;
     if (adaptive_q) {
-        // compute norms
-        float a_norm = 0.0f; for (int i=0;i<3;++i) a_norm += a_meas(i,0)*a_meas(i,0); a_norm = sqrtf(a_norm);
-        float gravity_error = fabsf(a_norm - 9.81f);
-        float accel_scale = 1.0f + (gravity_error / 3.0f);
-        float w_norm = 0.0f; for (int i=0;i<3;++i) w_norm += w_meas(i,0)*w_meas(i,0); w_norm = sqrtf(w_norm);
-        float deg2rad15 = 15.0f * 3.14159265f / 180.0f;
-        float gyro_scale = 1.0f + (w_norm / deg2rad15);
-        float q_scale = fmaxf(accel_scale, gyro_scale);
-        if (q_scale > 5.0f) q_scale = 5.0f;
-        // scale Qnom
-        for (int j=0;j<15;++j) for (int i=0;i<15;++i) Qadapt(i,j) = Qnom(i,j) * q_scale;
+        ESKFCore::compute_adaptive_Q(Qnom, a_meas, w_meas, Qadapt);
     }
 
     // Integrate nominal state

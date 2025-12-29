@@ -69,6 +69,18 @@ public:
                                    const Vector3& w_meas, const Vector3& bg, const Matrix15x15& Q, Scalar dt,
                                    Matrix15x15& P_new);
     
+    // Adaptive Q scaling（MATLAB実装に合わせた）
+    // Q_nominal: ノミナルプロセスノイズ共分散
+    // a_meas: 加速度測定値
+    // w_meas: 角速度測定値
+    // Q_adapted: 適応後のプロセスノイズ共分散 [出力]
+    static void compute_adaptive_Q(
+        const Matrix15x15& Q_nominal,
+        const Vector3& a_meas,
+        const Vector3& w_meas,
+        Matrix15x15& Q_adapted
+    );
+    
     // 状態遷移行列計算
     static void compute_F_matrix(const Vector4& q, const Vector3& a_meas, const Vector3& ba,
                                  const Vector3& w_meas, const Vector3& bg, Scalar dt,
@@ -76,6 +88,18 @@ public:
     
     // 誤差状態注入
     static void inject_error_state(Vector3& p, Vector3& v, Vector4& q, Vector3& ba, Vector3& bg, const Vector15& dx);
+
+    // ZUPT更新（Kalman filter update）
+    // v_in: 速度ベクトル (3x1) [入力]
+    // P_in: 共分散行列 (15x15) [入力]
+    // v_out: 速度ベクトル (3x1) [出力]
+    // P_out: 共分散行列 (15x15) [出力]
+    static void update_zupt(
+        const Vector3& v_in,
+        const Matrix15x15& P_in,
+        Vector3& v_out,
+        Matrix15x15& P_out
+    );
 
 private:
     // AB2積分用の静的バッファ

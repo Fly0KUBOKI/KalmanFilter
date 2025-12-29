@@ -4,23 +4,16 @@
 #include "mex.h"
 #include <cmath>
 #include <cstring>
+#include "../Inc/Common/Math/vector_utils.hpp"
 
-//=============================================================================
-// ヘルパー関数
-//=============================================================================
-static double norm3(const double* v) {
-    return sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
-}
+using namespace common::math;
 
-static bool is_nan_any(const double* v, int n) {
+// MATLAB用のNaNチェック（mxIsNaNを使用）
+static bool is_nan_any_matlab(const double* v, int n) {
     for (int i = 0; i < n; ++i) {
         if (mxIsNaN(v[i])) return true;
     }
     return false;
-}
-
-static void copy_vec(double* dst, const double* src, int n) {
-    memcpy(dst, src, n * sizeof(double));
 }
 
 //=============================================================================
@@ -74,7 +67,7 @@ static void handle_accel(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prh
         bool is_outlier = mxIsLogicalScalarTrue(plhs_pre[1]);
         bool no_change = mxIsLogicalScalarTrue(plhs_pre[2]);
         
-        if (!no_change && !is_nan_any(a_corrected, 3) && !is_outlier && (norm3(w_body) <= 1.5)) {
+        if (!no_change && !is_nan_any_matlab(a_corrected, 3) && !is_outlier && (norm3(w_body) <= 1.5)) {
             should_skip = false;
             copy_vec(new_prev_accel, a_meas, 3);
         }
@@ -175,7 +168,7 @@ static void handle_mag(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[
         bool is_outlier = mxIsLogicalScalarTrue(plhs_pre[1]);
         bool no_change = mxIsLogicalScalarTrue(plhs_pre[2]);
         
-        if (!no_change && !is_nan_any(m_filtered, 3) && !is_outlier) {
+        if (!no_change && !is_nan_any_matlab(m_filtered, 3) && !is_outlier) {
             should_skip = false;
             copy_vec(new_prev_mag, m_meas, 3);
         }

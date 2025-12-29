@@ -1,111 +1,142 @@
 /* mex_sensor_preprocessor.cpp
- * Minimal sensor preprocessor MEX for Phase3 migration.
+ * MEX wrapper for sensor preprocessor (Phase3 migration)
+ * Implementation code moved to Src/Common/Sensor/sensor_preprocessor.cpp
  */
 
-#include <mex.h>
-#include <cmath>
+#include "mex.h"
+#include "../Inc/Common/Sensor/sensor_preprocessor.hpp"
+#include "mex_type_conv.hpp"
 #include <string>
+#include <vector>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+using namespace common::sensor;
 
-static std::string getCmd(const mxArray* a){ char buf[256]; if(!mxIsChar(a)) return std::string(); mxGetString(a, buf, sizeof(buf)); return std::string(buf); }
+static std::string getCmd(const mxArray* a) {
+    char buf[256];
+    if (!mxIsChar(a)) return std::string();
+    mxGetString(a, buf, sizeof(buf));
+    return std::string(buf);
+}
 
-void do_preprocess_accel(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
-    if(nrhs < 3) mexErrMsgIdAndTxt("mex_sensor_preprocessor:usage","preprocess_accel requires (a_meas, prev_a)");
-    double* a = mxGetPr(prhs[1]); double* prev = mxGetPr(prhs[2]);
-    double a_meas[3] = {a[0], a[1], a[2]};
-    double a_prev[3] = {prev[0], prev[1], prev[2]};
-    double delta = 0.0; for(int i=0;i<3;i++){ double d=a_meas[i]-a_prev[i]; delta += d*d; } delta = sqrt(delta);
-    double buffer_tol = 1e-9;
-    bool is_out = false;
-    double corrected[3]; for(int i=0;i<3;i++) corrected[i]=a_meas[i];
-    
-    if(delta <= buffer_tol){
-        plhs[0] = mxCreateDoubleMatrix(3,1,mxREAL);
-        double* out = mxGetPr(plhs[0]);
-        out[0]=corrected[0]; out[1]=corrected[1]; out[2]=corrected[2];
-        if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(false);
-        if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(true);
-        return;
+void do_preprocess_accel(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 3) {
+        mexErrMsgIdAndTxt("mex_sensor_preprocessor:usage", "preprocess_accel requires (a_meas, prev_a)");
     }
     
-    double a_norm = sqrt(a_meas[0]*a_meas[0]+a_meas[1]*a_meas[1]+a_meas[2]*a_meas[2]);
-    if(a_norm < 0.1 || fabs(a_norm - 9.81) > 3.0) is_out = true;
+    // MATLAB配列からC++型へ変換
+    cmath_fx::Vector<3, float> a_meas;
+    cmath_fx::Vector<3, float> prev_a;
+    std::vector<float> tmp(3);
     
-    plhs[0] = mxCreateDoubleMatrix(3,1,mxREAL);
+    mex_conv::mxArrayToFloatArray(prhs[1], tmp.data(), 3);
+    for (int i = 0; i < 3; ++i) a_meas(i, 0) = tmp[i];
+    
+    mex_conv::mxArrayToFloatArray(prhs[2], tmp.data(), 3);
+    for (int i = 0; i < 3; ++i) prev_a(i, 0) = tmp[i];
+    
+    // 実装関数を呼び出す
+    PreprocessResult result = preprocess_accel(a_meas, prev_a);
+    
+    // 結果をMATLAB配列に変換
+    plhs[0] = mxCreateDoubleMatrix(3, 1, mxREAL);
     double* out = mxGetPr(plhs[0]);
-    out[0]=corrected[0]; out[1]=corrected[1]; out[2]=corrected[2];
-    if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(is_out);
-    if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(false);
-}
-
-void do_preprocess_mag(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
-    if(nrhs < 3) mexErrMsgIdAndTxt("mex_sensor_preprocessor:usage","preprocess_mag requires (m_meas, prev_m)");
-    double* m = mxGetPr(prhs[1]); double* prev = mxGetPr(prhs[2]);
-    double m_meas[3] = {m[0], m[1], m[2]};
-    double m_prev[3] = {prev[0], prev[1], prev[2]};
-    double delta = 0.0; for(int i=0;i<3;i++){ double d=m_meas[i]-m_prev[i]; delta += d*d; } delta = sqrt(delta);
-    double buffer_tol = 1e-9;
-    bool is_out = false;
-    double corrected[3] = {m_meas[0], m_meas[1], m_meas[2]};
-    
-    if(delta <= buffer_tol){
-        plhs[0]=mxCreateDoubleMatrix(3,1,mxREAL);
-        double* out=mxGetPr(plhs[0]);
-        out[0]=corrected[0]; out[1]=corrected[1]; out[2]=corrected[2];
-        if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(false);
-        if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(true);
-        return;
+    for (int i = 0; i < 3; ++i) {
+        out[i] = static_cast<double>(result.output(i, 0));
     }
     
-    plhs[0]=mxCreateDoubleMatrix(3,1,mxREAL);
-    double* out=mxGetPr(plhs[0]);
-    out[0]=corrected[0]; out[1]=corrected[1]; out[2]=corrected[2];
-    if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(is_out);
-    if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(false);
+    if (nlhs >= 2) {
+        plhs[1] = mxCreateLogicalScalar(result.is_outlier);
+    }
+    if (nlhs >= 3) {
+        plhs[2] = mxCreateLogicalScalar(result.no_change);
+    }
 }
 
-void do_preprocess_baro(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
-    if(nrhs < 2) mexErrMsgIdAndTxt("mex_sensor_preprocessor:usage","preprocess_baro requires (pressure)");
-    double p = mxGetScalar(prhs[1]);
-    
-    const double P0 = 101325.0; const double ALT_COEFF = 44330.0;
-    double p_frac = p / P0; if(p_frac < 1e-9) p_frac = 1e-9;
-    double alt = ALT_COEFF * (1.0 - pow(p_frac, 0.1903));
-    plhs[0]=mxCreateDoubleScalar(alt);
-    if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(false);
-    if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(false);
-}
-
-void do_preprocess_gps(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
-    if(nrhs < 5) mexErrMsgIdAndTxt("mex_sensor_preprocessor:usage","preprocess_gps requires (lat, lon, alt, origin3)");
-    double lat = mxGetScalar(prhs[1]); double lon = mxGetScalar(prhs[2]); double alt_in = mxGetScalar(prhs[3]);
-    double* origin = mxGetPr(prhs[4]); double lat0 = origin[0]; double lon0 = origin[1]; double alt0 = origin[2];
-    
-    double buffer_tol = 1e-9;
-    double dlat = lat - lat0;
-    double dlon = lon - lon0;
-    double dalt = alt_in - alt0;
-    if(fabs(dlat) <= buffer_tol && fabs(dlon) <= buffer_tol && fabs(dalt) <= buffer_tol){
-        plhs[0]=mxCreateDoubleMatrix(3,1,mxREAL);
-        double* out=mxGetPr(plhs[0]);
-        out[0]=0.0; out[1]=0.0; out[2]=0.0;
-        if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(false);
-        if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(true);
-        return;
+void do_preprocess_mag(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 3) {
+        mexErrMsgIdAndTxt("mex_sensor_preprocessor:usage", "preprocess_mag requires (m_meas, prev_m)");
     }
     
-    double y_m = dlat / 9.0e-6;
-    double lat0rad = lat0 * M_PI / 180.0;
-    double x_m = dlon / (9.0e-6 / cos(lat0rad));
-    double z_m = -dalt;
-    plhs[0]=mxCreateDoubleMatrix(3,1,mxREAL);
-    double* out=mxGetPr(plhs[0]);
-    out[0]=y_m; out[1]=x_m; out[2]=z_m;
-    if(nlhs>=2) plhs[1]=mxCreateLogicalScalar(false);
-    if(nlhs>=3) plhs[2]=mxCreateLogicalScalar(false);
+    // MATLAB配列からC++型へ変換
+    cmath_fx::Vector<3, float> m_meas;
+    cmath_fx::Vector<3, float> prev_m;
+    std::vector<float> tmp(3);
+    
+    mex_conv::mxArrayToFloatArray(prhs[1], tmp.data(), 3);
+    for (int i = 0; i < 3; ++i) m_meas(i, 0) = tmp[i];
+    
+    mex_conv::mxArrayToFloatArray(prhs[2], tmp.data(), 3);
+    for (int i = 0; i < 3; ++i) prev_m(i, 0) = tmp[i];
+    
+    // 実装関数を呼び出す
+    PreprocessResult result = preprocess_mag(m_meas, prev_m);
+    
+    // 結果をMATLAB配列に変換
+    plhs[0] = mxCreateDoubleMatrix(3, 1, mxREAL);
+    double* out = mxGetPr(plhs[0]);
+    for (int i = 0; i < 3; ++i) {
+        out[i] = static_cast<double>(result.output(i, 0));
+    }
+    
+    if (nlhs >= 2) {
+        plhs[1] = mxCreateLogicalScalar(result.is_outlier);
+    }
+    if (nlhs >= 3) {
+        plhs[2] = mxCreateLogicalScalar(result.no_change);
+    }
+}
+
+void do_preprocess_baro(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 2) {
+        mexErrMsgIdAndTxt("mex_sensor_preprocessor:usage", "preprocess_baro requires (pressure)");
+    }
+    
+    double pressure = mxGetScalar(prhs[1]);
+    
+    // 実装関数を呼び出す
+    double alt = preprocess_baro(pressure);
+    
+    // 結果をMATLAB配列に変換
+    plhs[0] = mxCreateDoubleScalar(alt);
+    if (nlhs >= 2) {
+        plhs[1] = mxCreateLogicalScalar(false);
+    }
+    if (nlhs >= 3) {
+        plhs[2] = mxCreateLogicalScalar(false);
+    }
+}
+
+void do_preprocess_gps(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 5) {
+        mexErrMsgIdAndTxt("mex_sensor_preprocessor:usage", "preprocess_gps requires (lat, lon, alt, origin3)");
+    }
+    
+    double lat = mxGetScalar(prhs[1]);
+    double lon = mxGetScalar(prhs[2]);
+    double alt = mxGetScalar(prhs[3]);
+    
+    // MATLAB配列からC++型へ変換
+    cmath_fx::Vector<3, float> origin;
+    std::vector<float> tmp(3);
+    mex_conv::mxArrayToFloatArray(prhs[4], tmp.data(), 3);
+    for (int i = 0; i < 3; ++i) origin(i, 0) = tmp[i];
+    
+    // 実装関数を呼び出す
+    PreprocessResult result = preprocess_gps(lat, lon, alt, origin);
+    
+    // 結果をMATLAB配列に変換
+    plhs[0] = mxCreateDoubleMatrix(3, 1, mxREAL);
+    double* out = mxGetPr(plhs[0]);
+    for (int i = 0; i < 3; ++i) {
+        out[i] = static_cast<double>(result.output(i, 0));
+    }
+    
+    if (nlhs >= 2) {
+        plhs[1] = mxCreateLogicalScalar(result.is_outlier);
+    }
+    if (nlhs >= 3) {
+        plhs[2] = mxCreateLogicalScalar(result.no_change);
+    }
 }
 
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){

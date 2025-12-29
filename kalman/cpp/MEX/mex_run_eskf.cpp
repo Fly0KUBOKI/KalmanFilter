@@ -15,10 +15,19 @@
 #include <cstring>
 #include <string>
 #include <map>
+#include "../Inc/Common/Math/quaternion_lib.hpp"
+#include "../Inc/Common/Math/vector_utils.hpp"
+#include "../Inc/Common/filter_management.hpp"
+#include "../Inc/Common/Math/fixed_matrix.hpp"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+using namespace common::math;
+using namespace common::filter;
+using Quat = quat_lib::Quaternion<double>;
+using namespace cmath_fx;
 
 // ESKF State Structure
 struct ESKFState {
@@ -58,17 +67,18 @@ static std::string getCmd(const mxArray* a) {
     return std::string(buf);
 }
 
-static void copy_vec(double* dst, const double* src, int n) {
-    memcpy(dst, src, n * sizeof(double));
-}
-
-static void quat_to_euler(const double* q, double* euler) {
-    double w=q[0], x=q[1], y=q[2], z=q[3];
-    euler[0] = atan2(2*(w*x+y*z), 1-2*(x*x+y*y));
-    double sinp = 2*(w*y-z*x);
-    if (fabs(sinp) >= 1) euler[1] = copysign(M_PI/2, sinp);
-    else euler[1] = asin(sinp);
-    euler[2] = atan2(2*(w*z+x*y), 1-2*(y*y+z*z));
+// quat_to_euler: use quaternion_lib.hpp directly
+static void quat_to_euler(const double* q_in, double* euler) {
+    Quat quat(q_in[0], q_in[1], q_in[2], q_in[3]);
+    quat.normalize();
+    
+    double roll_deg, pitch_deg, yaw_deg;
+    quat.to_euler(roll_deg, pitch_deg, yaw_deg);
+    
+    // Convert degrees to radians
+    euler[0] = roll_deg * M_PI / 180.0;
+    euler[1] = pitch_deg * M_PI / 180.0;
+    euler[2] = yaw_deg * M_PI / 180.0;
 }
 
 static void getVec3(const mxArray* s, const char* xname, const char* yname, const char* zname, mwIndex idx, double* out) {
@@ -266,37 +276,30 @@ static void call_gps_update(ESKFState* s, double lat, double lon, double alt, do
     for (int i=0; i<6; i++) mxDestroyArray(prhs[i]);
 }
 
-// Reset check
+// Reset check (実装はSrc/Common/filter_management.cppに移動)
 static void check_and_reset(ESKFState* s, int k) {
-    // Check for divergence
-    mxArray* prhs[2];
-    mxArray* plhs[1];
-    prhs[0] = mxCreateString("check_divergence");
-    prhs[1] = mxCreateDoubleMatrix(15,15,mxREAL); memcpy(mxGetPr(prhs[1]), s->P, 15*15*8);
-    
-    bool need_reset = false;
-    if (mexCallMATLAB(1, plhs, 2, prhs, "mex_filter_management") == 0) {
-        need_reset = mxIsLogicalScalarTrue(plhs[0]);
-        mxDestroyArray(plhs[0]);
+    // Check for divergence (implementation moved to Src/Common/filter_management.cpp)
+    // Convert P matrix to Matrix type
+    Matrix<15, 15, float> P_float;
+    for (int i = 0; i < 15; ++i) {
+        for (int j = 0; j < 15; ++j) {
+            P_float(i, j) = static_cast<float>(s->P[i + j*15]);
+        }
     }
-    mxDestroyArray(prhs[0]);
-    mxDestroyArray(prhs[1]);
     
-    double p_norm = sqrt(s->p[0]*s->p[0]+s->p[1]*s->p[1]+s->p[2]*s->p[2]);
-    double v_norm = sqrt(s->v[0]*s->v[0]+s->v[1]*s->v[1]+s->v[2]*s->v[2]);
-    double ba_norm = sqrt(s->ba[0]*s->ba[0]+s->ba[1]*s->ba[1]+s->ba[2]*s->ba[2]);
-    double bg_norm = sqrt(s->bg[0]*s->bg[0]+s->bg[1]*s->bg[1]+s->bg[2]*s->bg[2]);
+    Vector<3, float> p_float, v_float, ba_float, bg_float;
+    Vector<4, float> q_float;
+    for (int i = 0; i < 3; ++i) {
+        p_float(i, 0) = static_cast<float>(s->p[i]);
+        v_float(i, 0) = static_cast<float>(s->v[i]);
+        ba_float(i, 0) = static_cast<float>(s->ba[i]);
+        bg_float(i, 0) = static_cast<float>(s->bg[i]);
+    }
+    for (int i = 0; i < 4; ++i) {
+        q_float(i, 0) = static_cast<float>(s->q[i]);
+    }
     
-    // Check for NaN/Inf in any state (matches MATLAB)
-    if (std::isnan(s->p[0]) || std::isnan(s->v[0]) || std::isnan(s->q[0])) need_reset = true;
-    if (std::isnan(s->ba[0]) || std::isnan(s->bg[0])) need_reset = true;
-    if (std::isinf(s->p[0]) || std::isinf(s->v[0])) need_reset = true;
-    
-    // Check for unreasonable values (same as MATLAB: v > 10, p > 1000)
-    if (v_norm > 10.0 || p_norm > 1000.0) need_reset = true;
-    
-    // Additional bias divergence check (bg > 1 rad/s = 57 deg/s)
-    if (bg_norm > 1.0) need_reset = true;
+    bool need_reset = check_state_divergence(p_float, v_float, q_float, ba_float, bg_float, P_float);
     
     if (need_reset) {
         s->last_reset_step = k;
@@ -319,42 +322,58 @@ static void check_and_reset(ESKFState* s, int k) {
         }
         for (int i=0; i<7; i++) mxDestroyArray(reset_prhs[i]);
         
-        // Manual resets as in MATLAB reset('filter')
-        s->v[0] = s->v[1] = s->v[2] = 0;
-        s->ba[0] = s->ba[1] = s->ba[2] = 0;
-        s->bg[0] = s->bg[1] = s->bg[2] = 0;
+        // Manual resets as in MATLAB reset('filter') (implementation moved to Src/Common/filter_management.cpp)
+        Vector<3, float> v_float, ba_float, bg_float;
+        Vector<4, float> q_float;
+        Matrix<15, 15, float> P_float;
         
-        // Reset P diagonal blocks
-        s->P[0] = s->P[1+1*15] = s->P[2+2*15] = 20.0;
-        s->P[3+3*15] = s->P[4+4*15] = s->P[5+5*15] = 2.0;
-        double deg30 = 30.0 * M_PI / 180.0;
-        s->P[6+6*15] = s->P[7+7*15] = s->P[8+8*15] = deg30*deg30;
+        // Convert current state to float type
+        for (int i = 0; i < 3; ++i) {
+            v_float(i, 0) = static_cast<float>(s->v[i]);
+            ba_float(i, 0) = static_cast<float>(s->ba[i]);
+            bg_float(i, 0) = static_cast<float>(s->bg[i]);
+        }
+        for (int i = 0; i < 4; ++i) {
+            q_float(i, 0) = static_cast<float>(s->q[i]);
+        }
+        for (int i = 0; i < 15; ++i) {
+            for (int j = 0; j < 15; ++j) {
+                P_float(i, j) = static_cast<float>(s->P[i + j*15]);
+            }
+        }
         
-        // Reset quaternion if NaN
-        double q_n = sqrt(s->q[0]*s->q[0]+s->q[1]*s->q[1]+s->q[2]*s->q[2]+s->q[3]*s->q[3]);
-        if (std::isnan(q_n) || q_n < 0.5) {
-            s->q[0] = 1.0; s->q[1] = s->q[2] = s->q[3] = 0;
+        // Reset processing
+        reset_state_on_divergence(v_float, ba_float, bg_float, q_float, P_float);
+        
+        // Convert results back to double type
+        for (int i = 0; i < 3; ++i) {
+            s->v[i] = static_cast<double>(v_float(i, 0));
+            s->ba[i] = static_cast<double>(ba_float(i, 0));
+            s->bg[i] = static_cast<double>(bg_float(i, 0));
+        }
+        for (int i = 0; i < 4; ++i) {
+            s->q[i] = static_cast<double>(q_float(i, 0));
+        }
+        for (int i = 0; i < 15; ++i) {
+            for (int j = 0; j < 15; ++j) {
+                s->P[i + j*15] = static_cast<double>(P_float(i, j));
+            }
         }
     }
 }
 
-// ZUPT check and update
+// ZUPT check and update (implementation moved to Src/Common/filter_management.cpp)
 static void zupt_check_and_update(ESKFState* s, const double* a_meas, const double* w_meas) {
-    mxArray* prhs[6];
-    mxArray* plhs[2];
+    // ZUPT check (implementation moved to Src/Common/filter_management.cpp)
+    Vector<3, float> a_float, w_float;
+    for (int i = 0; i < 3; ++i) {
+        a_float(i, 0) = static_cast<float>(a_meas[i]);
+        w_float(i, 0) = static_cast<float>(w_meas[i]);
+    }
     
-    prhs[0] = mxCreateString("check");
-    prhs[1] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs[1]), a_meas, 3);
-    prhs[2] = mxCreateDoubleMatrix(3,1,mxREAL); copy_vec(mxGetPr(prhs[2]), w_meas, 3);
-    prhs[3] = mxCreateDoubleScalar((double)s->zupt_counter);
-    prhs[4] = mxCreateDoubleScalar(s->zupt_threshold_accel);
-    prhs[5] = mxCreateDoubleScalar(s->zupt_threshold_gyro);
-    
-    // Note: mex_eskf_zupt takes different args; simplified here
-    double a_norm = sqrt(a_meas[0]*a_meas[0]+a_meas[1]*a_meas[1]+a_meas[2]*a_meas[2]);
-    double w_norm = sqrt(w_meas[0]*w_meas[0]+w_meas[1]*w_meas[1]+w_meas[2]*w_meas[2]);
-    
-    bool stationary = (fabs(a_norm - 9.81) < s->zupt_threshold_accel) && (w_norm < s->zupt_threshold_gyro);
+    bool stationary = check_zupt_condition(a_float, w_float, 
+                                           static_cast<float>(s->zupt_threshold_accel),
+                                           static_cast<float>(s->zupt_threshold_gyro));
     
     if (stationary) {
         s->zupt_counter++;
@@ -363,8 +382,6 @@ static void zupt_check_and_update(ESKFState* s, const double* a_meas, const doub
     }
     
     s->is_stationary = (s->zupt_counter >= s->zupt_min_duration);
-    
-    for (int i=0; i<6; i++) mxDestroyArray(prhs[i]);
     
     if (s->is_stationary) {
         // ZUPT update via mex_eskf_zupt

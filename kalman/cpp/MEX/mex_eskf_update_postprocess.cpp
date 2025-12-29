@@ -5,85 +5,17 @@
 #include "mex.h"
 #include "mex_type_conv.hpp"
 #include "../Inc/Common/Math/fixed_matrix.hpp"
+#include "../Inc/Common/Math/quaternion_lib.hpp"
+#include "../Inc/ESKF/eskf_postprocess.hpp"
+#include "../Inc/MEX/mex_type_conversion.hpp"
 #include <string>
 #include <cmath>
 #include <vector>
 
 using namespace cmath_fx;
-
-// Helper: MATLAB array -> Vector
-template<int R>
-static bool matToVector(const mxArray* arr, Vector<R, float>& out) {
-    if (!arr) return false;
-    if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
-    mwSize rows = mxGetM(arr); mwSize cols = mxGetN(arr);
-    if (rows != R || cols != 1) return false;
-    std::vector<float> tmp(static_cast<size_t>(R));
-    mex_conv::mxArrayToFloatArray(arr, tmp.data(), static_cast<size_t>(R));
-    for (int i = 0; i < R; ++i) out(i, 0) = tmp[i];
-    return true;
-}
-
-// Helper: MATLAB array -> Matrix
-template<int R, int C>
-static bool matToMatrix(const mxArray* arr, Matrix<R, C, float>& out) {
-    if (!arr) return false;
-    if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
-    mwSize rows = mxGetM(arr); mwSize cols = mxGetN(arr);
-    if (rows != R || cols != C) return false;
-    std::vector<float> tmp(static_cast<size_t>(R) * static_cast<size_t>(C));
-    mex_conv::mxArrayToFloatArray(arr, tmp.data(), static_cast<size_t>(R) * static_cast<size_t>(C));
-    for (int j = 0; j < C; ++j) {
-        for (int i = 0; i < R; ++i) {
-            out(i, j) = tmp[static_cast<size_t>(j) * static_cast<size_t>(R) + static_cast<size_t>(i)];
-        }
-    }
-    return true;
-}
-
-// Helper: Vector -> MATLAB array
-template<int R>
-static mxArray* vectorToMat(const Vector<R, float>& v) {
-    mxArray* out = mxCreateDoubleMatrix(R, 1, mxREAL);
-    double* pr = mxGetPr(out);
-    for (int i = 0; i < R; ++i) pr[i] = static_cast<double>(v(i, 0));
-    return out;
-}
-
-// Helper: Matrix -> MATLAB array
-template<int R, int C>
-static mxArray* matrixToMat(const Matrix<R, C, float>& M) {
-    mxArray* out = mxCreateDoubleMatrix(R, C, mxREAL);
-    double* pr = mxGetPr(out);
-    for (int j = 0; j < C; ++j) {
-        for (int i = 0; i < R; ++i) {
-            pr[j * R + i] = static_cast<double>(M(i, j));
-        }
-    }
-    return out;
-}
-
-// Quaternion multiplication: q_new = q1 * q2
-static void quat_multiply(const float* q1, const float* q2, float* q_out) {
-    float w1 = q1[0], x1 = q1[1], y1 = q1[2], z1 = q1[3];
-    float w2 = q2[0], x2 = q2[1], y2 = q2[2], z2 = q2[3];
-    
-    q_out[0] = w1*w2 - x1*x2 - y1*y2 - z1*z2;
-    q_out[1] = w1*x2 + x1*w2 + y1*z2 - z1*y2;
-    q_out[2] = w1*y2 - x1*z2 + y1*w2 + z1*x2;
-    q_out[3] = w1*z2 + x1*y2 - y1*x2 + z1*w2;
-}
-
-// Normalize quaternion
-static void quat_normalize(float* q) {
-    float norm = std::sqrt(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
-    if (norm > 1e-10f) {
-        q[0] /= norm;
-        q[1] /= norm;
-        q[2] /= norm;
-        q[3] /= norm;
-    }
-}
+using Quat = quat_lib::Quaternion<float>;
+using namespace eskf;
+using namespace mex_conv;
 
 // Main post-processing function
 // Input: sensor_type, dbg_out (struct with dx, innov, H), state (struct with p, v, q, ba, bg, P), sample
@@ -171,62 +103,23 @@ static void handle_postprocess(int nlhs, mxArray* plhs[], int nrhs, const mxArra
         new_bg = state_bg;
         out_P = state_P;
     } else if (was_attenuated) {
-        // Apply dx_out
-        for (int i = 0; i < 3; ++i) {
-            new_p(i, 0) = state_p(i, 0) + dx_out(i, 0);
-            new_v(i, 0) = state_v(i, 0) + dx_out(i + 3, 0);
-            new_ba(i, 0) = state_ba(i, 0) + dx_out(i + 9, 0);
-            new_bg(i, 0) = state_bg(i, 0) + dx_out(i + 12, 0);
-        }
-        
-        // Quaternion update: dq = [1; 0.5 * phi], q_new = dq * q
-        float phi[3] = {dx_out(6, 0), dx_out(7, 0), dx_out(8, 0)};
-        float dq[4] = {1.0f, 0.5f * phi[0], 0.5f * phi[1], 0.5f * phi[2]};
-        float q_state[4] = {state_q(0, 0), state_q(1, 0), state_q(2, 0), state_q(3, 0)};
-        float q_new[4];
-        quat_multiply(dq, q_state, q_new);
-        quat_normalize(q_new);
-        
-        for (int i = 0; i < 4; ++i) new_q(i, 0) = q_new[i];
-        
-        // Symmetrize P
-        for (int i = 0; i < 15; ++i) {
-            for (int j = i + 1; j < 15; ++j) {
-                float avg = 0.5f * (out_P(i, j) + out_P(j, i));
-                out_P(i, j) = avg;
-                out_P(j, i) = avg;
-            }
-        }
+        // Apply dx_out (実装はSrc/ESKF/eskf_postprocess.cppに移動)
+        UpdatePostprocessResult updated = update_state_from_dx(dx_out, state_p, state_v, state_q, state_ba, state_bg, new_state_P);
+        new_p = updated.p;
+        new_v = updated.v;
+        new_q = updated.q;
+        new_ba = updated.ba;
+        new_bg = updated.bg;
+        out_P = updated.P;
     } else {
-        // Use new_state directly (no attenuation)
-        // In this case, we return the new_state passed in, but symmetrize P
-        // The caller should have already set new_p, new_v, new_q, new_ba, new_bg
-        // For now, we return original state + dx (same as attenuated case but with original dx)
-        for (int i = 0; i < 3; ++i) {
-            new_p(i, 0) = state_p(i, 0) + dx(i, 0);
-            new_v(i, 0) = state_v(i, 0) + dx(i + 3, 0);
-            new_ba(i, 0) = state_ba(i, 0) + dx(i + 9, 0);
-            new_bg(i, 0) = state_bg(i, 0) + dx(i + 12, 0);
-        }
-        
-        // Quaternion update
-        float phi[3] = {dx(6, 0), dx(7, 0), dx(8, 0)};
-        float dq[4] = {1.0f, 0.5f * phi[0], 0.5f * phi[1], 0.5f * phi[2]};
-        float q_state[4] = {state_q(0, 0), state_q(1, 0), state_q(2, 0), state_q(3, 0)};
-        float q_new[4];
-        quat_multiply(dq, q_state, q_new);
-        quat_normalize(q_new);
-        
-        for (int i = 0; i < 4; ++i) new_q(i, 0) = q_new[i];
-        
-        // Symmetrize P
-        for (int i = 0; i < 15; ++i) {
-            for (int j = i + 1; j < 15; ++j) {
-                float avg = 0.5f * (out_P(i, j) + out_P(j, i));
-                out_P(i, j) = avg;
-                out_P(j, i) = avg;
-            }
-        }
+        // Use new_state directly (no attenuation) (実装はSrc/ESKF/eskf_postprocess.cppに移動)
+        UpdatePostprocessResult updated = update_state_from_dx(dx, state_p, state_v, state_q, state_ba, state_bg, new_state_P);
+        new_p = updated.p;
+        new_v = updated.v;
+        new_q = updated.q;
+        new_ba = updated.ba;
+        new_bg = updated.bg;
+        out_P = updated.P;
     }
     
     // Output: new_p, new_v, new_q, new_ba, new_bg, new_P, should_skip
