@@ -229,7 +229,12 @@ function build_mex(targets)
 
         % mex_eskf_step (wrapper) - skipped here
 
-        % mex_quaternion_lib - locked/skipped
+        % mex_quaternion_lib
+        if exist('mex_quaternion_lib.cpp', 'file')
+            if wants('mex_quaternion_lib') && build_single_mex('mex_quaternion_lib.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
+                built_count = built_count + 1;
+            end
+        end
 
         % mex_ukf (uses ekf_linear_update)
         ekf_linear_cpp = fullfile(src_dir, 'EKF', 'ekf_linear_update.cpp');

@@ -1,0 +1,83 @@
+function varargout = zupt(obj, method, varargin)
+    % ZUPT関連メソッド統合
+    % 使用例:
+    %   is_stat = obj.zupt('check', a_meas, w_meas)
+    %   obj.zupt('update')
+    
+    switch method
+        case 'check'
+            varargout{1} = check_stationary_impl(obj, varargin{1}, varargin{2});
+        case 'update'
+            update_zupt_impl(obj);
+        otherwise
+            error('Unknown ZUPT method: %s', method);
+    end
+end
+
+function is_stat = check_stationary_impl(obj, a_meas, w_meas)
+    % 静止判定: 加速度と角速度の大きさをチェック
+    a_norm = norm(a_meas);
+    gravity_deviation = abs(a_norm - 9.81);
+    w_norm = norm(w_meas);
+    
+    if gravity_deviation < obj.zupt_threshold_accel && w_norm < obj.zupt_threshold_gyro
+        obj.zupt_counter = obj.zupt_counter + 1;
+    else
+        obj.zupt_counter = 0;
+    end
+    
+    obj.is_stationary = (obj.zupt_counter >= obj.zupt_min_duration);
+    is_stat = obj.is_stationary;
+end
+
+function update_zupt_impl(obj)
+    % ZUPT (Zero Velocity Update): 速度をゼロに補正
+    if ~obj.is_stationary; return; end
+    try
+        % Prepare sensor/state/params for ZUPT
+        sensor_data = struct('accel', zeros(3,1), 'gyro', zeros(3,1), 'mag', zeros(3,1), ...
+            'gps_pos', zeros(3,1), 'alt_baro', 0, 'dt', obj.dt);
+        params = struct('g', obj.g, 'mag_ref', [50;0;0], 'noise_accel', zeros(3,1), ...
+            'noise_gyro', zeros(3,1), 'noise_ba', zeros(3,1), 'noise_bg', zeros(3,1), ...
+            'noise_mag', zeros(3,1), 'noise_gps', zeros(3,1), 'noise_baro', 0, ...
+            'alpha', 1e-3, 'beta', 2, 'kappa', 0, 'noise_zupt', [0.01^2;0.01^2;0.01^2]);
+
+        sensor_data.update_accel = false;
+        sensor_data.update_gyro = false;
+        sensor_data.update_mag = false;
+        sensor_data.update_gps = false;
+        sensor_data.update_baro = false;
+        sensor_data.update_zupt = true;
+
+        mex_params.g = params.g(:);
+        mex_params.mag_ref = params.mag_ref(:);
+        mex_params.noise_accel = params.noise_accel(:);
+        mex_params.noise_gyro = params.noise_gyro(:);
+        mex_params.noise_ba = params.noise_ba(:);
+        mex_params.noise_bg = params.noise_bg(:);
+        mex_params.noise_mag = params.noise_mag(:);
+        mex_params.noise_gps = params.noise_gps(:);
+        mex_params.noise_baro = params.noise_baro;
+        mex_params.noise_zupt = params.noise_zupt(:);
+        mex_params.alpha = params.alpha;
+        mex_params.beta = params.beta;
+        mex_params.kappa = params.kappa;
+
+        state.p = obj.p(:);
+        state.v = obj.v(:);
+        state.q = obj.q(:);
+        state.ba = obj.ba(:);
+        state.bg = obj.bg(:);
+        state.P = obj.P;
+
+        new_state = mex_meukf_step_v2(state, sensor_data, mex_params);
+        obj.p = new_state.p;
+        obj.v = new_state.v;
+        obj.q = new_state.q;
+        obj.ba = new_state.ba;
+        obj.bg = new_state.bg;
+        obj.P = new_state.P;
+    catch ME
+        warning('ESKF:zupt:Failed', 'C++ ZUPT update failed: %s', ME.message);
+    end
+end

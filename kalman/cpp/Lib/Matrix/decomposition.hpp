@@ -132,3 +132,4 @@ void make_positive_definite(Mat<N, N, T>& A, T min_eig = static_cast<T>(1e-9f)) 
 } // namespace lib
 
 
+
