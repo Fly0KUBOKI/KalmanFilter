@@ -22,14 +22,14 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
     if (nrhs < 10) {
         mexErrMsgTxt("update requires: sensor_type, meas, p, v, q, ba, bg, P, g, dt, [sample]");
     }
-    
+
     // 入力を解析
     char sensor_type[32];
     mxGetString(prhs[0], sensor_type, sizeof(sensor_type));
     
     double* meas = mxGetPr(prhs[1]);
     int meas_len = (int)mxGetNumberOfElements(prhs[1]);
-    
+
     double* p = mxGetPr(prhs[2]);
     double* v = mxGetPr(prhs[3]);
     double* q = mxGetPr(prhs[4]);
@@ -43,7 +43,7 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
     if (nrhs > 10 && !mxIsEmpty(prhs[10])) {
         sample = mxGetScalar(prhs[10]);
     }
-    
+
     // 出力バッファ
     double out_p[3], out_v[3], out_q[4], out_ba[3], out_bg[3], out_P[15*15];
     copy_vec(out_p, p, 3);
@@ -76,18 +76,18 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
         mxDestroyArray(prhs_r[0]);
         mxDestroyArray(prhs_r[1]);
     }
-    
+
     // sensor_data構造体を構築
     const char* sd_fields[] = {"accel", "gyro", "mag", "gps_pos", "alt_baro", "dt",
         "update_accel", "update_gyro", "update_mag", "update_gps", "update_baro", "update_zupt"};
     mxArray* sensor_data = mxCreateStructMatrix(1, 1, 12, sd_fields);
-    
+
     double zeros3[3] = {0, 0, 0};
     mxArray* accel_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(accel_arr), zeros3, 3);
     mxArray* gyro_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(gyro_arr), zeros3, 3);
     mxArray* mag_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(mag_arr), zeros3, 3);
     mxArray* gps_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(gps_arr), zeros3, 3);
-    
+
     mxSetField(sensor_data, 0, "accel", accel_arr);
     mxSetField(sensor_data, 0, "gyro", gyro_arr);
     mxSetField(sensor_data, 0, "mag", mag_arr);
@@ -100,18 +100,18 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
     mxSetField(sensor_data, 0, "update_gps", mxCreateLogicalScalar(false));
     mxSetField(sensor_data, 0, "update_baro", mxCreateLogicalScalar(false));
     mxSetField(sensor_data, 0, "update_zupt", mxCreateLogicalScalar(false));
-    
+
     // mex_params構造体
     const char* mp_fields[] = {"g", "mag_ref", "noise_accel", "noise_gyro", "noise_ba", "noise_bg",
         "noise_mag", "noise_gps", "noise_baro", "noise_zupt", "alpha", "beta", "kappa", "trace_sample"};
     mxArray* mex_params = mxCreateStructMatrix(1, 1, 14, mp_fields);
-    
+
     mxArray* g_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(g_arr), g, 3);
     mxSetField(mex_params, 0, "g", g_arr);
     double mag_ref[3] = {50, 0, 0};
     mxArray* mag_ref_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(mag_ref_arr), mag_ref, 3);
     mxSetField(mex_params, 0, "mag_ref", mag_ref_arr);
-    
+
     mxArray* na = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(na), zeros3, 3);
     mxArray* ng = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ng), zeros3, 3);
     mxArray* nba = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nba), zeros3, 3);
@@ -119,7 +119,7 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
     mxArray* nm = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nm), zeros3, 3);
     mxArray* ngps = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ngps), zeros3, 3);
     mxArray* nz = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nz), zeros3, 3);
-    
+
     mxSetField(mex_params, 0, "noise_accel", na);
     mxSetField(mex_params, 0, "noise_gyro", ng);
     mxSetField(mex_params, 0, "noise_ba", nba);
@@ -132,7 +132,7 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
     mxSetField(mex_params, 0, "beta", mxCreateDoubleScalar(2));
     mxSetField(mex_params, 0, "kappa", mxCreateDoubleScalar(0));
     mxSetField(mex_params, 0, "trace_sample", mxCreateDoubleScalar(sample));
-    
+
     // センサータイプ別設定
     if (strcmp(sensor_type, "accel") == 0) {
         copy_vec(mxGetPr(mxGetField(sensor_data, 0, "accel")), meas, 3);
@@ -166,7 +166,7 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
     } else {
         mexErrMsgTxt("Unknown sensor type");
     }
-    
+
     // state構造体
     const char* st_fields[] = {"p", "v", "q", "ba", "bg", "P"};
     mxArray* state_s = mxCreateStructMatrix(1, 1, 6, st_fields);
@@ -182,14 +182,14 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
     mxSetField(state_s, 0, "ba", ba_arr);
     mxSetField(state_s, 0, "bg", bg_arr);
     mxSetField(state_s, 0, "P", P_arr);
-    
+
     // mex_meukf_step_v2 呼び出し
     mxArray* prhs_m[3] = {state_s, sensor_data, mex_params};
     mxArray* plhs_m[3];
     if (mexCallMATLAB(3, plhs_m, 3, prhs_m, "mex_meukf_step_v2") == 0) {
         mxArray* new_state = plhs_m[0];
         mxArray* dbg_out = plhs_m[1];
-        
+
         // noise estimate更新
         if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "innov") && mxGetField(dbg_out, 0, "H")) {
             mxArray* prhs_ne[5];
@@ -203,7 +203,7 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
             for (int i = 0; i < 5; ++i) mxDestroyArray(prhs_ne[i]);
             if (plhs_ne[0]) mxDestroyArray(plhs_ne[0]);
         }
-        
+
         // postprocess
         if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "dx")) {
             mxArray* prhs_pp[12];
@@ -220,7 +220,7 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
             prhs_pp[9] = mxDuplicateArray(P_arr);
             prhs_pp[10] = mxDuplicateArray(mxGetField(new_state, 0, "P"));
             prhs_pp[11] = mxCreateDoubleScalar(sample);
-            
+
             if (mexCallMATLAB(7, plhs_pp, 12, prhs_pp, "mex_eskf_update_postprocess") == 0) {
                 should_skip = mxIsLogicalScalarTrue(plhs_pp[6]);
                 if (!should_skip) {
@@ -249,14 +249,14 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
                 }
             }
         }
-        
+
         for (int i = 0; i < 3; ++i) mxDestroyArray(plhs_m[i]);
     }
-    
+
     mxDestroyArray(sensor_data);
     mxDestroyArray(mex_params);
     mxDestroyArray(state_s);
-    
+
     // 出力
     plhs[0] = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(plhs[0]), out_p, 3);
     plhs[1] = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(plhs[1]), out_v, 3);
@@ -274,9 +274,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 10) {
         mexErrMsgTxt("Usage: [p,v,q,ba,bg,P,skip] = mex_eskf_do_update(sensor_type, meas, p, v, q, ba, bg, P, g, dt, [sample])");
     }
-    
+
     handle_update(nlhs, plhs, nrhs, prhs);
 }
-
-
 

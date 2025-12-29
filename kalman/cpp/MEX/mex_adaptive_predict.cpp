@@ -132,3 +132,4 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         mexErrMsgTxt("Unknown command for mex_adaptive_predict");
     }
 }
+

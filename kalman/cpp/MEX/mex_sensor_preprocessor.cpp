@@ -117,3 +117,4 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
     else if(cmd == "preprocess_gps") do_preprocess_gps(nlhs, plhs, nrhs, prhs);
     else mexErrMsgIdAndTxt("mex_sensor_preprocessor:unknown","Unknown command: %s", cmd.c_str());
 }
+
