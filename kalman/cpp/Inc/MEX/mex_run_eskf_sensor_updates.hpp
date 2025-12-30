@@ -21,6 +21,7 @@ inline void handle_sensor_update_internal(
     const double* p, const double* v, const double* q,
     const double* ba, const double* bg, const double* P,
     const double* g, double dt, double sample,
+    ESKFState* s,  // ESKFState pointer for accessing prev_* values
     double* out_p, double* out_v, double* out_q,
     double* out_ba, double* out_bg, double* out_P,
     bool& should_skip
@@ -87,7 +88,7 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
             handle_sensor_update_internal(
                 "accel", a_corrected, 3,
                 out_p, out_v, out_q, out_ba, out_bg, out_P,
-                g, dt, sample,
+                g, dt, sample, s,
                 out_p, out_v, out_q, out_ba, out_bg, out_P,
                 should_skip
             );
@@ -121,7 +122,7 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
             handle_sensor_update_internal(
                 "mag", m_filtered, 3,
                 out_p, out_v, out_q, out_ba, out_bg, out_P,
-                g, dt, sample,
+                g, dt, sample, s,
                 out_p, out_v, out_q, out_ba, out_bg, out_P,
                 should_skip
             );
@@ -144,7 +145,7 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
                 handle_sensor_update_internal(
                     "baro", alt_baro_arr, 1,
                     out_p, out_v, out_q, out_ba, out_bg, out_P,
-                    g, dt, sample,
+                    g, dt, sample, s,
                     out_p, out_v, out_q, out_ba, out_bg, out_P,
                     should_skip
                 );
@@ -211,7 +212,7 @@ inline void call_gps_update(ESKFState* s, double lat, double lon, double alt, do
         handle_sensor_update_internal(
             "gps", z_gps, 3,
             out_p, out_v, out_q, out_ba, out_bg, out_P,
-            g, dt, sample,
+            g, dt, sample, s,
             out_p, out_v, out_q, out_ba, out_bg, out_P,
             should_skip
         );
@@ -244,6 +245,7 @@ inline void handle_sensor_update_internal(
     const double* p, const double* v, const double* q,
     const double* ba, const double* bg, const double* P,
     const double* g, double dt, double sample,
+    ESKFState* s,  // ESKFState pointer for accessing prev_* values
     double* out_p, double* out_v, double* out_q,
     double* out_ba, double* out_bg, double* out_P,
     bool& should_skip
@@ -281,8 +283,9 @@ inline void handle_sensor_update_internal(
 
     // sensor_data構造体を構築
     const char* sd_fields[] = {"accel", "gyro", "mag", "gps_pos", "alt_baro", "dt",
-        "update_accel", "update_gyro", "update_mag", "update_gps", "update_baro", "update_zupt"};
-    mxArray* sensor_data = mxCreateStructMatrix(1, 1, 12, sd_fields);
+        "update_accel", "update_gyro", "update_mag", "update_gps", "update_baro", "update_zupt",
+        "prev_mag", "prev_gps_pos", "prev_baro_alt"};
+    mxArray* sensor_data = mxCreateStructMatrix(1, 1, 15, sd_fields);
 
     double zeros3[3] = {0, 0, 0};
     mxArray* accel_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(accel_arr), zeros3, 3);
@@ -302,6 +305,22 @@ inline void handle_sensor_update_internal(
     mxSetField(sensor_data, 0, "update_gps", mxCreateLogicalScalar(false));
     mxSetField(sensor_data, 0, "update_baro", mxCreateLogicalScalar(false));
     mxSetField(sensor_data, 0, "update_zupt", mxCreateLogicalScalar(false));
+    
+    // Set prev_* values from ESKFState
+    mxArray* prev_mag_arr = mxCreateDoubleMatrix(3, 1, mxREAL);
+    copy_vec(mxGetPr(prev_mag_arr), s->prev_mag, 3);
+    mxSetField(sensor_data, 0, "prev_mag", prev_mag_arr);
+    
+    // Convert GPS lat/lon/alt to ECEF position (or use stored prev_gps_pos if available)
+    // For now, use zeros if GPS hasn't been initialized
+    mxArray* prev_gps_pos_arr = mxCreateDoubleMatrix(3, 1, mxREAL);
+    double prev_gps_pos[3] = {0, 0, 0};
+    // If GPS was previously set, we could convert lat/lon/alt to ECEF here
+    // For simplicity, use zeros (mex_meukf_step_v2 will handle the change detection)
+    copy_vec(mxGetPr(prev_gps_pos_arr), prev_gps_pos, 3);
+    mxSetField(sensor_data, 0, "prev_gps_pos", prev_gps_pos_arr);
+    
+    mxSetField(sensor_data, 0, "prev_baro_alt", mxCreateDoubleScalar(s->prev_baro));
 
     // mex_params構造体
     const char* mp_fields[] = {"g", "mag_ref", "noise_accel", "noise_gyro", "noise_ba", "noise_bg",
