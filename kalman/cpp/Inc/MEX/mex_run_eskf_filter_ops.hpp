@@ -3,19 +3,13 @@
 #ifndef MEX_MEX_RUN_ESKF_FILTER_OPS_HPP
 #define MEX_MEX_RUN_ESKF_FILTER_OPS_HPP
 
-/**
- * mex_run_eskf.cpp用のフィルター操作関数群
- * 
- * リセットチェック、ZUPTチェックなどの実装を含みます。
- */
+// Filter operations for mex_run_eskf.cpp
 
 #include "mex_eskf_common.hpp"
 
 namespace mex_run_eskf_impl {
 
-/**
- * リセットチェックと処理
- */
+// Reset check and processing
 inline void check_and_reset(ESKFState* s, int k) {
     // Check for divergence (implementation moved to Src/Common/filter_management.cpp)
     // Convert P matrix to Matrix type
@@ -88,9 +82,7 @@ inline void check_and_reset(ESKFState* s, int k) {
     }
 }
 
-/**
- * ZUPTチェックと更新処理
- */
+// ZUPT check and update
 inline void zupt_check_and_update(ESKFState* s, const double* a_meas, const double* w_meas) {
     // ZUPT check (implementation moved to Src/Common/filter_management.cpp)
     Vector<3, float> a_float, w_float;

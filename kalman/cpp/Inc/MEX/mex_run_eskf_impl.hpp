@@ -3,37 +3,26 @@
 #ifndef MEX_MEX_RUN_ESKF_IMPL_HPP
 #define MEX_MEX_RUN_ESKF_IMPL_HPP
 
-/**
- * mex_run_eskf.cpp用の実装関数群
- * 
- * このヘッダーには、mex_run_eskf.cppで使用される内部関数の定義が含まれます。
- * グローバル変数とstatic関数をinline化してヘッダーに移動しています。
- */
+// Implementation functions for mex_run_eskf.cpp
 
 #include "mex_eskf_common.hpp"
 #include <cstdint>
-
-// センサー更新関数とフィルター操作関数を先にインクルード（do_stepで使用するため）
 #include "mex_run_eskf_sensor_updates.hpp"
 #include "mex_run_eskf_filter_ops.hpp"
 
 namespace mex_run_eskf_impl {
 
-// グローバル変数（extern宣言、実装は.cppファイルに）
+// Global variables (extern declarations, definitions in .cpp file)
 extern std::map<uint64_t, ESKFState*> g_states;
 extern uint64_t g_next_handle;
 extern SensorFilterLib g_filter_lib;
 
-/**
- * 予測ステップの呼び出し（ESKFRunnerを使用）
- */
+// Predict step using ESKFRunner
 inline void call_predict(ESKFState* s, const double* a_meas, const double* w_meas) {
     ESKFRunner::predict(s, a_meas, w_meas);
 }
 
-/**
- * 初期化処理
- */
+// Initialization
 inline uint64_t do_init(const mxArray* obs, double static_time, double dt) {
     ESKFState* s = initialize_eskf_from_matlab(obs, static_time, dt);
     uint64_t handle = g_next_handle++;
@@ -41,9 +30,7 @@ inline uint64_t do_init(const mxArray* obs, double static_time, double dt) {
     return handle;
 }
 
-/**
- * ステップ処理
- */
+// Step processing
 inline void do_step(ESKFState* s, const mxArray* obs, int k) {
     int idx = k - 1;
     double a[3], w[3], m[3];
@@ -90,9 +77,7 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
     check_and_reset(s, k);
 }
 
-/**
- * 状態取得処理
- */
+// Get state
 inline mxArray* do_get_state(ESKFState* s) {
     const char* fields[] = {"p", "v", "q", "euler", "ba", "bg", "P"};
     mxArray* out = mxCreateStructMatrix(1, 1, 7, fields);
@@ -133,9 +118,7 @@ inline mxArray* do_get_state(ESKFState* s) {
     return out;
 }
 
-/**
- * メモリ解放処理
- */
+// Free memory
 inline void do_free(uint64_t handle) {
     auto it = g_states.find(handle);
     if (it != g_states.end()) {
