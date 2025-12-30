@@ -112,12 +112,7 @@ function build_mex(targets)
             built_count = built_count + 1;
         end
     end
-
-    sensor_preprocessor_cpp = fullfile(src_dir, 'Common', 'Sensor', 'sensor_preprocessor.cpp');
-    if wants('mex_sensor_preprocessor') && build_single_mex('mex_sensor_preprocessor.cpp', compile_opts, inc_args, {sensor_preprocessor_cpp}, bin_dir, [], log_fid)
-        built_count = built_count + 1;
-    end
-
+    
     if exist('mex_kalman_filter_core.cpp', 'file')
         if wants('mex_kalman_filter_core') && build_single_mex('mex_kalman_filter_core.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
             built_count = built_count + 1;
@@ -222,12 +217,6 @@ function build_mex(targets)
     
     if exist('mex_eskf_sensor_update.cpp', 'file')
         if wants('mex_eskf_sensor_update') && build_single_mex('mex_eskf_sensor_update.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
-            built_count = built_count + 1;
-        end
-    end
-    
-    if exist('mex_eskf_do_update.cpp', 'file')
-        if wants('mex_eskf_do_update') && build_single_mex('mex_eskf_do_update.cpp', compile_opts, inc_args, {eskf_postprocess_cpp, filter_management_cpp}, bin_dir, [], log_fid)
             built_count = built_count + 1;
         end
     end

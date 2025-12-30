@@ -63,5 +63,10 @@ using cm = cmath_fx::FixedMatrix;  // Alias for sensor filter
 #define getGyro(obs, idx, out)  getVec3(obs, "wx", "wy", "wz", idx, out)
 #define getMag(obs, idx, out)   getVec3(obs, "mx", "my", "mz", idx, out)
 
+// グローバル変数の前方宣言（mex_run_eskf_impl名前空間用）
+namespace mex_run_eskf_impl {
+    extern SensorFilterLib g_filter_lib;
+}
+
 #endif // MEX_MEX_ESKF_COMMON_HPP
 
