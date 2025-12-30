@@ -2,6 +2,7 @@
 // Implementation file for ESKF core functions
 
 #include "../../Inc/ESKF/eskf_core.hpp"
+#include "../../Inc/ESKF/eskf_math.hpp"
 #include "../../Inc/KF/kalman_filter_core.hpp"
 #include "../../Inc/Common/Math/quaternion.hpp"
 #include "../../Inc/Common/Math/math_utils.hpp"
@@ -145,26 +146,259 @@ void ESKFCore::compute_F_matrix(
 
 // その他のメソッド（簡易実装）
 void ESKFCore::update_accel(Vector4& q, const Vector3& a_meas, Scalar scale_factor) {
-    // TODO: 実装が必要
+    // 加速度からRoll/Pitchを計算（Yawは変更しない）
+    // 実装はeskf_math.hppのaccel_to_quaternionを使用
+    using namespace eskf_math;
+    Vector4 q_rp;
+    ESKFMath::accel_to_quaternion(a_meas, scale_factor, q_rp);
+    
+    // 現在のYawを保持してRoll/Pitchのみ更新
+    // 簡易実装：q_rpとqを合成（実際にはより複雑な処理が必要）
+    Scalar q0 = q(0, 0), q1 = q(1, 0), q2 = q(2, 0), q3 = q(3, 0);
+    Scalar qrp0 = q_rp(0, 0), qrp1 = q_rp(1, 0), qrp2 = q_rp(2, 0), qrp3 = q_rp(3, 0);
+    
+    // Roll/Pitchのみの更新（簡易版）
+    q(0, 0) = qrp0 * q0 - qrp1 * q1 - qrp2 * q2 - qrp3 * q3;
+    q(1, 0) = qrp0 * q1 + qrp1 * q0 + qrp2 * q3 - qrp3 * q2;
+    q(2, 0) = qrp0 * q2 - qrp1 * q3 + qrp2 * q0 + qrp3 * q1;
+    q(3, 0) = qrp0 * q3 + qrp1 * q2 - qrp2 * q1 + qrp3 * q0;
+    
+    // 正規化
+    Scalar norm = std::sqrt(q(0,0)*q(0,0) + q(1,0)*q(1,0) + q(2,0)*q(2,0) + q(3,0)*q(3,0));
+    if (norm > 1e-6f) {
+        for (int i = 0; i < 4; ++i) q(i, 0) /= norm;
+    }
 }
 
 void ESKFCore::update_mag(Vector4& q, Matrix15x15& P, const Vector3& m_meas,
                           const Vector3& m_world, const Matrix3x3& R_mag,
                           cmath_fx::Matrix<15, 3, Scalar>& K_out, Vector15& dx_out) {
-    // TODO: 実装が必要
+    // ESKF磁気計更新（簡易実装）
+    // クォータニオンから回転行列を計算
+    using namespace common::math;
+    Matrix3x3 R;
+    cquat::quat_to_rotm(q, R);
+    
+    // 磁気参照ベクトルをボディ座標に変換: m_body = R^T * m_world
+    Vector3 m_body = R.transpose() * m_world;
+    
+    // 観測行列H = skew(m_body) (3x3)
+    Matrix3x3 H_sub;
+    H_sub(0, 0) = 0.0f; H_sub(0, 1) = -m_body(2, 0); H_sub(0, 2) = m_body(1, 0);
+    H_sub(1, 0) = m_body(2, 0); H_sub(1, 1) = 0.0f; H_sub(1, 2) = -m_body(0, 0);
+    H_sub(2, 0) = -m_body(1, 0); H_sub(2, 1) = m_body(0, 0); H_sub(2, 2) = 0.0f;
+    
+    // 予測値: z_pred = R * m_meas (正規化)
+    Vector3 m_meas_norm = m_meas;
+    Scalar m_meas_len = 0.0f;
+    for(int i=0; i<3; ++i) m_meas_len += m_meas(i,0) * m_meas(i,0);
+    m_meas_len = std::sqrt(m_meas_len);
+    if (m_meas_len > 1e-9f) {
+        for(int i=0; i<3; ++i) m_meas_norm(i, 0) /= m_meas_len;
+    }
+    
+    Vector3 z_pred = R * m_meas_norm;
+    
+    // イノベーション: y = m_world - z_pred
+    Vector3 y = m_world - z_pred;
+    
+    // P_att = P(6:8, 6:8) (attitude covariance)
+    Matrix3x3 P_att;
+    for(int i=0; i<3; ++i) {
+        for(int j=0; j<3; ++j) {
+            P_att(i, j) = P(6+i, 6+j);
+        }
+    }
+    
+    // S = H_sub * P_att * H_sub^T + R_mag
+    Matrix3x3 H_P = H_sub * P_att;
+    Matrix3x3 H_P_Ht = H_P * H_sub.transpose();
+    Matrix3x3 S = H_P_Ht + R_mag;
+    
+    // S_inv
+    Matrix3x3 S_inv;
+    if(!S.inverse(S_inv)) {
+        K_out = cmath_fx::Matrix<15, 3, Scalar>::Zero();
+        dx_out = Vector15::Zero();
+        return;
+    }
+    
+    // P_cross = P(:, 6:8) (15x3)
+    cmath_fx::Matrix<15, 3, Scalar> P_cross;
+    for(int i=0; i<15; ++i) {
+        for(int j=0; j<3; ++j) {
+            P_cross(i, j) = P(i, 6+j);
+        }
+    }
+    
+    // K_full = P_cross * H_sub^T * S_inv
+    cmath_fx::Matrix<15, 3, Scalar> tmp = P_cross * H_sub.transpose();
+    K_out = tmp * S_inv;
+    
+    // dx = K * y
+    dx_out = K_out * y;
+    
+    // Update covariance: P = (I - K*H) * P (Joseph form)
+    // H = [0,0,0,0,0,0, H_sub, 0...] where H_sub is at columns 6:8
+    Matrix15x15 I = Matrix15x15::Identity();
+    Matrix15x15 KH_full = Matrix15x15::Zero();
+    // Build K*H where H has H_sub at columns 6:8
+    for(int i=0; i<15; ++i) {
+        for(int j=0; j<15; ++j) {
+            if(j >= 6 && j < 9) {
+                for(int k=0; k<3; ++k) {
+                    KH_full(i, j) += K_out(i, k) * H_sub(k, j-6);
+                }
+            }
+        }
+    }
+    Matrix15x15 I_KH = I - KH_full;
+    Matrix15x15 P_tmp = I_KH * P * I_KH.transpose();
+    // Add K*R*K^T term
+    Matrix15x15 K_R_Kt = Matrix15x15::Zero();
+    for(int i=0; i<15; ++i) {
+        for(int j=0; j<15; ++j) {
+            for(int k=0; k<3; ++k) {
+                K_R_Kt(i, j) += K_out(i, k) * R_mag(k, k) * K_out(j, k);
+            }
+        }
+    }
+    P = P_tmp + K_R_Kt;
+    // Symmetrize
+    for(int i=0; i<15; ++i) {
+        for(int j=i+1; j<15; ++j) {
+            Scalar avg = 0.5f * (P(i, j) + P(j, i));
+            P(i, j) = avg;
+            P(j, i) = avg;
+        }
+    }
 }
 
 void ESKFCore::update_gps(Vector3& p, Vector3& v, Matrix15x15& P,
                           const Vector3& gps_pos, const Vector3& gps_origin,
                           const Matrix3x3& R_gps,
                           cmath_fx::Matrix<15, 3, Scalar>& K_out, Vector15& dx_out) {
-    // TODO: 実装が必要
+    // GPS更新：H = [I3, 0...], z_pred = p, y = gps_pos - p
+    Vector3 z_pred = p;
+    Vector3 y = gps_pos - z_pred;
+    
+    // S = H*P*H' + R = P_pos + R
+    Matrix3x3 P_pos;
+    for(int i=0; i<3; ++i) {
+        for(int j=0; j<3; ++j) {
+            P_pos(i, j) = P(i, j);
+        }
+    }
+    
+    Matrix3x3 S = P_pos + R_gps;
+    
+    // S_inv
+    Matrix3x3 S_inv;
+    if(!S.inverse(S_inv)) {
+        // 逆行列計算失敗
+        K_out = cmath_fx::Matrix<15, 3, Scalar>::Zero();
+        dx_out = Vector15::Zero();
+        return;
+    }
+    
+    // K = P*H' * S_inv = P(:,1:3) * S_inv
+    cmath_fx::Matrix<15, 3, Scalar> PHt;
+    for(int i=0; i<15; ++i) {
+        for(int j=0; j<3; ++j) {
+            PHt(i, j) = P(i, j);
+        }
+    }
+    
+    K_out = PHt * S_inv;
+    
+    // dx = K * y
+    dx_out = K_out * y;
+    
+    // Update covariance: P = (I - K*H) * P (Joseph form for numerical stability)
+    // H = [I3, 0...] for GPS, so K*H = K(:,1:3) at columns 0:2
+    Matrix15x15 I = Matrix15x15::Identity();
+    Matrix15x15 KH = Matrix15x15::Zero();
+    for(int i=0; i<15; ++i) {
+        for(int j=0; j<3; ++j) {
+            KH(i, j) = K_out(i, j);
+        }
+    }
+    Matrix15x15 I_KH = I - KH;
+    Matrix15x15 P_tmp = I_KH * P * I_KH.transpose();
+    // Add K*R*K^T term
+    Matrix15x15 K_R_Kt = Matrix15x15::Zero();
+    for(int i=0; i<15; ++i) {
+        for(int j=0; j<15; ++j) {
+            for(int k=0; k<3; ++k) {
+                K_R_Kt(i, j) += K_out(i, k) * R_gps(k, k) * K_out(j, k);
+            }
+        }
+    }
+    P = P_tmp + K_R_Kt;
+    // Symmetrize
+    for(int i=0; i<15; ++i) {
+        for(int j=i+1; j<15; ++j) {
+            Scalar avg = 0.5f * (P(i, j) + P(j, i));
+            P(i, j) = avg;
+            P(j, i) = avg;
+        }
+    }
 }
 
-void ESKFCore::update_baro(Vector3& p, Matrix15x15& P, Scalar pressure,
+void ESKFCore::update_baro(Vector3& p, Matrix15x15& P, Scalar altitude,
                            const Vector3& gps_origin, Scalar R_baro,
                            cmath_fx::Matrix<15, 1, Scalar>& K_out, Vector15& dx_out) {
-    // TODO: 実装が必要
+    // Baro更新：H = [0,0,1, zeros(1,12)], z_pred = p(2), y = altitude - p(2)
+    Scalar z_pred = p(2, 0);
+    Scalar y = altitude - z_pred;
+    
+    // S = H*P*H' + R = P(2,2) + R_baro
+    Scalar P_z = P(2, 2);
+    Scalar S = P_z + R_baro;
+    
+    if (S < 1e-9f) {
+        K_out = cmath_fx::Matrix<15, 1, Scalar>::Zero();
+        dx_out = Vector15::Zero();
+        return;
+    }
+    
+    Scalar S_inv = 1.0f / S;
+    
+    // K = P*H' / S = P(:,2) / S
+    for(int i=0; i<15; ++i) {
+        K_out(i, 0) = P(i, 2) * S_inv;
+    }
+    
+    // dx = K * y
+    for(int i=0; i<15; ++i) {
+        dx_out(i, 0) = K_out(i, 0) * y;
+    }
+    
+    // Update covariance: P = (I - K*H) * P (Joseph form)
+    // H = [0,0,1, zeros(1,12)], so K*H has K at column 2
+    Matrix15x15 I = Matrix15x15::Identity();
+    Matrix15x15 KH = Matrix15x15::Zero();
+    for(int i=0; i<15; ++i) {
+        KH(i, 2) = K_out(i, 0);
+    }
+    Matrix15x15 I_KH = I - KH;
+    Matrix15x15 P_tmp = I_KH * P * I_KH.transpose();
+    // Add K*R*K^T term (R is scalar)
+    Matrix15x15 K_R_Kt = Matrix15x15::Zero();
+    for(int i=0; i<15; ++i) {
+        for(int j=0; j<15; ++j) {
+            K_R_Kt(i, j) = K_out(i, 0) * R_baro * K_out(j, 0);
+        }
+    }
+    P = P_tmp + K_R_Kt;
+    // Symmetrize
+    for(int i=0; i<15; ++i) {
+        for(int j=i+1; j<15; ++j) {
+            Scalar avg = 0.5f * (P(i, j) + P(j, i));
+            P(i, j) = avg;
+            P(j, i) = avg;
+        }
+    }
 }
 
 void ESKFCore::inject_error_state(Vector3& p, Vector3& v, Vector4& q, Vector3& ba, Vector3& bg, const Vector15& dx) {

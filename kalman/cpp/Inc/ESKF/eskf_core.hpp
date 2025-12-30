@@ -57,7 +57,7 @@ public:
     // 気圧計更新
     static void update_baro(
         Vector3& p, Matrix15x15& P,
-        Scalar pressure,
+        Scalar altitude,
         const Vector3& gps_origin,
         Scalar R_baro,
         cmath_fx::Matrix<15, 1, Scalar>& K_out,
