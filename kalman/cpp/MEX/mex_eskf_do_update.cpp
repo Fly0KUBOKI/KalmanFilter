@@ -6,15 +6,21 @@
 #include "mex.h"
 #include <cmath>
 #include <cstring>
+#include <vector>
 #include "../Inc/Common/Math/vector_utils.hpp"
 #include "../Inc/Common/Math/quaternion_lib.hpp"
 #include "../Inc/ESKF/eskf_postprocess.hpp"
+#include "../Inc/Common/Sensor/sensor_filter.hpp"
 #include "../Inc/MEX/mex_type_conversion.hpp"
 
 using namespace common::math;
+using namespace common::sensor;
 using namespace cmath_fx;
 using namespace eskf;
 using namespace mex_conv;
+
+// グローバルセンサーフィルターインスタンス（発散チェック用）
+static SensorFilterLib g_filter_lib;
 
 //=============================================================================
 // メインハンドラ
@@ -57,27 +63,26 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
     memcpy(out_P, P, 15*15*sizeof(double));
     bool should_skip = false;
     
-    // R取得
+    // R取得 (C++ direct implementation)
     double R_noise[3] = {0.01, 0.01, 0.01};
     {
-        mxArray* prhs_r[2];
-        mxArray* plhs_r[1];
-        prhs_r[0] = mxCreateString("get_R");
-        prhs_r[1] = mxCreateString(sensor_type);
-        if (mexCallMATLAB(1, plhs_r, 2, prhs_r, "mex_sensor_filter") == 0) {
-            double* R = mxGetPr(plhs_r[0]);
-            int n = (int)mxGetNumberOfElements(plhs_r[0]);
-            if (n == 9) {
-                R_noise[0] = R[0]; R_noise[1] = R[4]; R_noise[2] = R[8];
-            } else if (n >= 3) {
-                R_noise[0] = R[0]; R_noise[1] = R[1]; R_noise[2] = R[2];
-            } else if (n == 1) {
-                R_noise[0] = R_noise[1] = R_noise[2] = R[0];
-            }
-            mxDestroyArray(plhs_r[0]);
+        cmath_fx::FixedMatrix R = g_filter_lib.noise_estimator.get_R_matrix(sensor_type);
+        int n_rows = R.rows;
+        int n_cols = R.cols;
+        if (n_rows == 3 && n_cols == 3) {
+            // 3x3行列から対角要素を取得
+            R_noise[0] = static_cast<double>(R(0, 0));
+            R_noise[1] = static_cast<double>(R(1, 1));
+            R_noise[2] = static_cast<double>(R(2, 2));
+        } else if (n_rows >= 3 && n_cols == 1) {
+            // ベクトル形式
+            R_noise[0] = static_cast<double>(R(0, 0));
+            R_noise[1] = static_cast<double>(R(1, 0));
+            R_noise[2] = static_cast<double>(R(2, 0));
+        } else if (n_rows == 1 && n_cols == 1) {
+            // スカラー（baroなど）
+            R_noise[0] = R_noise[1] = R_noise[2] = static_cast<double>(R(0, 0));
         }
-        mxDestroyArray(prhs_r[0]);
-        mxDestroyArray(prhs_r[1]);
     }
 
     // sensor_data構造体を構築
@@ -193,18 +198,51 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
         mxArray* new_state = plhs_m[0];
         mxArray* dbg_out = plhs_m[1];
 
-        // noise estimate更新
+        // noise estimate更新 (C++ direct implementation)
         if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "innov") && mxGetField(dbg_out, 0, "H")) {
-            mxArray* prhs_ne[5];
-            mxArray* plhs_ne[1];
-            prhs_ne[0] = mxCreateString("noise_estimate");
-            prhs_ne[1] = mxCreateString(sensor_type);
-            prhs_ne[2] = mxDuplicateArray(mxGetField(dbg_out, 0, "innov"));
-            prhs_ne[3] = mxDuplicateArray(mxGetField(dbg_out, 0, "H"));
-            prhs_ne[4] = mxDuplicateArray(P_arr);
-            mexCallMATLAB(1, plhs_ne, 5, prhs_ne, "mex_sensor_filter");
-            for (int i = 0; i < 5; ++i) mxDestroyArray(prhs_ne[i]);
-            if (plhs_ne[0]) mxDestroyArray(plhs_ne[0]);
+            // Get innov
+            const mxArray* innov = mxGetField(dbg_out, 0, "innov");
+            int innov_len = mxGetM(innov) * mxGetN(innov);
+            if (innov_len < 1) innov_len = 1;
+            if (innov_len > 3) innov_len = 3;
+            
+            cmath_fx::FixedMatrix innov_cm(innov_len, 1);
+            std::vector<float> innov_tmp(static_cast<size_t>(innov_len));
+            mex_conv::mxArrayToFloatArray(innov, innov_tmp.data(), static_cast<size_t>(innov_len));
+            for (int i = 0; i < innov_len; ++i) {
+                innov_cm(i, 0) = innov_tmp[i];
+            }
+            
+            // Get H
+            const mxArray* H = mxGetField(dbg_out, 0, "H");
+            int H_rows = mxGetM(H);
+            int H_cols = mxGetN(H);
+            if (H_rows < 1) H_rows = 1;
+            if (H_cols < 1) H_cols = 1;
+            if (H_rows > 3) H_rows = 3;
+            if (H_cols > 15) H_cols = 15;
+            
+            cmath_fx::FixedMatrix H_cm(H_rows, H_cols);
+            std::vector<float> H_tmp(static_cast<size_t>(H_rows * H_cols));
+            mex_conv::mxArrayToFloatArray(H, H_tmp.data(), static_cast<size_t>(H_rows * H_cols));
+            for (int j = 0; j < H_cols; ++j) {
+                for (int i = 0; i < H_rows; ++i) {
+                    H_cm(i, j) = H_tmp[j * H_rows + i];  // MATLAB column-major to row-major
+                }
+            }
+            
+            // Get P_pred
+            cmath_fx::FixedMatrix P_pred(15, 15);
+            std::vector<float> P_tmp(15 * 15);
+            mex_conv::mxArrayToFloatArray(P_arr, P_tmp.data(), 15 * 15);
+            for (int j = 0; j < 15; ++j) {
+                for (int i = 0; i < 15; ++i) {
+                    P_pred(i, j) = P_tmp[j * 15 + i];  // MATLAB column-major to row-major
+                }
+            }
+            
+            // Call noise estimate directly
+            g_filter_lib.noise_estimator.estimate(sensor_type, innov_cm, H_cm, P_pred);
         }
 
         // postprocess (mex_eskf_update_postprocess を統合)
@@ -250,32 +288,37 @@ static void handle_update(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
                     new_state_P = state_P;
                 }
                 
-                // Call divergence_guard.check_and_attenuate_update via mex_sensor_filter
-                mxArray* plhs_div[3];
-                mxArray* prhs_div[4];
-                prhs_div[0] = mxCreateString("divergence_check");
-                prhs_div[1] = mxCreateString(sensor_type);
-                prhs_div[2] = mxDuplicateArray(innov);
-                prhs_div[3] = vectorToMat(dx);
+                // Divergence check (C++ direct implementation)
+                // Get innov size
+                int innov_len = mxGetM(innov) * mxGetN(innov);
+                if (innov_len < 1) innov_len = 1;
+                if (innov_len > 3) innov_len = 3;
                 
-                mexCallMATLAB(3, plhs_div, 4, prhs_div, "mex_sensor_filter");
-                
-                // Get outputs: dx_out, should_skip, was_attenuated
-                Vector<15, float> dx_out;
-                if (!matToVector(plhs_div[0], dx_out)) {
-                    dx_out = dx;
+                // Convert innov to FixedMatrix
+                cmath_fx::FixedMatrix innov_cm(innov_len, 1);
+                std::vector<float> innov_tmp(static_cast<size_t>(innov_len));
+                mex_conv::mxArrayToFloatArray(innov, innov_tmp.data(), static_cast<size_t>(innov_len));
+                for (int i = 0; i < innov_len; ++i) {
+                    innov_cm(i, 0) = innov_tmp[i];
                 }
-                should_skip = mxIsLogicalScalarTrue(plhs_div[1]);
-                bool was_attenuated = mxIsLogicalScalarTrue(plhs_div[2]);
                 
-                // Cleanup divergence call
-                mxDestroyArray(plhs_div[0]);
-                mxDestroyArray(plhs_div[1]);
-                mxDestroyArray(plhs_div[2]);
-                mxDestroyArray(prhs_div[0]);
-                mxDestroyArray(prhs_div[1]);
-                mxDestroyArray(prhs_div[2]);
-                mxDestroyArray(prhs_div[3]);
+                // Convert dx to FixedMatrix
+                cmath_fx::FixedMatrix dx_cm(15, 1);
+                for (int i = 0; i < 15; ++i) {
+                    dx_cm(i, 0) = dx(i, 0);
+                }
+                
+                // Call divergence check directly
+                bool was_attenuated = false;
+                bool should_skip_result = g_filter_lib.divergence_guard.check_and_attenuate(
+                    sensor_type, innov_cm, dx_cm, was_attenuated);
+                
+                // Convert back to Vector
+                Vector<15, float> dx_out;
+                for (int i = 0; i < 15; ++i) {
+                    dx_out(i, 0) = dx_cm(i, 0);
+                }
+                should_skip = should_skip_result;
                 
                 // Output: new_state (p, v, q, ba, bg, P), should_skip
                 Vector<3, float> new_p, new_v, new_ba, new_bg;

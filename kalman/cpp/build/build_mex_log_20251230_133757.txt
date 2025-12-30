@@ -1,8 +1,7 @@
-=== MEX Build Log Started at 30-Dec-2025 12:26:01 ===
-Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20251230_122601.txt
+=== MEX Build Log Started at 30-Dec-2025 13:37:58 ===
+Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20251230_133757.txt
 
 MEX Build for Kalman Filters
-Clearing bin directory: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
 Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
 
 Compiling mex_sensor_preprocessor... 'Microsoft Visual C++ 2022' でビルドしています。
@@ -28,4 +27,4 @@ Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cp
 To use MEX files, add to MATLAB path:
   addpath('C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin')
 
-=== MEX Build Log Ended at 30-Dec-2025 12:26:14 ===
+=== MEX Build Log Ended at 30-Dec-2025 13:38:11 ===

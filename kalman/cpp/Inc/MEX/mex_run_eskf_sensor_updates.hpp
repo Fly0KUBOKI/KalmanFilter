@@ -40,38 +40,35 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
     bool should_skip = true;
     
     if (strcmp(type, "accel") == 0 && meas_len == 3) {
-        // Preprocess accel
-        mxArray* prhs_pre[3];
-        mxArray* plhs_pre[3];
-        prhs_pre[0] = mxCreateString("preprocess_accel");
-        mxArray* a_arr = mxCreateDoubleMatrix(3, 1, mxREAL);
-        memcpy(mxGetPr(a_arr), meas, 3 * sizeof(double));
-        prhs_pre[1] = a_arr;
-        mxArray* prev_a = mxCreateDoubleMatrix(3, 1, mxREAL);
-        memcpy(mxGetPr(prev_a), s->prev_accel, 3 * sizeof(double));
-        prhs_pre[2] = prev_a;
+        // Preprocess accel (C++ direct implementation)
+        cmath_fx::Vector<3, float> a_meas_f;
+        cmath_fx::Vector<3, float> prev_a_f;
+        for (int i = 0; i < 3; ++i) {
+            a_meas_f(i, 0) = static_cast<float>(meas[i]);
+            prev_a_f(i, 0) = static_cast<float>(s->prev_accel[i]);
+        }
+        
+        PreprocessResult result = preprocess_accel(a_meas_f, prev_a_f, s->buffer_tolerance);
         
         double a_corrected[3];
-        if (mexCallMATLAB(3, plhs_pre, 3, prhs_pre, "mex_sensor_preprocessor") == 0) {
-            memcpy(a_corrected, mxGetPr(plhs_pre[0]), 3 * sizeof(double));
-            bool is_outlier = mxIsLogicalScalarTrue(plhs_pre[1]);
-            bool no_change = mxIsLogicalScalarTrue(plhs_pre[2]);
-            
-            // Check w_body norm
-            double w_norm = 0.0;
-            for (int i = 0; i < 3; ++i) {
-                double w = s->w_body[i];
-                w_norm += w * w;
-            }
-            w_norm = sqrt(w_norm);
-            
-            if (!no_change && !is_nan_any(a_corrected, 3) && !is_outlier && (w_norm <= 1.5)) {
-                should_skip = false;
-                memcpy(s->prev_accel, meas, 3 * sizeof(double));
-            }
-            for (int i = 0; i < 3; ++i) mxDestroyArray(plhs_pre[i]);
+        for (int i = 0; i < 3; ++i) {
+            a_corrected[i] = static_cast<double>(result.output(i, 0));
         }
-        for (int i = 0; i < 3; ++i) mxDestroyArray(prhs_pre[i]);
+        bool is_outlier = result.is_outlier;
+        bool no_change = result.no_change;
+        
+        // Check w_body norm
+        double w_norm = 0.0;
+        for (int i = 0; i < 3; ++i) {
+            double w = s->w_body[i];
+            w_norm += w * w;
+        }
+        w_norm = sqrt(w_norm);
+        
+        if (!no_change && !is_nan_any(a_corrected, 3) && !is_outlier && (w_norm <= 1.5)) {
+            should_skip = false;
+            memcpy(s->prev_accel, meas, 3 * sizeof(double));
+        }
         
         if (!should_skip) {
             // Call mex_eskf_do_update
@@ -120,30 +117,27 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
         }
     }
     else if (strcmp(type, "mag") == 0 && meas_len == 3) {
-        // Preprocess mag
-        mxArray* prhs_pre[3];
-        mxArray* plhs_pre[3];
-        prhs_pre[0] = mxCreateString("preprocess_mag");
-        mxArray* m_arr = mxCreateDoubleMatrix(3, 1, mxREAL);
-        memcpy(mxGetPr(m_arr), meas, 3 * sizeof(double));
-        prhs_pre[1] = m_arr;
-        mxArray* prev_m = mxCreateDoubleMatrix(3, 1, mxREAL);
-        memcpy(mxGetPr(prev_m), s->prev_mag, 3 * sizeof(double));
-        prhs_pre[2] = prev_m;
+        // Preprocess mag (C++ direct implementation)
+        cmath_fx::Vector<3, float> m_meas_f;
+        cmath_fx::Vector<3, float> prev_m_f;
+        for (int i = 0; i < 3; ++i) {
+            m_meas_f(i, 0) = static_cast<float>(meas[i]);
+            prev_m_f(i, 0) = static_cast<float>(s->prev_mag[i]);
+        }
+        
+        PreprocessResult result = preprocess_mag(m_meas_f, prev_m_f, s->buffer_tolerance);
         
         double m_filtered[3];
-        if (mexCallMATLAB(3, plhs_pre, 3, prhs_pre, "mex_sensor_preprocessor") == 0) {
-            memcpy(m_filtered, mxGetPr(plhs_pre[0]), 3 * sizeof(double));
-            bool is_outlier = mxIsLogicalScalarTrue(plhs_pre[1]);
-            bool no_change = mxIsLogicalScalarTrue(plhs_pre[2]);
-            
-            if (!no_change && !is_nan_any(m_filtered, 3) && !is_outlier) {
-                should_skip = false;
-                memcpy(s->prev_mag, meas, 3 * sizeof(double));
-            }
-            for (int i = 0; i < 3; ++i) mxDestroyArray(plhs_pre[i]);
+        for (int i = 0; i < 3; ++i) {
+            m_filtered[i] = static_cast<double>(result.output(i, 0));
         }
-        for (int i = 0; i < 3; ++i) mxDestroyArray(prhs_pre[i]);
+        bool is_outlier = result.is_outlier;
+        bool no_change = result.no_change;
+        
+        if (!no_change && !is_nan_any(m_filtered, 3) && !is_outlier) {
+            should_skip = false;
+            memcpy(s->prev_mag, meas, 3 * sizeof(double));
+        }
         
         if (!should_skip) {
             // Call mex_eskf_do_update
@@ -199,18 +193,8 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
             should_skip = false;
             s->prev_baro = pressure;
             
-            // Preprocess baro
-            mxArray* prhs_pre[2];
-            mxArray* plhs_pre[1];
-            prhs_pre[0] = mxCreateString("preprocess_baro");
-            prhs_pre[1] = mxCreateDoubleScalar(pressure);
-            
-            double alt_baro = 0.0;
-            if (mexCallMATLAB(1, plhs_pre, 2, prhs_pre, "mex_sensor_preprocessor") == 0) {
-                alt_baro = mxGetScalar(plhs_pre[0]);
-                mxDestroyArray(plhs_pre[0]);
-            }
-            for (int i = 0; i < 2; ++i) mxDestroyArray(prhs_pre[i]);
+            // Preprocess baro (C++ direct implementation)
+            double alt_baro = preprocess_baro(pressure);
             
             if (!should_skip) {
                 // Call mex_eskf_do_update
@@ -292,31 +276,25 @@ inline void call_gps_update(ESKFState* s, double lat, double lon, double alt, do
     memcpy(out_bg, bg, 3 * sizeof(double));
     memcpy(out_P, P, 15*15*sizeof(double));
     
-    // Preprocess GPS
-    mxArray* prhs_pre[5];
-    mxArray* plhs_pre[3];
-    prhs_pre[0] = mxCreateString("preprocess_gps");
-    prhs_pre[1] = mxCreateDoubleScalar(lat);
-    prhs_pre[2] = mxCreateDoubleScalar(lon);
-    prhs_pre[3] = mxCreateDoubleScalar(alt);
-    mxArray* go = mxCreateDoubleMatrix(3, 1, mxREAL);
-    memcpy(mxGetPr(go), s->gps_origin, 3 * sizeof(double));
-    prhs_pre[4] = go;
+    // Preprocess GPS (C++ direct implementation)
+    cmath_fx::Vector<3, float> origin_f;
+    for (int i = 0; i < 3; ++i) {
+        origin_f(i, 0) = static_cast<float>(s->gps_origin[i]);
+    }
+    
+    PreprocessResult result = preprocess_gps(lat, lon, alt, origin_f, s->buffer_tolerance);
     
     bool should_skip = true;
     double z_gps[3];
-    
-    if (mexCallMATLAB(3, plhs_pre, 5, prhs_pre, "mex_sensor_preprocessor") == 0) {
-        memcpy(z_gps, mxGetPr(plhs_pre[0]), 3 * sizeof(double));
-        bool is_outlier = mxIsLogicalScalarTrue(plhs_pre[1]);
-        bool no_change = mxIsLogicalScalarTrue(plhs_pre[2]);
-        
-        if (!no_change && !is_outlier) {
-            should_skip = false;
-        }
-        for (int i = 0; i < 3; ++i) mxDestroyArray(plhs_pre[i]);
+    for (int i = 0; i < 3; ++i) {
+        z_gps[i] = static_cast<double>(result.output(i, 0));
     }
-    for (int i = 0; i < 5; ++i) mxDestroyArray(prhs_pre[i]);
+    bool is_outlier = result.is_outlier;
+    bool no_change = result.no_change;
+    
+    if (!no_change && !is_outlier) {
+        should_skip = false;
+    }
     
     if (!should_skip) {
         // Call mex_eskf_do_update
