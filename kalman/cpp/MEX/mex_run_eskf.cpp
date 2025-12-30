@@ -1,25 +1,29 @@
-// mex_run_eskf.cpp
-// Complete ESKF implementation in a single MEX file
-//
-// API:
-//   handle = mex_run_eskf('init', obs, static_time, dt)
-//   mex_run_eskf('step', handle, obs, k)
-//   state = mex_run_eskf('get_state', handle)
-//   mex_run_eskf('free', handle)
+/* mex_run_eskf.cpp
+ * Complete ESKF implementation in a single MEX file.
+ * Replaces ESKF.m entirely.
+ * Uses mexCallMATLAB to call existing MEX functions for accuracy.
+ *
+ * API:
+ *   handle = mex_run_eskf('init', obs, static_time, dt)
+ *   mex_run_eskf('step', handle, obs, k)
+ *   state = mex_run_eskf('get_state', handle)
+ *   mex_run_eskf('free', handle)
+ */
 
+// 共通インクルードと定義（ヘッダーに移動済み）
 #include "../Inc/MEX/mex_eskf_common.hpp"
 #include "../Inc/MEX/mex_run_eskf_impl.hpp"
 
 using namespace mex_run_eskf_impl;
 
-// Global variable definitions
+// グローバル変数の実装（名前空間内で定義）
 namespace mex_run_eskf_impl {
     std::map<uint64_t, ESKFState*> g_states;
     uint64_t g_next_handle = 1;
-    SensorFilterLib g_filter_lib;
+    SensorFilterLib g_filter_lib;  // Global sensor filter library instance
 }
 
-// Main MEX function
+// mexFunctionのみを実装（他の関数はすべてヘッダーに移動済み）
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 1) mexErrMsgIdAndTxt("mex_run_eskf:usage", "Command required");
     std::string cmd = getCmd(prhs[0]);

@@ -118,4 +118,3 @@ g_filter_lib.noise_estimator.estimate(sensor_type, innov_cm, H_cm, P_pred);
 - MATLAB column-majorからC++ row-majorへの変換が必要（`H`, `P`）
 
 
-
