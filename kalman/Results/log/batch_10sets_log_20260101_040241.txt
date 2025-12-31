@@ -1,0 +1,82 @@
+========================================
+10セット バッチシミュレーション開始
+開始時刻: 01-Jan-2026 04:02:41
+========================================
+
+
+========================================
+=== Run 1/10 ===
+========================================
+Run 1: シミュレーション開始...
+Run 1 FAILED: 関数 'mex_meukf_step_v2' (タイプ'struct' の入力引数) が未定義です。
+次を使用中のエラー: mex_run_eskf
+関数 'mex_meukf_step_v2' (タイプ'struct' の入力引数) が未定義です。
+
+エラー: run_simulation>run_filter_mex (行 69)
+            mex_run_eskf('step', handle, obs, k);
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: run_simulation (行 21)
+        results = run_filter_mex(handle, obs, params.static_time, dt);
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: run_batch_10sets (行 66)
+            run_simulation(run_id, false);
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+========================================
+=== Run 2/10 ===
+========================================
+Run 2: シミュレーション開始...
+Run 2 FAILED: 関数 'mex_meukf_step_v2' (タイプ'struct' の入力引数) が未定義です。
+次を使用中のエラー: mex_run_eskf
+関数 'mex_meukf_step_v2' (タイプ'struct' の入力引数) が未定義です。
+
+エラー: run_simulation>run_filter_mex (行 69)
+            mex_run_eskf('step', handle, obs, k);
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: run_simulation (行 21)
+        results = run_filter_mex(handle, obs, params.static_time, dt);
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: run_batch_10sets (行 66)
+            run_simulation(run_id, false);
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+========================================
+=== Run 3/10 ===
+========================================
+Run 3: シミュレーション開始...
+Run 3 FAILED: 関数 'mex_meukf_step_v2' (タイプ'struct' の入力引数) が未定義です。
+次を使用中のエラー: mex_run_eskf
+関数 'mex_meukf_step_v2' (タイプ'struct' の入力引数) が未定義です。
+
+エラー: run_simulation>run_filter_mex (行 69)
+            mex_run_eskf('step', handle, obs, k);
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: run_simulation (行 21)
+        results = run_filter_mex(handle, obs, params.static_time, dt);
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: run_batch_10sets (行 66)
+            run_simulation(run_id, false);
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+========================================
+=== Run 4/10 ===
+========================================
+Run 4: シミュレーション開始...
+Run 4 FAILED: 関数 'mex_meukf_step_v2' (タイプ'struct' の入力引数) が未定義です。
+次を使用中のエラー: mex_run_eskf
+関数 'mex_meukf_step_v2' (タイプ'struct' の入力引数) が未定義です。
+
+エラー: run_simulation>run_filter_mex (行 69)
+            mex_run_eskf('step', handle, obs, k);
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: run_simulation (行 21)
+        results = run_filter_mex(handle, obs, params.static_time, dt);
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: run_batch_10sets (行 66)
+            run_simulation(run_id, false);
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+========================================
+=== Run 5/10 ===
+========================================
+Run 5: シミュレーション開始...
