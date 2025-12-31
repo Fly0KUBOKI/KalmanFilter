@@ -230,7 +230,7 @@ function build_mex(targets)
     eskf_runner_cpp = fullfile(src_dir, 'ESKF', 'eskf_runner.cpp');
     eskf_initializer_cpp = fullfile(src_dir, 'ESKF', 'eskf_initializer.cpp');
     if exist('mex_run_eskf.cpp', 'file')
-        if wants('mex_run_eskf') && build_single_mex('mex_run_eskf.cpp', compile_opts, inc_args, {filter_management_cpp, eskf_postprocess_cpp, eskf_core_cpp, eskf_math_cpp, eskf_sensor_updates_cpp, sensor_preprocessor_cpp, eskf_runner_cpp, eskf_initializer_cpp}, bin_dir, [], log_fid)
+        if wants('mex_run_eskf') && build_single_mex('mex_run_eskf.cpp', compile_opts, inc_args, {filter_management_cpp, eskf_postprocess_cpp, eskf_core_cpp, eskf_math_cpp, eskf_sensor_updates_cpp, sensor_preprocessor_cpp, eskf_runner_cpp, eskf_initializer_cpp, meukf_core_cpp}, bin_dir, [], log_fid)
             built_count = built_count + 1;
         end
     end

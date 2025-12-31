@@ -58,6 +58,25 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         uint64_t handle = *((uint64_t*)mxGetData(prhs[1]));
         do_free(handle);
     }
+    else if (cmd == "meukf_step") {
+        // API: mex_run_eskf('meukf_step', prev_state_struct, sensor_struct, params_struct)
+        if (nrhs < 4) mexErrMsgIdAndTxt("mex_run_eskf:usage", "meukf_step requires (prev_state, sensor, params)");
+        const mxArray* prev_state = prhs[1];
+        const mxArray* sensor = prhs[2];
+        const mxArray* params = prhs[3];
+        plhs[0] = do_meukf_step(prev_state, sensor, params);
+    }
+    else if (cmd == "sensor_filter_reset_zero") {
+        plhs[0] = do_sensor_filter_reset_zero();
+    }
+    else if (cmd == "sensor_filter_reset") {
+        plhs[0] = do_sensor_filter_reset();
+    }
+    else if (cmd == "sensor_filter_update") {
+        if (nrhs < 2) mexErrMsgIdAndTxt("mex_run_eskf:usage", "sensor_filter_update requires (sensor_struct)");
+        const mxArray* sensor = prhs[1];
+        plhs[0] = do_sensor_filter_update(sensor);
+    }
     else {
         mexErrMsgIdAndTxt("mex_run_eskf:unknown", "Unknown command: %s", cmd.c_str());
     }
