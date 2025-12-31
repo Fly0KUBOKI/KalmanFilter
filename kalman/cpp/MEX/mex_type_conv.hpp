@@ -1,4 +1,4 @@
-// Helper utilities for converting between MATLAB mxArray (double) and
+﻿// Helper utilities for converting between MATLAB mxArray (double) and
 // internal float buffers used by the C++ filter core.
 #pragma once
 #include "mex.h"

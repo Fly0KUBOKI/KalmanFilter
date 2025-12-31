@@ -1,4 +1,4 @@
-#include "../../Inc/Common/filter_management.hpp"
+﻿#include "../../Inc/Common/filter_management.hpp"
 #include <cmath>
 
 namespace common {
