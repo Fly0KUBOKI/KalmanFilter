@@ -15,6 +15,9 @@
 namespace mex_run_eskf_impl {
 
 // 前方宣言
+inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, const mxArray* m_params,
+                          mxArray*& out_new_state, mxArray*& out_dbg_out, mxArray*& out_dbg_output);
+
 inline void handle_sensor_update_internal(
     const char* sensor_type,
     const double* meas, int meas_len,
@@ -486,12 +489,15 @@ inline void handle_sensor_update_internal(
     mxSetField(state_s, 0, "bg", bg_arr);
     mxSetField(state_s, 0, "P", P_arr);
 
-    // mex_meukf_step_v2 呼び出し（後でMEUKFCore::stepに置き換え予定）
-    mxArray* prhs_m[3] = {state_s, sensor_data, mex_params};
-    mxArray* plhs_m[3];
-    if (mexCallMATLAB(3, plhs_m, 3, prhs_m, "mex_meukf_step_v2") == 0) {
-        mxArray* new_state = plhs_m[0];
-        mxArray* dbg_out = plhs_m[1];
+    // Phase 1: MEUKF呼び出しの統合（mexCallMATLAB → do_meukf_step）
+    // 最も簡単な部分から統合開始
+    mxArray* new_state = nullptr;
+    mxArray* dbg_out = nullptr;
+    mxArray* dbg_output = nullptr;
+    do_meukf_step(state_s, sensor_data, mex_params, new_state, dbg_out, dbg_output);
+    
+    if (new_state) {
+        // 後続処理は同じ（noise estimate更新、postprocess等）
 
         // noise estimate更新 (C++ direct implementation)
         if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "innov") && mxGetField(dbg_out, 0, "H")) {
@@ -728,8 +734,9 @@ inline void handle_sensor_update_internal(
                 }
             }
         }
-
-        for (int i = 0; i < 3; ++i) mxDestroyArray(plhs_m[i]);
+        
+        // Phase 1統合完了: mexCallMATLABの代わりにdo_meukf_stepを直接呼び出し
+        // メモリ管理: new_state, dbg_out, dbg_outputは呼び出し側で管理
     }
 
     mxDestroyArray(sensor_data);

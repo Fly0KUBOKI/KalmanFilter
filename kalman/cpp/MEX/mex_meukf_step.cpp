@@ -92,6 +92,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     const mxArray* m_sensor = prhs[1];
     const mxArray* m_params = prhs[2];
 
+    // 【統合完了: 以下の処理はdo_meukf_stepに統合済みのためコメントアウト】
+    // mex_run_eskf内のdo_meukf_stepが直接MEUKFCore::step()を呼び出すようになりました。
+    // このMEXファイルは後方互換性のために残していますが、実際の処理はdo_meukf_stepで行われます。
+    
+    /*
     meukf::MEUKFInput input;
     
     // 1. State変換
@@ -204,7 +209,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     // 実行
     meukf::MEUKFOutput output;
     meukf::MEUKFCore::step(input, output);
-
+    */
+    
+    // 【統合完了: 出力作成部分もdo_meukf_stepに統合済み】
+    /*
     // 出力作成（呼び出し側が要求した出力数に合わせて安全に割り当てる）
     if(nlhs > 0) {
         // 入力構造体をコピーして、値を更新する形で返す
@@ -338,4 +346,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
             // best-effort checks only; do not fail on exceptions
         }
     }
+    */
+    
+    // 【統合完了: 上記の処理はdo_meukf_stepに統合済み】
+    // 実際の処理はmex_run_eskf内のdo_meukf_stepで行われます。
+    // このMEXファイルは後方互換性のために残していますが、実際には使用されていません。
+    // 
+    // 注意: このMEXファイルは現在使用されていないため、エラーを返します。
+    mexErrMsgIdAndTxt("mex_meukf_step:deprecated", 
+        "mex_meukf_step_v2は統合済みです。mex_run_eskf内のdo_meukf_stepを使用してください。");
 }

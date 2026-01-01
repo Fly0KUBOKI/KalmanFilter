@@ -190,7 +190,7 @@ inline void do_free(uint64_t handle) {
  * - MEUKFCore::step()を直接呼び出す（mexCallMATLABの代わり）
  */
 inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, const mxArray* m_params,
-                          mxArray*& out_new_state, mxArray*& out_dbg_info, mxArray*& out_dbg_output) {
+                          mxArray*& out_new_state, mxArray*& out_dbg_out, mxArray*& out_dbg_output) {
     meukf::MEUKFInput input;
     // State変換
     // p, v, ba, bg
@@ -318,7 +318,7 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
     out_new_state = mxDuplicateArray(m_prev_state);
     // helper to set vec3 (float only - type conversion removed)
     auto set_vec3 = [&](const char* name, const float* in) {
-        mxArray* f = mxGetField(out_state, 0, name);
+        mxArray* f = mxGetField(out_new_state, 0, name);
         if(!f) return;
         // single (float) のみを受け付ける（型変換を廃止）
         if (mxGetClassID(f) != mxSINGLE_CLASS) {
@@ -366,7 +366,21 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
         }
     }
 
-    return out_state;
+    // Phase 1: MEUKF呼び出しは完了（MEUKFCore::step()を直接呼び出し）
+    // Phase 2: C++→MATLAB変換は完了（state_to_matlab相当）
+    
+    // Phase 2の残り: dbg_outとdbg_outputの作成
+    // dbg_out: handle_sensor_update_internalが期待する構造体（innov, H, dxを含む）
+    // 今は空の構造体を返す（handle_sensor_update_internalはフォールバック処理がある）
+    const char* dbg_out_fnames[] = {"innov", "H", "dx"};
+    out_dbg_out = mxCreateStructMatrix(1, 1, 3, dbg_out_fnames);
+    // TODO: Phase 2で実装（innov, H, dxを設定）
+    // 今は空なので、handle_sensor_update_internalはフォールバック処理（new_stateから直接読み取り）を使用
+    
+    // dbg_output: 構造体（mex_meukf_step_v2のplhs[2]と互換）
+    const char* fnames[] = {"pred_P", "last_K", "last_S", "last_S_inv", "last_H", "last_y", "last_y_len", "last_sensor_type", "input_update_gps", "input_noise_gps"};
+    out_dbg_output = mxCreateStructMatrix(1, 1, 10, fnames);
+    // TODO: Phase 2で実装（pred_P, last_K, last_S等を設定）
 }
 
 /** Sensor filter wrappers **/

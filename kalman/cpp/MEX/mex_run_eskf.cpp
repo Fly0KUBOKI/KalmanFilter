@@ -60,11 +60,18 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     }
     else if (cmd == "meukf_step") {
         // API: mex_run_eskf('meukf_step', prev_state_struct, sensor_struct, params_struct)
+        // 戻り値: [new_state, dbg_info, dbg_output] (mex_meukf_step_v2と互換)
         if (nrhs < 4) mexErrMsgIdAndTxt("mex_run_eskf:usage", "meukf_step requires (prev_state, sensor, params)");
         const mxArray* prev_state = prhs[1];
         const mxArray* sensor = prhs[2];
         const mxArray* params = prhs[3];
-        plhs[0] = do_meukf_step(prev_state, sensor, params);
+        mxArray* new_state = nullptr;
+        mxArray* dbg_out = nullptr;
+        mxArray* dbg_output = nullptr;
+        do_meukf_step(prev_state, sensor, params, new_state, dbg_out, dbg_output);
+        if (nlhs > 0) plhs[0] = new_state;
+        if (nlhs > 1) plhs[1] = dbg_out;
+        if (nlhs > 2) plhs[2] = dbg_output;
     }
     else if (cmd == "sensor_filter_reset_zero") {
         plhs[0] = do_sensor_filter_reset_zero();
