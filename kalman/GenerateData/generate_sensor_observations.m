@@ -78,6 +78,14 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
     end
 
     % 各時刻でセンサー観測を生成
+
+    % --- GPSの計算は精度が必要なので内部でdoubleに戻す ---
+    % 呼び出し元でpos_world等がsingleの可能性があるため、
+    % GPS（lat/lon/alt）はdouble演算で計算する。
+    pos_world_gps = double(pos_world);
+    vel_world_gps = double(vel_world);
+    attitude_gps = double(attitude);
+
     for i = 1:N
         roll = attitude(i,1);
         pitch = attitude(i,2);
@@ -127,15 +135,15 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
         mag_world = [mag_strength, 0, 0]; % NED North
         mag_body(i,:) = (R' * mag_world')';
 
-        % 気圧計
-        alt = alt0 - pos_world(i,3); % NED Down is negative altitude
+        % 気圧計（高度はGPSと同じdoubleソースを用いる）
+        alt = alt0 - pos_world_gps(i,3); % NED Down is negative altitude
         P0 = 101325;
         alt_clip = min(alt, 44330 - eps);
         baro(i) = P0 * (1 - (alt_clip / 44330))^(1/0.1903);
 
         % GPS
-        north_m = pos_world(i,1); % NED North
-        east_m = pos_world(i,2);  % NED East
+        north_m = pos_world_gps(i,1); % NED North
+        east_m = pos_world_gps(i,2);  % NED East
         dlat = north_m * 9.0e-6;
         dlon = east_m * (9.0e-6 / max(cosd(lat0), 1e-6));
         gps_lat(i) = lat0 + dlat;
@@ -145,6 +153,9 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
             fprintf('Sensor step %d / %d\n', i, N);
         end
     end
+
+    % Keep sensor outputs in double for internal accuracy. CSV export will
+    % convert non-GPS fields to single as required.
 
 end
 

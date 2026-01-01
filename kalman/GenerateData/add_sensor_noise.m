@@ -11,6 +11,21 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ad
 
     N = size(accel_body, 1);
 
+    % Ensure GPS arrays are double to preserve precision during noise addition
+    gps_lat = double(gps_lat);
+    gps_lon = double(gps_lon);
+    gps_alt = double(gps_alt);
+
+    % Promote GPS-related noise parameters to double to avoid implicit downcast
+    if isfield(params, 'noise')
+        if isfield(params.noise, 'gps_std')
+            params.noise.gps_std = double(params.noise.gps_std);
+        end
+        if isfield(params.noise, 'gps_pink_std')
+            params.noise.gps_pink_std = double(params.noise.gps_pink_std);
+        end
+    end
+
     %% ホワイトノイズ
     if isfield(params.noise, 'accel_std')
         accel_body = accel_body + randn(N,3) * params.noise.accel_std;
@@ -204,6 +219,9 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ad
             end
         end
     end
+    
+    % Keep sensor outputs in double for internal accuracy.
+    % CSV export will convert non-GPS fields to single as required.
 end
 
 function pink = generate_pink_noise(N)

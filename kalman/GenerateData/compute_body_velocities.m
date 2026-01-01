@@ -60,5 +60,7 @@ function [vel_world, vel_body] = compute_body_velocities(pos_world, vel_world, a
             vel_body(i,:) = (R' * vel_world(i,:)')';
         end
     end
+    
+    % Keep outputs in double for internal accuracy.
 
 end

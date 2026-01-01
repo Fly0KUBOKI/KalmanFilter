@@ -93,43 +93,56 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
 }
 
 /**
- * 状態取得処理
+ * 状態取得処理 - float出力
  */
 inline mxArray* do_get_state(ESKFState* s) {
     const char* fields[] = {"p", "v", "q", "euler", "ba", "bg", "P"};
     mxArray* out = mxCreateStructMatrix(1, 1, 7, fields);
     
-    mxArray* p = mxCreateDoubleMatrix(3, 1, mxREAL);
-    memcpy(mxGetPr(p), s->p, 3*sizeof(double));
+    // p - float (3x1)
+    mxArray* p = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* p_ptr = (float*)mxGetData(p);
+    for (int i = 0; i < 3; i++) p_ptr[i] = static_cast<float>(s->p[i]);
     mxSetField(out, 0, "p", p);
     
-    mxArray* v = mxCreateDoubleMatrix(3, 1, mxREAL);
-    memcpy(mxGetPr(v), s->v, 3*sizeof(double));
+    // v - float (3x1)
+    mxArray* v = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* v_ptr = (float*)mxGetData(v);
+    for (int i = 0; i < 3; i++) v_ptr[i] = static_cast<float>(s->v[i]);
     mxSetField(out, 0, "v", v);
     
-    mxArray* q = mxCreateDoubleMatrix(4, 1, mxREAL);
-    memcpy(mxGetPr(q), s->q, 4*sizeof(double));
+    // q - float (4x1)
+    mxArray* q = mxCreateNumericMatrix(4, 1, mxSINGLE_CLASS, mxREAL);
+    float* q_ptr = (float*)mxGetData(q);
+    for (int i = 0; i < 4; i++) q_ptr[i] = static_cast<float>(s->q[i]);
     mxSetField(out, 0, "q", q);
     
+    // euler - float (3x1) in degrees
     double euler[3];
     quat_to_euler(s->q, euler);
-    mxArray* eu = mxCreateDoubleMatrix(3, 1, mxREAL);
-    double* eu_ptr = mxGetPr(eu);
-    eu_ptr[0] = euler[0] * 180.0 / M_PI;
-    eu_ptr[1] = euler[1] * 180.0 / M_PI;
-    eu_ptr[2] = euler[2] * 180.0 / M_PI;
+    mxArray* eu = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* eu_ptr = (float*)mxGetData(eu);
+    eu_ptr[0] = static_cast<float>(euler[0] * 180.0 / M_PI);
+    eu_ptr[1] = static_cast<float>(euler[1] * 180.0 / M_PI);
+    eu_ptr[2] = static_cast<float>(euler[2] * 180.0 / M_PI);
     mxSetField(out, 0, "euler", eu);
     
-    mxArray* ba = mxCreateDoubleMatrix(3, 1, mxREAL);
-    memcpy(mxGetPr(ba), s->ba, 3*sizeof(double));
+    // ba - float (3x1)
+    mxArray* ba = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* ba_ptr = (float*)mxGetData(ba);
+    for (int i = 0; i < 3; i++) ba_ptr[i] = static_cast<float>(s->ba[i]);
     mxSetField(out, 0, "ba", ba);
     
-    mxArray* bg = mxCreateDoubleMatrix(3, 1, mxREAL);
-    memcpy(mxGetPr(bg), s->bg, 3*sizeof(double));
+    // bg - float (3x1)
+    mxArray* bg = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* bg_ptr = (float*)mxGetData(bg);
+    for (int i = 0; i < 3; i++) bg_ptr[i] = static_cast<float>(s->bg[i]);
     mxSetField(out, 0, "bg", bg);
     
-    mxArray* P = mxCreateDoubleMatrix(15, 15, mxREAL);
-    memcpy(mxGetPr(P), s->P, 15*15*sizeof(double));
+    // P - float (15x15)
+    mxArray* P = mxCreateNumericMatrix(15, 15, mxSINGLE_CLASS, mxREAL);
+    float* P_ptr = (float*)mxGetData(P);
+    for (int i = 0; i < 15*15; i++) P_ptr[i] = static_cast<float>(s->P[i]);
     mxSetField(out, 0, "P", P);
     
     return out;
@@ -284,19 +297,34 @@ inline mxArray* do_sensor_filter_update(const mxArray* m_sensor) {
     g_filter_lib.filter_gps(gps_in, static_cast<float>(dt), pos_out, vel_out);
     float baro_out = g_filter_lib.filter_baro(static_cast<float>(alt_baro));
 
-    // Build output struct: fields filtered and is_outlier flags
+    // Build output struct: fields filtered and is_outlier flags (float outputs)
     const char* fields[] = {"accel", "mag", "gps_pos", "alt_baro", "is_outlier_accel", "is_outlier_mag"};
     mxArray* out = mxCreateStructMatrix(1,1,6,fields);
-    mxArray* a_out = mxCreateDoubleMatrix(3,1,mxREAL); double* pa = mxGetPr(a_out);
-    mxArray* m_out = mxCreateDoubleMatrix(3,1,mxREAL); double* pm = mxGetPr(m_out);
-    mxArray* g_out = mxCreateDoubleMatrix(3,1,mxREAL); double* pg = mxGetPr(g_out);
-    pa[0]=a_filt(0,0); pa[1]=a_filt(1,0); pa[2]=a_filt(2,0);
-    pm[0]=m_filt(0,0); pm[1]=m_filt(1,0); pm[2]=m_filt(2,0);
-    pg[0]=pos_out(0,0); pg[1]=pos_out(1,0); pg[2]=pos_out(2,0);
+    
+    // accel - float (3x1)
+    mxArray* a_out = mxCreateNumericMatrix(3,1, mxSINGLE_CLASS, mxREAL);
+    float* pa = (float*)mxGetData(a_out);
+    pa[0]=static_cast<float>(a_filt(0,0)); pa[1]=static_cast<float>(a_filt(1,0)); pa[2]=static_cast<float>(a_filt(2,0));
     mxSetField(out,0,"accel", a_out);
+    
+    // mag - float (3x1)
+    mxArray* m_out = mxCreateNumericMatrix(3,1, mxSINGLE_CLASS, mxREAL);
+    float* pm = (float*)mxGetData(m_out);
+    pm[0]=static_cast<float>(m_filt(0,0)); pm[1]=static_cast<float>(m_filt(1,0)); pm[2]=static_cast<float>(m_filt(2,0));
     mxSetField(out,0,"mag", m_out);
+    
+    // gps_pos - float (3x1)
+    mxArray* g_out = mxCreateNumericMatrix(3,1, mxSINGLE_CLASS, mxREAL);
+    float* pg = (float*)mxGetData(g_out);
+    pg[0]=static_cast<float>(pos_out(0,0)); pg[1]=static_cast<float>(pos_out(1,0)); pg[2]=static_cast<float>(pos_out(2,0));
     mxSetField(out,0,"gps_pos", g_out);
-    mxSetField(out,0,"alt_baro", mxCreateDoubleScalar(static_cast<double>(baro_out)));
+    
+    // alt_baro - float scalar
+    mxArray* b_out = mxCreateNumericMatrix(1,1, mxSINGLE_CLASS, mxREAL);
+    float* pb = (float*)mxGetData(b_out);
+    pb[0] = baro_out;
+    mxSetField(out,0,"alt_baro", b_out);
+    
     mxSetField(out,0,"is_outlier_accel", mxCreateLogicalScalar(is_outlier_accel));
     mxSetField(out,0,"is_outlier_mag", mxCreateLogicalScalar(is_outlier_mag));
 

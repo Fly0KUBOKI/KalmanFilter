@@ -12,10 +12,11 @@ function sim_generate(params)
 
     params = convert_angle_units(params);
 
+    % Keep time variables in double for computation accuracy
     dt = params.dt;
     T = params.T;
     N = floor(T/dt)+1;
-    t = (0:N-1)' * dt;
+    t = (0:(N-1))' * dt;
 
     motion_type = params.motion_type;
     heading_mode = 'follow_velocity';
@@ -30,9 +31,9 @@ function sim_generate(params)
         [pos_world, vel_world, attitude] = generate_random_walk(params, t, N);
     elseif strcmp(motion_type, 'stationary')
         % 完全静止状態
-        pos_world = zeros(N,3);
-        vel_world = zeros(N,3);
-        attitude = zeros(N,3);
+        pos_world = zeros(N,3,'single');
+        vel_world = zeros(N,3,'single');
+        attitude = zeros(N,3,'single');
     else
         error('未サポートの運動タイプ: %s', motion_type);
     end
@@ -44,6 +45,9 @@ function sim_generate(params)
     % if exist('apply_random_walk_overlay', 'file') == 2
     %     [pos_world, vel_world, attitude] = apply_random_walk_overlay(pos_world, vel_world, attitude, params, t);
     % end
+
+    % Keep generated truth in double for accuracy. Conversion for export
+    % (non-GPS -> single) is handled in save_simulation_data.
 
     % 速度計算
     [vel_world, ~] = compute_body_velocities(pos_world, vel_world, attitude, params, heading_mode);

@@ -100,6 +100,9 @@ function [pos_world, vel_world, attitude] = generate_random_walk(params, t, N)
         end
     end
 
+    % Keep internal generation in double for accuracy
+    % (Do not cast to single here; casting to single will be done at CSV export time)
+
 end
 
 function seq = generate_sinusoidal_oscillation_with_soft_start(t, amplitude, period, static_time, soft_start_time)

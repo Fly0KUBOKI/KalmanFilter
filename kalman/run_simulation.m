@@ -47,19 +47,19 @@ function dt = calculate_dt(obs)
 end
 
 function results = run_filter_mex(handle, obs, static_time, dt)
-    % MEX mode filter execution
+    % MEX mode filter execution (float output)
     n_samples = numel(obs.time);
     static_samples = floor(static_time / dt);
     fprintf('初期化期間: %.1f秒 (%d サンプル)\n', static_time, static_samples);
     
-    results.time = obs.time(:)';
-    results.p = zeros(3, n_samples);
-    results.v = zeros(3, n_samples);
-    results.euler = zeros(3, n_samples);
-    results.ba = zeros(3, n_samples);
-    results.bg = zeros(3, n_samples);
-    results.innov_norm = zeros(1, n_samples);
-    results.maha_dist = zeros(1, n_samples);
+    results.time = single(obs.time(:)');
+    results.p = zeros(3, n_samples, 'single');
+    results.v = zeros(3, n_samples, 'single');
+    results.euler = zeros(3, n_samples, 'single');
+    results.ba = zeros(3, n_samples, 'single');
+    results.bg = zeros(3, n_samples, 'single');
+    results.innov_norm = zeros(1, n_samples, 'single');
+    results.maha_dist = zeros(1, n_samples, 'single');
     
     for k = 1:n_samples
         if k == 1; fprintf('Start loop\n'); end
@@ -69,16 +69,16 @@ function results = run_filter_mex(handle, obs, static_time, dt)
             mex_run_eskf('step', handle, obs, k);
         end
         
-        % Get current state
+        % Get current state (float output)
         state = mex_run_eskf('get_state', handle);
         
-        results.p(:,k) = state.p;
-        results.v(:,k) = state.v;
-        results.euler(:,k) = state.euler;
-        results.ba(:,k) = state.ba;
-        results.bg(:,k) = state.bg;
-        results.innov_norm(k) = 0;
-        results.maha_dist(k) = 0;
+        results.p(:,k) = single(state.p);
+        results.v(:,k) = single(state.v);
+        results.euler(:,k) = single(state.euler);
+        results.ba(:,k) = single(state.ba);
+        results.bg(:,k) = single(state.bg);
+        results.innov_norm(k) = single(0);
+        results.maha_dist(k) = single(0);
         
         if mod(k, 1000) == 0; fprintf('Step %d / %d\n', k, n_samples); end
     end
@@ -88,12 +88,14 @@ end
 function save_results(proj_root, results)
     out_dir = fullfile(proj_root, 'Results');
     if ~exist(out_dir,'dir'); mkdir(out_dir); end
-    T = table(results.time(:), results.p(1,:)', results.p(2,:)', results.p(3,:)', ...
-        results.v(1,:)', results.v(2,:)', results.v(3,:)', ...
-        results.euler(1,:)', results.euler(2,:)', results.euler(3,:)', ...
-        results.ba(1,:)', results.ba(2,:)', results.ba(3,:)', ...
-        results.bg(1,:)', results.bg(2,:)', results.bg(3,:)', ...
-        results.innov_norm(:), results.maha_dist(:), ...
+    
+    % Ensure all data is double for table compatibility
+    T = table(double(results.time(:)), double(results.p(1,:)'), double(results.p(2,:)'), double(results.p(3,:)'), ...
+        double(results.v(1,:)'), double(results.v(2,:)'), double(results.v(3,:)'), ...
+        double(results.euler(1,:)'), double(results.euler(2,:)'), double(results.euler(3,:)'), ...
+        double(results.ba(1,:)'), double(results.ba(2,:)'), double(results.ba(3,:)'), ...
+        double(results.bg(1,:)'), double(results.bg(2,:)'), double(results.bg(3,:)'), ...
+        double(results.innov_norm(:)), double(results.maha_dist(:)), ...
         'VariableNames', {'time','px','py','pz','vx','vy','vz','roll','pitch','yaw',...
         'ba_x','ba_y','ba_z','bg_x','bg_y','bg_z','innov_norm','maha_dist'});
     writetable(T, fullfile(out_dir, 'estimation.csv'));
