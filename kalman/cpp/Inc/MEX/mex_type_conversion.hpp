@@ -12,11 +12,13 @@ namespace mex_conv {
 
 using namespace cmath_fx;
 
-// Helper: MATLAB array -> Vector
+// Helper: MATLAB array -> Vector (single/double両対応)
 template<int R>
 bool matToVector(const mxArray* arr, Vector<R, float>& out) {
     if (!arr) return false;
-    if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
+    // single型またはdouble型を受け入れる（complexは不可）
+    if (mxIsComplex(arr)) return false;
+    if (mxGetClassID(arr) != mxSINGLE_CLASS && mxGetClassID(arr) != mxDOUBLE_CLASS) return false;
     mwSize rows = mxGetM(arr); 
     mwSize cols = mxGetN(arr);
     if (rows != R || cols != 1) return false;
@@ -26,11 +28,13 @@ bool matToVector(const mxArray* arr, Vector<R, float>& out) {
     return true;
 }
 
-// Helper: MATLAB array -> Matrix
+// Helper: MATLAB array -> Matrix (single/double両対応)
 template<int R, int C>
 bool matToMatrix(const mxArray* arr, Matrix<R, C, float>& out) {
     if (!arr) return false;
-    if (!mxIsDouble(arr) || mxIsComplex(arr)) return false;
+    // single型またはdouble型を受け入れる（complexは不可）
+    if (mxIsComplex(arr)) return false;
+    if (mxGetClassID(arr) != mxSINGLE_CLASS && mxGetClassID(arr) != mxDOUBLE_CLASS) return false;
     mwSize rows = mxGetM(arr); 
     mwSize cols = mxGetN(arr);
     if (rows != R || cols != C) return false;

@@ -27,23 +27,22 @@ void matlab_to_state(const mxArray* m_state, meukf::State& c_state) {
     }
 }
 
+// Output state to MATLAB (float only - type conversion removed)
 void state_to_matlab(const meukf::State& c_state, mxArray* m_state) {
     auto set_vec3_float = [&](const char* name, const float* in) {
         mxArray* f = mxGetField(m_state, 0, name);
         if(!f) {
             return; 
         }
-        // mxGetClassID to check if field is single or double
-        if (mxGetClassID(f) == mxSINGLE_CLASS) {
-            float* pf = (float*)mxGetData(f);
-            pf[0] = in[0]; pf[1] = in[1]; pf[2] = in[2];
-        } else {
-            // Legacy double format
-            double* pr = mxGetPr(f);
-            pr[0] = static_cast<double>(in[0]); 
-            pr[1] = static_cast<double>(in[1]); 
-            pr[2] = static_cast<double>(in[2]);
+        // single (float) のみを受け付ける（型変換を廃止）
+        if (mxGetClassID(f) != mxSINGLE_CLASS) {
+            mexErrMsgIdAndTxt("mex_meukf_step:type_error", 
+                "Expected single (float) array for field '%s', but got %s. 出力はfloatのみです。", 
+                name, mxGetClassName(f));
+            return;
         }
+        float* pf = (float*)mxGetData(f);
+        pf[0] = in[0]; pf[1] = in[1]; pf[2] = in[2];
     };
     
     set_vec3_float("p", c_state.p);
@@ -53,35 +52,30 @@ void state_to_matlab(const meukf::State& c_state, mxArray* m_state) {
     
     mxArray* f_q = mxGetField(m_state, 0, "q");
     if(f_q) {
-        if (mxGetClassID(f_q) == mxSINGLE_CLASS) {
+        if (mxGetClassID(f_q) != mxSINGLE_CLASS) {
+            mexErrMsgIdAndTxt("mex_meukf_step:type_error", 
+                "Expected single (float) array for field 'q', but got %s. 出力はfloatのみです。", 
+                mxGetClassName(f_q));
+        } else {
             float* pf = (float*)mxGetData(f_q);
             pf[0] = c_state.q[0]; 
             pf[1] = c_state.q[1];
             pf[2] = c_state.q[2]; 
             pf[3] = c_state.q[3];
-        } else {
-            double* pr = mxGetPr(f_q);
-            pr[0] = static_cast<double>(c_state.q[0]); 
-            pr[1] = static_cast<double>(c_state.q[1]);
-            pr[2] = static_cast<double>(c_state.q[2]); 
-            pr[3] = static_cast<double>(c_state.q[3]);
         }
     }
     
     mxArray* f_P = mxGetField(m_state, 0, "P");
     if(f_P) {
-        if (mxGetClassID(f_P) == mxSINGLE_CLASS) {
+        if (mxGetClassID(f_P) != mxSINGLE_CLASS) {
+            mexErrMsgIdAndTxt("mex_meukf_step:type_error", 
+                "Expected single (float) array for field 'P', but got %s. 出力はfloatのみです。", 
+                mxGetClassName(f_P));
+        } else {
             float* pf = (float*)mxGetData(f_P);
             for(int c=0; c<15; ++c) {
                 for(int r=0; r<15; ++r) {
                     pf[r + c*15] = c_state.P[r*15 + c];
-                }
-            }
-        } else {
-            double* pr = mxGetPr(f_P);
-            for(int c=0; c<15; ++c) {
-                for(int r=0; r<15; ++r) {
-                    pr[r + c*15] = static_cast<double>(c_state.P[r*15 + c]);
                 }
             }
         }
@@ -106,18 +100,59 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     // 2. SensorData変換
     auto get_field_scalar = [&](const mxArray* s, const char* f) -> double {
         mxArray* field = mxGetField(s, 0, f);
-        return field ? static_cast<double>(mex_conv::mxGetScalarAsFloat(field)) : 0.0;
+        if (!field) return 0.0;
+        // logical型（boolean）も受け取る
+        if (mxIsLogical(field)) {
+            return mxIsLogicalScalarTrue(field) ? 1.0 : 0.0;
+        }
+        // single型またはdouble型のスカラー値
+        if (mxGetClassID(field) == mxSINGLE_CLASS) {
+            const float* pf = (const float*)mxGetData(field);
+            return pf ? static_cast<double>(pf[0]) : 0.0;
+        } else if (mxGetClassID(field) == mxDOUBLE_CLASS) {
+            const double* pr = mxGetPr(field);
+            return pr ? pr[0] : 0.0;
+        }
+        return 0.0;
     };
 
     mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"accel"), input.sensor.accel, 3);
     mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"gyro"), input.sensor.gyro, 3);
     mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"mag"), input.sensor.mag, 3);
-    mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"gps_pos"), input.sensor.gps_pos, 3);
+    // GPSデータはdouble型で読み取る（GPSはdoubleのみ）
+    mxArray* gps_pos_field = mxGetField(m_sensor, 0, "gps_pos");
+    if (gps_pos_field) {
+        if (mxGetClassID(gps_pos_field) != mxDOUBLE_CLASS) {
+            mexErrMsgIdAndTxt("mex_meukf_step:type_error", 
+                "Expected double array for GPS 'gps_pos', but got %s. GPSデータはdoubleのみを受け取ります。", 
+                mxGetClassName(gps_pos_field));
+        }
+        const double* gps_pr = mxGetPr(gps_pos_field);
+        for (int i = 0; i < 3; ++i) {
+            input.sensor.gps_pos[i] = static_cast<float>(gps_pr[i]);
+        }
+    } else {
+        input.sensor.gps_pos[0] = input.sensor.gps_pos[1] = input.sensor.gps_pos[2] = 0.0f;
+    }
     input.sensor.alt_baro = mex_conv::mxGetScalarAsFloat(mxGetField(m_sensor,0,"alt_baro"));
     
     // 前回のセンサー値を読み取り（変更検知用）
     mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"prev_mag"), input.sensor.prev_mag, 3);
-    mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"prev_gps_pos"), input.sensor.prev_gps_pos, 3);
+    // prev_gps_posもdouble型で読み取る（GPSはdoubleのみ）
+    mxArray* prev_gps_pos_field = mxGetField(m_sensor, 0, "prev_gps_pos");
+    if (prev_gps_pos_field) {
+        if (mxGetClassID(prev_gps_pos_field) != mxDOUBLE_CLASS) {
+            mexErrMsgIdAndTxt("mex_meukf_step:type_error", 
+                "Expected double array for GPS 'prev_gps_pos', but got %s. GPSデータはdoubleのみを受け取ります。", 
+                mxGetClassName(prev_gps_pos_field));
+        }
+        const double* prev_gps_pr = mxGetPr(prev_gps_pos_field);
+        for (int i = 0; i < 3; ++i) {
+            input.sensor.prev_gps_pos[i] = static_cast<float>(prev_gps_pr[i]);
+        }
+    } else {
+        input.sensor.prev_gps_pos[0] = input.sensor.prev_gps_pos[1] = input.sensor.prev_gps_pos[2] = 0.0f;
+    }
     input.sensor.prev_baro_alt = mex_conv::mxGetScalarAsFloat(mxGetField(m_sensor,0,"prev_baro_alt"));
     
     input.sensor.update_accel = (uint8_t)get_field_scalar(m_sensor, "update_accel");
@@ -136,7 +171,21 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_ba"), input.params.noise_ba, 3);
     mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_bg"), input.params.noise_bg, 3);
     mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_mag"), input.params.noise_mag, 3);
-    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_gps"), input.params.noise_gps, 3);
+    // noise_gpsはdouble型で読み取る（GPSはdoubleのみ）
+    mxArray* noise_gps_field = mxGetField(m_params, 0, "noise_gps");
+    if (noise_gps_field) {
+        if (mxGetClassID(noise_gps_field) != mxDOUBLE_CLASS) {
+            mexErrMsgIdAndTxt("mex_meukf_step:type_error", 
+                "Expected double array for GPS 'noise_gps', but got %s. GPSデータはdoubleのみを受け取ります。", 
+                mxGetClassName(noise_gps_field));
+        }
+        const double* noise_gps_pr = mxGetPr(noise_gps_field);
+        for (int i = 0; i < 3; ++i) {
+            input.params.noise_gps[i] = static_cast<float>(noise_gps_pr[i]);
+        }
+    } else {
+        input.params.noise_gps[0] = input.params.noise_gps[1] = input.params.noise_gps[2] = 0.0f;
+    }
     input.params.noise_baro = mex_conv::mxGetScalarAsFloat(mxGetField(m_params,0,"noise_baro"));
     mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_zupt"), input.params.noise_zupt, 3);
 

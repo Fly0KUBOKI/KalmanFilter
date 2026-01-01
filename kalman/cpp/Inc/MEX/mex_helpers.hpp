@@ -28,21 +28,36 @@ inline std::string getCmd(const mxArray* a) {
 }
 
 /**
- * MATLAB構造体から3次元ベクトルを取得
+ * MATLAB構造体から3次元ベクトルを取得（single型のみ）
+ * GPS以外のセンサーデータはMATLAB側でsingle型で渡す必要がある
  * @param s 構造体mxArrayポインタ
  * @param xname X成分のフィールド名
  * @param yname Y成分のフィールド名
  * @param zname Z成分のフィールド名
  * @param idx 配列インデックス（0-based）
- * @param out 出力配列（3要素）
+ * @param out 出力配列（3要素、double）
  */
 inline void getVec3(const mxArray* s, const char* xname, const char* yname, const char* zname, mwIndex idx, double* out) {
     mxArray* fx = mxGetField(s, 0, xname);
     mxArray* fy = mxGetField(s, 0, yname);
     mxArray* fz = mxGetField(s, 0, zname);
-    out[0] = fx ? mxGetPr(fx)[idx] : 0.0;
-    out[1] = fy ? mxGetPr(fy)[idx] : 0.0;
-    out[2] = fz ? mxGetPr(fz)[idx] : 0.0;
+    
+    // single型のみを受け取る（MATLAB側でsingle型で渡す必要がある）
+    auto get_value = [](const mxArray* arr, mwIndex i, const char* name) -> double {
+        if (!arr) return 0.0;
+        if (mxGetClassID(arr) != mxSINGLE_CLASS) {
+            mexErrMsgIdAndTxt("mex_helpers:type_error", 
+                "Expected single (float) array for field '%s', but got %s. MATLAB側でsingle型で渡してください。", 
+                name, mxGetClassName(arr));
+            return 0.0;
+        }
+        const float* pf = (const float*)mxGetData(arr);
+        return static_cast<double>(pf[i]);
+    };
+    
+    out[0] = get_value(fx, idx, xname);
+    out[1] = get_value(fy, idx, yname);
+    out[2] = get_value(fz, idx, zname);
 }
 
 /**

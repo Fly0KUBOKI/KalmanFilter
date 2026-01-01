@@ -281,24 +281,40 @@ inline void handle_sensor_update_internal(
         }
     }
 
-    // sensor_data構造体を構築
+    // sensor_data構造体を構築（GPS以外はsingle、GPSはdouble）
     const char* sd_fields[] = {"accel", "gyro", "mag", "gps_pos", "alt_baro", "dt",
         "update_accel", "update_gyro", "update_mag", "update_gps", "update_baro", "update_zupt",
         "prev_mag", "prev_gps_pos", "prev_baro_alt"};
     mxArray* sensor_data = mxCreateStructMatrix(1, 1, 15, sd_fields);
 
-    double zeros3[3] = {0, 0, 0};
-    mxArray* accel_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(accel_arr), zeros3, 3);
-    mxArray* gyro_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(gyro_arr), zeros3, 3);
-    mxArray* mag_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(mag_arr), zeros3, 3);
-    mxArray* gps_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(gps_arr), zeros3, 3);
+    float zeros3f[3] = {0.0f, 0.0f, 0.0f};
+    double zeros3d[3] = {0.0, 0.0, 0.0};
+    // GPS以外のセンサーデータはsingle（float）
+    mxArray* accel_arr = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* accel_ptr = (float*)mxGetData(accel_arr);
+    for (int i = 0; i < 3; ++i) accel_ptr[i] = zeros3f[i];
+    mxArray* gyro_arr = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* gyro_ptr = (float*)mxGetData(gyro_arr);
+    for (int i = 0; i < 3; ++i) gyro_ptr[i] = zeros3f[i];
+    mxArray* mag_arr = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* mag_ptr = (float*)mxGetData(mag_arr);
+    for (int i = 0; i < 3; ++i) mag_ptr[i] = zeros3f[i];
+    // GPSデータはdouble
+    mxArray* gps_arr = mxCreateDoubleMatrix(3, 1, mxREAL); 
+    copy_vec(mxGetPr(gps_arr), zeros3d, 3);
 
     mxSetField(sensor_data, 0, "accel", accel_arr);
     mxSetField(sensor_data, 0, "gyro", gyro_arr);
     mxSetField(sensor_data, 0, "mag", mag_arr);
     mxSetField(sensor_data, 0, "gps_pos", gps_arr);
-    mxSetField(sensor_data, 0, "alt_baro", mxCreateDoubleScalar(0));
-    mxSetField(sensor_data, 0, "dt", mxCreateDoubleScalar(dt));
+    mxArray* alt_baro_init = mxCreateNumericMatrix(1, 1, mxSINGLE_CLASS, mxREAL);
+    float* alt_baro_init_ptr = (float*)mxGetData(alt_baro_init);
+    alt_baro_init_ptr[0] = 0.0f;
+    mxSetField(sensor_data, 0, "alt_baro", alt_baro_init);
+    mxArray* dt_arr = mxCreateNumericMatrix(1, 1, mxSINGLE_CLASS, mxREAL);
+    float* dt_ptr = (float*)mxGetData(dt_arr);
+    dt_ptr[0] = static_cast<float>(dt);
+    mxSetField(sensor_data, 0, "dt", dt_arr);
     mxSetField(sensor_data, 0, "update_accel", mxCreateLogicalScalar(false));
     mxSetField(sensor_data, 0, "update_gyro", mxCreateLogicalScalar(false));
     mxSetField(sensor_data, 0, "update_mag", mxCreateLogicalScalar(false));
@@ -307,12 +323,14 @@ inline void handle_sensor_update_internal(
     mxSetField(sensor_data, 0, "update_zupt", mxCreateLogicalScalar(false));
     
     // Set prev_* values from ESKFState
-    mxArray* prev_mag_arr = mxCreateDoubleMatrix(3, 1, mxREAL);
-    copy_vec(mxGetPr(prev_mag_arr), s->prev_mag, 3);
+    // prev_magはsingle（float）
+    mxArray* prev_mag_arr = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* prev_mag_ptr = (float*)mxGetData(prev_mag_arr);
+    for (int i = 0; i < 3; ++i) prev_mag_ptr[i] = static_cast<float>(s->prev_mag[i]);
     mxSetField(sensor_data, 0, "prev_mag", prev_mag_arr);
     
     // Convert GPS lat/lon/alt to ECEF position (or use stored prev_gps_pos if available)
-    // For now, use zeros if GPS hasn't been initialized
+    // prev_gps_posはdouble（GPSデータ）
     mxArray* prev_gps_pos_arr = mxCreateDoubleMatrix(3, 1, mxREAL);
     double prev_gps_pos[3] = {0, 0, 0};
     // If GPS was previously set, we could convert lat/lon/alt to ECEF here
@@ -320,26 +338,50 @@ inline void handle_sensor_update_internal(
     copy_vec(mxGetPr(prev_gps_pos_arr), prev_gps_pos, 3);
     mxSetField(sensor_data, 0, "prev_gps_pos", prev_gps_pos_arr);
     
-    mxSetField(sensor_data, 0, "prev_baro_alt", mxCreateDoubleScalar(s->prev_baro));
+    // prev_baro_altはsingle（float）
+    mxArray* prev_baro_alt_arr = mxCreateNumericMatrix(1, 1, mxSINGLE_CLASS, mxREAL);
+    float* prev_baro_alt_ptr = (float*)mxGetData(prev_baro_alt_arr);
+    prev_baro_alt_ptr[0] = static_cast<float>(s->prev_baro);
+    mxSetField(sensor_data, 0, "prev_baro_alt", prev_baro_alt_arr);
 
-    // mex_params構造体
+    // mex_params構造体（GPS以外はsingle、GPSはdouble）
     const char* mp_fields[] = {"g", "mag_ref", "noise_accel", "noise_gyro", "noise_ba", "noise_bg",
         "noise_mag", "noise_gps", "noise_baro", "noise_zupt", "alpha", "beta", "kappa", "trace_sample"};
     mxArray* mex_params = mxCreateStructMatrix(1, 1, 14, mp_fields);
 
-    mxArray* g_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(g_arr), g, 3);
+    // g, mag_refはsingle（float）
+    mxArray* g_arr = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* g_ptr = (float*)mxGetData(g_arr);
+    for (int i = 0; i < 3; ++i) g_ptr[i] = static_cast<float>(g[i]);
     mxSetField(mex_params, 0, "g", g_arr);
-    double mag_ref[3] = {50, 0, 0};
-    mxArray* mag_ref_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(mag_ref_arr), mag_ref, 3);
+    float mag_ref[3] = {50.0f, 0.0f, 0.0f};
+    mxArray* mag_ref_arr = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* mag_ref_ptr = (float*)mxGetData(mag_ref_arr);
+    for (int i = 0; i < 3; ++i) mag_ref_ptr[i] = mag_ref[i];
     mxSetField(mex_params, 0, "mag_ref", mag_ref_arr);
 
-    mxArray* na = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(na), zeros3, 3);
-    mxArray* ng = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ng), zeros3, 3);
-    mxArray* nba = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nba), zeros3, 3);
-    mxArray* nbg = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nbg), zeros3, 3);
-    mxArray* nm = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nm), zeros3, 3);
-    mxArray* ngps = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ngps), zeros3, 3);
-    mxArray* nz = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(nz), zeros3, 3);
+    // ノイズパラメータはsingle（float）、GPSノイズはdouble
+    mxArray* na = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* na_ptr = (float*)mxGetData(na);
+    for (int i = 0; i < 3; ++i) na_ptr[i] = zeros3f[i];
+    mxArray* ng = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* ng_ptr = (float*)mxGetData(ng);
+    for (int i = 0; i < 3; ++i) ng_ptr[i] = zeros3f[i];
+    mxArray* nba = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* nba_ptr = (float*)mxGetData(nba);
+    for (int i = 0; i < 3; ++i) nba_ptr[i] = zeros3f[i];
+    mxArray* nbg = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* nbg_ptr = (float*)mxGetData(nbg);
+    for (int i = 0; i < 3; ++i) nbg_ptr[i] = zeros3f[i];
+    mxArray* nm = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* nm_ptr = (float*)mxGetData(nm);
+    for (int i = 0; i < 3; ++i) nm_ptr[i] = zeros3f[i];
+    // noise_gpsはdouble（GPSデータ）
+    mxArray* ngps = mxCreateDoubleMatrix(3, 1, mxREAL); 
+    copy_vec(mxGetPr(ngps), zeros3d, 3);
+    mxArray* nz = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* nz_ptr = (float*)mxGetData(nz);
+    for (int i = 0; i < 3; ++i) nz_ptr[i] = zeros3f[i];
 
     mxSetField(mex_params, 0, "noise_accel", na);
     mxSetField(mex_params, 0, "noise_gyro", ng);
@@ -347,56 +389,96 @@ inline void handle_sensor_update_internal(
     mxSetField(mex_params, 0, "noise_bg", nbg);
     mxSetField(mex_params, 0, "noise_mag", nm);
     mxSetField(mex_params, 0, "noise_gps", ngps);
-    mxSetField(mex_params, 0, "noise_baro", mxCreateDoubleScalar(0));
+    mxArray* noise_baro_init = mxCreateNumericMatrix(1, 1, mxSINGLE_CLASS, mxREAL);
+    float* noise_baro_init_ptr = (float*)mxGetData(noise_baro_init);
+    noise_baro_init_ptr[0] = 0.0f;
+    mxSetField(mex_params, 0, "noise_baro", noise_baro_init);
     mxSetField(mex_params, 0, "noise_zupt", nz);
-    mxSetField(mex_params, 0, "alpha", mxCreateDoubleScalar(1e-3));
-    mxSetField(mex_params, 0, "beta", mxCreateDoubleScalar(2));
-    mxSetField(mex_params, 0, "kappa", mxCreateDoubleScalar(0));
+    mxArray* alpha_arr = mxCreateNumericMatrix(1, 1, mxSINGLE_CLASS, mxREAL);
+    float* alpha_ptr = (float*)mxGetData(alpha_arr);
+    alpha_ptr[0] = 1e-3f;
+    mxSetField(mex_params, 0, "alpha", alpha_arr);
+    mxArray* beta_arr = mxCreateNumericMatrix(1, 1, mxSINGLE_CLASS, mxREAL);
+    float* beta_ptr = (float*)mxGetData(beta_arr);
+    beta_ptr[0] = 2.0f;
+    mxSetField(mex_params, 0, "beta", beta_arr);
+    mxArray* kappa_arr = mxCreateNumericMatrix(1, 1, mxSINGLE_CLASS, mxREAL);
+    float* kappa_ptr = (float*)mxGetData(kappa_arr);
+    kappa_ptr[0] = 0.0f;
+    mxSetField(mex_params, 0, "kappa", kappa_arr);
     mxSetField(mex_params, 0, "trace_sample", mxCreateDoubleScalar(sample));
 
     // センサータイプ別設定
     if (strcmp(sensor_type, "accel") == 0) {
-        copy_vec(mxGetPr(mxGetField(sensor_data, 0, "accel")), meas, 3);
+        // accelはsingle（float）
+        float* accel_ptr = (float*)mxGetData(mxGetField(sensor_data, 0, "accel"));
+        for (int i = 0; i < 3; ++i) accel_ptr[i] = static_cast<float>(meas[i]);
         for (int i = 0; i < 3; ++i) R_noise[i] *= 1.5;
-        copy_vec(mxGetPr(mxGetField(mex_params, 0, "noise_accel")), R_noise, 3);
+        float* noise_accel_ptr = (float*)mxGetData(mxGetField(mex_params, 0, "noise_accel"));
+        for (int i = 0; i < 3; ++i) noise_accel_ptr[i] = static_cast<float>(R_noise[i]);
         mxDestroyArray(mxGetField(sensor_data, 0, "update_accel"));
         mxSetField(sensor_data, 0, "update_accel", mxCreateLogicalScalar(true));
     } else if (strcmp(sensor_type, "mag") == 0) {
-        copy_vec(mxGetPr(mxGetField(sensor_data, 0, "mag")), meas, 3);
+        // magはsingle（float）
+        float* mag_ptr = (float*)mxGetData(mxGetField(sensor_data, 0, "mag"));
+        for (int i = 0; i < 3; ++i) mag_ptr[i] = static_cast<float>(meas[i]);
         for (int i = 0; i < 3; ++i) R_noise[i] *= 1.5;
-        copy_vec(mxGetPr(mxGetField(mex_params, 0, "noise_mag")), R_noise, 3);
+        float* noise_mag_ptr = (float*)mxGetData(mxGetField(mex_params, 0, "noise_mag"));
+        for (int i = 0; i < 3; ++i) noise_mag_ptr[i] = static_cast<float>(R_noise[i]);
         mxDestroyArray(mxGetField(sensor_data, 0, "update_mag"));
         mxSetField(sensor_data, 0, "update_mag", mxCreateLogicalScalar(true));
     } else if (strcmp(sensor_type, "gps") == 0) {
+        // gps_posはdouble（GPSデータ）
         copy_vec(mxGetPr(mxGetField(sensor_data, 0, "gps_pos")), meas, 3);
         copy_vec(mxGetPr(mxGetField(mex_params, 0, "noise_gps")), R_noise, 3);
         mxDestroyArray(mxGetField(sensor_data, 0, "update_gps"));
         mxSetField(sensor_data, 0, "update_gps", mxCreateLogicalScalar(true));
     } else if (strcmp(sensor_type, "baro") == 0) {
+        // alt_baroはsingle（float）
         mxDestroyArray(mxGetField(sensor_data, 0, "alt_baro"));
-        mxSetField(sensor_data, 0, "alt_baro", mxCreateDoubleScalar(meas[0]));
+        mxArray* alt_baro_arr = mxCreateNumericMatrix(1, 1, mxSINGLE_CLASS, mxREAL);
+        float* alt_baro_ptr = (float*)mxGetData(alt_baro_arr);
+        alt_baro_ptr[0] = static_cast<float>(meas[0]);
+        mxSetField(sensor_data, 0, "alt_baro", alt_baro_arr);
         mxDestroyArray(mxGetField(mex_params, 0, "noise_baro"));
-        mxSetField(mex_params, 0, "noise_baro", mxCreateDoubleScalar(R_noise[0]));
+        mxArray* noise_baro_arr = mxCreateNumericMatrix(1, 1, mxSINGLE_CLASS, mxREAL);
+        float* noise_baro_ptr = (float*)mxGetData(noise_baro_arr);
+        noise_baro_ptr[0] = static_cast<float>(R_noise[0]);
+        mxSetField(mex_params, 0, "noise_baro", noise_baro_arr);
         mxDestroyArray(mxGetField(sensor_data, 0, "update_baro"));
         mxSetField(sensor_data, 0, "update_baro", mxCreateLogicalScalar(true));
     } else if (strcmp(sensor_type, "zupt") == 0) {
-        double zupt_noise[3] = {0.0001, 0.0001, 0.0001};
-        copy_vec(mxGetPr(mxGetField(mex_params, 0, "noise_zupt")), zupt_noise, 3);
+        // noise_zuptはsingle（float）
+        float zupt_noise[3] = {0.0001f, 0.0001f, 0.0001f};
+        float* noise_zupt_ptr = (float*)mxGetData(mxGetField(mex_params, 0, "noise_zupt"));
+        for (int i = 0; i < 3; ++i) noise_zupt_ptr[i] = zupt_noise[i];
         mxDestroyArray(mxGetField(sensor_data, 0, "update_zupt"));
         mxSetField(sensor_data, 0, "update_zupt", mxCreateLogicalScalar(true));
     } else {
         mexErrMsgTxt("Unknown sensor type");
     }
 
-    // state構造体
+    // state構造体（すべてsingle（float））
     const char* st_fields[] = {"p", "v", "q", "ba", "bg", "P"};
     mxArray* state_s = mxCreateStructMatrix(1, 1, 6, st_fields);
-    mxArray* p_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(p_arr), p, 3);
-    mxArray* v_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(v_arr), v, 3);
-    mxArray* q_arr = mxCreateDoubleMatrix(4, 1, mxREAL); copy_vec(mxGetPr(q_arr), q, 4);
-    mxArray* ba_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(ba_arr), ba, 3);
-    mxArray* bg_arr = mxCreateDoubleMatrix(3, 1, mxREAL); copy_vec(mxGetPr(bg_arr), bg, 3);
-    mxArray* P_arr = mxCreateDoubleMatrix(15, 15, mxREAL); memcpy(mxGetPr(P_arr), P, 15*15*8);
+    mxArray* p_arr = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* p_ptr = (float*)mxGetData(p_arr);
+    for (int i = 0; i < 3; ++i) p_ptr[i] = static_cast<float>(p[i]);
+    mxArray* v_arr = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* v_ptr = (float*)mxGetData(v_arr);
+    for (int i = 0; i < 3; ++i) v_ptr[i] = static_cast<float>(v[i]);
+    mxArray* q_arr = mxCreateNumericMatrix(4, 1, mxSINGLE_CLASS, mxREAL);
+    float* q_ptr = (float*)mxGetData(q_arr);
+    for (int i = 0; i < 4; ++i) q_ptr[i] = static_cast<float>(q[i]);
+    mxArray* ba_arr = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* ba_ptr = (float*)mxGetData(ba_arr);
+    for (int i = 0; i < 3; ++i) ba_ptr[i] = static_cast<float>(ba[i]);
+    mxArray* bg_arr = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* bg_ptr = (float*)mxGetData(bg_arr);
+    for (int i = 0; i < 3; ++i) bg_ptr[i] = static_cast<float>(bg[i]);
+    mxArray* P_arr = mxCreateNumericMatrix(15, 15, mxSINGLE_CLASS, mxREAL);
+    float* P_ptr = (float*)mxGetData(P_arr);
+    for (int i = 0; i < 15*15; ++i) P_ptr[i] = static_cast<float>(P[i]);
     mxSetField(state_s, 0, "p", p_arr);
     mxSetField(state_s, 0, "v", v_arr);
     mxSetField(state_s, 0, "q", q_arr);
@@ -463,17 +545,41 @@ inline void handle_sensor_update_internal(
             // Get dx (15x1)
             Vector<15, float> dx;
             if (!matToVector(mxGetField(dbg_out, 0, "dx"), dx)) {
-                // Fallback: use new_state directly
-                copy_vec(out_p, mxGetPr(mxGetField(new_state, 0, "p")), 3);
-                copy_vec(out_v, mxGetPr(mxGetField(new_state, 0, "v")), 3);
-                copy_vec(out_q, mxGetPr(mxGetField(new_state, 0, "q")), 4);
-                copy_vec(out_ba, mxGetPr(mxGetField(new_state, 0, "ba")), 3);
-                copy_vec(out_bg, mxGetPr(mxGetField(new_state, 0, "bg")), 3);
-                if (mxGetField(new_state, 0, "P")) {
-                    double* new_P = mxGetPr(mxGetField(new_state, 0, "P"));
+                // Fallback: use new_state directly (single型から読み取り)
+                mxArray* p_field = mxGetField(new_state, 0, "p");
+                if (p_field && mxGetClassID(p_field) == mxSINGLE_CLASS) {
+                    const float* pf = (const float*)mxGetData(p_field);
+                    for (int i = 0; i < 3; ++i) out_p[i] = static_cast<double>(pf[i]);
+                }
+                mxArray* v_field = mxGetField(new_state, 0, "v");
+                if (v_field && mxGetClassID(v_field) == mxSINGLE_CLASS) {
+                    const float* vf = (const float*)mxGetData(v_field);
+                    for (int i = 0; i < 3; ++i) out_v[i] = static_cast<double>(vf[i]);
+                }
+                mxArray* q_field = mxGetField(new_state, 0, "q");
+                if (q_field && mxGetClassID(q_field) == mxSINGLE_CLASS) {
+                    const float* qf = (const float*)mxGetData(q_field);
+                    for (int i = 0; i < 4; ++i) out_q[i] = static_cast<double>(qf[i]);
+                }
+                mxArray* ba_field = mxGetField(new_state, 0, "ba");
+                if (ba_field && mxGetClassID(ba_field) == mxSINGLE_CLASS) {
+                    const float* baf = (const float*)mxGetData(ba_field);
+                    for (int i = 0; i < 3; ++i) out_ba[i] = static_cast<double>(baf[i]);
+                }
+                mxArray* bg_field = mxGetField(new_state, 0, "bg");
+                if (bg_field && mxGetClassID(bg_field) == mxSINGLE_CLASS) {
+                    const float* bgf = (const float*)mxGetData(bg_field);
+                    for (int i = 0; i < 3; ++i) out_bg[i] = static_cast<double>(bgf[i]);
+                }
+                mxArray* P_field = mxGetField(new_state, 0, "P");
+                if (P_field && mxGetClassID(P_field) == mxSINGLE_CLASS) {
+                    const float* Pf = (const float*)mxGetData(P_field);
                     for (int i = 0; i < 15; ++i) {
                         for (int j = 0; j < 15; ++j) {
-                            out_P[i + j*15] = 0.5 * (new_P[i + j*15] + new_P[j + i*15]);
+                            // MATLAB column-major to row-major
+                            double val1 = static_cast<double>(Pf[j * 15 + i]);
+                            double val2 = static_cast<double>(Pf[i * 15 + j]);
+                            out_P[i + j*15] = 0.5 * (val1 + val2);
                         }
                     }
                 }
@@ -583,16 +689,41 @@ inline void handle_sensor_update_internal(
                 }
             }
         } else {
-            copy_vec(out_p, mxGetPr(mxGetField(new_state, 0, "p")), 3);
-            copy_vec(out_v, mxGetPr(mxGetField(new_state, 0, "v")), 3);
-            copy_vec(out_q, mxGetPr(mxGetField(new_state, 0, "q")), 4);
-            copy_vec(out_ba, mxGetPr(mxGetField(new_state, 0, "ba")), 3);
-            copy_vec(out_bg, mxGetPr(mxGetField(new_state, 0, "bg")), 3);
-            if (mxGetField(new_state, 0, "P")) {
-                double* new_P = mxGetPr(mxGetField(new_state, 0, "P"));
+            // new_stateはsingle型（float）で返される
+            mxArray* p_field = mxGetField(new_state, 0, "p");
+            if (p_field && mxGetClassID(p_field) == mxSINGLE_CLASS) {
+                const float* pf = (const float*)mxGetData(p_field);
+                for (int i = 0; i < 3; ++i) out_p[i] = static_cast<double>(pf[i]);
+            }
+            mxArray* v_field = mxGetField(new_state, 0, "v");
+            if (v_field && mxGetClassID(v_field) == mxSINGLE_CLASS) {
+                const float* vf = (const float*)mxGetData(v_field);
+                for (int i = 0; i < 3; ++i) out_v[i] = static_cast<double>(vf[i]);
+            }
+            mxArray* q_field = mxGetField(new_state, 0, "q");
+            if (q_field && mxGetClassID(q_field) == mxSINGLE_CLASS) {
+                const float* qf = (const float*)mxGetData(q_field);
+                for (int i = 0; i < 4; ++i) out_q[i] = static_cast<double>(qf[i]);
+            }
+            mxArray* ba_field = mxGetField(new_state, 0, "ba");
+            if (ba_field && mxGetClassID(ba_field) == mxSINGLE_CLASS) {
+                const float* baf = (const float*)mxGetData(ba_field);
+                for (int i = 0; i < 3; ++i) out_ba[i] = static_cast<double>(baf[i]);
+            }
+            mxArray* bg_field = mxGetField(new_state, 0, "bg");
+            if (bg_field && mxGetClassID(bg_field) == mxSINGLE_CLASS) {
+                const float* bgf = (const float*)mxGetData(bg_field);
+                for (int i = 0; i < 3; ++i) out_bg[i] = static_cast<double>(bgf[i]);
+            }
+            mxArray* P_field = mxGetField(new_state, 0, "P");
+            if (P_field && mxGetClassID(P_field) == mxSINGLE_CLASS) {
+                const float* Pf = (const float*)mxGetData(P_field);
                 for (int i = 0; i < 15; ++i) {
                     for (int j = 0; j < 15; ++j) {
-                        out_P[i + j*15] = 0.5 * (new_P[i + j*15] + new_P[j + i*15]);
+                        // MATLAB column-major to row-major
+                        double val1 = static_cast<double>(Pf[j * 15 + i]);
+                        double val2 = static_cast<double>(Pf[i * 15 + j]);
+                        out_P[i + j*15] = 0.5 * (val1 + val2);
                     }
                 }
             }

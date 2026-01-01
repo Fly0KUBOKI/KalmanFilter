@@ -29,9 +29,37 @@ static const mxArray* get_field_any(const mxArray* s, const char* name1, const c
     return get_field(s, name2);
 }
 
-static double* get_data(const mxArray* arr) {
-    if (!arr) return nullptr;
-    return mxGetPr(arr);
+// single型のみで値を取得（MATLAB側でsingle型で渡す必要がある）
+static double get_value_at(const mxArray* arr, int idx, const char* field_name = nullptr) {
+    if (!arr) return 0.0;
+    
+    // single型のみを受け取る
+    if (mxGetClassID(arr) != mxSINGLE_CLASS) {
+        const char* name = field_name ? field_name : "field";
+        mexErrMsgIdAndTxt("eskf_initializer:type_error", 
+            "Expected single (float) array for field '%s', but got %s. MATLAB側でsingle型で渡してください。", 
+            name, mxGetClassName(arr));
+        return 0.0;
+    }
+    
+    const float* pf = (const float*)mxGetData(arr);
+    return static_cast<double>(pf[idx]);
+}
+
+// GPSデータ用: double型のみで値を取得
+static double get_gps_value_at(const mxArray* arr, int idx, const char* field_name) {
+    if (!arr) return 0.0;
+    
+    // GPSデータはdouble型のみを受け取る
+    if (mxGetClassID(arr) != mxDOUBLE_CLASS) {
+        mexErrMsgIdAndTxt("eskf_initializer:type_error", 
+            "Expected double array for GPS field '%s', but got %s. GPSデータはdouble型で渡してください。", 
+            field_name, mxGetClassName(arr));
+        return 0.0;
+    }
+    
+    const double* pr = mxGetPr(arr);
+    return pr[idx];
 }
 
 static int get_length(const mxArray* arr) {
@@ -83,9 +111,16 @@ ESKFState* initialize_eskf_from_matlab(const mxArray* obs, double static_time, d
     if (N_static > n_samples) N_static = n_samples;
     
     if (ax_arr && ay_arr && az_arr && N_static > 10) {
-        double* ax = get_data(ax_arr);
-        double* ay = get_data(ay_arr);
-        double* az = get_data(az_arr);
+        // single型のみでデータを取得（MATLAB側でsingle型で渡す必要がある）
+        std::vector<double> ax_vec(N_static), ay_vec(N_static), az_vec(N_static);
+        for (int i = 0; i < N_static; ++i) {
+            ax_vec[i] = get_value_at(ax_arr, i, "ax");
+            ay_vec[i] = get_value_at(ay_arr, i, "ay");
+            az_vec[i] = get_value_at(az_arr, i, "az");
+        }
+        double* ax = ax_vec.data();
+        double* ay = ay_vec.data();
+        double* az = az_vec.data();
         
         // 加速度平均と標準偏差
         double accel_mean_x, accel_mean_y, accel_mean_z;
@@ -103,9 +138,16 @@ ESKFState* initialize_eskf_from_matlab(const mxArray* obs, double static_time, d
         const mxArray* wz_arr = get_field_any(obs, "wz", "gyro_z");
         
         if (wx_arr && wy_arr && wz_arr) {
-            double* wx = get_data(wx_arr);
-            double* wy = get_data(wy_arr);
-            double* wz = get_data(wz_arr);
+            // single型のみでデータを取得（MATLAB側でsingle型で渡す必要がある）
+            std::vector<double> wx_vec(N_static), wy_vec(N_static), wz_vec(N_static);
+            for (int i = 0; i < N_static; ++i) {
+                wx_vec[i] = get_value_at(wx_arr, i, "wx");
+                wy_vec[i] = get_value_at(wy_arr, i, "wy");
+                wz_vec[i] = get_value_at(wz_arr, i, "wz");
+            }
+            double* wx = wx_vec.data();
+            double* wy = wy_vec.data();
+            double* wz = wz_vec.data();
             
             double gyro_mean_x, gyro_mean_y, gyro_mean_z;
             compute_mean_3d(wx, wy, wz, N_static, &gyro_mean_x, &gyro_mean_y, &gyro_mean_z);
@@ -130,9 +172,16 @@ ESKFState* initialize_eskf_from_matlab(const mxArray* obs, double static_time, d
         
         double psi = 0.0;
         if (mx_arr && my_arr && mz_arr) {
-            double* mx = get_data(mx_arr);
-            double* my = get_data(my_arr);
-            double* mz = get_data(mz_arr);
+            // single型のみでデータを取得（MATLAB側でsingle型で渡す必要がある）
+            std::vector<double> mx_vec(N_static), my_vec(N_static), mz_vec(N_static);
+            for (int i = 0; i < N_static; ++i) {
+                mx_vec[i] = get_value_at(mx_arr, i, "mx");
+                my_vec[i] = get_value_at(my_arr, i, "my");
+                mz_vec[i] = get_value_at(mz_arr, i, "mz");
+            }
+            double* mx = mx_vec.data();
+            double* my = my_vec.data();
+            double* mz = mz_vec.data();
             
             double mag_mean_x, mag_mean_y, mag_mean_z;
             compute_mean_3d(mx, my, mz, N_static, &mag_mean_x, &mag_mean_y, &mag_mean_z);
@@ -165,7 +214,12 @@ ESKFState* initialize_eskf_from_matlab(const mxArray* obs, double static_time, d
         // 気圧データ
         const mxArray* pressure_arr = get_field_any(obs, "pressure", "baro");
         if (pressure_arr) {
-            double* pressure = get_data(pressure_arr);
+            // single型のみでデータを取得（MATLAB側でsingle型で渡す必要がある）
+            std::vector<double> pressure_vec(N_static);
+            for (int i = 0; i < N_static; ++i) {
+                pressure_vec[i] = get_value_at(pressure_arr, i, "pressure");
+            }
+            double* pressure = pressure_vec.data();
             
             // 気圧高度計算
             std::vector<double> alt_baro(N_static);
@@ -191,9 +245,16 @@ ESKFState* initialize_eskf_from_matlab(const mxArray* obs, double static_time, d
         const mxArray* alt_arr = get_field_any(obs, "alt", "gps_alt");
         
         if (lat_arr && lon_arr && alt_arr) {
-            double* lat = get_data(lat_arr);
-            double* lon = get_data(lon_arr);
-            double* alt = get_data(alt_arr);
+            // GPSデータはdouble型のみで受け取る（MATLAB側でdouble型で渡す必要がある）
+            std::vector<double> lat_vec(N_static), lon_vec(N_static), alt_vec(N_static);
+            for (int i = 0; i < N_static; ++i) {
+                lat_vec[i] = get_gps_value_at(lat_arr, i, "lat");
+                lon_vec[i] = get_gps_value_at(lon_arr, i, "lon");
+                alt_vec[i] = get_gps_value_at(alt_arr, i, "alt");
+            }
+            double* lat = lat_vec.data();
+            double* lon = lon_vec.data();
+            double* alt = alt_vec.data();
             
             // GPS原点計算（NaNを除外）
             double lat_sum = 0.0, lon_sum = 0.0, alt_sum = 0.0;

@@ -30,7 +30,13 @@ function obs = read_csv(filePath)
         key = pairs{i,1}; names = pairs{i,2}; found = false;
         for j=1:numel(names)
             if ismember(names{j}, T.Properties.VariableNames)
-                obs.(key) = T.(names{j}); found = true; break;
+                % GPSデータ（lat, lon, alt）はdoubleのまま、その他はfloatに変換
+                if strcmp(key, 'lat') || strcmp(key, 'lon') || strcmp(key, 'alt')
+                    obs.(key) = double(T.(names{j}));  % GPS: double
+                else
+                    obs.(key) = single(T.(names{j}));  % その他: float
+                end
+                found = true; break;
             end
         end
         if ~found
