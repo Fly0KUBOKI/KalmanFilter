@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef MEX_MEX_HELPERS_HPP
 #define MEX_MEX_HELPERS_HPP
@@ -6,7 +6,7 @@
 #include <mex.h>
 #include <string>
 #include <cstring>
-#include "../Common/Math/quaternion_lib.hpp"
+#include "../../Inc/Common/Math/quaternion_lib.hpp"
 
 namespace mex_helpers {
 
@@ -47,7 +47,7 @@ inline void getVec3(const mxArray* s, const char* xname, const char* yname, cons
         if (!arr) return 0.0;
         if (mxGetClassID(arr) != mxSINGLE_CLASS) {
             mexErrMsgIdAndTxt("mex_helpers:type_error", 
-                "Expected single (float) array for field '%s', but got %s. MATLAB側でsingle型で渡してください。", 
+                "Expected single (float) array for field '%s', but got %s.", 
                 name, mxGetClassName(arr));
             return 0.0;
         }

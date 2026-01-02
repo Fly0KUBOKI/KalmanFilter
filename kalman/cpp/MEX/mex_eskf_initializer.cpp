@@ -1,7 +1,7 @@
-﻿#include "../../Inc/ESKF/eskf_initializer.hpp"
-#include "../../Inc/ESKF/eskf_state.hpp"
-#include "../../Inc/Common/Math/quaternion_lib.hpp"
-#include "../../Inc/Common/Math/statistics.hpp"
+#include "Inc/mex_eskf_initializer.hpp"
+#include "../Inc/ESKF/eskf_state.hpp"
+#include "../Inc/Common/Math/quaternion_lib.hpp"
+#include "../Inc/Common/Math/statistics.hpp"
 #include <mex.h>
 #include <cmath>
 #include <cstring>
@@ -37,7 +37,7 @@ static double get_value_at(const mxArray* arr, int idx, const char* field_name =
     if (mxGetClassID(arr) != mxSINGLE_CLASS) {
         const char* name = field_name ? field_name : "field";
         mexErrMsgIdAndTxt("eskf_initializer:type_error", 
-            "Expected single (float) array for field '%s', but got %s. MATLAB側でsingle型で渡してください。", 
+            "Expected single (float) array for field '%s', but got %s.", 
             name, mxGetClassName(arr));
         return 0.0;
     }
@@ -53,7 +53,7 @@ static double get_gps_value_at(const mxArray* arr, int idx, const char* field_na
     // GPSデータはdouble型のみを受け取る
     if (mxGetClassID(arr) != mxDOUBLE_CLASS) {
         mexErrMsgIdAndTxt("eskf_initializer:type_error", 
-            "Expected double array for GPS field '%s', but got %s. GPSデータはdouble型で渡してください。", 
+            "Expected double array for GPS field '%s', but got %s.", 
             field_name, mxGetClassName(arr));
         return 0.0;
     }

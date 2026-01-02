@@ -1,10 +1,10 @@
-﻿#pragma once
+#pragma once
 
 #ifndef MEX_MEX_TYPE_CONVERSION_HPP
 #define MEX_MEX_TYPE_CONVERSION_HPP
 
 #include "mex.h"
-#include "../Common/Math/fixed_matrix.hpp"
+#include "../../Inc/Common/Math/fixed_matrix.hpp"
 #include <cstddef>
 
 namespace mex_conv {
@@ -26,7 +26,7 @@ inline void mxArrayToFloatArray(const mxArray* arr, float* out, std::size_t n) {
     // single (float) のみを受け付ける
     if (mxGetClassID(arr) != mxSINGLE_CLASS) {
         mexErrMsgIdAndTxt("mex_conv:type_error", 
-            "Expected single (float) array, but got %s. GPS以外のセンサーデータはfloatのみを受け取ります。", 
+            "Expected single (float) array, but got %s.", 
             mxGetClassName(arr));
         return;
     }
@@ -67,7 +67,7 @@ inline float mxGetScalarAsFloat(const mxArray* a) {
     // single (float) のみを受け付ける
     if (mxGetClassID(a) != mxSINGLE_CLASS) {
         mexErrMsgIdAndTxt("mex_conv:type_error", 
-            "Expected single (float) scalar, but got %s. GPS以外のスカラー値はfloatのみを受け取ります。", 
+            "Expected single (float) scalar, but got %s.", 
             mxGetClassName(a));
         return 0.0f;
     }

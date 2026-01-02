@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef MEX_MEX_RUN_ESKF_IMPL_HPP
 #define MEX_MEX_RUN_ESKF_IMPL_HPP
@@ -16,7 +16,7 @@
 // センサー更新関数とフィルター操作関数を先にインクルード（do_stepで使用するため）
 #include "mex_run_eskf_sensor_updates.hpp"
 #include "mex_run_eskf_filter_ops.hpp"
-#include "../MEUKF/meukf_core.hpp"
+#include "../../Inc/MEUKF/meukf_core.hpp"
 #include "mex_type_conversion.hpp"
 
 namespace mex_run_eskf_impl {
@@ -72,7 +72,7 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
     if (baro_field) {
         if (mxGetClassID(baro_field) != mxSINGLE_CLASS) {
             mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
-                "Expected single (float) array for field 'pressure', but got %s. MATLAB側でsingle型で渡してください。", 
+                "Expected single (float) array for field 'pressure', but got %s.", 
                 mxGetClassName(baro_field));
         }
         const float* pf = (const float*)mxGetData(baro_field);
@@ -89,17 +89,17 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
         // GPSデータはdoubleのみを受け取る（型変換を廃止）
         if (mxGetClassID(gps_lat) != mxDOUBLE_CLASS) {
             mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
-                "Expected double array for GPS 'lat', but got %s. GPSデータはdoubleのみを受け取ります。", 
+                "Expected double array for GPS 'lat', but got %s.", 
                 mxGetClassName(gps_lat));
         }
         if (mxGetClassID(gps_lon) != mxDOUBLE_CLASS) {
             mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
-                "Expected double array for GPS 'lon', but got %s. GPSデータはdoubleのみを受け取ります。", 
+                "Expected double array for GPS 'lon', but got %s.", 
                 mxGetClassName(gps_lon));
         }
         if (mxGetClassID(gps_alt) != mxDOUBLE_CLASS) {
             mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
-                "Expected double array for GPS 'alt', but got %s. GPSデータはdoubleのみを受け取ります。", 
+                "Expected double array for GPS 'alt', but got %s.", 
                 mxGetClassName(gps_alt));
         }
         double lat = mxGetPr(gps_lat)[idx];
@@ -217,7 +217,7 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
     if (gps_pos_field) {
         if (mxGetClassID(gps_pos_field) != mxDOUBLE_CLASS) {
             mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
-                "Expected double array for GPS 'gps_pos', but got %s. GPSデータはdoubleのみを受け取ります。", 
+                "Expected double array for GPS 'gps_pos', but got %s.", 
                 mxGetClassName(gps_pos_field));
         }
         const double* gps_pr = mxGetPr(gps_pos_field);
@@ -234,7 +234,7 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
     if (prev_gps_pos_field) {
         if (mxGetClassID(prev_gps_pos_field) != mxDOUBLE_CLASS) {
             mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
-                "Expected double array for GPS 'prev_gps_pos', but got %s. GPSデータはdoubleのみを受け取ります。", 
+                "Expected double array for GPS 'prev_gps_pos', but got %s.", 
                 mxGetClassName(prev_gps_pos_field));
         }
         const double* prev_gps_pr = mxGetPr(prev_gps_pos_field);
@@ -283,7 +283,7 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
     if (noise_gps_field) {
         if (mxGetClassID(noise_gps_field) != mxDOUBLE_CLASS) {
             mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
-                "Expected double array for GPS 'noise_gps', but got %s. GPSデータはdoubleのみを受け取ります。", 
+                "Expected double array for GPS 'noise_gps', but got %s.", 
                 mxGetClassName(noise_gps_field));
         }
         const double* noise_gps_pr = mxGetPr(noise_gps_field);
@@ -323,7 +323,7 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
         // single (float) のみを受け付ける（型変換を廃止）
         if (mxGetClassID(f) != mxSINGLE_CLASS) {
             mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
-                "Expected single (float) array for field '%s', but got %s. 出力はfloatのみです。", 
+                "Expected single (float) array for field '%s', but got %s.", 
                 name, mxGetClassName(f));
             return;
         }
@@ -339,7 +339,7 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
     if(f_q) { 
         if (mxGetClassID(f_q) != mxSINGLE_CLASS) {
             mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
-                "Expected single (float) array for field 'q', but got %s. 出力はfloatのみです。", 
+                "Expected single (float) array for field 'q', but got %s.", 
                 mxGetClassName(f_q));
         } else {
             float* pf = (float*)mxGetData(f_q);
@@ -354,7 +354,7 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
     if(fP) {
         if (mxGetClassID(fP) != mxSINGLE_CLASS) {
             mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
-                "Expected single (float) array for field 'P', but got %s. 出力はfloatのみです。", 
+                "Expected single (float) array for field 'P', but got %s.", 
                 mxGetClassName(fP));
         } else {
             float* pf = (float*)mxGetData(fP);

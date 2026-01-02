@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef MEX_MEX_ESKF_COMMON_HPP
 #define MEX_MEX_ESKF_COMMON_HPP
@@ -24,25 +24,25 @@
 #endif
 
 // レイヤー1: 基本型（最初に配置）
-#include "../Common/Math/fixed_matrix.hpp"
+#include "../../Inc/Common/Math/fixed_matrix.hpp"
 
 // レイヤー2: ユーティリティ
-#include "../Common/Math/vector_utils.hpp"
-#include "../Common/Math/quaternion_lib.hpp"
-#include "../Common/Math/statistics.hpp"
+#include "../../Inc/Common/Math/vector_utils.hpp"
+#include "../../Inc/Common/Math/quaternion_lib.hpp"
+#include "../../Inc/Common/Math/statistics.hpp"
 
 // レイヤー3: ESKF コア
-#include "../ESKF/eskf_core.hpp"
-#include "../ESKF/eskf_postprocess.hpp"
-#include "../ESKF/eskf_state.hpp"
-#include "../ESKF/eskf_runner.hpp"
-#include "../ESKF/eskf_initializer.hpp"
+#include "../../Inc/ESKF/eskf_core.hpp"
+#include "../../Inc/ESKF/eskf_postprocess.hpp"
+#include "../../Inc/ESKF/eskf_state.hpp"
+#include "../../Inc/ESKF/eskf_runner.hpp"
+#include "mex_eskf_initializer.hpp"
 
 // レイヤー4: 統合層
-#include "../Common/filter_management.hpp"
-#include "../Common/Sensor/sensor_filter.hpp"
-#include "../Common/Sensor/sensor_preprocessor.hpp"
-#include "../ESKF/eskf_sensor_updates.hpp"
+#include "../../Inc/Common/filter_management.hpp"
+#include "../../Inc/Common/Sensor/sensor_filter.hpp"
+#include "../../Inc/Common/Sensor/sensor_preprocessor.hpp"
+#include "../../Inc/ESKF/eskf_sensor_updates.hpp"
 #include "mex_type_conversion.hpp"
 #include "mex_helpers.hpp"
 
@@ -69,4 +69,5 @@ namespace mex_run_eskf_impl {
 }
 
 #endif // MEX_MEX_ESKF_COMMON_HPP
+
 

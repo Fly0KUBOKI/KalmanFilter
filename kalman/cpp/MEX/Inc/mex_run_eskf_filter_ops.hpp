@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef MEX_MEX_RUN_ESKF_FILTER_OPS_HPP
 #define MEX_MEX_RUN_ESKF_FILTER_OPS_HPP
