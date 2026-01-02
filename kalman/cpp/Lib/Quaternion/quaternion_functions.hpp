@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 // Moved from Inc/Common/Math/quaternion.hpp to Lib/Quaternion/quaternion_functions.hpp
 #include "../Matrix/fixed_matrix.hpp"
 #include <cmath>
