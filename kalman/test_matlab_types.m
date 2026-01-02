@@ -113,3 +113,4 @@ function test_matlab_types()
     fprintf('\n=== テスト完了 ===\n');
 end
 
+

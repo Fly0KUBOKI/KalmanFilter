@@ -246,3 +246,4 @@ MATLAB (single: 位置として出力)
 - レガシー互換のためのdouble変換（`state_to_matlab`のelse節）は残しておく必要がある
 - 未使用の可能性がある関数（`vectorToMat`, `matrixToMat`等）は、将来的に削除を検討
 
+

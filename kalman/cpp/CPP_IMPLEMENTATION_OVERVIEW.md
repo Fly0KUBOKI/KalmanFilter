@@ -67,9 +67,10 @@ kalman/cpp/
    - 使用: `Inc/MEUKF/meukf_types.hpp`
    - 削除推奨: `MEUKF/meukf_types.hpp`
 
-4. **MEX/mex_type_conv.hpp** vs **Inc/MEX/mex_type_conversion.hpp**
-   - 関係: `mex_type_conversion.hpp`は`mex_type_conv.hpp`をインクルード
-   - 両方必要（異なる用途）
+4. ~~**MEX/mex_type_conv.hpp** vs **Inc/MEX/mex_type_conversion.hpp**~~ ✅ 統合完了
+   - `mex_type_conv.hpp`の内容を`mex_type_conversion.hpp`に統合
+   - `MEX/mex_type_conv.hpp`を削除
+   - 現在は`Inc/MEX/mex_type_conversion.hpp`のみ使用
 
 ## データ型
 

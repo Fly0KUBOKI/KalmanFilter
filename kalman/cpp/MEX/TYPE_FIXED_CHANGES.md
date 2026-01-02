@@ -82,3 +82,4 @@
 - `vectorToMat`: Vector型をdouble形式に変換
 - `matrixToMat`: Matrix型をdouble形式に変換
 
+

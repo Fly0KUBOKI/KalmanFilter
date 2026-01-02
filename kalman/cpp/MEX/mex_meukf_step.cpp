@@ -1,6 +1,6 @@
 ﻿#include "mex.h"
 #include "meukf_core.hpp"
-#include "mex_type_conv.hpp"
+#include "../Inc/MEX/mex_type_conversion.hpp"
 #include <cstring>
 #include <cmath>
 
