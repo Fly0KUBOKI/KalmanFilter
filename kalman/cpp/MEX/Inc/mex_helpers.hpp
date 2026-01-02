@@ -6,7 +6,8 @@
 #include <mex.h>
 #include <string>
 #include <cstring>
-#include "../../Lib/Quaternion/quaternion_lib.hpp"
+#include "../../Lib/Quaternion/quaternion_functions.hpp"
+#include "../../Lib/Matrix/fixed_matrix.hpp"
 
 namespace mex_helpers {
 
@@ -133,17 +134,21 @@ inline int get_length(const mxArray* arr) {
  * @param euler 出力オイラー角配列 [roll, pitch, yaw] (ラジアン)
  */
 inline void quat_to_euler(const double* q_in, double* euler) {
-    quat_lib::Quaternion<double> quat(q_in[0], q_in[1], q_in[2], q_in[3]);
-    quat.normalize();
+    cmath_fx::Vector<4, float> q;
+    q(0,0) = static_cast<float>(q_in[0]);
+    q(1,0) = static_cast<float>(q_in[1]);
+    q(2,0) = static_cast<float>(q_in[2]);
+    q(3,0) = static_cast<float>(q_in[3]);
+    cquat::normalize_quat(q);
     
-    double roll_deg, pitch_deg, yaw_deg;
-    quat.to_euler(roll_deg, pitch_deg, yaw_deg);
+    float roll_deg, pitch_deg, yaw_deg;
+    cquat::to_euler_deg(q, roll_deg, pitch_deg, yaw_deg);
     
     // Convert degrees to radians
     const double DEG2RAD = 3.14159265358979323846 / 180.0;
-    euler[0] = roll_deg * DEG2RAD;
-    euler[1] = pitch_deg * DEG2RAD;
-    euler[2] = yaw_deg * DEG2RAD;
+    euler[0] = static_cast<double>(roll_deg) * DEG2RAD;
+    euler[1] = static_cast<double>(pitch_deg) * DEG2RAD;
+    euler[2] = static_cast<double>(yaw_deg) * DEG2RAD;
 }
 
 } // namespace mex_helpers

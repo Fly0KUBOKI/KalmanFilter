@@ -28,7 +28,7 @@
 
 // レイヤー2: ユーティリティ
 #include "../../Inc/Common/Math/vector_utils.hpp"
-#include "../../Lib/Quaternion/quaternion_lib.hpp"
+#include "../../Lib/Quaternion/quaternion_functions.hpp"
 #include "../../Inc/Common/Math/statistics.hpp"
 
 // レイヤー3: ESKF コア
@@ -50,8 +50,9 @@
 using namespace common::math;
 using namespace common::filter;
 using namespace common::sensor;
-using Quat = quat_lib::Quaternion<double>;
-using QuatF = quat_lib::Quaternion<float>;
+// Quaternion types using cquat:: functions
+using Quat = cmath_fx::Vector<4, float>;
+using QuatF = cmath_fx::Vector<4, float>;
 using namespace cmath_fx;
 using namespace eskf;
 using namespace mex_conv;

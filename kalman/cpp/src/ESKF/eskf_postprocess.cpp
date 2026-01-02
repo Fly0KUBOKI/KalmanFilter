@@ -1,5 +1,5 @@
 ﻿#include "../../Inc/ESKF/eskf_postprocess.hpp"
-#include "../../Lib/Quaternion/quaternion_lib.hpp"
+#include "../../Lib/Quaternion/quaternion_functions.hpp"
 #include "Common/Math/vector_utils.hpp"
 #include "Common/filter_management.hpp"
 #include <cmath>
@@ -17,7 +17,7 @@ void predict_postprocess(
 ) {
     using namespace common::math;
     using namespace common::filter;
-    using Quat = quat_lib::Quaternion<float>;
+    using namespace cquat;
     
     // 1. accel_z_integration
     // 注意: この部分はMATLAB呼び出しを含むため、MEXファイル内に実装を残す
@@ -45,7 +45,7 @@ UpdatePostprocessResult update_state_from_dx(
     const cmath_fx::Vector<3, float>& state_bg,
     const cmath_fx::Matrix<15, 15, float>& new_state_P
 ) {
-    using Quat = quat_lib::Quaternion<float>;
+    using namespace cquat;
     
     UpdatePostprocessResult result;
     
@@ -58,19 +58,20 @@ UpdatePostprocessResult update_state_from_dx(
     }
     
     // クォータニオン更新: dq = [1; 0.5 * phi], q_new = dq * q
-    float phi[3] = {dx(6, 0), dx(7, 0), dx(8, 0)};
-    float dq[4] = {1.0f, 0.5f * phi[0], 0.5f * phi[1], 0.5f * phi[2]};
-    float q_state[4] = {state_q(0, 0), state_q(1, 0), state_q(2, 0), state_q(3, 0)};
+    cmath_fx::Vector<4, float> dq;
+    dq(0, 0) = 1.0f;
+    dq(1, 0) = 0.5f * dx(6, 0);
+    dq(2, 0) = 0.5f * dx(7, 0);
+    dq(3, 0) = 0.5f * dx(8, 0);
     
-    Quat quat_dq(dq[0], dq[1], dq[2], dq[3]);
-    Quat quat_q(q_state[0], q_state[1], q_state[2], q_state[3]);
-    Quat quat_new = Quat::multiply(quat_dq, quat_q);
-    quat_new.normalize();
+    cmath_fx::Vector<4, float> quat_new;
+    multiply_quat(dq, state_q, quat_new);
+    normalize_quat(quat_new);
     
-    result.q(0, 0) = quat_new.w;
-    result.q(1, 0) = quat_new.x;
-    result.q(2, 0) = quat_new.y;
-    result.q(3, 0) = quat_new.z;
+    result.q(0, 0) = quat_new(0, 0);
+    result.q(1, 0) = quat_new(1, 0);
+    result.q(2, 0) = quat_new(2, 0);
+    result.q(3, 0) = quat_new(3, 0);
     
     // P行列をコピーして対称化
     result.P = new_state_P;

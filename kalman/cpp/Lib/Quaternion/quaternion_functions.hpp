@@ -88,5 +88,77 @@ inline void to_euler_deg(const cmath_fx::Vector<4, T>& q, cmath_fx::Vector<3, T>
     euler_deg(2,0) = yaw * static_cast<T>(180.0) / static_cast<T>(M_PI);
 }
 
+// オイラー角を参照で出力（度数法）
+template <typename T>
+inline void to_euler_deg(const cmath_fx::Vector<4, T>& q, T& roll_deg, T& pitch_deg, T& yaw_deg) {
+    T qw=q(0,0), qx=q(1,0), qy=q(2,0), qz=q(3,0);
+    T sinr_cosp = static_cast<T>(2.0) * (qw * qx + qy * qz);
+    T cosr_cosp = static_cast<T>(1.0) - static_cast<T>(2.0) * (qx*qx + qy*qy);
+    T roll = std::atan2(sinr_cosp, cosr_cosp);
+    T sinp = static_cast<T>(2.0) * (qw * qy - qz * qx);
+    T pitch;
+    if (std::abs(sinp) >= static_cast<T>(1.0))
+        pitch = std::copysign(static_cast<T>(M_PI)/static_cast<T>(2.0), sinp);
+    else
+        pitch = std::asin(sinp);
+    T siny_cosp = static_cast<T>(2.0) * (qw * qz + qx * qy);
+    T cosy_cosp = static_cast<T>(1.0) - static_cast<T>(2.0) * (qy*qy + qz*qz);
+    T yaw = std::atan2(siny_cosp, cosy_cosp);
+    roll_deg = roll * static_cast<T>(180.0) / static_cast<T>(M_PI);
+    pitch_deg = pitch * static_cast<T>(180.0) / static_cast<T>(M_PI);
+    yaw_deg = yaw * static_cast<T>(180.0) / static_cast<T>(M_PI);
+}
+
+// 小角度回転ベクトルから生成
+template <typename T>
+inline void from_small_angle(T theta_x, T theta_y, T theta_z, cmath_fx::Vector<4, T>& q_out) {
+    T th2 = theta_x*theta_x + theta_y*theta_y + theta_z*theta_z;
+    constexpr T EPS = static_cast<T>(1e-9);
+    
+    if (th2 < EPS*EPS) {
+        q_out(0,0) = static_cast<T>(1.0);
+        q_out(1,0) = static_cast<T>(0.5) * theta_x;
+        q_out(2,0) = static_cast<T>(0.5) * theta_y;
+        q_out(3,0) = static_cast<T>(0.5) * theta_z;
+    } else {
+        T angle = std::sqrt(th2);
+        T half_angle = angle * static_cast<T>(0.5);
+        T s = std::sin(half_angle) / angle;
+        q_out(0,0) = std::cos(half_angle);
+        q_out(1,0) = theta_x * s;
+        q_out(2,0) = theta_y * s;
+        q_out(3,0) = theta_z * s;
+    }
+    normalize_quat(q_out);
+}
+
+// 回転行列を配列（row-major）で出力
+template <typename T>
+inline void quat_to_rotm_array(const cmath_fx::Vector<4, T>& q, T R[9]) {
+    T qw=q(0,0), qx=q(1,0), qy=q(2,0), qz=q(3,0);
+    
+    R[0] = static_cast<T>(1.0) - static_cast<T>(2.0)*(qy*qy + qz*qz);
+    R[1] = static_cast<T>(2.0)*(qx*qy - qz*qw);
+    R[2] = static_cast<T>(2.0)*(qx*qz + qy*qw);
+    
+    R[3] = static_cast<T>(2.0)*(qx*qy + qz*qw);
+    R[4] = static_cast<T>(1.0) - static_cast<T>(2.0)*(qx*qx + qz*qz);
+    R[5] = static_cast<T>(2.0)*(qy*qz - qx*qw);
+    
+    R[6] = static_cast<T>(2.0)*(qx*qz - qy*qw);
+    R[7] = static_cast<T>(2.0)*(qy*qz + qx*qw);
+    R[8] = static_cast<T>(1.0) - static_cast<T>(2.0)*(qx*qx + qy*qy);
+    
+    // 小さい値をゼロに、1に近い値を±1に
+    constexpr T EPS = static_cast<T>(1e-9);
+    for (int i = 0; i < 9; ++i) {
+        if (std::abs(R[i]) < EPS) {
+            R[i] = static_cast<T>(0.0);
+        } else if (std::abs(R[i] - static_cast<T>(1.0)) < EPS) {
+            R[i] = (R[i] < static_cast<T>(0.0)) ? static_cast<T>(-1.0) : static_cast<T>(1.0);
+        }
+    }
+}
+
 } // namespace cquat
 

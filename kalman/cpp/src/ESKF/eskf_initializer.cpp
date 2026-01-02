@@ -1,5 +1,6 @@
 ﻿#include "../../Inc/ESKF/eskf_initializer.hpp"
-#include "../../Lib/Quaternion/quaternion_lib.hpp"
+#include "../../Lib/Quaternion/quaternion_functions.hpp"
+#include "../../Lib/Matrix/fixed_matrix.hpp"
 #include "../../Inc/Common/Math/statistics.hpp"
 #include <cmath>
 #include <cstring>
@@ -13,7 +14,8 @@
 namespace eskf {
 
 using namespace common::math;
-using Quat = quat_lib::Quaternion<double>;
+using namespace cmath_fx;
+using namespace cquat;
 
 static void copy_vec(double* dst, const double* src, int n) {
     memcpy(dst, src, n * sizeof(double));
@@ -96,12 +98,13 @@ ESKFState* initialize_eskf_state(const ESKFInitializationData& data) {
             if (sigma_mag < 0.1) sigma_mag = 0.1;
             
             // Roll/Pitch only quaternion
-            Quat quat_rp = Quat::from_euler(phi * 180.0 / M_PI, theta * 180.0 / M_PI, 0.0);
-            quat_rp.normalize();
+            Vector<4, float> quat_rp;
+            from_euler_deg(static_cast<float>(phi * 180.0 / M_PI), static_cast<float>(theta * 180.0 / M_PI), 0.0f, quat_rp);
+            normalize_quat(quat_rp);
             
             // Rotation matrix
-            double R_rp[9];
-            quat_rp.to_rotation_matrix(R_rp);
+            float R_rp[9];
+            quat_to_rotm_array(quat_rp, R_rp);
             
             // Project magnetometer to horizontal plane
             double m_level_x = R_rp[0]*mag_mean_x + R_rp[3]*mag_mean_y + R_rp[6]*mag_mean_z;
@@ -111,12 +114,13 @@ ESKFState* initialize_eskf_state(const ESKFInitializationData& data) {
         }
         
         // Final quaternion
-        Quat quat_final = Quat::from_euler(phi * 180.0 / M_PI, theta * 180.0 / M_PI, psi * 180.0 / M_PI);
-        quat_final.normalize();
-        q[0] = quat_final.w;
-        q[1] = quat_final.x;
-        q[2] = quat_final.y;
-        q[3] = quat_final.z;
+        Vector<4, float> quat_final;
+        from_euler_deg(static_cast<float>(phi * 180.0 / M_PI), static_cast<float>(theta * 180.0 / M_PI), static_cast<float>(psi * 180.0 / M_PI), quat_final);
+        normalize_quat(quat_final);
+        q[0] = static_cast<double>(quat_final(0,0));
+        q[1] = static_cast<double>(quat_final(1,0));
+        q[2] = static_cast<double>(quat_final(2,0));
+        q[3] = static_cast<double>(quat_final(3,0));
         
         // Barometric pressure data
         if (data.pressure) {

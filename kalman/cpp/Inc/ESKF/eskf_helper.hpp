@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "../Lib/Matrix/fixed_matrix.hpp"
-#include "../Lib/Quaternion/quaternion_lib.hpp"
+#include "../Lib/Quaternion/quaternion_functions.hpp"
 
 namespace eskf {
 
@@ -9,15 +9,15 @@ template<typename T = float>
 class ESKFHelper {
 public:
     using Vector3 = cmath_fx::Vector<3, T>;
+    using Vector4 = cmath_fx::Vector<4, T>;
     using Vector15 = cmath_fx::Vector<15, T>;
     using Matrix15 = cmath_fx::Matrix<15, 15, T>;
-    using Quat = quat_lib::Quaternion<T>;
     
     // ノミナル状態構造体
     struct NominalState {
         Vector3 p;   // 位置
         Vector3 v;   // 速度
-        Quat q;      // 姿勢 (quaternion)
+        Vector4 q;   // 姿勢 (quaternion)
         Vector3 ba;  // 加速度バイアス
         Vector3 bg;  // 角速度バイアス
     };
@@ -35,10 +35,12 @@ public:
         nominal.v(2,0) += dx(5,0);
         
         // 姿勢更新（小角度クォータニオン積）
-        T theta[3] = {dx(6,0), dx(7,0), dx(8,0)};
-        Quat dq = Quat::from_small_angle(theta[0], theta[1], theta[2]);
-        nominal.q = Quat::multiply(nominal.q, dq);
-        nominal.q.normalize();
+        Vector4 dq;
+        cquat::from_small_angle(dx(6,0), dx(7,0), dx(8,0), dq);
+        Vector4 q_new;
+        cquat::multiply_quat(dq, nominal.q, q_new);
+        cquat::normalize_quat(q_new);
+        nominal.q = q_new;
         
         // バイアス更新
         nominal.ba(0,0) += dx(9,0);

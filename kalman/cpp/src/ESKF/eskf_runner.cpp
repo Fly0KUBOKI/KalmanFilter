@@ -1,7 +1,7 @@
 ﻿#include "../../Inc/ESKF/eskf_runner.hpp"
 #include "../../Inc/ESKF/eskf_core.hpp"
 #include "../../Inc/ESKF/eskf_postprocess.hpp"
-#include "../../Lib/Quaternion/quaternion_lib.hpp"
+#include "../../Lib/Quaternion/quaternion_functions.hpp"
 #include "../../Inc/Common/Sensor/sensor_filter.hpp"
 #include <cmath>
 #include <cstring>
@@ -17,7 +17,6 @@ void ESKFRunner::predict(ESKFState* s, const double* a_meas, const double* w_mea
     using namespace cmath_fx;
     using namespace common::sensor;
     using PredictParams = PredictPostprocessParams;
-    using QuatF = quat_lib::Quaternion<float>;
     
     // Convert double to float for ESKFCore (uses float internally)
     Vector<3, float> p_f, v_f, ba_f, bg_f, a_meas_f, w_meas_f, g_f;
@@ -86,7 +85,7 @@ void ESKFRunner::predict(ESKFState* s, const double* a_meas, const double* w_mea
     float accel_z_damping = static_cast<float>(s->accel_z_damping);
     float velocity_damping = static_cast<float>(s->velocity_damping);
     
-    // 1. accel_z_integration - Direct C++ implementation using quaternion_lib.hpp
+    // 1. accel_z_integration - Direct C++ implementation using quaternion_functions.hpp
     if (enable_accel_z) {
         apply_accel_z_integration(v_f, q_f, a_for_vel_f, dt_f, g_f, accel_z_threshold, accel_z_damping);
     }
@@ -158,16 +157,16 @@ void ESKFRunner::apply_accel_z_integration(
     float accel_z_threshold,
     float accel_z_damping
 ) {
-    using QuatF = quat_lib::Quaternion<float>;
     using namespace cmath_fx;
+    using namespace cquat;
     
-    // Convert Vector<4, float> to Quaternion<float>
-    QuatF quat(q(0, 0), q(1, 0), q(2, 0), q(3, 0));
-    quat.normalize();
+    // Normalize quaternion
+    Vector<4, float> q_norm = q;
+    normalize_quat(q_norm);
     
-    // Get rotation matrix (row-major order from quaternion_lib)
+    // Get rotation matrix (row-major order)
     float R_row[9];
-    quat.to_rotation_matrix(R_row);
+    quat_to_rotm_array(q_norm, R_row);
     
     // Convert row-major to column-major with transpose
     // mex_quaternion_lib returns transposed matrix for MATLAB (column-major)

@@ -1,4 +1,4 @@
-﻿##pragma once
+﻿#pragma once
 
 #ifndef ESKF_ESKF_INITIALIZER_HPP
 #define ESKF_ESKF_INITIALIZER_HPP
@@ -43,4 +43,3 @@ ESKFState* initialize_eskf_state(const ESKFInitializationData& data);
 } // namespace eskf
 
 #endif // ESKF_ESKF_INITIALIZER_HPP
-
