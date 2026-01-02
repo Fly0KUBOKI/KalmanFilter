@@ -1,10 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #ifndef MEX_MEX_TYPE_CONVERSION_HPP
 #define MEX_MEX_TYPE_CONVERSION_HPP
 
 #include "mex.h"
-#include "../../Inc/Common/Math/fixed_matrix.hpp"
+#include "../../Lib/Matrix/fixed_matrix.hpp"
 #include <cstddef>
 
 namespace mex_conv {

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #ifndef MEX_MEX_ESKF_COMMON_HPP
 #define MEX_MEX_ESKF_COMMON_HPP
@@ -24,11 +24,11 @@
 #endif
 
 // レイヤー1: 基本型（最初に配置）
-#include "../../Inc/Common/Math/fixed_matrix.hpp"
+#include "../../Lib/Matrix/fixed_matrix.hpp"
 
 // レイヤー2: ユーティリティ
 #include "../../Inc/Common/Math/vector_utils.hpp"
-#include "../../Inc/Common/Math/quaternion_lib.hpp"
+#include "../../Lib/Quaternion/quaternion_lib.hpp"
 #include "../../Inc/Common/Math/statistics.hpp"
 
 // レイヤー3: ESKF コア

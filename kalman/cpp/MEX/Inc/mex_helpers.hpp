@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #ifndef MEX_MEX_HELPERS_HPP
 #define MEX_MEX_HELPERS_HPP
@@ -6,7 +6,7 @@
 #include <mex.h>
 #include <string>
 #include <cstring>
-#include "../../Inc/Common/Math/quaternion_lib.hpp"
+#include "../../Lib/Quaternion/quaternion_lib.hpp"
 
 namespace mex_helpers {
 
