@@ -3,7 +3,7 @@
 #ifndef COMMON_MATH_VECTOR_UTILS_HPP
 #define COMMON_MATH_VECTOR_UTILS_HPP
 
-#include "fixed_matrix.hpp"
+#include "../../Lib/Matrix/fixed_matrix.hpp"
 #include <cmath>
 #include <cstring>
 

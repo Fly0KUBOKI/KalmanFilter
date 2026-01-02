@@ -3,7 +3,7 @@
 // Standard Kalman filter update step for linear observation model
 
 #include "../../Inc/EKF/ekf_linear_update.hpp"
-#include "../../Inc/Common/Math/fixed_matrix.hpp"
+#include "../../Lib/Matrix/fixed_matrix.hpp"
 #include "../../Inc/KF/kalman_filter_core.hpp"
 #include <cmath>
 

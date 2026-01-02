@@ -3,7 +3,7 @@
 #ifndef ESKF_ESKF_POSTPROCESS_HPP
 #define ESKF_ESKF_POSTPROCESS_HPP
 
-#include "Common/Math/fixed_matrix.hpp"
+#include "../Lib/Matrix/fixed_matrix.hpp"
 #include <cstddef>
 
 namespace eskf {

@@ -3,7 +3,7 @@
 // Implementation: Src/EKF/ekf_core.cpp (部分実装)
 // テンプレート関数はこのヘッダー内に実装含む
 
-#include "Common/Math/fixed_matrix.hpp"
+#include "../Lib/Matrix/fixed_matrix.hpp"
 #include "KF/kalman_filter_core.hpp"
 
 namespace ekf {

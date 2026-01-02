@@ -1,5 +1,6 @@
-﻿#pragma once
-#include "fixed_matrix.hpp"
+#pragma once
+// Moved from Inc/Common/Math/quaternion.hpp to Lib/Quaternion/quaternion_functions.hpp
+#include "../Matrix/fixed_matrix.hpp"
 #include <cmath>
 
 #ifndef M_PI
@@ -88,3 +89,4 @@ inline void to_euler_deg(const cmath_fx::Vector<4, T>& q, cmath_fx::Vector<3, T>
 }
 
 } // namespace cquat
+

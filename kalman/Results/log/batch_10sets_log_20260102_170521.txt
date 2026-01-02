@@ -1,6 +1,6 @@
 ========================================
 10セット バッチシミュレーション開始
-開始時刻: 02-Jan-2026 15:38:53
+開始時刻: 02-Jan-2026 17:05:21
 ========================================
 
 
@@ -8,7 +8,7 @@
 === Run 1/10 ===
 ========================================
 Run 1: シミュレーション開始...
-Run 1: シミュレーション完了 (5.44秒)
+Run 1: シミュレーション完了 (5.29秒)
 Run 1: 結果保存 -> estimation_01.csv
 Run 1: 解析開始...
 Run 1 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
@@ -22,7 +22,7 @@ Run 1 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; atti
 === Run 2/10 ===
 ========================================
 Run 2: シミュレーション開始...
-Run 2: シミュレーション完了 (5.35秒)
+Run 2: シミュレーション完了 (5.23秒)
 Run 2: 結果保存 -> estimation_02.csv
 Run 2: 解析開始...
 Run 2 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
@@ -36,7 +36,7 @@ Run 2 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; atti
 === Run 3/10 ===
 ========================================
 Run 3: シミュレーション開始...
-Run 3: シミュレーション完了 (5.33秒)
+Run 3: シミュレーション完了 (5.42秒)
 Run 3: 結果保存 -> estimation_03.csv
 Run 3: 解析開始...
 Run 3 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
@@ -50,7 +50,7 @@ Run 3 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; atti
 === Run 4/10 ===
 ========================================
 Run 4: シミュレーション開始...
-Run 4: シミュレーション完了 (5.34秒)
+Run 4: シミュレーション完了 (6.17秒)
 Run 4: 結果保存 -> estimation_04.csv
 Run 4: 解析開始...
 Run 4 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
@@ -64,7 +64,7 @@ Run 4 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; atti
 === Run 5/10 ===
 ========================================
 Run 5: シミュレーション開始...
-Run 5: シミュレーション完了 (5.33秒)
+Run 5: シミュレーション完了 (5.37秒)
 Run 5: 結果保存 -> estimation_05.csv
 Run 5: 解析開始...
 Run 5 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
@@ -78,7 +78,7 @@ Run 5 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; atti
 === Run 6/10 ===
 ========================================
 Run 6: シミュレーション開始...
-Run 6: シミュレーション完了 (5.33秒)
+Run 6: シミュレーション完了 (6.05秒)
 Run 6: 結果保存 -> estimation_06.csv
 Run 6: 解析開始...
 Run 6 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
@@ -92,7 +92,7 @@ Run 6 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; atti
 === Run 7/10 ===
 ========================================
 Run 7: シミュレーション開始...
-Run 7: シミュレーション完了 (5.41秒)
+Run 7: シミュレーション完了 (7.40秒)
 Run 7: 結果保存 -> estimation_07.csv
 Run 7: 解析開始...
 Run 7 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
@@ -106,7 +106,7 @@ Run 7 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; atti
 === Run 8/10 ===
 ========================================
 Run 8: シミュレーション開始...
-Run 8: シミュレーション完了 (5.41秒)
+Run 8: シミュレーション完了 (5.32秒)
 Run 8: 結果保存 -> estimation_08.csv
 Run 8: 解析開始...
 Run 8 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
@@ -120,7 +120,7 @@ Run 8 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; atti
 === Run 9/10 ===
 ========================================
 Run 9: シミュレーション開始...
-Run 9: シミュレーション完了 (5.39秒)
+Run 9: シミュレーション完了 (5.41秒)
 Run 9: 結果保存 -> estimation_09.csv
 Run 9: 解析開始...
 Run 9 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
@@ -134,7 +134,7 @@ Run 9 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; atti
 === Run 10/10 ===
 ========================================
 Run 10: シミュレーション開始...
-Run 10: シミュレーション完了 (5.22秒)
+Run 10: シミュレーション完了 (7.45秒)
 Run 10: 結果保存 -> estimation_10.csv
 Run 10: 解析開始...
 Run 10 Summary: PASS (Position axes within 1.00m and attitude within 5.0deg; attitude axes within 1.0deg)
@@ -176,5 +176,5 @@ Run 10: PASS (Pos Overall=0.9064m, X=0.1853m, Y=0.1605m, Z=0.8726m, Att=0.25/0.2
 MAT結果保存: batch_10sets_results.mat
 CSVサマリー保存: batch_10sets_summary.csv
 
-終了時刻: 02-Jan-2026 15:39:50
+終了時刻: 02-Jan-2026 17:06:25
 ========================================

@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#include "Common/Math/fixed_matrix.hpp"
-#include "Common/Math/quaternion.hpp"
+#include "../Lib/Matrix/fixed_matrix.hpp"
+#include "../Lib/Quaternion/quaternion_functions.hpp"
 
 namespace meukf {
 

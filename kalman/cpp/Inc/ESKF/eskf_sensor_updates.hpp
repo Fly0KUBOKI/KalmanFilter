@@ -4,7 +4,7 @@
 #define ESKF_ESKF_SENSOR_UPDATES_HPP
 
 #include "eskf_state.hpp"
-#include "Common/Math/fixed_matrix.hpp"
+#include "../Lib/Matrix/fixed_matrix.hpp"
 #include "Common/Sensor/sensor_filter.hpp"
 #include "Common/Sensor/sensor_preprocessor.hpp"
 #include "eskf_core.hpp"

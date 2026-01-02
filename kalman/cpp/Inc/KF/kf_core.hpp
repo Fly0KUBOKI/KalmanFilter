@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "Common/Math/fixed_matrix.hpp"
+#include "../Lib/Matrix/fixed_matrix.hpp"
 #include "Common/Sensor/sensor_filter.hpp"
 #include <cmath>
 

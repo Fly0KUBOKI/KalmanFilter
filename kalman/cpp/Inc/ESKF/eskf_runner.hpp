@@ -6,7 +6,7 @@
 #include "eskf_state.hpp"
 #include "eskf_core.hpp"
 #include "eskf_postprocess.hpp"
-#include "Common/Math/fixed_matrix.hpp"
+#include "../Lib/Matrix/fixed_matrix.hpp"
 #include "Common/Sensor/sensor_filter.hpp"
 #include <cstddef>
 

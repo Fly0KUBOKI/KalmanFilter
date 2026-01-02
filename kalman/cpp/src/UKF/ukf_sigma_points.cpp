@@ -3,9 +3,7 @@
 // This file contains the implementation for sigma point generation
 
 #include "../../Inc/UKF/ukf_sigma_points.hpp"
-#include "../../Lib/Matrix/decomposition.hpp"
-#include "../../Lib/Common/types.hpp"
-#include "../../Inc/Common/Math/fixed_matrix.hpp"
+#include "../../Lib/Matrix/fixed_matrix.hpp"
 #include <cmath>
 #include <cstring>
 
@@ -66,7 +64,7 @@ void generate_sigma_points_dynamic(
     
     // Scale P: P_scaled = (n + lambda) * P
     // Note: Using fixed-size arrays to avoid dynamic allocation
-    // Maximum supported dimension is 20 (from lib::MAX_STATE_DIM)
+    // Maximum supported dimension is 20
     const int MAX_DIM = 20;
     if (n > MAX_DIM) {
         return; // Dimension too large

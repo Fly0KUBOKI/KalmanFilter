@@ -1,122 +1,52 @@
 # Lib ライブラリ
 
-## 概要
+## ✅ 使用中 - 行列計算・クォータニオン計算ライブラリ
 
-Libフォルダは、MEUKFを含む全てのカルマンフィルタ実装が使用する共通ライブラリを提供します。
-各ライブラリは独立して完結し、外部依存を最小化しています。
+このフォルダには、フィルタ実装で使用される独立したライブラリが含まれています。
 
 ## ディレクトリ構造
 
 ```
 Lib/
-├── Common/           # 共通定義
-│   └── types.hpp     # 型定義 (Scalar=float, Index=uint8_t)
-├── Matrix/           # 静的行列ライブラリ
-│   ├── matrix.hpp    # 行列クラス定義
-│   └── decomposition.hpp  # コレスキー分解等
-├── Quaternion/       # クォータニオンライブラリ
-│   └── quaternion.hpp
-└── KalmanCore/      # カルマンフィルタ基盤
-    └── gain.hpp     # カルマンゲイン計算
+├── Matrix/
+│   └── fixed_matrix.hpp        # cmath_fx::Matrix, FixedMatrix (全てのフィルタで使用)
+│
+└── Quaternion/
+    ├── quaternion_functions.hpp # cquat:: 関数群 (ESKF/MEUKFコアで使用)
+    └── quaternion_lib.hpp       # quat_lib::Quaternion クラス (ESKF初期化・後処理で使用)
 ```
 
-## 使用方法
+## ライブラリの使用状況
 
-### 基本型
+### 行列計算 (`Lib/Matrix/fixed_matrix.hpp`)
+- **`cmath_fx::Matrix<R, C, T>`**: 固定サイズの行列/ベクトル
+- **`cmath_fx::FixedMatrix`**: 動的サイズの行列（最大容量固定）
+- **使用状況**: ESKF、MEUKF、EKF、UKFの**全てのフィルタ実装で統一的に使用**
 
-```cpp
-#include <Lib/Common/types.hpp>
+### クォータニオン計算
 
-using namespace lib;
+#### `Lib/Quaternion/quaternion_functions.hpp` (`cquat::`)
+- **特徴**: `cmath_fx::Vector<4, T>` を基盤とした関数群
+- **使用状況**: ESKFおよびMEUKFのコア計算ロジックで使用（`float`精度）
+- **使用ファイル**: `eskf_core.cpp`, `eskf_math.cpp`, `meukf_core.cpp`
 
-Scalar x = 1.0f;  // float
-Index i = 5;      // uint8_t
-```
+#### `Lib/Quaternion/quaternion_lib.hpp` (`quat_lib::Quaternion`)
+- **特徴**: クラスベースのクォータニオン実装
+- **使用状況**: ESKFの初期化、後処理ロジックで使用（`double`精度）
+- **使用ファイル**: `eskf_initializer.cpp`, `eskf_runner.cpp`, `eskf_postprocess.cpp`
 
-### 行列操作
+## 推奨使用ガイド
 
-```cpp
-#include <Lib/Matrix/matrix.hpp>
+### 新しいコードを書く際
+- **行列計算**: `cmath_fx::Matrix<R, C, T>` を常に使用してください
+- **クォータニオン計算（コアアルゴリズム）**: `cquat::` 関数群を使用してください（`float`精度、`cmath_fx::Vector<4, float>`と連携）
+- **クォータニオン計算（初期化・後処理）**: `quat_lib::Quaternion<double>` クラスを使用してください（`double`精度が必要な場合）
 
-using namespace lib::matrix;
+## 移行履歴
 
-Mat<3, 3> A = Mat<3, 3>::Identity();
-Vec3 v;
-v(0, 0) = 1.0f;
-v(1, 0) = 2.0f;
-v(2, 0) = 3.0f;
+これらのライブラリは、2025-01-02に `Inc/Common/Math/` から移行されました。
+- `fixed_matrix.hpp` → `Lib/Matrix/fixed_matrix.hpp`
+- `quaternion.hpp` → `Lib/Quaternion/quaternion_functions.hpp`
+- `quaternion_lib.hpp` → `Lib/Quaternion/quaternion_lib.hpp`
 
-Mat<3, 3> B = A * A.transpose();
-```
-
-### コレスキー分解
-
-```cpp
-#include <Lib/Matrix/decomposition.hpp>
-
-using namespace lib::matrix;
-
-Mat<3, 3> P;
-Mat<3, 3> L;
-if (cholesky(P, L)) {
-    // 成功
-} else {
-    // 失敗 - 正定値でない
-}
-
-// 堅牢版（正則化付き）
-cholesky_robust(P, L);
-```
-
-### クォータニオン
-
-```cpp
-#include <Lib/Quaternion/quaternion.hpp>
-
-using namespace lib::quat;
-
-Quat q = from_euler_deg(0.0f, 0.0f, 0.0f);
-Quat q2 = integrate(q, omega, dt);
-Mat3 R = to_rotation_matrix(q2);
-Vec3 euler = to_euler_deg(q2);
-```
-
-### カルマンゲイン
-
-```cpp
-#include <Lib/KalmanCore/gain.hpp>
-
-using namespace lib::kalman;
-
-Mat<15, 3> K;
-Status status = compute_gain(P, H, S, K);
-if (status == STATUS_OK) {
-    // ゲイン計算成功
-}
-```
-
-## 設計方針
-
-1. **型の統一**: 全て`float`型、インデックスは`uint8_t`
-2. **テンプレート使用**: コンパイル時サイズ決定
-3. **名前空間**: `lib::matrix`, `lib::quat`, `lib::kalman`
-4. **エラー処理**: `Status` enumで返す
-5. **外部依存なし**: Eigen等の外部ライブラリ不使用
-
-## 移行ガイド
-
-既存コードからLibへの移行:
-
-```cpp
-// 旧コード
-#include "../Common/Math/fixed_matrix.hpp"
-using cm = cmath_fx::FixedMatrix;
-
-// 新コード
-#include <Lib/Matrix/matrix.hpp>
-using namespace lib::matrix;
-using Vec3 = Vec<3>;
-```
-
-
-
+詳細は `LIBRARY_MIGRATION_STATUS.md` を参照してください。

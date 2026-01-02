@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "../Math/fixed_matrix.hpp"
+#include "../../Lib/Matrix/fixed_matrix.hpp"
 #include <cmath>
 #include <algorithm>
 

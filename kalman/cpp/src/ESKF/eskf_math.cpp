@@ -2,7 +2,7 @@
 // Implementation file for ESKF math library
 
 #include "../../Inc/ESKF/eskf_math.hpp"
-#include "../../Inc/Common/Math/quaternion.hpp"
+#include "../../Lib/Quaternion/quaternion_functions.hpp"
 #include <cmath>
 
 namespace eskf_math {

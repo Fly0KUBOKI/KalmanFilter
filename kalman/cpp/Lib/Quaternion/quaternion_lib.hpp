@@ -1,4 +1,5 @@
-﻿#pragma once
+#pragma once
+// Moved from Inc/Common/Math/quaternion_lib.hpp to Lib/Quaternion/quaternion_lib.hpp
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -296,3 +297,4 @@ public:
 };
 
 } // namespace quat_lib
+

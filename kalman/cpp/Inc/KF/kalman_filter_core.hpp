@@ -2,7 +2,7 @@
 
 // Implementation: このヘッダー内に実装含む（テンプレート実装）
 
-#include "Common/Math/fixed_matrix.hpp"
+#include "../Lib/Matrix/fixed_matrix.hpp"
 
 namespace kf {
 
