@@ -1,0 +1,10 @@
+=== MEX Build Log Started at 03-Jan-2026 18:05:22 ===
+Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20260103_180522.txt
+
+MEX Build for Kalman Filters
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+Compiling mex_meukf_step_v2... 'Microsoft Visual C++ 2022' でビルドしています。
+MEX は正常に完了しました。
+OK
+Compiling mex_run_eskf... 

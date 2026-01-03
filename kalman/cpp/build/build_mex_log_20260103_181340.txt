@@ -1,5 +1,5 @@
-=== MEX Build Log Started at 03-Jan-2026 17:06:20 ===
-Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20260103_170620.txt
+=== MEX Build Log Started at 03-Jan-2026 18:13:40 ===
+Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20260103_181340.txt
 
 MEX Build for Kalman Filters
 Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
@@ -18,4 +18,4 @@ Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cp
 To use MEX files, add to MATLAB path:
   addpath('C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin')
 
-=== MEX Build Log Ended at 03-Jan-2026 17:06:28 ===
+=== MEX Build Log Ended at 03-Jan-2026 18:13:48 ===

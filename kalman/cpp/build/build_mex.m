@@ -295,9 +295,28 @@ function success = build_single_mex(mex_file, compile_opts, inc_args, extra_sour
     fprintf('Compiling %s... ', output_name);
     if ~isempty(log_fid), fprintf(log_fid, 'Compiling %s... ', output_name); end
     
-    cmd_out = evalc('mex(mex_args{:});');
-    if ~isempty(log_fid) && ~isempty(cmd_out)
-        fprintf(log_fid, '%s', cmd_out);
+    cmd_out = '';
+    try
+        cmd_out = evalc('mex(mex_args{:});');
+        if ~isempty(log_fid) && ~isempty(cmd_out)
+            fprintf(log_fid, '%s', cmd_out);
+        end
+    catch e
+        % Write mex stdout/stderr (if any) and the exception report to the log
+        if ~isempty(log_fid)
+            if ~isempty(cmd_out)
+                fprintf(log_fid, '--- mex stdout/stderr ---\n%s\n', cmd_out);
+            end
+            fprintf(log_fid, '--- mex exception ---\n%s\n', getReport(e, 'extended'));
+        end
+        % Also print to console for immediate feedback
+        if ~isempty(cmd_out)
+            fprintf('--- mex stdout/stderr ---\n%s\n', cmd_out);
+        end
+        fprintf('--- mex exception ---\n%s\n', getReport(e, 'extended'));
+        fprintf('FAILED\n');
+        if ~isempty(log_fid), fprintf(log_fid, 'FAILED\n'); end
+        return;
     end
     
     if exist(mex_output, 'file')
