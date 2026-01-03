@@ -9,9 +9,13 @@
 #include "Lib/Matrix/fixed_matrix.hpp"
 #include "Lib/Quaternion/quaternion_functions.hpp"
 
-// Common interfaces and standalone API
+// Common interfaces
 #include "Lib/Common/inc/interface.hpp"
+
+// Standalone API is optional; define KALMAN_NO_STANDALONE to exclude
+#ifndef KALMAN_NO_STANDALONE
 #include "Lib/Common/inc/standalone.hpp"
+#endif
 
 // Filter implementations (thin adapters)
 #include "Lib/ESKF/inc/filter.hpp"

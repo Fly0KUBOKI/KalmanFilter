@@ -22,6 +22,14 @@ FILES = [
     "../examples/main_eskf.cpp",
 ]
 
+# Additional files reported by pre-commit checks
+FILES += [
+    "../Lib/Common/inc/utils.hpp",
+    "../Lib/Common/src/interface_stub.cpp",
+    "../Lib/ESKF/src/filter.cpp",
+    "../examples/test_interface.cpp",
+]
+
 ROOT = Path(__file__).resolve().parent
 
 def add_bom(path: Path) -> bool:

@@ -87,6 +87,8 @@ function build_mex(targets)
     built_count = 0;
     
     compile_opts = {'-O', '-DNDEBUG'};
+    % Exclude standalone API from MEX builds to keep MEX and standalone separated
+    compile_opts = [compile_opts, {'-DKALMAN_NO_STANDALONE'}];
     if ispc
         compile_opts = [compile_opts, {'-DWIN32', '-D_CRT_SECURE_NO_WARNINGS'}];
         old_compflags = getenv('COMPFLAGS');
@@ -105,7 +107,19 @@ function build_mex(targets)
     inc_common = ['-I' fullfile(inc_dir, 'Common')];
     inc_meukf = ['-I' fullfile(inc_dir, 'MEUKF')];
     inc_lib = ['-I' lib_dir];
+    % Add top-level includes and per-library inc/ folders under Lib/
     inc_args = {inc_include, inc_kf_core, inc_ekf_core, inc_eskf, inc_ukf_core, inc_common, inc_meukf, inc_lib};
+    % discover Lib/*/inc and add them
+    lib_entries = dir(lib_dir);
+    for i = 1:length(lib_entries)
+        if ~lib_entries(i).isdir, continue; end
+        name = lib_entries(i).name;
+        if strcmp(name, '.') || strcmp(name, '..'), continue; end
+        lib_inc = fullfile(lib_dir, name, 'inc');
+        if exist(lib_inc, 'dir')
+            inc_args{end+1} = ['-I' lib_inc];
+        end
+    end
     
     if exist('mex_matlab_helpers.cpp', 'file')
         if wants('mex_matlab_helpers') && build_single_mex('mex_matlab_helpers.cpp', compile_opts, inc_args, {}, bin_dir, [], log_fid)
