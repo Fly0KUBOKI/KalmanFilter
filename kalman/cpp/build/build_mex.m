@@ -133,7 +133,12 @@ function build_mex(targets)
         end
     end
 
-    eskf_math_cpp = fullfile(src_dir, 'ESKF', 'eskf_math.cpp');
+    % Prefer implementation files from Lib/ESKF/src if they exist (after migration)
+    lib_eskf_src = fullfile(lib_dir, 'ESKF', 'src');
+    eskf_math_cpp = fullfile(lib_eskf_src, 'eskf_math.cpp');
+    if ~exist(eskf_math_cpp, 'file')
+        eskf_math_cpp = fullfile(src_dir, 'ESKF', 'eskf_math.cpp');
+    end
     if exist('mex_eskf_math.cpp', 'file') && exist(eskf_math_cpp, 'file')
         if wants('mex_eskf_math') && build_single_mex('mex_eskf_math.cpp', compile_opts, inc_args, {eskf_math_cpp}, bin_dir, [], log_fid)
             built_count = built_count + 1;
@@ -222,13 +227,28 @@ function build_mex(targets)
     end
     
     filter_management_cpp = fullfile(src_dir, 'Common', 'filter_management.cpp');
-    eskf_postprocess_cpp = fullfile(src_dir, 'ESKF', 'eskf_postprocess.cpp');
-    eskf_core_cpp = fullfile(src_dir, 'ESKF', 'eskf_core.cpp');
-    eskf_math_cpp = fullfile(src_dir, 'ESKF', 'eskf_math.cpp');
-    eskf_sensor_updates_cpp = fullfile(src_dir, 'ESKF', 'eskf_sensor_updates.cpp');
+    eskf_postprocess_cpp = fullfile(lib_eskf_src, 'eskf_postprocess.cpp');
+    if ~exist(eskf_postprocess_cpp, 'file')
+        eskf_postprocess_cpp = fullfile(src_dir, 'ESKF', 'eskf_postprocess.cpp');
+    end
+    eskf_core_cpp = fullfile(lib_eskf_src, 'eskf_core.cpp');
+    if ~exist(eskf_core_cpp, 'file')
+        eskf_core_cpp = fullfile(src_dir, 'ESKF', 'eskf_core.cpp');
+    end
+    eskf_math_cpp = eskf_math_cpp; % already resolved above
+    eskf_sensor_updates_cpp = fullfile(lib_eskf_src, 'eskf_sensor_updates.cpp');
+    if ~exist(eskf_sensor_updates_cpp, 'file')
+        eskf_sensor_updates_cpp = fullfile(src_dir, 'ESKF', 'eskf_sensor_updates.cpp');
+    end
     sensor_preprocessor_cpp = fullfile(src_dir, 'Common', 'Sensor', 'sensor_preprocessor.cpp');
-    eskf_runner_cpp = fullfile(src_dir, 'ESKF', 'eskf_runner.cpp');
-    eskf_initializer_cpp = fullfile(src_dir, 'ESKF', 'eskf_initializer.cpp');
+    eskf_runner_cpp = fullfile(lib_eskf_src, 'eskf_runner.cpp');
+    if ~exist(eskf_runner_cpp, 'file')
+        eskf_runner_cpp = fullfile(src_dir, 'ESKF', 'eskf_runner.cpp');
+    end
+    eskf_initializer_cpp = fullfile(lib_eskf_src, 'eskf_initializer.cpp');
+    if ~exist(eskf_initializer_cpp, 'file')
+        eskf_initializer_cpp = fullfile(src_dir, 'ESKF', 'eskf_initializer.cpp');
+    end
     mex_eskf_initializer_cpp = fullfile(mex_src_dir, 'mex_eskf_initializer.cpp');
     if exist('mex_run_eskf.cpp', 'file')
         if wants('mex_run_eskf') && build_single_mex('mex_run_eskf.cpp', compile_opts, inc_args, {filter_management_cpp, eskf_postprocess_cpp, eskf_core_cpp, eskf_math_cpp, eskf_sensor_updates_cpp, sensor_preprocessor_cpp, eskf_runner_cpp, eskf_initializer_cpp, mex_eskf_initializer_cpp, meukf_core_cpp}, bin_dir, [], log_fid)
