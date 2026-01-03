@@ -1,11 +1,11 @@
 ﻿// eskf_core.cpp
 // Implementation file for ESKF core functions
 
-#include "../../Inc/ESKF/eskf_core.hpp"
-#include "../../Inc/ESKF/eskf_math.hpp"
-#include "../../Inc/KF/kalman_filter_core.hpp"
+#include "../inc/eskf_core.hpp"
+#include "../inc/eskf_math.hpp"
+#include "../../KF/inc/kalman_filter_core.hpp"
 #include "../../Lib/Quaternion/quaternion_functions.hpp"
-#include "../../Inc/Common/Math/math_utils.hpp"
+#include "../../Common/inc/Math/math_utils.hpp"
 #include <cmath>
 
 namespace eskf {

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "../Lib/Matrix/fixed_matrix.hpp"
 
@@ -35,4 +35,3 @@ void ekf_linear_update(
 
 } // namespace linear
 } // namespace ekf
-

@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#include "../Lib/Matrix/fixed_matrix.hpp"
-#include "Common/Sensor/sensor_filter.hpp"
+#include "../../Matrix/fixed_matrix.hpp"
+#include "../../Common/Sensor/sensor_filter.hpp"
 #include <cmath>
 
 namespace kf {
@@ -250,6 +250,3 @@ public:
 };
 
 } // namespace kf
-#pragma once
-
-#include "../Lib/KF/inc/kf_core.hpp"

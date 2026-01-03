@@ -1,10 +1,9 @@
-﻿#pragma once
+#pragma once
 
-// Implementation: Src/EKF/ekf_core.cpp (部分実装)
-// テンプレート関数はこのヘッダー内に実装含む
+// Implementation: このヘッダー内に実装含む（テンプレート実装）
 
-#include "../Lib/Matrix/fixed_matrix.hpp"
-#include "KF/kalman_filter_core.hpp"
+#include "../../Matrix/fixed_matrix.hpp"
+#include "../../KF/kalman_filter_core.hpp"
 
 namespace ekf {
 

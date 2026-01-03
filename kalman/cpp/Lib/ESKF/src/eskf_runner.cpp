@@ -1,8 +1,8 @@
-﻿#include "../../Inc/ESKF/eskf_runner.hpp"
-#include "../../Inc/ESKF/eskf_core.hpp"
-#include "../../Inc/ESKF/eskf_postprocess.hpp"
+﻿#include "../inc/eskf_runner.hpp"
+#include "../inc/eskf_core.hpp"
+#include "../inc/eskf_postprocess.hpp"
 #include "../../Lib/Quaternion/quaternion_functions.hpp"
-#include "../../Inc/Common/Sensor/sensor_filter.hpp"
+#include "../../Common/inc/Sensor/sensor_filter.hpp"
 #include <cmath>
 #include <cstring>
 #include <vector>

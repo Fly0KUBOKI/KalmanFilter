@@ -1,6 +1,6 @@
 ﻿// eskf_math.cpp
 
-#include "../../Inc/ESKF/eskf_math.hpp"
+#include "../inc/eskf_math.hpp"
 #include "../../Lib/Quaternion/quaternion_functions.hpp"
 #include <cmath>
 

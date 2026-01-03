@@ -1,7 +1,7 @@
-﻿#include "../../Inc/ESKF/eskf_initializer.hpp"
+﻿#include "../inc/eskf_initializer.hpp"
 #include "../../Lib/Quaternion/quaternion_functions.hpp"
 #include "../../Lib/Matrix/fixed_matrix.hpp"
-#include "../../Inc/Common/Math/statistics.hpp"
+#include "../../Common/inc/Math/statistics.hpp"
 #include <cmath>
 #include <cstring>
 #include <algorithm>

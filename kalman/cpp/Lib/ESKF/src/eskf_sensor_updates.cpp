@@ -1,5 +1,5 @@
-﻿#include "../../Inc/ESKF/eskf_sensor_updates.hpp"
-#include "../../Inc/ESKF/eskf_state.hpp"
+﻿#include "../inc/eskf_sensor_updates.hpp"
+#include "../inc/eskf_state.hpp"
 #include <cmath>
 
 namespace eskf {

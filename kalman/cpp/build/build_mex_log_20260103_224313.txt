@@ -1,0 +1,30 @@
+=== MEX Build Log Started at 03-Jan-2026 22:43:13 ===
+Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20260103_224313.txt
+
+MEX Build for Kalman Filters
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+Compiling mex_run_eskf... --- mex exception ---
+次を使用中のエラー: mex
+eskf_postprocess.cpp
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\ESKF\src\eskf_postprocess.cpp(4): fatal error C1083: include ファイルを開けませ
+ん。'../../Common/inc/filter_management.hpp':No such file or directory
+
+
+
+エラー: build_mex>build_single_mex (行 320)
+        cmd_out = evalc('mex(mex_args{:});');
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: build_mex (行 254)
+        if wants('mex_run_eskf') && build_single_mex('mex_run_eskf.cpp', compile_opts, inc_args, {filter_management_cpp, eskf_postprocess_cpp, eskf_core_cpp, eskf_math_cpp, eskf_sensor_updates_cpp, sensor_preprocessor_cpp, eskf_runner_cpp, eskf_initializer_cpp, mex_eskf_initializer_cpp, meukf_core_cpp}, bin_dir, [], log_fid)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FAILED
+
+=== Build Complete ===
+Successfully built 0 MEX file(s)
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+To use MEX files, add to MATLAB path:
+  addpath('C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin')
+
+=== MEX Build Log Ended at 03-Jan-2026 22:43:15 ===
