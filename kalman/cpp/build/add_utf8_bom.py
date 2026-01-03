@@ -15,6 +15,11 @@ FILES = [
     "../Lib/MEUKF/inc/unified_types.hpp",
     "../Lib/MEUKF/src/meukf_core.cpp",
     "../Lib/KF/inc/kf_core.hpp",
+    "../Lib/Common/inc/standalone.hpp",
+    "../Lib/Common/src/standalone.cpp",
+    "../Lib/ESKF/inc/filter.hpp",
+    "../Lib/MEUKF/src/unified_filter.cpp",
+    "../examples/main_eskf.cpp",
 ]
 
 ROOT = Path(__file__).resolve().parent

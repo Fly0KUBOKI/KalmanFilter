@@ -1,0 +1,281 @@
+=== MEX Build Log Started at 03-Jan-2026 23:58:17 ===
+Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20260103_235817.txt
+
+MEX Build for Kalman Filters
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+Compiling mex_meukf_step_v2... --- mex exception ---
+次を使用中のエラー: mex
+meukf_core.cpp
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2059: 構文エラー: 'for'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2143: 構文エラー: ')' が ';' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2143: 構文エラー: ';' が '<' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポート
+していません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2059: 構文エラー: '<'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2143: 構文エラー: ';' が '++' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポート
+していません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2086: 'int i': 再定義されました。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): note: 'i' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2059: 構文エラー: '++'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2059: 構文エラー: ')'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C2059: 構文エラー: 'for'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C2143: 構文エラー: ')' が ';' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C2143: 構文エラー: ';' が '<' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポート
+していません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C2086: 'int i': 再定義されました。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): note: 'i' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C2059: 構文エラー: '<'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C2059: 構文エラー: '++'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C2059: 構文エラー: ')'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(25): error C2143: 構文エラー: ')' が ';' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(25): error C2143: 構文エラー: ';' が '<' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(25): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポート
+していません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(25): error C2059: 構文エラー: '<'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(25): error C2059: 構文エラー: '++'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(25): error C2059: 構文エラー: ')'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(28): error C2059: 構文エラー: 'return'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(29): error C2059: 構文エラー: '}'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(29): error C2143: 構文エラー: ';' が '}' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(32): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(32): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(74): error C2065: 'Matrix3x3': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(74): error C2065: 'P': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(74): error C2182: 'ensure_positive_definite': 'void' のこの使用は無効です
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(74): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2059: 構文エラー: 'for'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2143: 構文エラー: ')' が ';' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2143: 構文エラー: ';' が '<' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポート
+していません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2086: 'int i': 再定義されました。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): note: 'i' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2059: 構文エラー: '<'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2059: 構文エラー: '++'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2059: 構文エラー: ')'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(85): error C3861: 'P': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2059: 構文エラー: 'for'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2143: 構文エラー: ')' が ';' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2143: 構文エラー: ';' が '<' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポート
+していません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2086: 'int i': 再定義されました。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): note: 'i' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2059: 構文エラー: '<'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2059: 構文エラー: '++'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2059: 構文エラー: ')'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(91): error C2059: 構文エラー: 'if'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(91): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(91): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(104): error C2059: 構文エラー: '}'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(104): error C2143: 構文エラー: ';' が '}' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(106): error C2653: 'MEUKFCore': 識別子がクラス名でも名前空間名でもありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(106): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(106): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(159): error C2653: 'MEUKFCore': 識別子がクラス名でも名前空間名でもありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(159): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポー
+トしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(159): error C2143: 構文エラー: ',' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(160): error C3861: 'p': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(160): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(160): error C3861: 'p': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(160): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(160): error C3861: 'p': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(160): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(161): error C3861: 'v': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(161): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(161): error C3861: 'v': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(161): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(161): error C3861: 'v': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(161): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C3861: 'q': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C3861: 'q': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C3861: 'q': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C3861: 'q': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(163): error C3861: 'ba': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(163): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(163): error C3861: 'ba': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(163): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(163): error C3861: 'ba': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(163): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(164): error C3861: 'bg': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(164): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(164): error C3861: 'bg': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(164): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(164): error C3861: 'bg': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(164): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(168): error C3861: 'P': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(168): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(173): error C2653: 'MEUKFCore': 識別子がクラス名でも名前空間名でもありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(173): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポー
+トしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(173): error C2143: 構文エラー: ',' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(174): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(174): error C3861: 'p': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(174): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(174): fatal error C1003: プログラム内のエラーが 100 個を超えました。コンパイルは中断されます。
+
+
+
+エラー: build_mex>build_single_mex (行 320)
+        cmd_out = evalc('mex(mex_args{:});');
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: build_mex (行 181)
+        if wants('mex_meukf_step') && build_single_mex('mex_meukf_step.cpp', compile_opts, inc_args, {meukf_core_cpp}, bin_dir, 'mex_meukf_step_v2', log_fid)
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FAILED
+Compiling mex_run_eskf... --- mex exception ---
+次を使用中のエラー: mex
+meukf_core.cpp
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2059: 構文エラー: 'for'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2143: 構文エラー: ')' が ';' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2143: 構文エラー: ';' が '<' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポート
+していません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2059: 構文エラー: '<'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2143: 構文エラー: ';' が '++' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポート
+していません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2086: 'int i': 再定義されました。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): note: 'i' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2059: 構文エラー: '++'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2059: 構文エラー: ')'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C2059: 構文エラー: 'for'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C2143: 構文エラー: ')' が ';' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C2143: 構文エラー: ';' が '<' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポート
+していません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C2086: 'int i': 再定義されました。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): note: 'i' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C2059: 構文エラー: '<'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C2059: 構文エラー: '++'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(24): error C2059: 構文エラー: ')'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(25): error C2143: 構文エラー: ')' が ';' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(25): error C2143: 構文エラー: ';' が '<' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(25): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポート
+していません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(25): error C2059: 構文エラー: '<'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(25): error C2059: 構文エラー: '++'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(25): error C2059: 構文エラー: ')'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(28): error C2059: 構文エラー: 'return'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(29): error C2059: 構文エラー: '}'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(29): error C2143: 構文エラー: ';' が '}' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(32): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(32): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(74): error C2065: 'Matrix3x3': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(74): error C2065: 'P': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(74): error C2182: 'ensure_positive_definite': 'void' のこの使用は無効です
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(74): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2059: 構文エラー: 'for'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2143: 構文エラー: ')' が ';' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2143: 構文エラー: ';' が '<' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポート
+していません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2086: 'int i': 再定義されました。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): note: 'i' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2059: 構文エラー: '<'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2059: 構文エラー: '++'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2059: 構文エラー: ')'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(76): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(85): error C3861: 'P': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2059: 構文エラー: 'for'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2143: 構文エラー: ')' が ';' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2143: 構文エラー: ';' が '<' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポート
+していません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2086: 'int i': 再定義されました。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(7): note: 'i' の宣言を確認してください
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2059: 構文エラー: '<'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2059: 構文エラー: '++'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2059: 構文エラー: ')'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(86): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(91): error C2059: 構文エラー: 'if'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(91): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(91): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(104): error C2059: 構文エラー: '}'
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(104): error C2143: 構文エラー: ';' が '}' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(106): error C2653: 'MEUKFCore': 識別子がクラス名でも名前空間名でもありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(106): error C2143: 構文エラー: ';' が '{' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(106): error C2447: '{': 対応する関数ヘッダーがありません (旧形式の仮引数リスト?)
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(159): error C2653: 'MEUKFCore': 識別子がクラス名でも名前空間名でもありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(159): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポー
+トしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(159): error C2143: 構文エラー: ',' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(160): error C3861: 'p': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(160): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(160): error C3861: 'p': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(160): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(160): error C3861: 'p': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(160): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(161): error C3861: 'v': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(161): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(161): error C3861: 'v': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(161): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(161): error C3861: 'v': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(161): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C3861: 'q': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C3861: 'q': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C3861: 'q': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C3861: 'q': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(162): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(163): error C3861: 'ba': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(163): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(163): error C3861: 'ba': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(163): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(163): error C3861: 'ba': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(163): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(164): error C3861: 'bg': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(164): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(164): error C3861: 'bg': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(164): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(164): error C3861: 'bg': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(164): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(168): error C3861: 'P': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(168): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(173): error C2653: 'MEUKFCore': 識別子がクラス名でも名前空間名でもありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(173): error C4430: 型指定子がありません - int と仮定しました。メモ: C++ は int を既定値としてサポー
+トしていません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(173): error C2143: 構文エラー: ',' が '&' の前にありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(174): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(174): error C3861: 'p': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(174): error C2065: 's': 定義されていない識別子です。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Src\MEUKF\meukf_core.cpp(174): fatal error C1003: プログラム内のエラーが 100 個を超えました。コンパイルは中断されます。
+
+
+
+エラー: build_mex>build_single_mex (行 320)
+        cmd_out = evalc('mex(mex_args{:});');
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: build_mex (行 254)
+        if wants('mex_run_eskf') && build_single_mex('mex_run_eskf.cpp', compile_opts, inc_args, {filter_management_cpp, eskf_postprocess_cpp, eskf_core_cpp, eskf_math_cpp, eskf_sensor_updates_cpp, sensor_preprocessor_cpp, eskf_runner_cpp, eskf_initializer_cpp, mex_eskf_initializer_cpp, meukf_core_cpp}, bin_dir, [], log_fid)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FAILED
+
+=== Build Complete ===
+Successfully built 0 MEX file(s)
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+To use MEX files, add to MATLAB path:
+  addpath('C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin')
+
+=== MEX Build Log Ended at 03-Jan-2026 23:58:23 ===

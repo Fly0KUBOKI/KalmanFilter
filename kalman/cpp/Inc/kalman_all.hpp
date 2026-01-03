@@ -1,13 +1,20 @@
 ﻿// kalman_all.hpp
-// Master header placeholder for incremental refactor (Phase2).
-// Minimal content to avoid impacting existing build; expand later.
+// Master header that aggregates core KalmanFilter public headers.
 #pragma once
 
 #ifndef KALMAN_ALL_HPP
 #define KALMAN_ALL_HPP
 
-#include "matrix.hpp"
-#include "quaternion.hpp"
+// Core utilities
+#include "Lib/Matrix/fixed_matrix.hpp"
+#include "Lib/Quaternion/quaternion_functions.hpp"
+
+// Common interfaces and standalone API
+#include "Lib/Common/inc/interface.hpp"
+#include "Lib/Common/inc/standalone.hpp"
+
+// Filter implementations (thin adapters)
+#include "Lib/ESKF/inc/filter.hpp"
 
 // Version info
 #define KALMAN_VERSION "2.0.0"

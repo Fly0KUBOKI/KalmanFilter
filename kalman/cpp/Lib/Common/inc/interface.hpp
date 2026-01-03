@@ -1,5 +1,55 @@
 ﻿#pragma once
 
+#include <cstdint>
+
+namespace kalman {
+
+struct SensorData {
+  float accel[3];      // m/s^2
+  float gyro[3];       // rad/s
+  float mag[3];        // uT
+  float baro_alt;      // m
+  double gps_lat;      // deg
+  double gps_lon;      // deg
+  double gps_alt;      // m
+};
+
+struct State {
+  float p[3];
+  float v[3];
+  float q[4];   // [w,x,y,z]
+  float euler[3];
+  float ba[3];
+  float bg[3];
+  float P[15*15];
+};
+
+struct Params {
+  float g[3];
+  float mag_ref[3];
+  float dt;
+  float noise_accel[3];
+  float noise_gyro[3];
+  float noise_ba[3];
+  float noise_bg[3];
+  float noise_mag[3];
+  float noise_baro;
+  double noise_gps[3];
+};
+
+class Filter {
+public:
+  virtual ~Filter() {}
+  virtual uint8_t init(const SensorData& obs, float static_time) = 0;
+  virtual uint8_t update(const SensorData& obs) = 0;
+  virtual uint8_t getState(State& out) = 0;
+  virtual uint8_t setParams(const Params& p) = 0;
+  virtual uint8_t reset() = 0;
+};
+
+} // namespace kalman
+#pragma once
+
 #include "../../Lib/Matrix/fixed_matrix.hpp"
 #include <cstdint>
 
