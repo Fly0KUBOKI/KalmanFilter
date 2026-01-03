@@ -1,8 +1,8 @@
-﻿#pragma once
+#pragma once
 
 // Implementation: このヘッダー内に実装含む（テンプレート実装）
 
-#include "../Lib/Matrix/fixed_matrix.hpp"
+#include "../../Matrix/fixed_matrix.hpp"
 #include <cmath>
 
 namespace ukf {

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "ukf_sigma_points.hpp"
 #include <functional>

@@ -9,6 +9,11 @@ FILES = [
     "../MEX/Inc/mex_type_conversion.hpp",
     "../MEX/mex_eskf_initializer.cpp",
     "../../src/ESKF/eskf_initializer.cpp",
+    "../Lib/MEUKF/inc/meukf_core.hpp",
+    "../Lib/MEUKF/inc/meukf_types.hpp",
+    "../Lib/MEUKF/inc/unified_filter.hpp",
+    "../Lib/MEUKF/inc/unified_types.hpp",
+    "../Lib/MEUKF/src/meukf_core.cpp",
 ]
 
 ROOT = Path(__file__).resolve().parent
