@@ -29,6 +29,9 @@ FILES += [
     "../Lib/ESKF/src/filter.cpp",
     "../examples/test_interface.cpp",
 ]
+FILES += [
+    "../examples/main_standalone.cpp",
+]
 
 ROOT = Path(__file__).resolve().parent
 

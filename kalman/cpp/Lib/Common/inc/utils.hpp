@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "interface.hpp"
+#include <cmath>
 
 namespace kalman {
 
