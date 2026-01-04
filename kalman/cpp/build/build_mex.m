@@ -186,10 +186,10 @@ function build_mex(targets)
 
     % Prefer implementation files from Lib/MEUKF/src if they exist (after migration)
     lib_meukf_src = fullfile(lib_dir, 'MEUKF', 'src');
-    % Prefer original Src/MEUKF/meukf_core.cpp implementation (avoid Lib placeholder)
-    meukf_core_cpp = fullfile(src_dir, 'MEUKF', 'meukf_core.cpp');
+    % Prefer Lib/MEUKF/src/meukf_core.cpp (migrated version)
+    meukf_core_cpp = fullfile(lib_meukf_src, 'meukf_core.cpp');
     if ~exist(meukf_core_cpp, 'file')
-        meukf_core_cpp = fullfile(lib_meukf_src, 'meukf_core.cpp');
+        meukf_core_cpp = fullfile(src_dir, 'MEUKF', 'meukf_core.cpp');
     end
     if exist('mex_meukf_step.cpp', 'file') && exist(meukf_core_cpp, 'file')
         if wants('mex_meukf_step') && build_single_mex('mex_meukf_step.cpp', compile_opts, inc_args, {meukf_core_cpp}, bin_dir, 'mex_meukf_step_v2', log_fid)
