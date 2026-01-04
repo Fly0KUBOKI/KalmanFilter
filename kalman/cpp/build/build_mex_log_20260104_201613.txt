@@ -1,9 +1,31 @@
-=== MEX Build Log Started at 04-Jan-2026 20:13:11 ===
-Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20260104_201311.txt
+=== MEX Build Log Started at 04-Jan-2026 20:16:13 ===
+Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20260104_201613.txt
 
 MEX Build for Kalman Filters
 Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
 
+Compiling mex_meukf_step_v2... 
+--- mex args ---
+-O
+-DNDEBUG
+-DKALMAN_NO_STANDALONE
+-DWIN32
+-D_CRT_SECURE_NO_WARNINGS
+-IC:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib
+-IC:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\Common\inc
+-IC:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\EKF\inc
+-IC:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\ESKF\inc
+-IC:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\KF\inc
+-IC:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\inc
+-IC:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\UKF\inc
+-output
+mex_meukf_step_v2
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_meukf_step.cpp
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp
+--- end mex args ---
+'Microsoft Visual C++ 2022' でビルドしています。
+MEX は正常に完了しました。
+OK
 Compiling mex_run_eskf... 
 --- mex args ---
 -O
@@ -32,27 +54,15 @@ C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\ES
 C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_eskf_initializer.cpp
 C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp
 --- end mex args ---
---- mex exception ---
-次を使用中のエラー: mex
-meukf_core.cpp
-C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1): fatal error C1083: include ファイルを開けませ
-ん。'../../Lib/MEUKF/inc/meukf_core.hpp':No such file or directory
-
-
-
-エラー: build_mex>build_single_mex (行 354)
-        cmd_out = evalc('mex(mex_args{:});');
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
-エラー: build_mex (行 280)
-        if wants('mex_run_eskf') && build_single_mex('mex_run_eskf.cpp', compile_opts, inc_args, {filter_management_cpp, eskf_postprocess_cpp, eskf_core_cpp, eskf_math_cpp, eskf_sensor_updates_cpp, sensor_preprocessor_cpp, eskf_runner_cpp, eskf_initializer_cpp, mex_eskf_initializer_cpp, meukf_core_cpp}, bin_dir, [], log_fid)
-                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-FAILED
+'Microsoft Visual C++ 2022' でビルドしています。
+MEX は正常に完了しました。
+OK
 
 === Build Complete ===
-Successfully built 0 MEX file(s)
+Successfully built 2 MEX file(s)
 Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
 
 To use MEX files, add to MATLAB path:
   addpath('C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin')
 
-=== MEX Build Log Ended at 04-Jan-2026 20:13:15 ===
+=== MEX Build Log Ended at 04-Jan-2026 20:16:20 ===
