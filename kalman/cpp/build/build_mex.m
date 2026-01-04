@@ -55,15 +55,11 @@ function build_mex(targets)
     cpp_root = fileparts(build_dir);
     mex_src_dir = fullfile(cpp_root, 'MEX');
     src_dir = fullfile(cpp_root, 'Src');
-    inc_dir = fullfile(cpp_root, 'Inc');
     lib_dir = fullfile(cpp_root, 'Lib');
     bin_dir = fullfile(cpp_root, 'bin');
     
     if ~exist(mex_src_dir, 'dir')
         error('MEX source directory not found: %s', mex_src_dir);
-    end
-    if ~exist(inc_dir, 'dir')
-        error('Include directory not found: %s', inc_dir);
     end
     if ~exist(src_dir, 'dir')
         error('Source directory not found: %s', src_dir);
@@ -99,16 +95,9 @@ function build_mex(targets)
         end
     end
     
-    inc_include = ['-I' inc_dir];
-    inc_kf_core = ['-I' fullfile(inc_dir, 'KF')];
-    inc_ekf_core = ['-I' fullfile(inc_dir, 'EKF')];
-    inc_eskf = ['-I' fullfile(inc_dir, 'ESKF')];
-    inc_ukf_core = ['-I' fullfile(inc_dir, 'UKF')];
-    inc_common = ['-I' fullfile(inc_dir, 'Common')];
-    inc_meukf = ['-I' fullfile(inc_dir, 'MEUKF')];
+    % Use Lib include root and per-module inc directories only
     inc_lib = ['-I' lib_dir];
-    % Add top-level includes and per-library inc/ folders under Lib/
-    inc_args = {inc_include, inc_kf_core, inc_ekf_core, inc_eskf, inc_ukf_core, inc_common, inc_meukf, inc_lib};
+    inc_args = {inc_lib};
     % discover Lib/*/inc and add them
     lib_entries = dir(lib_dir);
     for i = 1:length(lib_entries)

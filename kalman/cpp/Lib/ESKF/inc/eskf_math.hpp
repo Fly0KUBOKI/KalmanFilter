@@ -2,7 +2,7 @@
 
 // Implementation: Src/ESKF/eskf_math.cpp
 
-#include "../Lib/Matrix/fixed_matrix.hpp"
+#include "../../Matrix/fixed_matrix.hpp"
 #include "../Lib/Quaternion/quaternion_functions.hpp"
 
 namespace eskf_math {

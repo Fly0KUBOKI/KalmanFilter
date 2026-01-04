@@ -4,7 +4,7 @@
 #include "../inc/eskf_core.hpp"
 #include "../inc/eskf_math.hpp"
 #include "../../KF/inc/kalman_filter_core.hpp"
-#include "../../Lib/Quaternion/quaternion_functions.hpp"
+#include "../../Quaternion/quaternion_functions.hpp"
 #include "../../Common/inc/Math/math_utils.hpp"
 #include <cmath>
 

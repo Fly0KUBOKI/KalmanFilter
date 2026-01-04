@@ -3,7 +3,7 @@
 
 // Implementation: Src/ESKF/eskf_core.cpp
 
-#include "../Lib/Matrix/fixed_matrix.hpp"
+#include "../../Matrix/fixed_matrix.hpp"
 #include "../Lib/Quaternion/quaternion_functions.hpp"
 
 namespace eskf {

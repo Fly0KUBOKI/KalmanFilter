@@ -11,8 +11,8 @@
  */
 
 // 共通インクルードと定義（ヘッダーに移動済み）
-#include "Inc/mex_eskf_common.hpp"
-#include "Inc/mex_run_eskf_impl.hpp"
+#include "Impl/mex_eskf_common.hpp"
+#include "Impl/mex_run_eskf_impl.hpp"
 
 using namespace mex_run_eskf_impl;
 

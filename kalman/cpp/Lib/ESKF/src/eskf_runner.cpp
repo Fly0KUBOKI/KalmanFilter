@@ -1,7 +1,7 @@
 ﻿#include "../inc/eskf_runner.hpp"
 #include "../inc/eskf_core.hpp"
 #include "../inc/eskf_postprocess.hpp"
-#include "../../Lib/Quaternion/quaternion_functions.hpp"
+#include "../../Quaternion/quaternion_functions.hpp"
 #include "../../Common/inc/Sensor/sensor_filter.hpp"
 #include <cmath>
 #include <cstring>

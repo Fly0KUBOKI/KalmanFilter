@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #ifndef MEX_MEX_RUN_ESKF_SENSOR_UPDATES_HPP
 #define MEX_MEX_RUN_ESKF_SENSOR_UPDATES_HPP
@@ -10,6 +10,7 @@
  */
 
 #include "mex_eskf_common.hpp"
+#include "mex_type_conversion.hpp"
 #include <cstring>
 
 namespace mex_run_eskf_impl {
@@ -209,6 +210,8 @@ inline void call_gps_update(ESKFState* s, double lat, double lon, double alt, do
     if (!no_change && !is_outlier) {
         should_skip = false;
     }
+    
+    // (debug prints removed)
     
     if (!should_skip) {
         // Call handle_sensor_update_internal directly (integrated from mex_eskf_do_update)
@@ -550,7 +553,7 @@ inline void handle_sensor_update_internal(
         if (mxIsStruct(dbg_out) && mxGetField(dbg_out, 0, "dx")) {
             // Get dx (15x1)
             Vector<15, float> dx;
-            if (!matToVector(mxGetField(dbg_out, 0, "dx"), dx)) {
+            if (!mex_conv::matToVector(mxGetField(dbg_out, 0, "dx"), dx)) {
                 // Fallback: use new_state directly (single型から読み取り)
                 mxArray* p_field = mxGetField(new_state, 0, "p");
                 if (p_field && mxGetClassID(p_field) == mxSINGLE_CLASS) {
@@ -599,14 +602,14 @@ inline void handle_sensor_update_internal(
                 Vector<4, float> state_q;
                 Matrix<15, 15, float> state_P, new_state_P;
                 
-                if (!matToVector(p_arr, state_p)) state_p = Vector<3, float>::Zero();
-                if (!matToVector(v_arr, state_v)) state_v = Vector<3, float>::Zero();
-                if (!matToVector(q_arr, state_q)) state_q = Vector<4, float>::Zero();
-                if (!matToVector(ba_arr, state_ba)) state_ba = Vector<3, float>::Zero();
-                if (!matToVector(bg_arr, state_bg)) state_bg = Vector<3, float>::Zero();
-                if (!matToMatrix(P_arr, state_P)) state_P = Matrix<15, 15, float>::Zero();
+                if (!mex_conv::matToVector(p_arr, state_p)) state_p = Vector<3, float>::Zero();
+                if (!mex_conv::matToVector(v_arr, state_v)) state_v = Vector<3, float>::Zero();
+                if (!mex_conv::matToVector(q_arr, state_q)) state_q = Vector<4, float>::Zero();
+                if (!mex_conv::matToVector(ba_arr, state_ba)) state_ba = Vector<3, float>::Zero();
+                if (!mex_conv::matToVector(bg_arr, state_bg)) state_bg = Vector<3, float>::Zero();
+                if (!mex_conv::matToMatrix(P_arr, state_P)) state_P = Matrix<15, 15, float>::Zero();
                 if (mxGetField(new_state, 0, "P")) {
-                    if (!matToMatrix(mxGetField(new_state, 0, "P"), new_state_P)) {
+                    if (!mex_conv::matToMatrix(mxGetField(new_state, 0, "P"), new_state_P)) {
                         new_state_P = state_P;
                     }
                 } else {

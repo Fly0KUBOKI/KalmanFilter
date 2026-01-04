@@ -3,7 +3,7 @@
 #ifndef COMMON_SENSOR_SENSOR_PREPROCESSOR_HPP
 #define COMMON_SENSOR_SENSOR_PREPROCESSOR_HPP
 
-#include "../../Lib/Matrix/fixed_matrix.hpp"
+#include "../../../Matrix/fixed_matrix.hpp"
 #include <cmath>
 
 namespace common {

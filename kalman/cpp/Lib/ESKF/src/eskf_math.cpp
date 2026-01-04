@@ -1,7 +1,7 @@
 ﻿// eskf_math.cpp
 
 #include "../inc/eskf_math.hpp"
-#include "../../Lib/Quaternion/quaternion_functions.hpp"
+#include "../../Quaternion/quaternion_functions.hpp"
 #include <cmath>
 
 namespace eskf_math {

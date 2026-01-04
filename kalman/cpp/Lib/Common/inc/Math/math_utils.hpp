@@ -4,7 +4,7 @@
 
 #include <cmath>
 #include <algorithm>
-#include "../../Lib/Matrix/fixed_matrix.hpp"
+#include "../../../Matrix/fixed_matrix.hpp"
 
 namespace common {
 namespace math {

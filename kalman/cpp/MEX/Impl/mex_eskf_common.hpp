@@ -31,12 +31,14 @@
 #include "../../Lib/Quaternion/quaternion_functions.hpp"
 #include "../../Lib/Common/inc/Math/statistics.hpp"
 
+// レイヤー3: ESKF コア
 #include "../../Lib/ESKF/inc/eskf_core.hpp"
 #include "../../Lib/ESKF/inc/eskf_postprocess.hpp"
 #include "../../Lib/ESKF/inc/eskf_state.hpp"
 #include "../../Lib/ESKF/inc/eskf_runner.hpp"
 #include "mex_eskf_initializer.hpp"
 
+// レイヤー4: 統合層
 #include "../../Lib/Common/inc/filter_mgmt.hpp"
 #include "../../Lib/Common/inc/Sensor/sensor_filter.hpp"
 #include "../../Lib/Common/inc/Sensor/sensor_preprocessor.hpp"
@@ -68,5 +70,4 @@ namespace mex_run_eskf_impl {
 }
 
 #endif // MEX_MEX_ESKF_COMMON_HPP
-
 

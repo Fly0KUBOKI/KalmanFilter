@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Common/filter_interface.hpp"
-#include "../Lib/Matrix/fixed_matrix.hpp"
+#include "../../Matrix/fixed_matrix.hpp"
 #include "../Lib/Quaternion/quaternion_functions.hpp"
 
 namespace kalman {

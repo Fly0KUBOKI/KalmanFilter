@@ -1,6 +1,6 @@
 ﻿#include "../inc/meukf_core.hpp"
 #include "../../Inc/Common/Math/math_utils.hpp"
-#include "../../Lib/Quaternion/quaternion_functions.hpp"
+#include "../../Quaternion/quaternion_functions.hpp"
 #include <cmath>
 #include <cstring>
 #include <algorithm>

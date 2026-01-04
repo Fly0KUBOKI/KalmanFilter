@@ -1,5 +1,5 @@
-﻿#include "Inc/mex_eskf_initializer.hpp"
-#include "../Inc/ESKF/eskf_initializer.hpp"
+﻿#include "Impl/mex_eskf_initializer.hpp"
+#include "../Lib/ESKF/inc/eskf_initializer.hpp"
 #include <mex.h>
 #include <vector>
 #include <cmath>

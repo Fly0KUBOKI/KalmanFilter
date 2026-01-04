@@ -3,7 +3,7 @@
 #ifndef COMMON_FILTER_MANAGEMENT_HPP
 #define COMMON_FILTER_MANAGEMENT_HPP
 
-#include "../../Lib/Matrix/fixed_matrix.hpp"
+#include "../../Matrix/fixed_matrix.hpp"
 #include <cstddef>
 
 namespace common {

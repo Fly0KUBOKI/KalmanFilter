@@ -32,6 +32,19 @@ FILES += [
 FILES += [
     "../examples/main_standalone.cpp",
 ]
+FILES += [
+    # MEX implementation and include files that require BOM
+    "../MEX/Impl/mex_eskf_common.hpp",
+    "../MEX/Impl/mex_eskf_initializer.hpp",
+    "../MEX/Impl/mex_helpers.hpp",
+    "../MEX/Impl/mex_run_eskf_filter_ops.hpp",
+    "../MEX/Impl/mex_run_eskf_impl.hpp",
+    "../MEX/Impl/mex_run_eskf_sensor_updates.hpp",
+    "../MEX/Impl/mex_type_conversion.hpp",
+    "../MEX/Inc/mex_eskf_initializer.hpp",
+    "../MEX/Inc/mex_run_eskf_impl.hpp",
+    "../MEX/Inc/mex_run_eskf_sensor_updates.hpp",
+]
 
 ROOT = Path(__file__).resolve().parent
 

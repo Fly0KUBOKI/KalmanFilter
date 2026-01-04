@@ -1,6 +1,6 @@
 ﻿#include "../inc/eskf_initializer.hpp"
-#include "../../Lib/Quaternion/quaternion_functions.hpp"
-#include "../../Lib/Matrix/fixed_matrix.hpp"
+#include "../../Quaternion/quaternion_functions.hpp"
+#include "../../Matrix/fixed_matrix.hpp"
 #include "../../Common/inc/Math/statistics.hpp"
 #include <cmath>
 #include <cstring>

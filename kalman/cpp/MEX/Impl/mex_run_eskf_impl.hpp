@@ -4,38 +4,27 @@
 #define MEX_MEX_RUN_ESKF_IMPL_HPP
 
 /**
- * mex_run_eskf.cpp用の実装関数群
- * 
- * このヘッダーには、mex_run_eskf.cppで使用される内部関数の定義が含まれます。
- * グローバル変数とstatic関数をinline化してヘッダーに移動しています。
+ * mex_run_eskf.cpp用の実装関数群（Impl）
  */
 
 #include "mex_eskf_common.hpp"
 #include <cstdint>
 
-// センサー更新関数とフィルター操作関数を先にインクルード（do_stepで使用するため）
-#include "mex_run_eskf_sensor_updates.hpp"
+#include "../Inc/mex_run_eskf_sensor_updates.hpp"
 #include "mex_run_eskf_filter_ops.hpp"
 #include "../../Lib/MEUKF/inc/meukf_core.hpp"
-#include "mex_type_conversion.hpp"
+#include "../Inc/mex_type_conversion.hpp"
 
 namespace mex_run_eskf_impl {
 
-// グローバル変数（extern宣言、実装は.cppファイルに）
 extern std::map<uint64_t, ESKFState*> g_states;
 extern uint64_t g_next_handle;
 extern SensorFilterLib g_filter_lib;
 
-/**
- * 予測ステップの呼び出し（ESKFRunnerを使用）
- */
 inline void call_predict(ESKFState* s, const double* a_meas, const double* w_meas) {
     ESKFRunner::predict(s, a_meas, w_meas);
 }
 
-/**
- * 初期化処理
- */
 inline uint64_t do_init(const mxArray* obs, double static_time, double dt) {
     ESKFState* s = initialize_eskf_from_matlab(obs, static_time, dt);
     uint64_t handle = g_next_handle++;
@@ -43,10 +32,9 @@ inline uint64_t do_init(const mxArray* obs, double static_time, double dt) {
     return handle;
 }
 
-/**
- * ステップ処理
- */
 inline void do_step(ESKFState* s, const mxArray* obs, int k) {
+    // (debug prints removed)
+    
     int idx = k - 1;
     double a[3], w[3], m[3];
     getAccel(obs, idx, a);
@@ -108,37 +96,36 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
         if (!std::isnan(lat) && !std::isnan(lon)) {
             call_gps_update(s, lat, lon, alt, static_cast<double>(k));
         }
+    } else {
+        // no GPS fields
     }
     
     // Reset check
     check_and_reset(s, k);
 }
 
-/**
- * 状態取得処理 - float出力
- */
 inline mxArray* do_get_state(ESKFState* s) {
     const char* fields[] = {"p", "v", "q", "euler", "ba", "bg", "P"};
     mxArray* out = mxCreateStructMatrix(1, 1, 7, fields);
-    
+
     // p - float (3x1)
     mxArray* p = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* p_ptr = (float*)mxGetData(p);
     for (int i = 0; i < 3; i++) p_ptr[i] = static_cast<float>(s->p[i]);
     mxSetField(out, 0, "p", p);
-    
+
     // v - float (3x1)
     mxArray* v = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* v_ptr = (float*)mxGetData(v);
     for (int i = 0; i < 3; i++) v_ptr[i] = static_cast<float>(s->v[i]);
     mxSetField(out, 0, "v", v);
-    
+
     // q - float (4x1)
     mxArray* q = mxCreateNumericMatrix(4, 1, mxSINGLE_CLASS, mxREAL);
     float* q_ptr = (float*)mxGetData(q);
     for (int i = 0; i < 4; i++) q_ptr[i] = static_cast<float>(s->q[i]);
     mxSetField(out, 0, "q", q);
-    
+
     // euler - float (3x1) in degrees
     double euler[3];
     quat_to_euler(s->q, euler);
@@ -148,31 +135,28 @@ inline mxArray* do_get_state(ESKFState* s) {
     eu_ptr[1] = static_cast<float>(euler[1] * 180.0 / M_PI);
     eu_ptr[2] = static_cast<float>(euler[2] * 180.0 / M_PI);
     mxSetField(out, 0, "euler", eu);
-    
+
     // ba - float (3x1)
     mxArray* ba = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* ba_ptr = (float*)mxGetData(ba);
     for (int i = 0; i < 3; i++) ba_ptr[i] = static_cast<float>(s->ba[i]);
     mxSetField(out, 0, "ba", ba);
-    
+
     // bg - float (3x1)
     mxArray* bg = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* bg_ptr = (float*)mxGetData(bg);
     for (int i = 0; i < 3; i++) bg_ptr[i] = static_cast<float>(s->bg[i]);
     mxSetField(out, 0, "bg", bg);
-    
+
     // P - float (15x15)
     mxArray* P = mxCreateNumericMatrix(15, 15, mxSINGLE_CLASS, mxREAL);
     float* P_ptr = (float*)mxGetData(P);
     for (int i = 0; i < 15*15; i++) P_ptr[i] = static_cast<float>(s->P[i]);
     mxSetField(out, 0, "P", P);
-    
+
     return out;
 }
 
-/**
- * メモリ解放処理
- */
 inline void do_free(uint64_t handle) {
     auto it = g_states.find(handle);
     if (it != g_states.end()) {
@@ -181,14 +165,6 @@ inline void do_free(uint64_t handle) {
     }
 }
 
-/**
- * MEUKF の単体ステップ呼び出しラッパー
- * 入力は mex_meukf_step と同様: prev_state (struct), sensor (struct), params (struct)
- * 出力は [new_state, dbg_info, dbg_output] の3つを返す（mex_meukf_step_v2と互換）
- * 
- * Phase 1: MEUKF呼び出しの統合（最も簡単な部分）
- * - MEUKFCore::step()を直接呼び出す（mexCallMATLABの代わり）
- */
 inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, const mxArray* m_params,
                           mxArray*& out_new_state, mxArray*& out_dbg_out, mxArray*& out_dbg_output) {
     meukf::MEUKFInput input;
@@ -383,7 +359,7 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
     // TODO: Phase 2で実装（pred_P, last_K, last_S等を設定）
 }
 
-/** Sensor filter wrappers **/
+/** Sensor filter wrappers (copied from Inc implementation) **/
 inline mxArray* do_sensor_filter_reset_zero() {
     try {
         g_filter_lib.reset_all_zero();
@@ -409,7 +385,6 @@ inline void copy_vec3_from_mx(const mxArray* a, double out[3]) {
 }
 
 inline mxArray* do_sensor_filter_update(const mxArray* m_sensor) {
-    // Expect struct with fields accel, gyro, mag, gps_pos, alt_baro, dt
     double accel_d[3]={0,0,0}, mag_d[3]={0,0,0}, gps_d[3]={0,0,0};
     copy_vec3_from_mx(mxGetField(m_sensor,0,"accel"), accel_d);
     copy_vec3_from_mx(mxGetField(m_sensor,0,"mag"), mag_d);
@@ -430,34 +405,24 @@ inline mxArray* do_sensor_filter_update(const mxArray* m_sensor) {
     g_filter_lib.filter_gps(gps_in, static_cast<float>(dt), pos_out, vel_out);
     float baro_out = g_filter_lib.filter_baro(static_cast<float>(alt_baro));
 
-    // Build output struct: fields filtered and is_outlier flags (float outputs)
     const char* fields[] = {"accel", "mag", "gps_pos", "alt_baro", "is_outlier_accel", "is_outlier_mag"};
     mxArray* out = mxCreateStructMatrix(1,1,6,fields);
-    
-    // accel - float (3x1)
     mxArray* a_out = mxCreateNumericMatrix(3,1, mxSINGLE_CLASS, mxREAL);
     float* pa = (float*)mxGetData(a_out);
     pa[0]=static_cast<float>(a_filt(0,0)); pa[1]=static_cast<float>(a_filt(1,0)); pa[2]=static_cast<float>(a_filt(2,0));
     mxSetField(out,0,"accel", a_out);
-    
-    // mag - float (3x1)
     mxArray* m_out = mxCreateNumericMatrix(3,1, mxSINGLE_CLASS, mxREAL);
     float* pm = (float*)mxGetData(m_out);
     pm[0]=static_cast<float>(m_filt(0,0)); pm[1]=static_cast<float>(m_filt(1,0)); pm[2]=static_cast<float>(m_filt(2,0));
     mxSetField(out,0,"mag", m_out);
-    
-    // gps_pos - float (3x1)
     mxArray* g_out = mxCreateNumericMatrix(3,1, mxSINGLE_CLASS, mxREAL);
     float* pg = (float*)mxGetData(g_out);
     pg[0]=static_cast<float>(pos_out(0,0)); pg[1]=static_cast<float>(pos_out(1,0)); pg[2]=static_cast<float>(pos_out(2,0));
     mxSetField(out,0,"gps_pos", g_out);
-    
-    // alt_baro - float scalar
     mxArray* b_out = mxCreateNumericMatrix(1,1, mxSINGLE_CLASS, mxREAL);
     float* pb = (float*)mxGetData(b_out);
     pb[0] = baro_out;
     mxSetField(out,0,"alt_baro", b_out);
-    
     mxSetField(out,0,"is_outlier_accel", mxCreateLogicalScalar(is_outlier_accel));
     mxSetField(out,0,"is_outlier_mag", mxCreateLogicalScalar(is_outlier_mag));
 
