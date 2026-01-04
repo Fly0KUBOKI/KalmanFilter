@@ -2,11 +2,11 @@
 
 // KF/EKF/UKF統合ヘッダー
 
-#include "KF/kalman_filter_core.hpp"
+#include "../Lib/KF/inc/kalman_filter_core.hpp"
 // EKF/ekf.hpp removed - Eigen依存で未使用
 // UKF/ukf_sigma_points.hpp removed - Eigen依存、ukf_core.hppを使用
 // UKF/ukf_update.hpp removed - Eigen依存、ukf_core.hppを使用
-#include "UKF/ukf_core.hpp"
+#include "../Lib/UKF/inc/ukf_core.hpp"
 
 namespace kalman_filters {
 

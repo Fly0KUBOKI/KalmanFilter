@@ -1,4 +1,7 @@
-﻿#pragma once
+// Backup of duplicated implementation from Inc/KF/kf_core.hpp
+// This file was moved to .bak to avoid duplication with Lib/KF/inc/kf_core.hpp
+
+#pragma once
 
 #include "../Lib/Matrix/fixed_matrix.hpp"
 #include "Common/Sensor/sensor_filter.hpp"
@@ -250,6 +253,3 @@ public:
 };
 
 } // namespace kf
-#pragma once
-
-#include "../Lib/KF/inc/kf_core.hpp"
