@@ -47,7 +47,7 @@ void ESKFRunner::predict(ESKFState* s, const double* a_meas, const double* w_mea
 
 void ESKFRunner::apply_accel_z_integration(cmath_fx::Vector<3, float>& v, const cmath_fx::Vector<4, float>& q, const cmath_fx::Vector<3, float>& a_for_vel, float dt, const cmath_fx::Vector<3, float>& g, float accel_z_threshold, float accel_z_damping) {
     using namespace cmath_fx; using namespace cquat;
-    Vector<4, float> q_norm = q; normalize_quat(q_norm); float R_row[9]; quat_to_rotm_array(q_norm, R_row); Matrix<3,3,float> R; for (int i=0;i<3;++i) for (int j=0;j<3;++j) R(i,j) = R_row[j*3 + i]; Vector<3,float> Ra; for (int i=0;i<3;++i) { Ra(i,0)=0.0f; for (int j=0;j<3;++j) Ra(i,0) += R(i,j) * a_for_vel(j,0); } Vector<3,float> a_ned; a_ned(0,0)=Ra(0,0); a_ned(1,0)=Ra(1,0); a_ned(2,0)=Ra(2,0) - g(2,0); float az_excess = a_ned(2,0); if (std::abs(az_excess) > accel_z_threshold) v(2,0) = v(2,0) * (1.0f - accel_z_damping) + az_excess * dt;
+    Vector<4, float> q_norm = q; cquat::normalize_quat(q_norm); float R_row[9]; quat_to_rotm_array(q_norm, R_row); Matrix<3,3,float> R; for (int i=0;i<3;++i) for (int j=0;j<3;++j) R(i,j) = R_row[j*3 + i]; Vector<3,float> Ra; for (int i=0;i<3;++i) { Ra(i,0)=0.0f; for (int j=0;j<3;++j) Ra(i,0) += R(i,j) * a_for_vel(j,0); } Vector<3,float> a_ned; a_ned(0,0)=Ra(0,0); a_ned(1,0)=Ra(1,0); a_ned(2,0)=Ra(2,0) - g(2,0); float az_excess = a_ned(2,0); if (std::abs(az_excess) > accel_z_threshold) v(2,0) = v(2,0) * (1.0f - accel_z_damping) + az_excess * dt;
 }
 
 void ESKFRunner::apply_velocity_clipping(cmath_fx::Vector<3, float>& v, cmath_fx::Matrix<15, 15, float>& P, float max_vel) {

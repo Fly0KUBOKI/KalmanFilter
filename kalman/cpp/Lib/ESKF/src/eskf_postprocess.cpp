@@ -14,7 +14,7 @@ void predict_postprocess(cmath_fx::Vector<3, float>& v, const cmath_fx::Vector<4
 
 UpdatePostprocessResult update_state_from_dx(const cmath_fx::Vector<15, float>& dx, const cmath_fx::Vector<3, float>& state_p, const cmath_fx::Vector<3, float>& state_v, const cmath_fx::Vector<4, float>& state_q, const cmath_fx::Vector<3, float>& state_ba, const cmath_fx::Vector<3, float>& state_bg, const cmath_fx::Matrix<15, 15, float>& new_state_P) {
     using namespace cquat; UpdatePostprocessResult result; for (int i=0;i<3;++i){ result.p(i,0)=state_p(i,0)+dx(i,0); result.v(i,0)=state_v(i,0)+dx(i+3,0); result.ba(i,0)=state_ba(i,0)+dx(i+9,0); result.bg(i,0)=state_bg(i,0)+dx(i+12,0); }
-    cmath_fx::Vector<4,float> dq; dq(0,0)=1.0f; dq(1,0)=0.5f*dx(6,0); dq(2,0)=0.5f*dx(7,0); dq(3,0)=0.5f*dx(8,0); cmath_fx::Vector<4,float> quat_new; multiply_quat(dq, state_q, quat_new); normalize_quat(quat_new); result.q(0,0)=quat_new(0,0); result.q(1,0)=quat_new(1,0); result.q(2,0)=quat_new(2,0); result.q(3,0)=quat_new(3,0); result.P = new_state_P; common::filter::symmetrize_covariance(result.P); result.should_skip = false; return result;
+    cmath_fx::Vector<4,float> dq; dq(0,0)=1.0f; dq(1,0)=0.5f*dx(6,0); dq(2,0)=0.5f*dx(7,0); dq(3,0)=0.5f*dx(8,0); cmath_fx::Vector<4,float> quat_new; multiply_quat(dq, state_q, quat_new); cquat::normalize_quat(quat_new); result.q(0,0)=quat_new(0,0); result.q(1,0)=quat_new(1,0); result.q(2,0)=quat_new(2,0); result.q(3,0)=quat_new(3,0); result.P = new_state_P; common::filter::symmetrize_covariance(result.P); result.should_skip = false; return result;
 }
 
 } // namespace eskf
