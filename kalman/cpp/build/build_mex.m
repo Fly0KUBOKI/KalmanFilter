@@ -95,9 +95,14 @@ function build_mex(targets)
         end
     end
     
-    % Use Lib include root and per-module inc directories only
+    % Use common include roots: top-level Inc/ (legacy) and Lib include roots
+    inc_root = fullfile(cpp_root, 'Inc');
+    inc_args = {};
+    if exist(inc_root, 'dir')
+        inc_args{end+1} = ['-I' inc_root];
+    end
     inc_lib = ['-I' lib_dir];
-    inc_args = {inc_lib};
+    inc_args{end+1} = inc_lib;
     % discover Lib/*/inc and add them
     lib_entries = dir(lib_dir);
     for i = 1:length(lib_entries)
@@ -213,7 +218,11 @@ function build_mex(targets)
         end
     end
     
-    filter_management_cpp = fullfile(src_dir, 'Common', 'filter_management.cpp');
+    % Prefer implementation in Lib/Common/src (filter_mgmt.cpp) if present
+    filter_management_cpp = fullfile(lib_dir, 'Common', 'src', 'filter_mgmt.cpp');
+    if ~exist(filter_management_cpp, 'file')
+        filter_management_cpp = fullfile(src_dir, 'Common', 'filter_management.cpp');
+    end
     eskf_postprocess_cpp = fullfile(src_dir, 'ESKF', 'eskf_postprocess.cpp');
     if exist('mex_eskf_predict_postprocess.cpp', 'file')
         if wants('mex_eskf_predict_postprocess') && build_single_mex('mex_eskf_predict_postprocess.cpp', compile_opts, inc_args, {filter_management_cpp, eskf_postprocess_cpp}, bin_dir, [], log_fid)
@@ -239,7 +248,7 @@ function build_mex(targets)
         end
     end
     
-    filter_management_cpp = fullfile(src_dir, 'Common', 'filter_management.cpp');
+    % keep previously-resolved filter_management_cpp (prefer Lib implementation)
     eskf_postprocess_cpp = fullfile(lib_eskf_src, 'eskf_postprocess.cpp');
     if ~exist(eskf_postprocess_cpp, 'file')
         eskf_postprocess_cpp = fullfile(src_dir, 'ESKF', 'eskf_postprocess.cpp');
@@ -253,7 +262,11 @@ function build_mex(targets)
     if ~exist(eskf_sensor_updates_cpp, 'file')
         eskf_sensor_updates_cpp = fullfile(src_dir, 'ESKF', 'eskf_sensor_updates.cpp');
     end
-    sensor_preprocessor_cpp = fullfile(src_dir, 'Common', 'Sensor', 'sensor_preprocessor.cpp');
+    % Prefer implementation in Lib/Common/src/Sensor if present
+    sensor_preprocessor_cpp = fullfile(lib_dir, 'Common', 'src', 'Sensor', 'sensor_preprocessor.cpp');
+    if ~exist(sensor_preprocessor_cpp, 'file')
+        sensor_preprocessor_cpp = fullfile(src_dir, 'Common', 'Sensor', 'sensor_preprocessor.cpp');
+    end
     eskf_runner_cpp = fullfile(lib_eskf_src, 'eskf_runner.cpp');
     if ~exist(eskf_runner_cpp, 'file')
         eskf_runner_cpp = fullfile(src_dir, 'ESKF', 'eskf_runner.cpp');
@@ -330,6 +343,14 @@ function success = build_single_mex(mex_file, compile_opts, inc_args, extra_sour
     
     cmd_out = '';
     try
+        % Log mex arguments for debugging
+        if ~isempty(log_fid)
+            fprintf(log_fid, '\n--- mex args ---\n');
+            for i = 1:length(mex_args)
+                fprintf(log_fid, '%s\n', mex_args{i});
+            end
+            fprintf(log_fid, '--- end mex args ---\n');
+        end
         cmd_out = evalc('mex(mex_args{:});');
         if ~isempty(log_fid) && ~isempty(cmd_out)
             fprintf(log_fid, '%s', cmd_out);
