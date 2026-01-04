@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#ifndef MEX_MEX_RUN_ESKF_FILTER_OPS_HPP
-#define MEX_MEX_RUN_ESKF_FILTER_OPS_HPP
+#ifndef MEX_MEX_RUN_ESKF_FILTER_OPS_HPP_IMPL
+#define MEX_MEX_RUN_ESKF_FILTER_OPS_HPP_IMPL
 
 /**
  * mex_run_eskf.cpp用のフィルター操作関数群
@@ -65,5 +65,5 @@ inline void zupt_check_and_update(ESKFState* s, const double* a_meas, const doub
 
 } // namespace mex_run_eskf_impl
 
-#endif // MEX_MEX_RUN_ESKF_FILTER_OPS_HPP
+#endif // MEX_MEX_RUN_ESKF_FILTER_OPS_HPP_IMPL
 

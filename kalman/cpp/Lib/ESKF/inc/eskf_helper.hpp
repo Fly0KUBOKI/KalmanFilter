@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../Lib/Quaternion/quaternion_functions.hpp"
+#include "../../Quaternion/quaternion_functions.hpp"
 
 namespace eskf {
 

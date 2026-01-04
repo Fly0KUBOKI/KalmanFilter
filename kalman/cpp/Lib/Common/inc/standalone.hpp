@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "Lib/Common/inc/interface.hpp"
+#include "interface.hpp"
 
 namespace kalman {
 

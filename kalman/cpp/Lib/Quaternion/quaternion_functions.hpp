@@ -2,10 +2,9 @@
 // Moved from Inc/Common/Math/quaternion.hpp to Lib/Quaternion/quaternion_functions.hpp
 #include "../Matrix/fixed_matrix.hpp"
 #include <cmath>
+#include "../Common/inc/Math/math_utils.hpp"
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+using common::math::MathUtils;
 
 namespace cquat {
 
@@ -25,6 +24,13 @@ inline void normalize_quat(cmath_fx::Vector<4, T>& q) {
     for (int i = 0; i < 4; ++i) q(i,0) /= n;
 }
 
+// Wrapper returning a normalized quaternion (value API) for callers using Vec4 return
+template <typename T>
+inline cmath_fx::Vector<4, T> normalize_quaternion(const cmath_fx::Vector<4, T>& q_in) {
+    cmath_fx::Vector<4, T> q = q_in;
+    normalize_quat(q);
+    return q;
+}
 template <typename T>
 inline void multiply_quat(const cmath_fx::Vector<4, T>& a, const cmath_fx::Vector<4, T>& b, cmath_fx::Vector<4, T>& out) {
     T aw=a(0,0), ax=a(1,0), ay=a(2,0), az=a(3,0);
@@ -51,9 +57,9 @@ inline void quat_to_rotm(const cmath_fx::Vector<4, T>& q, cmath_fx::Matrix<3, 3,
 
 template <typename T>
 inline void from_euler_deg(T roll_deg, T pitch_deg, T yaw_deg, cmath_fx::Vector<4, T>& q_out) {
-    T roll = roll_deg * static_cast<T>(M_PI) / static_cast<T>(180.0);
-    T pitch = pitch_deg * static_cast<T>(M_PI) / static_cast<T>(180.0);
-    T yaw = yaw_deg * static_cast<T>(M_PI) / static_cast<T>(180.0);
+    T roll = roll_deg * static_cast<T>(MathUtils::PI) / static_cast<T>(180.0);
+    T pitch = pitch_deg * static_cast<T>(MathUtils::PI) / static_cast<T>(180.0);
+    T yaw = yaw_deg * static_cast<T>(MathUtils::PI) / static_cast<T>(180.0);
     T cy = std::cos(yaw * static_cast<T>(0.5));
     T sy = std::sin(yaw * static_cast<T>(0.5));
     T cp = std::cos(pitch * static_cast<T>(0.5));
@@ -77,18 +83,18 @@ inline void to_euler_deg(const cmath_fx::Vector<4, T>& q, cmath_fx::Vector<3, T>
     T sinp = static_cast<T>(2.0) * (qw * qy - qz * qx);
     T pitch;
     if (std::abs(sinp) >= static_cast<T>(1.0))
-        pitch = std::copysign(static_cast<T>(M_PI)/static_cast<T>(2.0), sinp);
+        pitch = std::copysign(static_cast<T>(MathUtils::PI)/static_cast<T>(2.0), sinp);
     else
         pitch = std::asin(sinp);
     T siny_cosp = static_cast<T>(2.0) * (qw * qz + qx * qy);
     T cosy_cosp = static_cast<T>(1.0) - static_cast<T>(2.0) * (qy*qy + qz*qz);
     T yaw = std::atan2(siny_cosp, cosy_cosp);
-    euler_deg(0,0) = roll * static_cast<T>(180.0) / static_cast<T>(M_PI);
-    euler_deg(1,0) = pitch * static_cast<T>(180.0) / static_cast<T>(M_PI);
-    euler_deg(2,0) = yaw * static_cast<T>(180.0) / static_cast<T>(M_PI);
+    euler_deg(0,0) = roll * static_cast<T>(180.0) / static_cast<T>(MathUtils::PI);
+    euler_deg(1,0) = pitch * static_cast<T>(180.0) / static_cast<T>(MathUtils::PI);
+    euler_deg(2,0) = yaw * static_cast<T>(180.0) / static_cast<T>(MathUtils::PI);
 }
 
-// オイラー角を参照で出力（度数法）
+// �I�C���[�p���Q�Ƃŏo�́i�x���@�j
 template <typename T>
 inline void to_euler_deg(const cmath_fx::Vector<4, T>& q, T& roll_deg, T& pitch_deg, T& yaw_deg) {
     T qw=q(0,0), qx=q(1,0), qy=q(2,0), qz=q(3,0);
@@ -98,18 +104,18 @@ inline void to_euler_deg(const cmath_fx::Vector<4, T>& q, T& roll_deg, T& pitch_
     T sinp = static_cast<T>(2.0) * (qw * qy - qz * qx);
     T pitch;
     if (std::abs(sinp) >= static_cast<T>(1.0))
-        pitch = std::copysign(static_cast<T>(M_PI)/static_cast<T>(2.0), sinp);
+        pitch = std::copysign(static_cast<T>(MathUtils::PI)/static_cast<T>(2.0), sinp);
     else
         pitch = std::asin(sinp);
     T siny_cosp = static_cast<T>(2.0) * (qw * qz + qx * qy);
     T cosy_cosp = static_cast<T>(1.0) - static_cast<T>(2.0) * (qy*qy + qz*qz);
     T yaw = std::atan2(siny_cosp, cosy_cosp);
-    roll_deg = roll * static_cast<T>(180.0) / static_cast<T>(M_PI);
-    pitch_deg = pitch * static_cast<T>(180.0) / static_cast<T>(M_PI);
-    yaw_deg = yaw * static_cast<T>(180.0) / static_cast<T>(M_PI);
+    roll_deg = roll * static_cast<T>(180.0) / static_cast<T>(MathUtils::PI);
+    pitch_deg = pitch * static_cast<T>(180.0) / static_cast<T>(MathUtils::PI);
+    yaw_deg = yaw * static_cast<T>(180.0) / static_cast<T>(MathUtils::PI);
 }
 
-// 小角度回転ベクトルから生成
+// ���p�x��]�x�N�g�����琶��
 template <typename T>
 inline void from_small_angle(T theta_x, T theta_y, T theta_z, cmath_fx::Vector<4, T>& q_out) {
     T th2 = theta_x*theta_x + theta_y*theta_y + theta_z*theta_z;
@@ -132,7 +138,7 @@ inline void from_small_angle(T theta_x, T theta_y, T theta_z, cmath_fx::Vector<4
     normalize_quat(q_out);
 }
 
-// 回転行列を配列（row-major）で出力
+// ��]�s���z��irow-major�j�ŏo��
 template <typename T>
 inline void quat_to_rotm_array(const cmath_fx::Vector<4, T>& q, T R[9]) {
     T qw=q(0,0), qx=q(1,0), qy=q(2,0), qz=q(3,0);
@@ -149,7 +155,7 @@ inline void quat_to_rotm_array(const cmath_fx::Vector<4, T>& q, T R[9]) {
     R[7] = static_cast<T>(2.0)*(qy*qz + qx*qw);
     R[8] = static_cast<T>(1.0) - static_cast<T>(2.0)*(qx*qx + qy*qy);
     
-    // 小さい値をゼロに、1に近い値を±1に
+    // �������l���[���ɁA1�ɋ߂��l���}1��
     constexpr T EPS = static_cast<T>(1e-9);
     for (int i = 0; i < 9; ++i) {
         if (std::abs(R[i]) < EPS) {
@@ -161,4 +167,5 @@ inline void quat_to_rotm_array(const cmath_fx::Vector<4, T>& q, T R[9]) {
 }
 
 } // namespace cquat
+
 

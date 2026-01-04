@@ -1,30 +1,27 @@
 ﻿#pragma once
 
 #include "interface.hpp"
+#include "filter_mgmt.hpp"
 #include <cmath>
+#include "../../Quaternion/quaternion_functions.hpp"
 
 namespace kalman {
 
 // 対称化: P = (P + P^T)/2
 inline void symmetrizeCov(State &s) {
-  for (int r = 0; r < 15; ++r) {
-    for (int c = r+1; c < 15; ++c) {
-      float a = s.P[r*15 + c];
-      float b = s.P[c*15 + r];
-      float m = 0.5f*(a + b);
-      s.P[r*15 + c] = m;
-      s.P[c*15 + r] = m;
-    }
-  }
+  // Copy flat P into cmath_fx matrix, call canonical symmetrize, copy back
+  cmath_fx::Matrix<15, 15, float> P;
+  for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) P(i,j) = s.P[i*15 + j];
+  common::filter::symmetrize_covariance(P);
+  for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) s.P[i*15 + j] = P(i,j);
 }
 
-// q: [w,x,y,z]
+// q: [w,x,y,z] -- delegate to canonical quaternion implementation
 inline void normalizeQuat(float q[4]) {
-  float n = 0.0f;
-  for (int i=0;i<4;i++) n += q[i]*q[i];
-  if (n <= 0.0f) { q[0]=1.0f; q[1]=q[2]=q[3]=0.0f; return; }
-  float inv = 1.0f / std::sqrt(n);
-  for (int i=0;i<4;i++) q[i] *= inv;
+  cmath_fx::Vector<4, float> v;
+  for (int i = 0; i < 4; ++i) v(i,0) = q[i];
+  cquat::normalize_quat(v);
+  for (int i = 0; i < 4; ++i) q[i] = v(i,0);
 }
 
 } // namespace kalman

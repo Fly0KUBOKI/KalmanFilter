@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#ifndef MEX_MEX_ESKF_COMMON_HPP
-#define MEX_MEX_ESKF_COMMON_HPP
+#ifndef MEX_MEX_ESKF_COMMON_HPP_IMPL
+#define MEX_MEX_ESKF_COMMON_HPP_IMPL
 
 /**
  * mex_run_eskf.cpp用の共通インクルードと定義
@@ -69,5 +69,5 @@ namespace mex_run_eskf_impl {
     extern SensorFilterLib g_filter_lib;
 }
 
-#endif // MEX_MEX_ESKF_COMMON_HPP
+#endif // MEX_MEX_ESKF_COMMON_HPP_IMPL
 

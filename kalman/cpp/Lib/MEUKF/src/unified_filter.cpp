@@ -1,7 +1,8 @@
 ﻿#include "../inc/unified_filter.hpp"
-#include "../../Lib/Common/inc/Sensor/sensor_filter.hpp"
-#include "../../Lib/Common/inc/Math/math_utils.hpp"
+#include "../../Common/inc/Sensor/sensor_filter.hpp"
+#include "../../Common/inc/Math/math_utils.hpp"
 #include "../inc/meukf_core.hpp"
+#include "../../Quaternion/quaternion_functions.hpp"
 #include <cstring>
 #include <cmath>
 
@@ -204,6 +205,13 @@ void UnifiedFilter::reset() {
     }
     prev_baro_alt_ = 0.0f;
     zupt_counter_ = 0;
+}
+
+// Quaternion helper: normalize and return a Vec4 (delegates to canonical cquat)
+Vec4 UnifiedFilter::normalize_quaternion(const Vec4& q) const {
+    Vec4 out = q;
+    cquat::normalize_quat(out);
+    return out;
 }
 
 } // namespace meukf

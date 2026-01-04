@@ -5,6 +5,7 @@
 #include "../inc/ekf_linear_update.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../KF/inc/kalman_filter_core.hpp"
+#include "../../Common/inc/Math/math_utils.hpp"
 #include <cmath>
 
 namespace ekf {
@@ -27,36 +28,11 @@ void ekf_linear_update(
     x_upd.resize(n, 1);
     P_upd.resize(n, n);
     
-    // Step 1: Innovation: y = z - H*x
-    cmath_fx::FixedMatrix Hx = H * x;
-    
-    cmath_fx::FixedMatrix y;
-    y.resize(m, 1);
-    for (int i = 0; i < m; ++i) {
-        y(i, 0) = z(i, 0) - Hx(i, 0);
-    }
-    
-    // Step 2: Innovation covariance: S = H*P*H' + R
-    cmath_fx::FixedMatrix Ht = H.transpose();
-    cmath_fx::FixedMatrix HP = H * P;
-    cmath_fx::FixedMatrix HPHt = HP * Ht;
-    
-    cmath_fx::FixedMatrix S;
-    S.resize(m, m);
-    for (int i = 0; i < m; ++i) {
-        for (int j = 0; j < m; ++j) {
-            S(i, j) = HPHt(i, j) + R(i, j);
-        }
-    }
-    
-    // Symmetrize S
-    for (int i = 0; i < m; ++i) {
-        for (int j = i + 1; j < m; ++j) {
-            float avg = 0.5f * (S(i, j) + S(j, i));
-            S(i, j) = avg;
-            S(j, i) = avg;
-        }
-    }
+    // Step 1/2: Innovation and innovation covariance (unified)
+    cmath_fx::FixedMatrix y; y.resize(m,1);
+    cmath_fx::FixedMatrix S; S.resize(m,m);
+    cmath_fx::FixedMatrix R_out; R_out.resize(m,m);
+    common::math::MathUtils::compute_innovation_and_S(z, x, H, P, R, y, S, R_out);
     
     // Step 3: Kalman gain: K = P*H'*S^-1
     cmath_fx::FixedMatrix PHt = P * Ht;

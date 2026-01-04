@@ -86,6 +86,16 @@ void normalize_covariance(cmath_fx::Matrix<15, 15, float>& P) {
     }
 }
 
+void symmetrize_covariance(cmath_fx::Matrix<15, 15, float>& P) {
+    for (int i = 0; i < 15; ++i) {
+        for (int j = i+1; j < 15; ++j) {
+            float avg = 0.5f * (P(i, j) + P(j, i));
+            P(i, j) = avg;
+            P(j, i) = avg;
+        }
+    }
+}
+
 bool check_state_divergence(
     const cmath_fx::Vector<3, float>& p,
     const cmath_fx::Vector<3, float>& v,

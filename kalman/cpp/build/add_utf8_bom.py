@@ -2,54 +2,37 @@
 import sys
 from pathlib import Path
 
-FILES = [
-    "../Inc/ESKF/eskf_initializer.hpp",
-    "../MEX/Inc/mex_eskf_common.hpp",
-    "../MEX/Inc/mex_helpers.hpp",
-    "../MEX/Inc/mex_type_conversion.hpp",
-    "../MEX/mex_eskf_initializer.cpp",
-    "../../src/ESKF/eskf_initializer.cpp",
-    "../Lib/MEUKF/inc/meukf_core.hpp",
-    "../Lib/MEUKF/inc/meukf_types.hpp",
-    "../Lib/MEUKF/inc/unified_filter.hpp",
-    "../Lib/MEUKF/inc/unified_types.hpp",
-    "../Lib/MEUKF/src/meukf_core.cpp",
-    "../Lib/KF/inc/kf_core.hpp",
-    "../Lib/Common/inc/standalone.hpp",
-    "../Lib/Common/src/standalone.cpp",
-    "../Lib/ESKF/inc/filter.hpp",
-    "../Lib/MEUKF/src/unified_filter.cpp",
-    "../examples/main_eskf.cpp",
-]
+FILES = []
 
-# Additional files reported by pre-commit checks
-FILES += [
-    "../Lib/Common/inc/utils.hpp",
-    "../Lib/Common/src/interface_stub.cpp",
-    "../Lib/ESKF/src/filter.cpp",
-    "../examples/test_interface.cpp",
-]
-FILES += [
-    "../examples/main_standalone.cpp",
-]
-FILES += [
-    # MEX implementation and include files that require BOM
-    "../MEX/Impl/mex_eskf_common.hpp",
-    "../MEX/Impl/mex_eskf_initializer.hpp",
-    "../MEX/Impl/mex_helpers.hpp",
-    "../MEX/Impl/mex_run_eskf_filter_ops.hpp",
-    "../MEX/Impl/mex_run_eskf_impl.hpp",
-    "../MEX/Impl/mex_run_eskf_sensor_updates.hpp",
-    "../MEX/Impl/mex_type_conversion.hpp",
-    "../MEX/Inc/mex_eskf_initializer.hpp",
-    "../MEX/Inc/mex_run_eskf_impl.hpp",
-    "../MEX/Inc/mex_run_eskf_sensor_updates.hpp",
-]
-FILES += [
-    "../Lib/EKF/src/ekf_linear_update.cpp",
+# Legacy explicit list (kept for files that must always be covered)
+EXPLICIT = [
+    "../MEX/mex_eskf_initializer.cpp",
+    "../Lib/MEUKF/src/meukf_core.cpp",
 ]
 
 ROOT = Path(__file__).resolve().parent
+
+# Directories to recursively scan for source/header files to ensure BOM
+RECURSE_DIRS = [
+    "../Lib",
+    "../Src",
+    "../MEX",
+    "../Inc",
+    "../examples",
+]
+
+EXTENSIONS = {'.cpp', '.c', '.hpp', '.h', '.cc', '.hh'}
+
+def discover_files(root: Path):
+    found = set()
+    for d in RECURSE_DIRS:
+        base = root.joinpath(d)
+        if not base.exists():
+            continue
+        for p in base.rglob('*'):
+            if p.is_file() and p.suffix.lower() in EXTENSIONS:
+                found.add(p)
+    return sorted(found)
 
 def add_bom(path: Path) -> bool:
     p = path.resolve()
@@ -68,8 +51,13 @@ def add_bom(path: Path) -> bool:
 
 def main():
     ok = True
-    for f in FILES:
+    # run explicit list first
+    for f in EXPLICIT:
         ok = add_bom(ROOT.joinpath(f)) and ok
+
+    # then discover and apply to all relevant source/header files under project dirs
+    for p in discover_files(ROOT):
+        ok = add_bom(p) and ok
     if not ok:
         sys.exit(2)
 

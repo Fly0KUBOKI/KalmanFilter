@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#ifndef MEX_MEX_RUN_ESKF_SENSOR_UPDATES_HPP
-#define MEX_MEX_RUN_ESKF_SENSOR_UPDATES_HPP
+#ifndef MEX_MEX_RUN_ESKF_SENSOR_UPDATES_HPP_IMPL
+#define MEX_MEX_RUN_ESKF_SENSOR_UPDATES_HPP_IMPL
 
 #include "mex_eskf_common.hpp"
 #include <cstring>
@@ -14,5 +14,5 @@ namespace mex_run_eskf_impl {
 
 } // namespace mex_run_eskf_impl
 
-#endif // MEX_MEX_RUN_ESKF_SENSOR_UPDATES_HPP
+#endif // MEX_MEX_RUN_ESKF_SENSOR_UPDATES_HPP_IMPL
 

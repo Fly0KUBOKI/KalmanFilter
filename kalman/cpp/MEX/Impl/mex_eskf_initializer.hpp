@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#ifndef MEX_MEX_ESKF_INITIALIZER_HPP
-#define MEX_MEX_ESKF_INITIALIZER_HPP
+#ifndef MEX_MEX_ESKF_INITIALIZER_HPP_IMPL
+#define MEX_MEX_ESKF_INITIALIZER_HPP_IMPL
 
 #include "../../Lib/ESKF/inc/eskf_state.hpp"
 #include <mex.h>
@@ -20,5 +20,5 @@ ESKFState* initialize_eskf_from_matlab(const mxArray* obs, double static_time, d
 
 } // namespace eskf
 
-#endif // MEX_MEX_ESKF_INITIALIZER_HPP
+#endif // MEX_MEX_ESKF_INITIALIZER_HPP_IMPL
 

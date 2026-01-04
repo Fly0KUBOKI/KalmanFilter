@@ -50,7 +50,6 @@ UpdatePostprocessResult update_state_from_dx(
     const cmath_fx::Matrix<15, 15, float>& new_state_P
 );
 
-void symmetrize_covariance(cmath_fx::Matrix<15, 15, float>& P);
 
 } // namespace eskf
 

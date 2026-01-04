@@ -2,6 +2,7 @@
 
 #include "../inc/eskf_math.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
+#include "../../Common/inc/filter_mgmt.hpp"
 #include <cmath>
 
 namespace eskf_math {
@@ -31,7 +32,18 @@ void ESKFMath::pv_integration(const PVIntegrationInput& input, PVIntegrationOutp
 
 void ESKFMath::compute_F_matrix(const Vector4& q, const Vector3& a_meas, const Vector3& ba, const Vector3& w_meas, const Vector3& bg, Scalar dt, Matrix15x15& F) { F = Matrix15x15(); for (int i=0;i<15;++i) F(i,i) = static_cast<Scalar>(1.0) + dt * static_cast<Scalar>(0.01); }
 
-void ESKFMath::covariance_prediction(const Matrix15x15& P, const Matrix15x15& F, const Matrix15x15& Q, Matrix15x15& P_new) { Matrix15x15 F_P = F * P; Matrix15x15 F_P_Ft = F_P * F.transpose(); P_new = F_P_Ft + Q; for (int i=0;i<15;++i) for (int j=i+1;j<15;++j){ Scalar v = static_cast<Scalar>(0.5)*(P_new(i,j) + P_new(j,i)); P_new(i,j)=v; P_new(j,i)=v; } }
+void ESKFMath::covariance_prediction(const Matrix15x15& P, const Matrix15x15& F, const Matrix15x15& Q, Matrix15x15& P_new) {
+    Matrix15x15 F_P = F * P;
+    Matrix15x15 F_P_Ft = F_P * F.transpose();
+    P_new = F_P_Ft + Q;
+    // Ensure symmetry via canonical helper
+    {
+        cmath_fx::Matrix<15,15,float> Pmat;
+        for (int i=0;i<15;++i) for (int j=0;j<15;++j) Pmat(i,j) = static_cast<float>(P_new(i,j));
+        common::filter::symmetrize_covariance(Pmat);
+        for (int i=0;i<15;++i) for (int j=0;j<15;++j) P_new(i,j) = static_cast<Scalar>(Pmat(i,j));
+    }
+}
 
 void ESKFMath::inject_error_state(const Vector3& p_in, const Vector3& v_in, const Vector4& q_in, const Vector3& ba_in, const Vector3& bg_in, const Vector15& dx, Vector3& p_out, Vector3& v_out, Vector4& q_out, Vector3& ba_out, Vector3& bg_out) { for (int i=0;i<3;++i){ p_out(i,0)=p_in(i,0)+dx(i,0); v_out(i,0)=v_in(i,0)+dx(i+3,0); ba_out(i,0)=ba_in(i,0)+dx(i+9,0); bg_out(i,0)=bg_in(i,0)+dx(i+12,0); } Vector4 dq; dq(0,0)=static_cast<Scalar>(1.0); dq(1,0)=dx(6,0)*static_cast<Scalar>(0.5); dq(2,0)=dx(7,0)*static_cast<Scalar>(0.5); dq(3,0)=dx(8,0)*static_cast<Scalar>(0.5); cquat::normalize_quat(dq); cquat::multiply_quat(q_in, dq, q_out); cquat::normalize_quat(q_out); }
 

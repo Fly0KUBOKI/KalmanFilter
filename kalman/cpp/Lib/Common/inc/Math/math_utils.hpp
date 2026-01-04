@@ -92,6 +92,21 @@ public:
         return result;
     }
 
+    // Innovation とその共分散 S を計算（動的サイズ版）
+    // y = z - h
+    // S = H * P_pred * H' + R
+    static void compute_innovation_and_S(const cm& z, const cm& h, const cm& H,
+                                         const cm& P_pred, const cm& R,
+                                         cm& y, cm& S, cm& R_out) {
+        y = z - h;
+        // Compute S
+        cm HP = H * P_pred;
+        cm HPHt = HP * H.transpose();
+        S = HPHt + R;
+        S = enforce_symmetry(S);
+        R_out = R;
+    }
+
     // 3x3 スキュ対称行列 (ベクトル v に対して)
     static cm skew_symmetric(const cm& v) {
         cm S; S.resize(3,3);
@@ -327,6 +342,95 @@ public:
         }
         
         return true;
+    }
+    
+    // ========== 異常検出・距離計算 ==========
+    
+    // Mahalanobis距離を計算する統一関数
+    // マハラノビス距離^2 = (y - μ)' * Σ^-1 * (y - μ)
+    // ここで y = innovation, Σ = innovation共分散行列 S
+    // 簡易版: S^-1を直接計算せず、Cholesky分解を使用
+    static float mahalanobis_distance_squared(const cm& innovation, const cm& S) {
+        int n = innovation.rows;
+        if (n == 0) return 0.0f;
+        
+        // S を lower-triangular で Cholesky分解: S = L * L'
+        cm L(n, n);
+        if (!safe_cholesky(S, L)) {
+            // 分解失敗→対角成分の最大値で正規化（フォールバック）
+            float max_var = 0.0f;
+            for (int i = 0; i < n; ++i) {
+                if (S(i,i) > max_var) max_var = S(i,i);
+            }
+            if (max_var < EPS) max_var = 1.0f;
+            
+            float norm_sq = 0.0f;
+            for (int i = 0; i < n; ++i) {
+                norm_sq += innovation(i,0) * innovation(i,0);
+            }
+            return norm_sq / max_var;
+        }
+        
+        // L の逆行列を求める（前進代入）
+        cm L_inv(n, n);
+        for (int j = 0; j < n; ++j) {
+            for (int i = 0; i < n; ++i) {
+                if (i < j) {
+                    L_inv(i,j) = 0.0f;
+                    continue;
+                }
+                
+                float sum = 0.0f;
+                for (int k = 0; k < i; ++k) {
+                    sum += L(i,k) * L_inv(k,j);
+                }
+                
+                if (i == j) {
+                    if (fabsf(L(i,i)) < EPS) {
+                        L_inv(i,j) = 1.0f / EPS;
+                    } else {
+                        L_inv(i,j) = (1.0f - sum) / L(i,i);
+                    }
+                } else {
+                    L_inv(i,j) = -sum / L(i,i);
+                }
+            }
+        }
+        
+        // y' = (L^-1) * innovation
+        cm L_inv_y(n, 1);
+        for (int i = 0; i < n; ++i) {
+            float sum = 0.0f;
+            for (int j = 0; j < n; ++j) {
+                sum += L_inv(i,j) * innovation(j,0);
+            }
+            L_inv_y(i,0) = sum;
+        }
+        
+        // マハラノビス距離^2 = |L^-1 * y|^2
+        float dist_sq = 0.0f;
+        for (int i = 0; i < n; ++i) {
+            dist_sq += L_inv_y(i,0) * L_inv_y(i,0);
+        }
+        
+        return dist_sq;
+    }
+    
+    // Mahalanobis距離（スカラー版）
+    static float mahalanobis_distance_scalar(float innovation, float variance) {
+        if (variance < EPS) variance = EPS;
+        return fabsf(innovation) / sqrtf(variance);
+    }
+    
+    // Chi-square検定による外れ値判定
+    // dof = 自由度（innovation の次元）
+    static bool is_outlier_chi_square(const cm& innovation, const cm& S, int dof, float alpha = 0.05f) {
+        // 自由度dof、有意水準αのχ²分布の臨界値（近似）
+        // α=0.05の場合: χ²_{1,0.05}≈3.84, χ²_{3,0.05}≈7.81
+        float chi_sq_critical = 3.0f * dof;  // 保守的な閾値
+        
+        float dist_sq = mahalanobis_distance_squared(innovation, S);
+        return (dist_sq > chi_sq_critical);
     }
 };
 

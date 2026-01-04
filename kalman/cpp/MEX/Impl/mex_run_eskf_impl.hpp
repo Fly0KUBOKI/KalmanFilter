@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#ifndef MEX_MEX_RUN_ESKF_IMPL_HPP
-#define MEX_MEX_RUN_ESKF_IMPL_HPP
+#ifndef MEX_MEX_RUN_ESKF_IMPL_HPP_IMPL
+#define MEX_MEX_RUN_ESKF_IMPL_HPP_IMPL
 
 /**
  * mex_run_eskf.cpp用の実装関数群（Impl）
@@ -431,5 +431,5 @@ inline mxArray* do_sensor_filter_update(const mxArray* m_sensor) {
 
 } // namespace mex_run_eskf_impl
 
-#endif // MEX_MEX_RUN_ESKF_IMPL_HPP
+#endif // MEX_MEX_RUN_ESKF_IMPL_HPP_IMPL
 

@@ -41,6 +41,9 @@ void apply_zupt(
 // 各状態変数の最大分散を超える場合、スケーリングして正規化
 void normalize_covariance(cmath_fx::Matrix<15, 15, float>& P);
 
+// 共分散行列の強制対称化: P = (P + P^T)/2
+// P: 共分散行列 (15x15) [入出力]
+void symmetrize_covariance(cmath_fx::Matrix<15, 15, float>& P);
 // 状態の発散チェック（拡張版）
 // p: 位置ベクトル (3x1) [入力]
 // v: 速度ベクトル (3x1) [入力]

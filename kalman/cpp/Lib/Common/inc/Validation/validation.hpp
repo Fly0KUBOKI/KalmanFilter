@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "../../../Matrix/fixed_matrix.hpp"
+#include "../Math/math_utils.hpp"
 #include <cmath>
 #include <algorithm>
 
@@ -8,6 +9,7 @@ namespace common {
 namespace validation {
 
 using cm = cmath_fx::FixedMatrix;
+using MathUtils = common::math::MathUtils;
 
 // ========== 共分散正則化 ==========
 class CovarianceRegularizer {
@@ -99,29 +101,13 @@ public:
     }
 };
 
-// ========== 外れ値検出器 ==========
+// ========== 外れ値検出器（非推奨：math_utils.hpp の関数を使用） ==========
 class OutlierDetector {
 public:
-    // マハラノビス距離による外れ値検出
+    // Mahalanobis距離による外れ値検出（統一実装は math_utils.hpp::MathUtils::mahalanobis_distance_squared）
     static bool detect_mahalanobis(const cm& innovation, const cm& S, float threshold = 9.0f) {
-        // マハラノビス距離^2 = y' * S^-1 * y
-        // 簡易版: S^-1を計算せず、ノルムベースで判定
-        
-        // イノベーション共分散行列の対角成分から閾値計算
-        float max_var = 0.0f;
-        for (int i = 0; i < S.rows; ++i) {
-            if (S(i,i) > max_var) max_var = S(i,i);
-        }
-        
-        float innovation_norm_sq = 0.0f;
-        for (int i = 0; i < innovation.rows; ++i) {
-            innovation_norm_sq += innovation(i,0) * innovation(i,0);
-        }
-        
-        // 正規化された距離
-        float normalized_dist = innovation_norm_sq / (max_var + 1e-9f);
-        
-        return (normalized_dist > threshold);
+        float dist_sq = MathUtils::mahalanobis_distance_squared(innovation, S);
+        return (dist_sq > threshold);
     }
     
     // シンプルな外れ値検出（閾値ベース）
@@ -134,13 +120,10 @@ public:
         return (norm > threshold);
     }
     
-    // Chi-square検定による外れ値検出
+    // Chi-square検定による外れ値検出（統一実装は math_utils.hpp::MathUtils::is_outlier_chi_square）
     static bool detect_chi_square(const cm& innovation, const cm& S, float alpha = 0.05f) {
-        // 簡易版: 3σ基準を使用
         int dof = innovation.rows;
-        float threshold = 3.0f * dof;  // 保守的な閾値
-        
-        return detect_mahalanobis(innovation, S, threshold);
+        return MathUtils::is_outlier_chi_square(innovation, S, dof, alpha);
     }
 };
 
