@@ -1,5 +1,5 @@
 ﻿#include "../inc/meukf_core.hpp"
-#include "../../Inc/Common/Math/math_utils.hpp"
+#include "../../Common/inc/Math/math_utils.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include <cmath>
 #include <cstring>

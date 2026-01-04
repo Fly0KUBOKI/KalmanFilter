@@ -45,6 +45,9 @@ FILES += [
     "../MEX/Inc/mex_run_eskf_impl.hpp",
     "../MEX/Inc/mex_run_eskf_sensor_updates.hpp",
 ]
+FILES += [
+    "../Lib/EKF/src/ekf_linear_update.cpp",
+]
 
 ROOT = Path(__file__).resolve().parent
 

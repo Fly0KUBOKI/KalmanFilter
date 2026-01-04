@@ -1,10 +1,10 @@
-// ekf_linear_update.cpp
+﻿// ekf_linear_update.cpp
 // Implementation file for EKF linear update (Lib copy)
 // Standard Kalman filter update step for linear observation model
 
 #include "../inc/ekf_linear_update.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Inc/KF/kalman_filter_core.hpp"
+#include "../../KF/inc/kalman_filter_core.hpp"
 #include <cmath>
 
 namespace ekf {
