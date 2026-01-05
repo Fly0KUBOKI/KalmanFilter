@@ -47,12 +47,18 @@ private:
     
     // GPS Update
     static void update_gps(State& state, const Vector3& gps_meas, const Params& params, MEUKFOutput& output);
+    // UKF-backed gps update (currently a wrapper; can be replaced by full UKF later)
+    static void update_gps_meukf_ukf_version(State& state, const Vector3& gps_meas, const Params& params, MEUKFOutput& output);
     
     // Baro Update
     static void update_baro(State& state, float alt_baro, const Params& params, MEUKFOutput& output);
+    // UKF-backed baro update (wrapper)
+    static void update_baro_meukf_ukf_version(State& state, float alt_baro, const Params& params, MEUKFOutput& output);
 
     // ZUPT Update
     static void update_zupt(State& state, const Params& params, MEUKFOutput& output);
+    // UKF-backed zupt update (wrapper)
+    static void update_zupt_meukf_ukf_version(State& state, const Params& params, MEUKFOutput& output);
 
     // Helpers
     static void state_to_vars(const State& s, Vector3& p, Vector3& v, Vector4& q, Vector3& ba, Vector3& bg, Matrix15x15& P);

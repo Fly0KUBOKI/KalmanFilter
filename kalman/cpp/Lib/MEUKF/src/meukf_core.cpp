@@ -11,6 +11,207 @@
 
 namespace meukf {
 
+
+// -----------------------------------------------------------------
+// GPS/Baro/ZUPT UKF-version wrappers
+// These currently delegate to the original MEUKF implementations
+// so we can switch call sites incrementally. Replace with actual
+// UKF-backed implementations later as needed.
+// -----------------------------------------------------------------
+void MEUKFCore::update_gps_meukf_ukf_version(State& state, const Vector3& gps_meas, const Params& params, MEUKFOutput& output)
+{
+    // UKF-backed GPS update using full 15-dim error-state (p,v,theta,ba,bg)
+    using UKF = ukf::UKFUpdate<15, 3, float>;
+    using Vector15 = UKF::VectorN;
+    using Matrix15x15 = UKF::MatrixNN;
+    using Matrix15x3 = UKF::MatrixNM;
+    using Matrix3x3 = UKF::MatrixMM;
+    using Vector3f = UKF::VectorM;
+
+    // Convert State -> UKF state vector x (nominal state composition)
+    Vector15 x; Matrix15x15 P;
+    // p (0..2)
+    for (int i = 0; i < 3; ++i) x(i,0) = state.p[i];
+    // v (3..5)
+    for (int i = 0; i < 3; ++i) x(3+i,0) = state.v[i];
+    // small-angle attitude (6..8): initially zero (error state representation)
+    for (int i = 0; i < 3; ++i) x(6+i,0) = 0.0f;
+    // ba (9..11)
+    for (int i = 0; i < 3; ++i) x(9+i,0) = state.ba[i];
+    // bg (12..14)
+    for (int i = 0; i < 3; ++i) x(12+i,0) = state.bg[i];
+
+    // Fill P from state.P (row-major stored)
+    for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) P(i,j) = state.P[i*15 + j];
+
+    // Measurement vector z (GPS position)
+    Vector3f z;
+    z(0,0) = gps_meas(0,0);
+    z(1,0) = gps_meas(1,0);
+    z(2,0) = gps_meas(2,0);
+
+    // Observation function: extract position from state vector
+    auto h_func = [](const Vector15& xv) {
+        Vector3f zv;
+        zv(0,0) = xv(0,0);
+        zv(1,0) = xv(1,0);
+        zv(2,0) = xv(2,0);
+        return zv;
+    };
+
+    // Measurement noise R (3x3)
+    Matrix3x3 R = Matrix3x3::Zero();
+    for (int i = 0; i < 3; ++i) R(i,i) = params.noise_gps[i];
+
+    // UKF parameters
+    ukf::UKFParams up; up.alpha = params.alpha; up.beta = params.beta; up.kappa = params.kappa;
+
+    // Optional outputs
+    Matrix15x3 K_out;
+    Matrix3x3 S_out;
+    Vector3f y_out;
+
+    bool ok = UKF::update(x, P, z, h_func, R, up, &K_out, &S_out, &y_out);
+    if (!ok) {
+        output.status = 1;
+        return;
+    }
+
+    // Write back updated nominal state: p,v,apply attitude small-angle to quaternion, ba,bg
+    // p (0..2)
+    for (int i = 0; i < 3; ++i) state.p[i] = x(i,0);
+    // v (3..5)
+    for (int i = 0; i < 3; ++i) state.v[i] = x(3+i,0);
+    // attitude: small-angle theta = x(6..8)
+    Vector4 q_in; q_in(0,0)=state.q[0]; q_in(1,0)=state.q[1]; q_in(2,0)=state.q[2]; q_in(3,0)=state.q[3];
+    Vector4 dq; dq(0,0) = 1.0f; dq(1,0) = 0.5f * x(6,0); dq(2,0) = 0.5f * x(7,0); dq(3,0) = 0.5f * x(8,0);
+    cquat::normalize_quat(dq);
+    Vector4 q_new; cquat::multiply_quat(q_in, dq, q_new);
+    cquat::normalize_quat(q_new);
+    state.q[0] = q_new(0,0); state.q[1] = q_new(1,0); state.q[2] = q_new(2,0); state.q[3] = q_new(3,0);
+    // ba/bg
+    for (int i = 0; i < 3; ++i) state.ba[i] = x(9+i,0);
+    for (int i = 0; i < 3; ++i) state.bg[i] = x(12+i,0);
+
+    // Write back covariance P (row-major)
+    for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) state.P[i*15 + j] = P(i,j);
+
+    // Diagnostics
+    // last_K: 15 x 3 row-major
+    for (int i = 0; i < 15; ++i) for (int j = 0; j < 3; ++j) output.last_K[i*3 + j] = K_out(i,j);
+    // last_S
+    for (int i = 0; i < 3; ++i) for (int j = 0; j < 3; ++j) output.last_S[i*3 + j] = S_out(i,j);
+    // last_y
+    for (int i = 0; i < 3; ++i) output.last_y[i] = y_out(i,0);
+    output.last_y_len = 3;
+    output.last_sensor_type = 3; // GPS
+    // pred_P already set earlier in step()
+}
+
+void MEUKFCore::update_baro_meukf_ukf_version(State& state, float alt_baro, const Params& params, MEUKFOutput& output)
+{
+    // UKF-backed Baro update: measurement is altitude -> p_z
+    using UKF1 = ukf::UKFUpdate<15, 1, float>;
+    using Vector15 = UKF1::VectorN;
+    using Matrix15x15 = UKF1::MatrixNN;
+    using Matrix15x1 = UKF1::MatrixNM;
+    using Matrix1x1 = UKF1::MatrixMM;
+    using Vector1f = UKF1::VectorM;
+
+    Vector15 x; Matrix15x15 P;
+    for (int i = 0; i < 3; ++i) x(i,0) = state.p[i];
+    for (int i = 0; i < 3; ++i) x(3+i,0) = state.v[i];
+    for (int i = 0; i < 3; ++i) x(6+i,0) = 0.0f;
+    for (int i = 0; i < 3; ++i) x(9+i,0) = state.ba[i];
+    for (int i = 0; i < 3; ++i) x(12+i,0) = state.bg[i];
+    for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) P(i,j) = state.P[i*15 + j];
+
+    Vector1f z; z(0,0) = alt_baro;
+
+    auto h_func_bar = [](const Vector15& xv) {
+        Vector1f zv;
+        zv(0,0) = xv(2,0); // p_z
+        return zv;
+    };
+
+    Matrix1x1 R = Matrix1x1::Zero(); R(0,0) = params.noise_baro;
+    ukf::UKFParams up; up.alpha = params.alpha; up.beta = params.beta; up.kappa = params.kappa;
+
+    Matrix15x1 K_out; Matrix1x1 S_out; Vector1f y_out;
+    bool ok = UKF1::update(x, P, z, h_func_bar, R, up, &K_out, &S_out, &y_out);
+    if (!ok) { output.status = 1; return; }
+
+    // Apply updates back to state
+    for (int i = 0; i < 3; ++i) state.p[i] = x(i,0);
+    for (int i = 0; i < 3; ++i) state.v[i] = x(3+i,0);
+    Vector4 q_in; q_in(0,0)=state.q[0]; q_in(1,0)=state.q[1]; q_in(2,0)=state.q[2]; q_in(3,0)=state.q[3];
+    Vector4 dq; dq(0,0)=1.0f; dq(1,0)=0.5f * x(6,0); dq(2,0)=0.5f * x(7,0); dq(3,0)=0.5f * x(8,0);
+    cquat::normalize_quat(dq); Vector4 q_new; cquat::multiply_quat(q_in, dq, q_new); cquat::normalize_quat(q_new);
+    state.q[0]=q_new(0,0); state.q[1]=q_new(1,0); state.q[2]=q_new(2,0); state.q[3]=q_new(3,0);
+    for (int i = 0; i < 3; ++i) state.ba[i] = x(9+i,0);
+    for (int i = 0; i < 3; ++i) state.bg[i] = x(12+i,0);
+    for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) state.P[i*15 + j] = P(i,j);
+
+    // Diagnostics
+    for (int i = 0; i < 15; ++i) for (int j = 0; j < 3; ++j) output.last_K[i*3 + j] = 0.0f;
+    for (int i = 0; i < 15; ++i) output.last_K[i*3 + 0] = K_out(i,0);
+    output.last_S[0] = S_out(0,0);
+    output.last_y[0] = y_out(0,0); output.last_y_len = 1; output.last_sensor_type = 4; // baro
+}
+
+void MEUKFCore::update_zupt_meukf_ukf_version(State& state, const Params& params, MEUKFOutput& output)
+{
+    // UKF-backed ZUPT: measurement is zero velocity (v_x,v_y,v_z)
+    using UKF3 = ukf::UKFUpdate<15, 3, float>;
+    using Vector15 = UKF3::VectorN;
+    using Matrix15x15 = UKF3::MatrixNN;
+    using Matrix15x3 = UKF3::MatrixNM;
+    using Matrix3x3 = UKF3::MatrixMM;
+    using Vector3f = UKF3::VectorM;
+
+    Vector15 x; Matrix15x15 P;
+    for (int i = 0; i < 3; ++i) x(i,0) = state.p[i];
+    for (int i = 0; i < 3; ++i) x(3+i,0) = state.v[i];
+    for (int i = 0; i < 3; ++i) x(6+i,0) = 0.0f;
+    for (int i = 0; i < 3; ++i) x(9+i,0) = state.ba[i];
+    for (int i = 0; i < 3; ++i) x(12+i,0) = state.bg[i];
+    for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) P(i,j) = state.P[i*15 + j];
+
+    Vector3f z; z(0,0)=0.0f; z(1,0)=0.0f; z(2,0)=0.0f;
+
+    auto h_func_zupt = [](const Vector15& xv) {
+        Vector3f zv;
+        zv(0,0) = xv(3,0);
+        zv(1,0) = xv(4,0);
+        zv(2,0) = xv(5,0);
+        return zv;
+    };
+
+    Matrix3x3 R = Matrix3x3::Zero();
+    for (int i = 0; i < 3; ++i) R(i,i) = params.noise_zupt[i];
+    ukf::UKFParams up; up.alpha = params.alpha; up.beta = params.beta; up.kappa = params.kappa;
+
+    Matrix15x3 K_out; Matrix3x3 S_out; Vector3f y_out;
+    bool ok = UKF3::update(x, P, z, h_func_zupt, R, up, &K_out, &S_out, &y_out);
+    if (!ok) { output.status = 1; return; }
+
+    for (int i = 0; i < 3; ++i) state.p[i] = x(i,0);
+    for (int i = 0; i < 3; ++i) state.v[i] = x(3+i,0);
+    Vector4 q_in; q_in(0,0)=state.q[0]; q_in(1,0)=state.q[1]; q_in(2,0)=state.q[2]; q_in(3,0)=state.q[3];
+    Vector4 dq; dq(0,0)=1.0f; dq(1,0)=0.5f * x(6,0); dq(2,0)=0.5f * x(7,0); dq(3,0)=0.5f * x(8,0);
+    cquat::normalize_quat(dq); Vector4 q_new; cquat::multiply_quat(q_in, dq, q_new); cquat::normalize_quat(q_new);
+    state.q[0]=q_new(0,0); state.q[1]=q_new(1,0); state.q[2]=q_new(2,0); state.q[3]=q_new(3,0);
+    for (int i = 0; i < 3; ++i) state.ba[i] = x(9+i,0);
+    for (int i = 0; i < 3; ++i) state.bg[i] = x(12+i,0);
+    for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) state.P[i*15 + j] = P(i,j);
+
+    // Diagnostics
+    for (int i = 0; i < 15*3; ++i) output.last_K[i] = 0.0f;
+    for (int i = 0; i < 15; ++i) for (int j = 0; j < 3; ++j) output.last_K[i*3 + j] = K_out(i,j);
+    for (int i = 0; i < 3; ++i) for (int j = 0; j < 3; ++j) output.last_S[i*3 + j] = S_out(i,j);
+    for (int i = 0; i < 3; ++i) output.last_y[i] = y_out(i,0);
+    output.last_y_len = 3; output.last_sensor_type = 5; // zupt
+}
 // Debug helper: control logging via env var MEUKF_DEBUG_LEVEL (0=off, 1=minimal, 2=verbose)
 static int get_debug_level() {
     const char* s = std::getenv("MEUKF_DEBUG_LEVEL");
@@ -199,17 +400,18 @@ void MEUKFCore::step(const MEUKFInput& input, MEUKFOutput& output) {
     // GPS Update
     if (input.sensor.update_gps) {
         Vector3 gps_meas = make_vector3(input.sensor.gps_pos[0], input.sensor.gps_pos[1], input.sensor.gps_pos[2]);
-        update_gps(output.new_state, gps_meas, input.params, output);
+        update_gps_meukf_ukf_version(output.new_state, gps_meas, input.params, output);
     }
-    
+
     // Baro Update
     if (input.sensor.update_baro) {
-        update_baro(output.new_state, input.sensor.alt_baro, input.params, output);
+        float alt_baro = input.sensor.alt_baro;
+        update_baro_meukf_ukf_version(output.new_state, alt_baro, input.params, output);
     }
 
     // ZUPT Update (常に実行)
     if (input.sensor.update_zupt) {
-        update_zupt(output.new_state, input.params, output);
+        update_zupt_meukf_ukf_version(output.new_state, input.params, output);
     }
 }
 
