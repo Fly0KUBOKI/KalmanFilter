@@ -31,34 +31,25 @@ public:
     // Returns true if both updates executed; outputs are written to out_orig and out_ukf
     static bool compare_accel_updates(const State& init_state, const SensorData& sensor, const Params& params, MEUKFOutput& out_orig, MEUKFOutput& out_ukf);
 
-private:
     // Prediction step
     static void predict(State& state, const SensorData& sensor, const Params& params);
     
-    // MEUKF Attitude Update (Accel)
+    // UKF-backed Attitude Updates (Accel & Mag only use UKF library)
     static void update_accel_meukf(State& state, const Vector3& accel_meas, const Params& params, MEUKFOutput& output);
-    // UKF-backed accel update (delegates to ukf_generic.hpp)
     static void update_accel_meukf_ukf_version(State& state, const Vector3& accel_meas, const Params& params, MEUKFOutput& output);
-    
-    // MEUKF Attitude Update (Mag)
     static void update_mag_meukf(State& state, const Vector3& mag_meas, const Params& params, MEUKFOutput& output);
-    // UKF-backed mag update
     static void update_mag_meukf_ukf_version(State& state, const Vector3& mag_meas, const Params& params, MEUKFOutput& output);
     
-    // GPS Update
-    static void update_gps(State& state, const Vector3& gps_meas, const Params& params, MEUKFOutput& output);
-    // UKF-backed gps update (currently a wrapper; can be replaced by full UKF later)
+    // UKF-backed sensor updates (GPS, Baro, ZUPT)
     static void update_gps_meukf_ukf_version(State& state, const Vector3& gps_meas, const Params& params, MEUKFOutput& output);
-    
-    // Baro Update
-    static void update_baro(State& state, float alt_baro, const Params& params, MEUKFOutput& output);
-    // UKF-backed baro update (wrapper)
     static void update_baro_meukf_ukf_version(State& state, float alt_baro, const Params& params, MEUKFOutput& output);
-
-    // ZUPT Update
-    static void update_zupt(State& state, const Params& params, MEUKFOutput& output);
-    // UKF-backed zupt update (wrapper)
     static void update_zupt_meukf_ukf_version(State& state, const Params& params, MEUKFOutput& output);
+    
+    // Legacy stubs (deprecated - use _ukf_version functions)
+    static void update_deprecated_mag_old(State& state, const Vector3& mag_meas, const Params& params, MEUKFOutput& output);
+    static void update_deprecated_gps_old(State& state, const Vector3& gps_meas, const Params& params, MEUKFOutput& output);
+    static void update_deprecated_baro_old(State& state, float alt_baro, const Params& params, MEUKFOutput& output);
+    static void update_deprecated_zupt_old(State& state, const Params& params, MEUKFOutput& output);
 
     // Helpers
     static void state_to_vars(const State& s, Vector3& p, Vector3& v, Vector4& q, Vector3& ba, Vector3& bg, Matrix15x15& P);

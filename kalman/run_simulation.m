@@ -1,4 +1,4 @@
-function run_simulation(seed, skip_data_gen)
+function loop_elapsed = run_simulation(seed, skip_data_gen)
     % run_simulation - ESKF simulation using MEX implementation
     % Uses mex_run_eskf for all ESKF operations
     
@@ -18,7 +18,7 @@ function run_simulation(seed, skip_data_gen)
     handle = mex_run_eskf('init', obs, params.static_time, dt);
     
     try
-        results = run_filter_mex(handle, obs, params.static_time, dt);
+        [results, loop_elapsed] = run_filter_mex(handle, obs, params.static_time, dt);
         save_results(proj_root, results);
     catch ME
         mex_run_eskf('free', handle);
@@ -46,7 +46,7 @@ function dt = calculate_dt(obs)
     dt = mean(diff(obs.time));
 end
 
-function results = run_filter_mex(handle, obs, static_time, dt)
+function [results, loop_elapsed] = run_filter_mex(handle, obs, static_time, dt)
     % MEX mode filter execution (float output)
     n_samples = numel(obs.time);
     static_samples = floor(static_time / dt);
@@ -61,8 +61,15 @@ function results = run_filter_mex(handle, obs, static_time, dt)
     results.innov_norm = zeros(1, n_samples, 'single');
     results.maha_dist = zeros(1, n_samples, 'single');
     
+    % initialize loop timer
+    start_loop_tic = [];
+    loop_elapsed = 0.0;
+
     for k = 1:n_samples
-        if k == 1; fprintf('Start loop\n'); end
+        if k == 1
+            fprintf('Start loop\n');
+            start_loop_tic = tic;
+        end
         
         if k > static_samples
             % Run one ESKF step (predict + sensor updates + reset + zupt)
@@ -83,6 +90,12 @@ function results = run_filter_mex(handle, obs, static_time, dt)
         if mod(k, 1000) == 0; fprintf('Step %d / %d\n', k, n_samples); end
     end
     fprintf('推定完了\n');
+
+    if ~isempty(start_loop_tic)
+        loop_elapsed = toc(start_loop_tic);
+    else
+        loop_elapsed = 0.0;
+    end
 end
 
 function save_results(proj_root, results)

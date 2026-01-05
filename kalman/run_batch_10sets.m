@@ -60,11 +60,9 @@ function run_batch_10sets()
         log_message(log_file, sprintf('========================================'));
         
         try
-            % シミュレーション実行
+            % シミュレーション実行（run_simulation がループ開始からの経過秒を返す）
             log_message(log_file, sprintf('Run %d: シミュレーション開始...', run_id));
-            tic;
-            run_simulation(run_id, false);
-            elapsed = toc;
+            elapsed = run_simulation(run_id, false);
             log_message(log_file, sprintf('Run %d: シミュレーション完了 (%.2f秒)', run_id, elapsed));
             
             % 結果ファイルを番号付きでコピー
