@@ -1,0 +1,141 @@
+=== MEX Build Log Started at 05-Jan-2026 21:28:44 ===
+Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20260105_212844.txt
+
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+Compiling mex_run_eskf... FAILED
+次を使用中のエラー: mex
+meukf_core.cpp
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(26): warning C4244: '=': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(26): warning C4244: '=': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(26): warning C4244: '=': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(40): warning C4244: '=': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(40): warning C4244: '=': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(40): warning C4244: '=': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(40): warning C4244: '=': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(290): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(317): warning C4244: '引数': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(407): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(480): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(539): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(703): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(930): error C3861: 'P_full_pre': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1010): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1022): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1032): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1091): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1121): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1186): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1297): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+
+
+
+エラー: build_mex>build_mex_targets (行 178)
+            evalc('mex(mex_args{:});');
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: build_mex (行 89)
+    built_count = build_mex_targets(mex_targets, compile_opts, inc_args, bin_dir, targets, log_fn, log_fid);
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Compiling mex_meukf_step_v2... FAILED
+次を使用中のエラー: mex
+meukf_core.cpp
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(26): warning C4244: '=': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(26): warning C4244: '=': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(26): warning C4244: '=': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(40): warning C4244: '=': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(40): warning C4244: '=': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(40): warning C4244: '=': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(40): warning C4244: '=': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(290): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(317): warning C4244: '引数': 'double' から 'T' への変換です。データが失われる可能性があります。
+        with
+        [
+            T=float
+        ]
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(407): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(480): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(539): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(703): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(930): error C3861: 'P_full_pre': 識別子が見つかりませんでした
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1010): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1022): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1032): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1091): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1121): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1186): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(1297): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
+
+
+
+エラー: build_mex>build_mex_targets (行 178)
+            evalc('mex(mex_args{:});');
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: build_mex (行 89)
+    built_count = build_mex_targets(mex_targets, compile_opts, inc_args, bin_dir, targets, log_fn, log_fid);
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+=== Build Complete ===
+Successfully built 0 MEX file(s)
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+=== MEX Build Log Ended at 05-Jan-2026 21:28:51 ===

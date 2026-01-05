@@ -27,15 +27,23 @@ public:
     // Main step function
     static void step(const MEUKFInput& input, MEUKFOutput& output);
 
+    // Comparison helper (test): run both original and UKF-backed accel updates
+    // Returns true if both updates executed; outputs are written to out_orig and out_ukf
+    static bool compare_accel_updates(const State& init_state, const SensorData& sensor, const Params& params, MEUKFOutput& out_orig, MEUKFOutput& out_ukf);
+
 private:
     // Prediction step
     static void predict(State& state, const SensorData& sensor, const Params& params);
     
     // MEUKF Attitude Update (Accel)
     static void update_accel_meukf(State& state, const Vector3& accel_meas, const Params& params, MEUKFOutput& output);
+    // UKF-backed accel update (delegates to ukf_generic.hpp)
+    static void update_accel_meukf_ukf_version(State& state, const Vector3& accel_meas, const Params& params, MEUKFOutput& output);
     
     // MEUKF Attitude Update (Mag)
     static void update_mag_meukf(State& state, const Vector3& mag_meas, const Params& params, MEUKFOutput& output);
+    // UKF-backed mag update
+    static void update_mag_meukf_ukf_version(State& state, const Vector3& mag_meas, const Params& params, MEUKFOutput& output);
     
     // GPS Update
     static void update_gps(State& state, const Vector3& gps_meas, const Params& params, MEUKFOutput& output);

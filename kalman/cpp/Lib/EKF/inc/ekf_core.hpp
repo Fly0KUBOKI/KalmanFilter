@@ -4,6 +4,7 @@
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../KF/kalman_filter_core.hpp"
+#include "../../Common/inc/Math/math_utils.hpp"
 
 namespace ekf {
 
@@ -84,19 +85,28 @@ public:
         // 予測観測値
         VectorM z_pred = h_func(x);
         
-        // イノベーション
+        // イノベーションとその共分散 S を統一関数で計算
         VectorM y = z - z_pred;
-        
-        // S = H*P*H' + R
-        auto HP = H * P;
-        MatrixMM S = HP * H.transpose() + R;
-        
-        // 対称化
-        for (int i = 0; i < M; ++i) {
-            for (int j = 0; j < M; ++j) {
-                S(i, j) = 0.5 * (S(i, j) + S(j, i));
-            }
-        }
+        // convert to common::math::cm
+        common::math::cm z_cm; z_cm.resize(M,1);
+        common::math::cm h_cm; h_cm.resize(M,1);
+        common::math::cm H_cm; H_cm.resize(M,N);
+        common::math::cm P_cm; P_cm.resize(N,N);
+        common::math::cm R_cm; R_cm.resize(M,M);
+        for(int i=0;i<M;i++) { z_cm(i,0) = z(i,0); h_cm(i,0) = z_pred(i,0); }
+        for(int i=0;i<M;i++) for(int j=0;j<N;j++) H_cm(i,j) = H(i,j);
+        for(int i=0;i<N;i++) for(int j=0;j<N;j++) P_cm(i,j) = P(i,j);
+        for(int i=0;i<M;i++) for(int j=0;j<M;j++) R_cm(i,j) = R(i,j);
+
+        common::math::cm y_cm; y_cm.resize(M,1);
+        common::math::cm S_cm; S_cm.resize(M,M);
+        common::math::cm R_out; R_out.resize(M,M);
+        common::math::MathUtils::compute_innovation_and_S(z_cm, h_cm, H_cm, P_cm, R_cm, y_cm, S_cm, R_out);
+
+        // copy back S and y
+        MatrixMM S; 
+        for(int i=0;i<M;i++) for(int j=0;j<M;j++) S(i,j) = S_cm(i,j);
+        for(int i=0;i<M;i++) y(i,0) = y_cm(i,0);
         
         // カルマンゲイン K = P*H'*inv(S)
         MatrixNM K = kf::KalmanFilterCore::compute_kalman_gain<N, M, T>(P, H, S);

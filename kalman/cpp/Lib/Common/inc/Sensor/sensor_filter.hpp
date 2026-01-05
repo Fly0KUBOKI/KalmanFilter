@@ -4,6 +4,7 @@
 #define COMMON_SENSOR_SENSOR_FILTER_HPP
 
 #include "../../../Matrix/fixed_matrix.hpp"
+#include "../Math/math_utils.hpp"
 #include <cmath>
 #include <algorithm>
 #include <cstring>
@@ -298,6 +299,14 @@ public:
         }
 
         return is_outlier;
+    }
+
+    // Mahalanobis-based静的判定: innovation とその共分散 S を与えて閾値判定
+    // このメソッドは履歴を使わず、MathUtils の実装へ委譲します。
+    static bool detect_mahalanobis_static(const common::math::cm& innovation, const common::math::cm& S, float threshold_sigma = 3.0f) {
+        float dist_sq = common::math::MathUtils::mahalanobis_distance_squared(innovation, S);
+        float dist = sqrtf(dist_sq);
+        return dist > threshold_sigma;
     }
     
     void reset() {
@@ -780,16 +789,14 @@ public:
             return accel_filter.get_value();
         }
         
-        // 残差計算
-        float residual_norm = 0.0f;
-        for (int i = 0; i < 3; ++i) {
-            float diff = a_meas(i,0) - a_expected(i,0);
-            residual_norm += diff * diff;
-        }
-        residual_norm = sqrtf(residual_norm);
-        
-        // 外れ値検出（設定で制御）
-        is_outlier = accel_outlier.detect(residual_norm, accel_threshold_sigma_, accel_min_std_);
+            // イノベーション（3x1）を作成し、統一 Mahalanobis 判定へ委譲
+            common::math::cm innov; innov.resize(3,1);
+            for (int i = 0; i < 3; ++i) innov(i,0) = a_meas(i,0) - a_expected(i,0);
+
+            // センサーのノイズ推定から R を取得して S として用いる（簡易モデル）
+            common::math::cm Rmat = noise_estimator.get_R_matrix("accel");
+            // Rmat は diag 形式で返ってくる想定
+            is_outlier = accel_outlier.detect_mahalanobis_static(innov, Rmat, accel_threshold_sigma_);
         
         if (is_outlier) {
             // 外れ値の場合は前回値を返す
@@ -807,7 +814,11 @@ public:
         }
         residual_norm = sqrtf(residual_norm);
         
-        is_outlier = mag_outlier.detect(residual_norm);
+            // イノベーション（3x1）を作成し、統一 Mahalanobis 判定へ委譲
+            common::math::cm innov; innov.resize(3,1);
+            for (int i = 0; i < 3; ++i) innov(i,0) = m_meas(i,0) - m_expected(i,0);
+            common::math::cm Rmat = noise_estimator.get_R_matrix("mag");
+            is_outlier = mag_outlier.detect_mahalanobis_static(innov, Rmat, 3.0f);
         
         return mag_filter.filter(m_meas);
     }

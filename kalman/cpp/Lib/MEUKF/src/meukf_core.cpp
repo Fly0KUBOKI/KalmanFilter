@@ -1,6 +1,7 @@
 ﻿#include "../inc/meukf_core.hpp"
 #include "../../Common/inc/Math/math_utils.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
+#include "../../UKF/inc/ukf_generic.hpp"
 #include <cmath>
 #include <cstring>
 #include <algorithm>
@@ -184,13 +185,15 @@ void MEUKFCore::step(const MEUKFInput& input, MEUKFOutput& output) {
     // Accel Update (MEUKF)
     if (input.sensor.update_accel) {
         Vector3 a_meas = make_vector3(input.sensor.accel[0], input.sensor.accel[1], input.sensor.accel[2]);
-        update_accel_meukf(output.new_state, a_meas, input.params, output);
+        // Use UKF-backed accel update unconditionally (MEUKF replaced by UKF library)
+        update_accel_meukf_ukf_version(output.new_state, a_meas, input.params, output);
     }
 
     // Mag Update (MEUKF)
     if (input.sensor.update_mag) {
         Vector3 m_meas = make_vector3(input.sensor.mag[0], input.sensor.mag[1], input.sensor.mag[2]);
-        update_mag_meukf(output.new_state, m_meas, input.params, output);
+        // Replaced: use UKF-backed mag update
+        update_mag_meukf_ukf_version(output.new_state, m_meas, input.params, output);
     }
 
     // GPS Update
@@ -222,6 +225,32 @@ void MEUKFCore::state_to_vars(const State& s, Vector3& p, Vector3& v, Vector4& q
             P(i, j) = s.P[i*15 + j];
         }
     }
+}
+
+bool MEUKFCore::compare_accel_updates(const State& init_state, const SensorData& sensor, const Params& params, MEUKFOutput& out_orig, MEUKFOutput& out_ukf) {
+    // Prepare inputs
+    MEUKFOutput tmp_out1; tmp_out1.new_state = init_state; tmp_out1.status = 0;
+    MEUKFOutput tmp_out2; tmp_out2.new_state = init_state; tmp_out2.status = 0;
+
+    Vector3 a_meas = make_vector3(sensor.accel[0], sensor.accel[1], sensor.accel[2]);
+
+    // Run original update
+    try {
+        update_accel_meukf(tmp_out1.new_state, a_meas, params, tmp_out1);
+    } catch(...) {
+        tmp_out1.status = 1;
+    }
+
+    // Run UKF-backed update
+    try {
+        update_accel_meukf_ukf_version(tmp_out2.new_state, a_meas, params, tmp_out2);
+    } catch(...) {
+        tmp_out2.status = 1;
+    }
+
+    out_orig = tmp_out1;
+    out_ukf = tmp_out2;
+    return true;
 }
 
 void MEUKFCore::vars_to_state(const Vector3& p, const Vector3& v, const Vector4& q, const Vector3& ba, const Vector3& bg, const Matrix15x15& P, State& s) {
@@ -381,6 +410,8 @@ void MEUKFCore::update_accel_meukf(State& state, const Vector3& a_meas, const Pa
     Vector4 q_nom;
     Matrix15x15 P_full;
     state_to_vars(state, p, v, q_nom, ba, bg, P_full);
+    // Preserve pre-update full covariance for diagnostics
+    Matrix15x15 P_full_pre = P_full;
 
     Matrix3x3 P_att;
     for(int i=0; i<3; ++i) for(int j=0; j<3; ++j) P_att(i, j) = P_full(6+i, 6+j);
@@ -517,6 +548,12 @@ void MEUKFCore::update_accel_meukf(State& state, const Vector3& a_meas, const Pa
         output.status = 1;
         return;
     }
+    // Export S_2d into diagnostics (3x3 storage, zero-fill)
+    for (int i=0;i<3;++i) for (int j=0;j<3;++j) output.last_S[i*3 + j] = 0.0f;
+    output.last_S[0*3 + 0] = S_2d(0,0);
+    output.last_S[0*3 + 1] = S_2d(0,1);
+    output.last_S[1*3 + 0] = S_2d(1,0);
+    output.last_S[1*3 + 1] = S_2d(1,1);
     Matrix3x2 K = P_xz_2d * S_2d_inv;
 
     // 2D観測値
@@ -647,16 +684,19 @@ void MEUKFCore::update_accel_meukf(State& state, const Vector3& a_meas, const Pa
     Matrix15x15 I = Matrix15x15::Identity();
     Matrix15x15 I_KH = I - KH_full;
     Matrix15x15 P_tmp = I_KH * P_full * I_KH.transpose();
-    // Build R_mag (3x3 diag)
-    Matrix3x3 R_mag = Matrix3x3::Zero();
-    for(int ii=0; ii<3; ++ii) R_mag(ii,ii) = params.noise_mag[ii];
+    // Build R_acc (2x2 diag) from accel noise used in S_2d (matches dynamic scaling)
+    Matrix2x2 R_acc = Matrix2x2::Zero();
+    for(int ii=0; ii<2; ++ii) {
+        float R_est = params.noise_accel[ii];
+        R_acc(ii,ii) = std::max(R_est, R_floor) * R_scale;
+    }
     Matrix15x15 KRKt = Matrix15x15::Zero();
     for(int i=0; i<15; ++i) {
         for(int j=0; j<15; ++j) {
             float sum2 = 0.0f;
-            for(int k_idx=0; k_idx<3; ++k_idx) {
-                for(int l_idx=0; l_idx<3; ++l_idx) {
-                    sum2 += K_full(i, k_idx) * R_mag(k_idx, l_idx) * K_full(j, l_idx);
+            for(int k_idx=0; k_idx<2; ++k_idx) {
+                for(int l_idx=0; l_idx<2; ++l_idx) {
+                    sum2 += K_full(i, k_idx) * R_acc(k_idx, l_idx) * K_full(j, l_idx);
                 }
             }
             KRKt(i,j) = sum2;
@@ -695,6 +735,357 @@ void MEUKFCore::update_accel_meukf(State& state, const Vector3& a_meas, const Pa
     output.last_y[1] = y(1,0);
     output.last_y_len = 2;
     output.last_sensor_type = 1; // accel
+
+    vars_to_state(p, v, q_updated, ba, bg, P_full, state);
+}
+
+void MEUKFCore::update_accel_meukf_ukf_version(State& state, const Vector3& a_meas, const Params& params, MEUKFOutput& output) {
+    // Extract state parts
+    Vector3 p, v, ba, bg;
+    Vector4 q_nom;
+    Matrix15x15 P_full;
+    state_to_vars(state, p, v, q_nom, ba, bg, P_full);
+
+    // Preserve pre-update full covariance for diagnostics
+    Matrix15x15 P_full_pre = P_full;
+
+    // Attitude covariance block (3x3) — indices 6..8 in the 15x15 state ordering
+    Matrix3x3 P_att;
+    for (int i = 0; i < 3; ++i) for (int j = 0; j < 3; ++j) P_att(i, j) = P_full(6 + i, 6 + j);
+
+    // UKF parameters: use MEUKF params to keep behavior consistent
+    ukf::UKFParams uparams;
+    uparams.alpha = params.alpha;
+    uparams.beta = params.beta;
+    uparams.kappa = params.kappa;
+
+    // Use 2D observation (x,y) to match original MEUKF accel update behavior
+    using UKF = ukf::UKFUpdate<3, 2, float>;
+
+    // Initial small-angle state (3x1) — zero mean
+    cmath_fx::Vector<3,float> x_err = cmath_fx::Vector<3,float>::Zero();
+
+    // Observation function: maps small-angle error vector -> predicted accel 2D (x,y)
+    auto h_func_2d = [q_nom, params](const cmath_fx::Vector<3,float>& dtheta) -> cmath_fx::Vector<2,float> {
+        float dx = dtheta(0,0); float dy = dtheta(1,0); float dz = dtheta(2,0);
+        float angle = std::sqrt(dx*dx + dy*dy + dz*dz);
+        cmath_fx::Vector<4,float> dq;
+        if (angle < 1e-9f) {
+            dq(0,0) = 1.0f; dq(1,0) = 0.0f; dq(2,0) = 0.0f; dq(3,0) = 0.0f;
+        } else {
+            float s = std::sin(angle * 0.5f);
+            dq(0,0) = std::cos(angle * 0.5f);
+            dq(1,0) = (dx/angle) * s;
+            dq(2,0) = (dy/angle) * s;
+            dq(3,0) = (dz/angle) * s;
+        }
+
+        cmath_fx::Vector<4,float> q_i;
+        cquat::multiply_quat(q_nom, dq, q_i);
+        cquat::normalize_quat(q_i);
+
+        cmath_fx::Matrix<3,3,float> Rm;
+        cquat::quat_to_rotm(q_i, Rm);
+        cmath_fx::Vector<3,float> g_vec;
+        g_vec(0,0) = params.g[0]; g_vec(1,0) = params.g[1]; g_vec(2,0) = params.g[2];
+        cmath_fx::Vector<3,float> a_pred = (Rm.transpose() * g_vec) * -1.0f;
+
+        cmath_fx::Vector<2,float> z2;
+        z2(0,0) = a_pred(0,0);
+        z2(1,0) = a_pred(1,0);
+        return z2;
+    };
+
+    // Dynamic R scaling per original MEUKF: scale based on gravity deviation and floor
+    float a_norm = std::sqrt(a_meas(0,0)*a_meas(0,0) + a_meas(1,0)*a_meas(1,0) + a_meas(2,0)*a_meas(2,0));
+    float gravity_deviation = std::abs(a_norm - std::sqrt(params.g[0]*params.g[0] + params.g[1]*params.g[1] + params.g[2]*params.g[2]));
+    float R_scale = 1.0f + (gravity_deviation / 0.7f);
+    float R_floor = 0.25f;
+
+    cmath_fx::Matrix<2,2,float> R2 = cmath_fx::Matrix<2,2,float>::Zero();
+    for (int i=0;i<2;i++) {
+        float R_est = params.noise_accel[i];
+        R2(i,i) = std::max(R_est, R_floor) * R_scale;
+    }
+
+    // Perform UKF update (2D observation)
+    cmath_fx::Matrix<2,2,float> S_out;
+    cmath_fx::Matrix<3,2,float> K_out;
+    cmath_fx::Vector<2,float> y_out;
+
+    // Build 2D measurement vector from a_meas (x,y)
+    cmath_fx::Vector<2,float> z_meas2;
+    z_meas2(0,0) = a_meas(0,0);
+    z_meas2(1,0) = a_meas(1,0);
+
+    // Call UKF on copies so we keep original P_att/x for manual post-processing
+    cmath_fx::Vector<3,float> x_tmp = x_err;
+    cmath_fx::Matrix<3,3,float> P_att_tmp;
+    for (int i=0;i<3;++i) for (int j=0;j<3;++j) P_att_tmp(i,j) = P_att(i,j);
+
+    bool ok = UKF::update(x_tmp, P_att_tmp, z_meas2, h_func_2d, R2, uparams, &K_out, &S_out, &y_out);
+    if (!ok) {
+        output.status = 1;
+        return;
+    }
+
+    // Compute S_inv
+    cmath_fx::Matrix<2,2,float> S2_inv;
+    if (!S_out.inverse(S2_inv)) {
+        output.status = 1;
+        return;
+    }
+
+    // Reconstruct H_sub and P_cross (as in original path)
+    Matrix3x3 Rmat;
+    cquat::quat_to_rotm(q_nom, Rmat);
+    Vector3 g_body = Rmat.transpose() * make_vector3(params.g[0], params.g[1], params.g[2]);
+    Matrix3x3 g_skew;
+    g_skew(0, 0) = 0; g_skew(0, 1) = -g_body(2,0); g_skew(0, 2) = g_body(1,0);
+    g_skew(1, 0) = g_body(2,0); g_skew(1, 1) = 0; g_skew(1, 2) = -g_body(0,0);
+    g_skew(2, 0) = -g_body(1,0); g_skew(2, 1) = g_body(0,0); g_skew(2, 2) = 0;
+    Matrix3x3 H_att = g_skew * -1.0f;
+    Matrix2x3 H_sub;
+    for(int r=0; r<2; ++r) for(int c=0; c<3; ++c) H_sub(r, c) = H_att(r, c);
+
+    Matrix15x3 P_cross;
+    for(int r=0; r<15; ++r) for(int c=0; c<3; ++c) P_cross(r, c) = P_full(r, 6 + c);
+
+    // Build full K using P_cross and S2_inv (matches original MEUKF approach)
+    Matrix15x2 tmp = P_cross * H_sub.transpose();
+    Matrix15x2 K_full = tmp * S2_inv;
+
+    // Innovation vector from UKF output
+    cmath_fx::Vector<2,float> y2 = y_out;
+
+    // Innovation limit (0.05 rad) and mahalanobis checks (5.0 then 2.5 attenuation)
+    float max_innovation = 0.05f;
+    float innov_norm = std::sqrt(y2(0,0)*y2(0,0) + y2(1,0)*y2(1,0));
+    if (innov_norm > max_innovation) {
+        float scale = max_innovation / innov_norm;
+        y2(0,0) *= scale; y2(1,0) *= scale;
+    }
+    // Mahalanobis
+    cmath_fx::Vector<2,float> S2_inv_y = S2_inv * y2;
+    float mahal_sq = y2(0,0)*S2_inv_y(0,0) + y2(1,0)*S2_inv_y(1,0);
+    float mahal = std::sqrt(mahal_sq);
+    if (mahal > 5.0f) { output.status = 1; return; }
+    if (mahal > 2.5f) {
+        float att = 2.5f / mahal; y2(0,0) *= att; y2(1,0) *= att;
+    }
+
+    // Small-angle update (use K_out returned by UKF)
+    cmath_fx::Matrix<3,2,float> K_small = K_out;
+    cmath_fx::Vector<3,float> dx_small = K_small * y2;
+
+    // dtheta magnitude limit: 0.6 deg for roll/pitch, and force yaw=0
+    float dtheta_norm = std::sqrt(dx_small(0,0)*dx_small(0,0) + dx_small(1,0)*dx_small(1,0));
+    float max_dtheta = 0.6f * 3.14159265f / 180.0f;
+    if (dtheta_norm > max_dtheta) {
+        float sc = max_dtheta / dtheta_norm; dx_small(0,0) *= sc; dx_small(1,0) *= sc;
+    }
+    dx_small(2,0) = 0.0f; // force yaw zero
+
+    // Update attitude covariance block using K_small and S_out
+    cmath_fx::Matrix<3,3,float> P_att_upd = P_att;
+    // Compute P_att_upd = P_att - K_small * S_out * K_small'
+    cmath_fx::Matrix<3,2,float> KS = K_small * S_out;
+    cmath_fx::Matrix<3,3,float> KSKt = KS * K_small.transpose();
+    for (int i=0;i<3;++i) for (int j=0;j<3;++j) P_att_upd(i,j) = P_att(i,j) - KSKt(i,j);
+    // Symmetrize and ensure PD
+    for (int i=0;i<3;++i) for (int j=i+1;j<3;++j) {
+        float avg = (P_att_upd(i,j) + P_att_upd(j,i)) * 0.5f; P_att_upd(i,j)=avg; P_att_upd(j,i)=avg;
+    }
+    ensure_positive_definite(P_att_upd);
+
+    // Apply full-state update dx_full = K_full * y2
+    Vector15 dx_full;
+    for(int r=0; r<15; ++r) dx_full(r,0) = K_full(r,0) * y2(0,0) + K_full(r,1) * y2(1,0);
+
+    p = p + make_vector3(dx_full(0,0), dx_full(1,0), dx_full(2,0));
+    v = v + make_vector3(dx_full(3,0), dx_full(4,0), dx_full(5,0));
+    ba = ba + make_vector3(dx_full(9,0), dx_full(10,0), dx_full(11,0));
+    bg = bg + make_vector3(dx_full(12,0), dx_full(13,0), dx_full(14,0));
+
+    // Joseph-form full covariance update using K_full and R2
+    Matrix15x15 KH_full = Matrix15x15::Zero();
+    for(int i=0;i<15;++i) for(int j=0;j<15;++j) {
+        float sum=0.0f; for(int k=0;k<3;++k) { if (j>=6 && j<9) sum += K_full(i,k) * H_sub(k, j-6); } KH_full(i,j)=sum;
+    }
+    Matrix15x15 I = Matrix15x15::Identity();
+    Matrix15x15 I_KH = I - KH_full;
+    Matrix15x15 P_tmp = I_KH * P_full * I_KH.transpose();
+    Matrix15x15 KRKt = Matrix15x15::Zero();
+    for(int i=0;i<15;++i) for(int j=0;j<15;++j) {
+        float sum2=0.0f; for(int k_idx=0;k_idx<2;++k_idx) for(int l_idx=0;l_idx<2;++l_idx) sum2 += K_full(i,k_idx) * R2(k_idx,l_idx) * K_full(j,l_idx);
+        KRKt(i,j)=sum2;
+    }
+    P_full = P_tmp + KRKt;
+    P_full = (P_full + P_full.transpose()) * 0.5f;
+
+    // Quaternion injection from dx_small
+    float dxs = dx_small(0,0), dys = dx_small(1,0), dzs = dx_small(2,0);
+    float ang = std::sqrt(dxs*dxs + dys*dys + dzs*dzs);
+    cmath_fx::Vector<4,float> dqv;
+    if (ang < 1e-9f) { dqv(0,0)=1.0f; dqv(1,0)=dqv(2,0)=dqv(3,0)=0.0f; }
+    else { float s=std::sin(ang*0.5f); dqv(0,0)=std::cos(ang*0.5f); dqv(1,0)=(dxs/ang)*s; dqv(2,0)=(dys/ang)*s; dqv(3,0)=(dzs/ang)*s; }
+    cmath_fx::Vector<4,float> q_updated_v; cquat::multiply_quat(q_nom, dqv, q_updated_v); cquat::normalize_quat(q_updated_v);
+
+    // Write back updated P_att block into P_full
+    for (int i=0;i<3;++i) for (int j=0;j<3;++j) P_full(6+i,6+j) = P_att_upd(i,j);
+
+    // Diagnostics: save pre-update P, K_full, S_out, innovation
+    for (int r=0;r<15;++r) for (int c=0;c<15;++c) output.pred_P[r*15 + c] = P_full_pre(r,c);
+    for (int r=0;r<15;++r) {
+        output.last_K[r*3 + 0] = K_full(r,0);
+        output.last_K[r*3 + 1] = K_full(r,1);
+        output.last_K[r*3 + 2] = 0.0f;
+    }
+    for (int i=0;i<3;++i) for (int j=0;j<3;++j) output.last_S[i*3 + j] = 0.0f;
+    output.last_S[0*3 + 0] = S_out(0,0);
+    output.last_S[0*3 + 1] = S_out(0,1);
+    output.last_S[1*3 + 0] = S_out(1,0);
+    output.last_S[1*3 + 1] = S_out(1,1);
+    for (int i=0;i<3;i++) output.last_y[i]=0.0f;
+    output.last_y[0]=y2(0,0); output.last_y[1]=y2(1,0); output.last_y_len=2; output.last_sensor_type=1;
+
+    vars_to_state(p, v, q_updated_v, ba, bg, P_full, state);
+}
+
+void MEUKFCore::update_mag_meukf_ukf_version(State& state, const Vector3& m_meas, const Params& params, MEUKFOutput& output) {
+    // Extract state parts
+    Vector3 p, v, ba, bg;
+    Vector4 q_nom;
+    Matrix15x15 P_full;
+    state_to_vars(state, p, v, q_nom, ba, bg, P_full);
+
+    // Preserve pre-update full covariance for diagnostics
+    Matrix15x15 P_full_pre = P_full;
+
+    // Attitude covariance block
+    Matrix3x3 P_att;
+    for (int i=0;i<3;++i) for (int j=0;j<3;++j) P_att(i,j) = P_full(6+i, 6+j);
+
+    // UKF params
+    ukf::UKFParams uparams;
+    uparams.alpha = params.alpha;
+    uparams.beta = params.beta;
+    uparams.kappa = params.kappa;
+
+    using UKF3 = ukf::UKFUpdate<3,3,float>;
+
+    // small-angle zero mean
+    cmath_fx::Vector<3,float> x_err = cmath_fx::Vector<3,float>::Zero();
+
+    // observation function: small-angle -> predicted mag (3D)
+    auto h_func_3d = [q_nom, params](const cmath_fx::Vector<3,float>& dtheta) -> cmath_fx::Vector<3,float> {
+        float dx = dtheta(0,0), dy = dtheta(1,0), dz = dtheta(2,0);
+        float angle = std::sqrt(dx*dx + dy*dy + dz*dz);
+        cmath_fx::Vector<4,float> dq;
+        if (angle < 1e-9f) { dq(0,0)=1; dq(1,0)=dq(2,0)=dq(3,0)=0; }
+        else { float s = std::sin(angle*0.5f); dq(0,0)=std::cos(angle*0.5f); dq(1,0)=(dx/angle)*s; dq(2,0)=(dy/angle)*s; dq(3,0)=(dz/angle)*s; }
+        cmath_fx::Vector<4,float> q_i; cquat::multiply_quat(q_nom, dq, q_i); cquat::normalize_quat(q_i);
+        cmath_fx::Matrix<3,3,float> Rm; cquat::quat_to_rotm(q_i, Rm);
+        cmath_fx::Vector<3,float> mag_ref;
+        mag_ref(0,0) = params.mag_ref[0]; mag_ref(1,0) = params.mag_ref[1]; mag_ref(2,0) = params.mag_ref[2];
+        // predicted magnetometer reading in body frame
+        cmath_fx::Vector<3,float> m_pred = Rm.transpose() * mag_ref;
+        return m_pred;
+    };
+
+    // Measurement noise R (3x3)
+    cmath_fx::Matrix<3,3,float> R3 = cmath_fx::Matrix<3,3,float>::Zero();
+    for (int i=0;i<3;++i) R3(i,i) = std::max(params.noise_mag[i], 1e-6f);
+
+    cmath_fx::Matrix<3,3,float> S_out;
+    cmath_fx::Matrix<3,3,float> K_out;
+    cmath_fx::Vector<3,float> y_out;
+
+    cmath_fx::Vector<3,float> z_meas;
+    z_meas(0,0) = m_meas(0,0); z_meas(1,0) = m_meas(1,0); z_meas(2,0) = m_meas(2,0);
+
+    cmath_fx::Vector<3,float> x_tmp = x_err;
+    cmath_fx::Matrix<3,3,float> P_att_tmp;
+    for(int i=0;i<3;++i) for(int j=0;j<3;++j) P_att_tmp(i,j) = P_att(i,j);
+
+    bool ok = UKF3::update(x_tmp, P_att_tmp, z_meas, h_func_3d, R3, uparams, &K_out, &S_out, &y_out);
+    if (!ok) { output.status = 1; return; }
+
+    // compute S_inv
+    cmath_fx::Matrix<3,3,float> S_inv;
+    if (!S_out.inverse(S_inv)) { output.status = 1; return; }
+
+    // Build H_sub (3x3) as -skew(R^T*mag_ref) used in original path
+    Matrix3x3 Rmat; cquat::quat_to_rotm(q_nom, Rmat);
+    Vector3 mag_ref_vec = make_vector3(params.mag_ref[0], params.mag_ref[1], params.mag_ref[2]);
+    Vector3 m_body = Rmat.transpose() * mag_ref_vec;
+    Matrix3x3 m_skew;
+    m_skew(0, 0) = 0; m_skew(0, 1) = -m_body(2,0); m_skew(0, 2) = m_body(1,0);
+    m_skew(1, 0) = m_body(2,0); m_skew(1, 1) = 0; m_skew(1, 2) = -m_body(0,0);
+    m_skew(2, 0) = -m_body(1,0); m_skew(2, 1) = m_body(0,0); m_skew(2, 2) = 0;
+    Matrix3x3 H_sub = m_skew;
+
+    // P_cross and K_full
+    Matrix15x3 P_cross; for(int r=0;r<15;++r) for(int c=0;c<3;++c) P_cross(r,c) = P_full(r,6+c);
+    Matrix15x3 tmp = P_cross * H_sub.transpose();
+    Matrix15x3 K_full = tmp * S_inv;
+
+    // Innovation vector
+    cmath_fx::Vector<3,float> y3 = y_out;
+    // Mahalanobis checks similar to original
+    cmath_fx::Vector<3,float> S_inv_y = S_inv * y3;
+    float mahal_sq = y3(0,0)*S_inv_y(0,0) + y3(1,0)*S_inv_y(1,0) + y3(2,0)*S_inv_y(2,0);
+    float mahal = std::sqrt(mahal_sq);
+    if (mahal > 5.0f) { output.status = 1; return; }
+    if (mahal > 2.5f) { float att = 2.5f/mahal; y3(0,0)*=att; y3(1,0)*=att; y3(2,0)*=att; }
+
+    // Small-angle update (K_out is 3x3 here)
+    cmath_fx::Matrix<3,3,float> K_small = K_out;
+    cmath_fx::Vector<3,float> dx_small = K_small * y3;
+
+    // Attitude covariance update: P_att_upd = P_att - K_small * S_out * K_small'
+    cmath_fx::Matrix<3,3,float> KS = K_small * S_out;
+    cmath_fx::Matrix<3,3,float> KSKt = KS * K_small.transpose();
+    cmath_fx::Matrix<3,3,float> P_att_upd = P_att;
+    for(int i=0;i<3;++i) for(int j=0;j<3;++j) P_att_upd(i,j) = P_att(i,j) - KSKt(i,j);
+    for(int i=0;i<3;++i) for(int j=i+1;j<3;++j) { float avg = 0.5f*(P_att_upd(i,j)+P_att_upd(j,i)); P_att_upd(i,j)=avg; P_att_upd(j,i)=avg; }
+    ensure_positive_definite(P_att_upd);
+
+    // dx_full and apply to state
+    Vector15 dx_full; for(int r=0;r<15;++r) dx_full(r,0) = K_full(r,0)*y3(0,0) + K_full(r,1)*y3(1,0) + K_full(r,2)*y3(2,0);
+    p = p + make_vector3(dx_full(0,0), dx_full(1,0), dx_full(2,0));
+    v = v + make_vector3(dx_full(3,0), dx_full(4,0), dx_full(5,0));
+    ba = ba + make_vector3(dx_full(9,0), dx_full(10,0), dx_full(11,0));
+    bg = bg + make_vector3(dx_full(12,0), dx_full(13,0), dx_full(14,0));
+
+    // Joseph-form full covariance update using K_full and R3
+    Matrix15x15 KH_full = Matrix15x15::Zero();
+    for(int i=0;i<15;++i) for(int j=0;j<15;++j) { float sum=0.0f; if (j>=6 && j<9) { for(int k=0;k<3;++k) sum += K_full(i,k) * H_sub(k, j-6); } KH_full(i,j)=sum; }
+    Matrix15x15 I = Matrix15x15::Identity();
+    Matrix15x15 I_KH = I - KH_full;
+    Matrix15x15 P_tmp = I_KH * P_full * I_KH.transpose();
+    Matrix15x15 KRKt = Matrix15x15::Zero();
+    for(int i=0;i<15;++i) for(int j=0;j<15;++j) { float sum2=0.0f; for(int k_idx=0;k_idx<3;++k_idx) for(int l_idx=0;l_idx<3;++l_idx) sum2 += K_full(i,k_idx) * R3(k_idx,l_idx) * K_full(j,l_idx); KRKt(i,j)=sum2; }
+    P_full = P_tmp + KRKt;
+    P_full = (P_full + P_full.transpose()) * 0.5f;
+
+    // Quaternion injection from dx_small
+    float dxs=dx_small(0,0), dys=dx_small(1,0), dzs=dx_small(2,0);
+    float ang = std::sqrt(dxs*dxs + dys*dys + dzs*dzs);
+    Vector4 dqv; if (ang < 1e-9f) { dqv = make_vector4(1,0,0,0);} else { float s = std::sin(ang*0.5f); dqv = make_vector4(std::cos(ang*0.5f),(dxs/ang)*s,(dys/ang)*s,(dzs/ang)*s); }
+    Vector4 q_updated; cquat::multiply_quat(q_nom, dqv, q_updated); cquat::normalize_quat(q_updated);
+
+    // write back updated P_att into P_full
+    for(int i=0;i<3;++i) for(int j=0;j<3;++j) P_full(6+i,6+j) = P_att_upd(i,j);
+
+    // Diagnostics
+    for(int r=0;r<15;++r) for(int c=0;c<15;++c) output.pred_P[r*15 + c] = P_full_pre(r,c);
+    for(int r=0;r<15;++r) { output.last_K[r*3 + 0] = K_full(r,0); output.last_K[r*3 + 1] = K_full(r,1); output.last_K[r*3 + 2] = K_full(r,2); }
+    for(int i=0;i<3;++i) for(int j=0;j<3;++j) output.last_S[i*3 + j] = 0.0f;
+    output.last_S[0*3 + 0] = S_out(0,0); output.last_S[0*3 + 1] = S_out(0,1); output.last_S[0*3 + 2] = S_out(0,2);
+    output.last_S[1*3 + 0] = S_out(1,0); output.last_S[1*3 + 1] = S_out(1,1); output.last_S[1*3 + 2] = S_out(1,2);
+    output.last_S[2*3 + 0] = S_out(2,0); output.last_S[2*3 + 1] = S_out(2,1); output.last_S[2*3 + 2] = S_out(2,2);
+    output.last_y[0]=y3(0,0); output.last_y[1]=y3(1,0); output.last_y[2]=y3(2,0); output.last_y_len=3; output.last_sensor_type=2;
 
     vars_to_state(p, v, q_updated, ba, bg, P_full, state);
 }

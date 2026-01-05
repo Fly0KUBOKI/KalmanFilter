@@ -356,7 +356,62 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
     // dbg_output: 構造体（mex_meukf_step_v2のplhs[2]と互換）
     const char* fnames[] = {"pred_P", "last_K", "last_S", "last_S_inv", "last_H", "last_y", "last_y_len", "last_sensor_type", "input_update_gps", "input_noise_gps"};
     out_dbg_output = mxCreateStructMatrix(1, 1, 10, fnames);
-    // TODO: Phase 2で実装（pred_P, last_K, last_S等を設定）
+    // Fill dbg output from MEUKFOutput 'output'
+    // pred_P: 15 x 15 float matrix (predicted P after predict(), row-major in C++)
+    mxArray* m_pred_P = mxCreateNumericMatrix(15, 15, mxSINGLE_CLASS, mxREAL);
+    float* p_pred = (float*)mxGetData(m_pred_P);
+    for(int r=0;r<15;++r) for(int c=0;c<15;++c) p_pred[r + c*15] = output.pred_P[r*15 + c];
+    mxSetField(out_dbg_output, 0, "pred_P", m_pred_P);
+
+    // last_K: 15 x 3 float matrix (stored column-major in MATLAB)
+    mxArray* m_last_K = mxCreateNumericMatrix(15, 3, mxSINGLE_CLASS, mxREAL);
+    float* p_K = (float*)mxGetData(m_last_K);
+    for(int r=0;r<15;++r) for(int c=0;c<3;++c) p_K[r + c*15] = output.last_K[r*3 + c];
+    mxSetField(out_dbg_output, 0, "last_K", m_last_K);
+
+    // last_S: 3 x 3 float matrix (innovation covariance, stored column-major in MATLAB)
+    mxArray* m_last_S = mxCreateNumericMatrix(3, 3, mxSINGLE_CLASS, mxREAL);
+    float* p_S = (float*)mxGetData(m_last_S);
+    for(int r=0;r<3;++r) for(int c=0;c<3;++c) p_S[r + c*3] = output.last_S[r*3 + c];
+    mxSetField(out_dbg_output, 0, "last_S", m_last_S);
+
+    // last_y: variable length up to 3 (float)
+    int ylen = output.last_y_len;
+    if(ylen < 0) ylen = 0; if(ylen > 3) ylen = 3;
+    mxArray* m_last_y = mxCreateNumericMatrix(ylen, 1, mxSINGLE_CLASS, mxREAL);
+    if(ylen > 0) {
+        float* p_y = (float*)mxGetData(m_last_y);
+        for(int i=0;i<ylen;++i) p_y[i] = output.last_y[i];
+    }
+    mxSetField(out_dbg_output, 0, "last_y", m_last_y);
+
+    // last_S_inv: 3 x 3 float matrix (inverse innovation covariance)
+    mxArray* m_last_S_inv = mxCreateNumericMatrix(3, 3, mxSINGLE_CLASS, mxREAL);
+    float* p_Sinv = (float*)mxGetData(m_last_S_inv);
+    for(int r=0;r<3;++r) for(int c=0;c<3;++c) p_Sinv[r + c*3] = output.last_S_inv[r*3 + c];
+    mxSetField(out_dbg_output, 0, "last_S_inv", m_last_S_inv);
+
+    // last_H: 3 x 15 float matrix (measurement matrix H, stored column-major in MATLAB)
+    mxArray* m_last_H = mxCreateNumericMatrix(3, 15, mxSINGLE_CLASS, mxREAL);
+    float* p_H = (float*)mxGetData(m_last_H);
+    for(int r=0;r<3;++r) for(int c=0;c<15;++c) p_H[r + c*3] = output.last_H[r*15 + c];
+    mxSetField(out_dbg_output, 0, "last_H", m_last_H);
+
+    // last_y_len
+    mxArray* m_ylen = mxCreateDoubleScalar(static_cast<double>(output.last_y_len));
+    mxSetField(out_dbg_output, 0, "last_y_len", m_ylen);
+
+    // last_sensor_type
+    mxArray* m_stype = mxCreateDoubleScalar(static_cast<double>(output.last_sensor_type));
+    mxSetField(out_dbg_output, 0, "last_sensor_type", m_stype);
+
+    // input_update_gps and input_noise_gps (echo)
+    mxArray* m_input_update = mxCreateDoubleScalar(static_cast<double>(input.sensor.update_gps));
+    mxSetField(out_dbg_output, 0, "input_update_gps", m_input_update);
+    mxArray* m_input_noise = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
+    float* p_noise = (float*)mxGetData(m_input_noise);
+    for(int i=0;i<3;++i) p_noise[i] = input.params.noise_gps[i];
+    mxSetField(out_dbg_output, 0, "input_noise_gps", m_input_noise);
 }
 
 /** Sensor filter wrappers (copied from Inc implementation) **/

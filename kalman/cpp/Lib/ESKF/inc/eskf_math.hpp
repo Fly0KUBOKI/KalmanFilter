@@ -4,6 +4,7 @@
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
+#include "../../Common/inc/Math/math_utils.hpp"
 
 namespace eskf_math {
 
@@ -46,8 +47,29 @@ public:
 
 template<int N, int M>
 void ESKFMath::kalman_update(const cmath_fx::Vector<N, Scalar>& x_in, const cmath_fx::Matrix<N, N, Scalar>& P_in, const cmath_fx::Vector<M, Scalar>& y, const cmath_fx::Matrix<M, N, Scalar>& H, const cmath_fx::Matrix<M, M, Scalar>& R, cmath_fx::Vector<N, Scalar>& x_out, cmath_fx::Matrix<N, N, Scalar>& P_out, cmath_fx::Matrix<N, M, Scalar>& K_out, cmath_fx::Matrix<M, M, Scalar>& S_out) {
-    S_out = H * P_in * H.transpose() + R;
-    S_out = (S_out + S_out.transpose()) * static_cast<Scalar>(0.5);
+    // Compute S using unified utility (ensures symmetry/robustness)
+    {
+        common::math::cm z_cm; z_cm.resize(M,1);
+        common::math::cm h_cm; h_cm.resize(M,1);
+        common::math::cm H_cm; H_cm.resize(M,N);
+        common::math::cm P_cm; P_cm.resize(N,N);
+        common::math::cm R_cm; R_cm.resize(M,M);
+        // z_cm: use current innovation y as z placeholder, h_cm = 0 -> y = z - h = y
+        for (int i = 0; i < M; ++i) z_cm(i,0) = y(i,0);
+        for (int i = 0; i < M; ++i) h_cm(i,0) = 0.0f;
+        for (int i = 0; i < M; ++i) for (int j = 0; j < N; ++j) H_cm(i,j) = H(i,j);
+        for (int i = 0; i < N; ++i) for (int j = 0; j < N; ++j) P_cm(i,j) = P_in(i,j);
+        for (int i = 0; i < M; ++i) for (int j = 0; j < M; ++j) R_cm(i,j) = R(i,j);
+
+        common::math::cm y_cm; y_cm.resize(M,1);
+        common::math::cm S_cm; S_cm.resize(M,M);
+        common::math::cm R_out; R_out.resize(M,M);
+        common::math::MathUtils::compute_innovation_and_S(z_cm, h_cm, H_cm, P_cm, R_cm, y_cm, S_cm, R_out);
+
+        // copy back
+        for (int i = 0; i < M; ++i) for (int j = 0; j < M; ++j) S_out(i,j) = S_cm(i,j);
+        for (int i = 0; i < M; ++i) y(i,0) = y_cm(i,0);
+    }
     cmath_fx::Matrix<M, M, Scalar> S_inv;
     if (!S_out.inverse(S_inv)) {
         K_out = cmath_fx::Matrix<N, M, Scalar>::Zero();

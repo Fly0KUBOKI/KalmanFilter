@@ -3,6 +3,7 @@
 // Implementation: このヘッダー内に実装含む（テンプレート実装）
 
 #include "../../Matrix/fixed_matrix.hpp"
+#include "../../Common/inc/Math/math_utils.hpp"
 
 namespace kf {
 
@@ -41,16 +42,8 @@ public:
         cmath_fx::Matrix<M, M, T>& S,
         cmath_fx::Matrix<M, M, T>& R_out
     ) {
-        // Innovation: y = z - h
-        y = z - h;
-        
-        // S = H*P*H' + R
-        S = H * P_pred * H.transpose() + R;
-        
-        // 対称化
-        S = (S + S.transpose()) * T(0.5);
-        
-        R_out = R;
+        // 委譲: 共通実装に統一
+        common::math::MathUtils::compute_innovation_and_S<M, N, T>(z, h, H, P_pred, R, y, S, R_out);
     }
 
     // 状態と共分散の更新 (Joseph form)

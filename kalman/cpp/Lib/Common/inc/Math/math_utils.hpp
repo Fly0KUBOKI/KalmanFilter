@@ -107,6 +107,34 @@ public:
         R_out = R;
     }
 
+    // テンプレート版: cmath_fx の固定サイズ行列/ベクトル用の互換ラッパ
+    template <int M, int N, typename T>
+    static void compute_innovation_and_S(const cmath_fx::Vector<M, T>& z,
+                                         const cmath_fx::Vector<M, T>& h,
+                                         const cmath_fx::Matrix<M, N, T>& H,
+                                         const cmath_fx::Matrix<N, N, T>& P_pred,
+                                         const cmath_fx::Matrix<M, M, T>& R,
+                                         cmath_fx::Vector<M, T>& y,
+                                         cmath_fx::Matrix<M, M, T>& S,
+                                         cmath_fx::Matrix<M, M, T>& R_out) {
+        // Innovation: y = z - h
+        y = z - h;
+
+        // S = H * P_pred * H' + R
+        S = H * P_pred * H.transpose() + R;
+
+        // 対称化
+        for (int i = 0; i < M; ++i) {
+            for (int j = i + 1; j < M; ++j) {
+                T avg = (S(i,j) + S(j,i)) * static_cast<T>(0.5);
+                S(i,j) = avg;
+                S(j,i) = avg;
+            }
+        }
+
+        R_out = R;
+    }
+
     // 3x3 スキュ対称行列 (ベクトル v に対して)
     static cm skew_symmetric(const cm& v) {
         cm S; S.resize(3,3);

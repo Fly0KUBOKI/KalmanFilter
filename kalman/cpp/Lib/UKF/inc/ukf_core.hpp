@@ -167,13 +167,13 @@ private:
             wc(i, 0) = 0.5 / c;
         }
         
-        // sqrt((n+lambda)*P) の計算（Cholesky分解）
+        // sqrt((n+lambda)*P) の計算（Cholesky分解） - fixed_matrix の cholesky を使用
         MatrixNN L;
-        if (!cholesky(P, L)) {
+        if (!P.cholesky(L)) {
             // フォールバック: 単位行列
             for (int i = 0; i < N; ++i) {
                 for (int j = 0; j < N; ++j) {
-                    L(i, j) = (i == j) ? 1.0 : 0.0;
+                    L(i, j) = (i == j) ? static_cast<T>(1) : static_cast<T>(0);
                 }
             }
         }
@@ -206,113 +206,14 @@ private:
         }
     }
     
-    // Cholesky分解（下三角行列）
-    static bool cholesky(const MatrixNN& A, MatrixNN& L) {
-        for (int i = 0; i < N; ++i) {
-            for (int j = 0; j < N; ++j) {
-                L(i, j) = 0.0;
-            }
-        }
-        
-        for (int i = 0; i < N; ++i) {
-            for (int j = 0; j <= i; ++j) {
-                T sum = 0.0;
-                
-                if (j == i) {
-                    for (int k = 0; k < j; ++k) {
-                        sum += L(j, k) * L(j, k);
-                    }
-                    T val = A(j, j) - sum;
-                    if (val <= 0.0) return false;
-                    L(j, j) = std::sqrt(val);
-                } else {
-                    for (int k = 0; k < j; ++k) {
-                        sum += L(i, k) * L(j, k);
-                    }
-                    L(i, j) = (A(i, j) - sum) / L(j, j);
-                }
-            }
-        }
-        
-        return true;
-    }
-    
     // カルマンゲイン計算 K = Pxz * inv(S)
+    // Note: 行列演算は fixed_matrix ライブラリへ委譲
+    // P.cholesky(L) は fixed_matrix::Matrix<N,N,T>::cholesky() を使用
+    // S.inverse(S_inv) は fixed_matrix::Matrix<M,M,T>::inverse() を使用
     static bool compute_gain(const MatrixNM& Pxz, const MatrixMM& S, MatrixNM& K) {
-        // Gauss-Jordan消去法で inv(S) を計算し、K = Pxz * inv(S)
-        // 簡易実装: S が小さい(M<=3)ことを想定
-        
+        // S の逆行列を fixed_matrix の inverse を使って計算
         MatrixMM S_inv;
-        if (!invert_matrix(S, S_inv)) {
-            return false;
-        }
-        
+        if (!S.inverse(S_inv)) return false;
         K = Pxz * S_inv;
         return true;
     }
-    
-    // 行列の逆行列計算（ガウス消去法）
-    static bool invert_matrix(const MatrixMM& A, MatrixMM& A_inv) {
-        constexpr T eps = 1e-12;
-        
-        // 拡大行列 [A | I]
-        T aug[M][2*M];
-        for (int i = 0; i < M; ++i) {
-            for (int j = 0; j < M; ++j) {
-                aug[i][j] = A(i, j);
-                aug[i][M + j] = (i == j) ? 1.0 : 0.0;
-            }
-        }
-        
-        // 前進消去
-        for (int k = 0; k < M; ++k) {
-            // ピボット選択
-            int pivot = k;
-            T max_val = std::abs(aug[k][k]);
-            for (int i = k + 1; i < M; ++i) {
-                if (std::abs(aug[i][k]) > max_val) {
-                    max_val = std::abs(aug[i][k]);
-                    pivot = i;
-                }
-            }
-            
-            if (max_val < eps) return false;
-            
-            // 行交換
-            if (pivot != k) {
-                for (int j = 0; j < 2 * M; ++j) {
-                    T tmp = aug[k][j];
-                    aug[k][j] = aug[pivot][j];
-                    aug[pivot][j] = tmp;
-                }
-            }
-            
-            // 正規化
-            T diag = aug[k][k];
-            for (int j = 0; j < 2 * M; ++j) {
-                aug[k][j] /= diag;
-            }
-            
-            // 消去
-            for (int i = 0; i < M; ++i) {
-                if (i != k) {
-                    T factor = aug[i][k];
-                    for (int j = 0; j < 2 * M; ++j) {
-                        aug[i][j] -= factor * aug[k][j];
-                    }
-                }
-            }
-        }
-        
-        // 逆行列を抽出
-        for (int i = 0; i < M; ++i) {
-            for (int j = 0; j < M; ++j) {
-                A_inv(i, j) = aug[i][M + j];
-            }
-        }
-        
-        return true;
-    }
-};
-
-} // namespace ukf
