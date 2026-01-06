@@ -19,6 +19,7 @@ RECURSE_DIRS = [
     "../MEX",
     "../Inc",
     "../examples",
+    "../../../tests",
 ]
 
 EXTENSIONS = {'.cpp', '.c', '.hpp', '.h', '.cc', '.hh'}

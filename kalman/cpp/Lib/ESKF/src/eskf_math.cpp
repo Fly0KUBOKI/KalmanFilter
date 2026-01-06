@@ -3,6 +3,7 @@
 #include "../inc/eskf_math.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../Common/inc/filter_mgmt.hpp"
+#include "../../Matrix/matrix_utils.hpp"
 #include <cmath>
 
 namespace eskf_math {
@@ -36,11 +37,10 @@ void ESKFMath::covariance_prediction(const Matrix15x15& P, const Matrix15x15& F,
     Matrix15x15 F_P = F * P;
     Matrix15x15 F_P_Ft = F_P * F.transpose();
     P_new = F_P_Ft + Q;
-    // Ensure symmetry via canonical helper
+    // Ensure symmetry via central matrix utility
     {
-        cmath_fx::Matrix<15,15,float> Pmat;
-        for (int i=0;i<15;++i) for (int j=0;j<15;++j) Pmat(i,j) = static_cast<float>(P_new(i,j));
-        common::filter::symmetrize_covariance(Pmat);
+        cmath_fx::Matrix<15,15,float> Pmat = P_new;
+        cmath_fx::utils::symmetrize<15, float>(Pmat);
         for (int i=0;i<15;++i) for (int j=0;j<15;++j) P_new(i,j) = static_cast<Scalar>(Pmat(i,j));
     }
 }

@@ -5,6 +5,8 @@
 // These are extracted from MEUKF to be reusable across different attitude/position filters
 
 #include "../../Matrix/fixed_matrix.hpp"
+#include "../../Matrix/matrix_decomposition.hpp"
+#include "../../Matrix/matrix_utils.hpp"
 #include <cmath>
 #include <algorithm>
 
@@ -21,108 +23,20 @@ struct UKFParams {
 // Returns true if successful, false if not positive definite
 template<typename T>
 inline bool cholesky3x3(const cmath_fx::Matrix<3, 3, T>& A, cmath_fx::Matrix<3, 3, T>& L) {
-    T a[3][3];
-    for(int i=0; i<3; ++i)
-        for(int j=0; j<3; ++j)
-            a[i][j] = A(i,j);
-
-    L = cmath_fx::Matrix<3, 3, T>::Zero();
-
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j <= i; ++j) {
-            T sum = 0;
-            for (int k = 0; k < j; ++k) {
-                sum += L(i,k) * L(j,k);
-            }
-
-            if (i == j) {
-                T val = a[i][i] - sum;
-                if (val <= static_cast<T>(1e-9)) return false;
-                L(i,j) = std::sqrt(val);
-            } else {
-                if (L(j,j) < static_cast<T>(1e-12)) return false;
-                L(i,j) = (a[i][j] - sum) / L(j,j);
-            }
-        }
-    }
-    
-    return true;
+    // Delegate to Matrix layer optimized 3x3 Cholesky
+    return cmath_fx::decomp::cholesky_3x3_optimized<T>(A, L);
 }
 
 // Robust Cholesky with fallback to diagonal approximation
 template<typename T>
 inline bool cholesky3x3_robust(cmath_fx::Matrix<3, 3, T>& A, cmath_fx::Matrix<3, 3, T>& L) {
-    // 1. Symmetrize
-    for(int i=0; i<3; ++i) {
-        for(int j=i+1; j<3; ++j) {
-            T avg = (A(i,j) + A(j,i)) / 2;
-            A(i,j) = avg;
-            A(j,i) = avg;
-        }
-    }
-    
-    // 2. Check minimum eigenvalue (approximated by min diagonal)
-    T min_diag = A(0,0);
-    for(int i=1; i<3; ++i) {
-        if (A(i,i) < min_diag) min_diag = A(i,i);
-    }
-    
-    // 3. Regularize if not positive definite
-    if (min_diag <= 0) {
-        T reg = std::abs(min_diag) + static_cast<T>(1e-6);
-        for(int i=0; i<3; ++i) A(i,i) += reg;
-    }
-    
-    // 4. Try Cholesky
-    if (cholesky3x3(A, L)) {
-        return true;
-    }
-    
-    // 5. Stronger regularization
-    for(int i=0; i<3; ++i) A(i,i) += static_cast<T>(1e-4);
-    if (cholesky3x3(A, L)) {
-        return true;
-    }
-    
-    // 6. Fallback: diagonal approximation
-    L = cmath_fx::Matrix<3, 3, T>::Zero();
-    for(int i=0; i<3; ++i) {
-        L(i,i) = std::sqrt(std::max(static_cast<T>(0), A(i,i)));
-    }
-    return true;
+    return cmath_fx::decomp::cholesky_robust<3, T>(A, L);
 }
 
 // Ensure 3x3 covariance is positive definite
 template<typename T>
 inline void ensure_positive_definite_3x3(cmath_fx::Matrix<3, 3, T>& P) {
-    // Symmetrize
-    for(int i=0; i<3; ++i) {
-        for(int j=i+1; j<3; ++j) {
-            T avg = (P(i,j) + P(j,i)) / 2;
-            P(i,j) = avg;
-            P(j,i) = avg;
-        }
-    }
-    
-    // Check and regularize diagonal
-    T min_diag = P(0,0);
-    for(int i=1; i<3; ++i) {
-        if (P(i,i) < min_diag) min_diag = P(i,i);
-    }
-    
-    if (min_diag <= 0) {
-        T reg = std::abs(min_diag) + static_cast<T>(1e-8);
-        for(int i=0; i<3; ++i) P(i,i) += reg;
-        
-        // Re-symmetrize
-        for(int i=0; i<3; ++i) {
-            for(int j=i+1; j<3; ++j) {
-                T avg = (P(i,j) + P(j,i)) / 2;
-                P(i,j) = avg;
-                P(j,i) = avg;
-            }
-        }
-    }
+    cmath_fx::utils::ensure_positive_definite<3, T>(P);
 }
 
 // Calculate UKF weights for given dimension and parameters

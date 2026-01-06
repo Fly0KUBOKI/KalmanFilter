@@ -1,0 +1,13 @@
+=== MEX Build Log Started at 06-Jan-2026 20:06:45 ===
+Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20260106_200645.txt
+
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+Compiling mex_run_eskf... OK
+Compiling mex_meukf_step_v2... OK
+
+=== Build Complete ===
+Successfully built 2 MEX file(s)
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+=== MEX Build Log Ended at 06-Jan-2026 20:06:53 ===

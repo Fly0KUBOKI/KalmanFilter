@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #include "../../../Matrix/fixed_matrix.hpp"
+#include "../../../Matrix/matrix_utils.hpp"
+#include "../../../KF/inc/kf_operations.hpp"
 #include "../Math/math_utils.hpp"
 #include <cmath>
 #include <algorithm>
@@ -26,11 +28,7 @@ public:
         cm P_reg = P;
         
         // 1. 対称性の強制
-        for (int i = 0; i < n; ++i) {
-            for (int j = 0; j < n; ++j) {
-                P_reg(i,j) = 0.5f * (P(i,j) + P(j,i));
-            }
-        }
+        cmath_fx::utils::symmetrize<n, float>(P_reg);
         
         // 2. 対角成分の範囲制限
         for (int i = 0; i < n; ++i) {
@@ -59,44 +57,8 @@ public:
     
     // Joseph形式の共分散更新（数値安定性向上）
     static cm joseph_form_update(const cm& P_pred, const cm& K, const cm& H, const cm& R) {
-        // P = (I - K*H) * P_pred * (I - K*H)' + K*R*K'
-        int n = P_pred.rows;
-        int m = H.rows;
-        
-        // I - K*H
-        cm KH, IKH;
-        cmath_fx::multiply(K, H, KH);
-        IKH.resize(n, n);
-        for (int i = 0; i < n; ++i) {
-            for (int j = 0; j < n; ++j) {
-                IKH(i,j) = (i == j ? 1.0f : 0.0f) - KH(i,j);
-            }
-        }
-        
-        // (I - K*H) * P_pred
-        cm temp1;
-        cmath_fx::multiply(IKH, P_pred, temp1);
-        
-        // (I - K*H) * P_pred * (I - K*H)'
-        cm IKH_t, temp2;
-        cmath_fx::transpose(IKH, IKH_t);
-        cmath_fx::multiply(temp1, IKH_t, temp2);
-        
-        // K*R*K'
-        cm KR, K_t, temp3;
-        cmath_fx::multiply(K, R, KR);
-        cmath_fx::transpose(K, K_t);
-        cmath_fx::multiply(KR, K_t, temp3);
-        
-        // 合計
         cm P_upd;
-        P_upd.resize(n, n);
-        for (int i = 0; i < n; ++i) {
-            for (int j = 0; j < n; ++j) {
-                P_upd(i,j) = temp2(i,j) + temp3(i,j);
-            }
-        }
-        
+        kf::ops::joseph_form_update(P_pred, K, H, R, P_upd);
         return regularize(P_upd);
     }
 };

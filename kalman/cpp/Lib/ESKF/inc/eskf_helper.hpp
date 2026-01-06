@@ -2,6 +2,7 @@
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
+#include "../../KF/inc/kf_operations.hpp"
 
 namespace eskf {
 
@@ -40,13 +41,14 @@ public:
     
     template<int M>
     static void joseph_form_covariance_update(Matrix15& P, const cmath_fx::Matrix<15, M, T>& K, const cmath_fx::Matrix<M, 15, T>& H, const cmath_fx::Matrix<M, M, T>& R) {
-        Matrix15 I; for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) I(i,j) = (i==j)?1.0:0.0;
-        auto KH = K * H; Matrix15 IKH = I - KH; auto IKH_P = IKH * P; auto IKH_P_IKHt = IKH_P * IKH.transpose(); auto KR = K * R; auto KRKt = KR * K.transpose(); P = IKH_P_IKHt + KRKt;
-        for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) P(i,j) = 0.5 * (P(i,j) + P(j,i));
+        // Delegate to central KF operations implementation
+        cmath_fx::Matrix<15,15,T> P_upd;
+        kf::ops::joseph_form_update<15, M, T>(P, K, H, R, P_upd);
+        P = P_upd;
     }
     
     static void regularize_covariance(Matrix15& P, T eps = 1e-9f) {
-        for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) P(i,j) = 0.5 * (P(i,j) + P(j,i));
+        cmath_fx::utils::symmetrize<15, T>(P);
         for (int i = 0; i < 15; ++i) if (P(i,i) < eps) P(i,i) = eps;
     }
 };

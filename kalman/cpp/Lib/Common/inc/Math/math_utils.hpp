@@ -5,6 +5,7 @@
 #include <cmath>
 #include <algorithm>
 #include "../../../Matrix/fixed_matrix.hpp"
+#include "../../../Matrix/matrix_inverse.hpp"
 
 namespace common {
 namespace math {
@@ -302,73 +303,45 @@ public:
     // 戻り値: 成功時true、特異行列の場合はfalse
     template<typename T>
     static bool invert3x3(const cmath_fx::Matrix<3, 3, T>& A, cmath_fx::Matrix<3, 3, T>& A_inv) {
-        // 行列式を計算
-        T det = A(0,0) * (A(1,1)*A(2,2) - A(2,1)*A(1,2))
-              - A(0,1) * (A(1,0)*A(2,2) - A(2,0)*A(1,2))
-              + A(0,2) * (A(1,0)*A(2,1) - A(2,0)*A(1,1));
-        
-        if (std::abs(det) < static_cast<T>(1e-10)) {
-            return false;
-        }
-        
-        T inv_det = static_cast<T>(1.0) / det;
-        
-        // 随伴行列を計算
-        A_inv(0,0) = (A(1,1)*A(2,2) - A(2,1)*A(1,2)) * inv_det;
-        A_inv(0,1) = (A(0,2)*A(2,1) - A(0,1)*A(2,2)) * inv_det;
-        A_inv(0,2) = (A(0,1)*A(1,2) - A(0,2)*A(1,1)) * inv_det;
-        A_inv(1,0) = (A(1,2)*A(2,0) - A(1,0)*A(2,2)) * inv_det;
-        A_inv(1,1) = (A(0,0)*A(2,2) - A(0,2)*A(2,0)) * inv_det;
-        A_inv(1,2) = (A(1,0)*A(0,2) - A(0,0)*A(1,2)) * inv_det;
-        A_inv(2,0) = (A(1,0)*A(2,1) - A(2,0)*A(1,1)) * inv_det;
-        A_inv(2,1) = (A(2,0)*A(0,1) - A(0,0)*A(2,1)) * inv_det;
-        A_inv(2,2) = (A(0,0)*A(1,1) - A(1,0)*A(0,1)) * inv_det;
-        
-        return true;
+        return cmath_fx::inv::inverse<3, T>(A, A_inv);
     }
     
-    // 安全なCholesky分解（正定値でない場合は正則化）
+    // 安全なCholesky分解（正定値でない場合は多段階の正則化フォールバック）
     static bool safe_cholesky(const cm& A, cm& L) {
         if (A.rows != A.cols) return false;
-        
+
         int n = A.rows;
         L.resize(n, n);
-        
-        // Cholesky分解を試行
+
+        // まず既存の FixedMatrix::cholesky を試す
+        if (A.cholesky(L)) return true;
+
+        // Working copy を作成して対称化
+        cm B = A;
         for (int i = 0; i < n; ++i) {
-            for (int j = 0; j <= i; ++j) {
-                float sum = 0.0f;
-                for (int k = 0; k < j; ++k) {
-                    sum += L(i,k) * L(j,k);
-                }
-                
-                if (i == j) {
-                    float diag = A(i,i) - sum;
-                    if (diag <= 0.0f) {
-                        // 正定値でない→正則化して単位行列
-                        for (int ii = 0; ii < n; ++ii) {
-                            for (int jj = 0; jj < n; ++jj) {
-                                L(ii,jj) = (ii == jj) ? 1.0f : 0.0f;
-                            }
-                        }
-                        return false;
-                    }
-                    L(i,j) = sqrtf(diag);
-                } else {
-                    if (fabsf(L(j,j)) < EPS) {
-                        L(i,j) = 0.0f;
-                    } else {
-                        L(i,j) = (A(i,j) - sum) / L(j,j);
-                    }
-                }
-            }
-            
-            // 上三角を0に
-            for (int j = i+1; j < n; ++j) {
-                L(i,j) = 0.0f;
+            for (int j = i + 1; j < n; ++j) {
+                float avg = 0.5f * (B(i, j) + B(j, i));
+                B(i, j) = avg;
+                B(j, i) = avg;
             }
         }
-        
+        if (B.cholesky(L)) return true;
+
+        // 小さな正則化を段階的に試行
+        float eps = 1e-8f;
+        for (int attempt = 0; attempt < 4; ++attempt) {
+            for (int i = 0; i < n; ++i) B(i, i) += eps;
+            if (B.cholesky(L)) return true;
+            eps *= 10.0f;
+        }
+
+        // 最終フォールバック: 対角のみで L を作る
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) L(i, j) = 0.0f;
+            float v = A(i, i);
+            if (v < 0.0f) v = 0.0f;
+            L(i, i) = std::sqrt(v);
+        }
         return true;
     }
     

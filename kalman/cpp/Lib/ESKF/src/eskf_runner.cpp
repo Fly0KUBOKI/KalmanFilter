@@ -4,6 +4,7 @@
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../Common/inc/Sensor/sensor_filter.hpp"
 #include "../../Common/inc/filter_mgmt.hpp"
+#include "../../Matrix/matrix_utils.hpp"
 #include <cmath>
 #include <cstring>
 #include <vector>
@@ -23,24 +24,14 @@ void ESKFRunner::predict(ESKFState* s, const double* a_meas, const double* w_mea
     Qadapt_f = Qnom_f; if (s->adaptive_q_enabled) { ESKFCore::compute_adaptive_Q(Qnom_f, a_meas_f, w_meas_f, Qadapt_f); }
     ESKFCore::integrate_nominal(p_f, v_f, q_f, ba_f, bg_f, a_meas_f, w_meas_f, dt_f, g_f, gyro_thr_f, accel_thr_f);
     ESKFCore::predict_covariance(P_f, q_f, a_meas_f, ba_f, w_meas_f, bg_f, Qadapt_f, dt_f, Pnew_f);
-    // Symmetrize using common helper
-    {
-        cmath_fx::Matrix<15,15,float> Ptmp;
-        for (int i=0;i<15;++i) for (int j=0;j<15;++j) Ptmp(i,j) = Pnew_f(i,j);
-        common::filter::symmetrize_covariance(Ptmp);
-        for (int i=0;i<15;++i) for (int j=0;j<15;++j) Pnew_f(i,j) = Ptmp(i,j);
-    }
+    // Symmetrize using central matrix utility
+    cmath_fx::utils::symmetrize<15, float>(Pnew_f);
     P_f = Pnew_f; memcpy(s->w_body, w_meas, 3*sizeof(double)); Vector<3,float> a_for_vel_f; for (int i=0;i<3;++i) a_for_vel_f(i,0)=static_cast<float>(a_meas[i]); bool enable_accel_z = s->enable_accel_z_integration; float accel_z_threshold = static_cast<float>(s->accel_z_threshold); float accel_z_damping = static_cast<float>(s->accel_z_damping); float velocity_damping = static_cast<float>(s->velocity_damping);
     if (enable_accel_z) apply_accel_z_integration(v_f, q_f, a_for_vel_f, dt_f, g_f, accel_z_threshold, accel_z_damping);
     PredictParams params; params.enable_accel_z_integration = false; params.accel_z_threshold = accel_z_threshold; params.accel_z_damping = accel_z_damping; params.velocity_damping = velocity_damping; predict_postprocess(v_f, q_f, P_f, a_for_vel_f, dt_f, g_f, params);
     static SensorFilterLib filter_lib; using cm = cmath_fx::FixedMatrix; cm P_fixed(15,15); for (int i=0;i<15;++i) for (int j=0;j<15;++j) P_fixed(i,j) = P_f(i,j); filter_lib.divergence_guard.regularize_covariance(P_fixed); for (int i=0;i<15;++i) for (int j=0;j<15;++j) P_f(i,j) = P_fixed(i,j);
     regularize_covariance(P_f); apply_velocity_clipping(v_f, P_f, 3.0f);
-    {
-        cmath_fx::Matrix<15,15,float> Ptmp;
-        for (int i=0;i<15;++i) for (int j=0;j<15;++j) Ptmp(i,j) = P_f(i,j);
-        common::filter::symmetrize_covariance(Ptmp);
-        for (int i=0;i<15;++i) for (int j=0;j<15;++j) P_f(i,j) = Ptmp(i,j);
-    }
+    cmath_fx::utils::symmetrize<15, float>(P_f);
     for (int i=0;i<3;++i){ s->p[i]=static_cast<double>(p_f(i,0)); s->v[i]=static_cast<double>(v_f(i,0)); s->ba[i]=static_cast<double>(ba_f(i,0)); s->bg[i]=static_cast<double>(bg_f(i,0)); }
     for (int i=0;i<4;++i) s->q[i]=static_cast<double>(q_f(i,0)); for (int i=0;i<15;++i) for (int j=0;j<15;++j) s->P[i + j*15] = static_cast<double>(P_f(i,j));
 }
@@ -55,12 +46,9 @@ void ESKFRunner::apply_velocity_clipping(cmath_fx::Vector<3, float>& v, cmath_fx
 }
 
 void ESKFRunner::regularize_covariance(cmath_fx::Matrix<15, 15, float>& P) {
-    // Delegate to common normalization and symmetrization helpers to ensure consistent behavior
-    cmath_fx::Matrix<15,15,float> Ptmp;
-    for (int i=0;i<15;++i) for (int j=0;j<15;++j) Ptmp(i,j) = P(i,j);
-    common::filter::normalize_covariance(Ptmp);
-    common::filter::symmetrize_covariance(Ptmp);
-    for (int i=0;i<15;++i) for (int j=0;j<15;++j) P(i,j) = Ptmp(i,j);
+    // Delegate to common normalization and central symmetrization helper
+    common::filter::normalize_covariance(P);
+    cmath_fx::utils::symmetrize<15, float>(P);
 }
 
 } // namespace eskf

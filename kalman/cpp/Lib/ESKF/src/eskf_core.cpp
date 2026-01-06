@@ -6,6 +6,8 @@
 #include "../../KF/inc/kalman_filter_core.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../Common/inc/Math/math_utils.hpp"
+#include "../../Matrix/matrix_inverse.hpp"
+#include "../../Matrix/matrix_utils.hpp"
 #include <cmath>
 
 namespace eskf {
@@ -113,14 +115,8 @@ void ESKFCore::predict_covariance(
 	Matrix15x15 F_P_Ft = F_P * F.transpose();
 	P_new = F_P_Ft + Q;
     
-	// 対称化
-	for (int i = 0; i < 15; ++i) {
-		for (int j = i + 1; j < 15; ++j) {
-			Scalar v = static_cast<Scalar>(0.5) * (P_new(i, j) + P_new(j, i));
-			P_new(i, j) = v;
-			P_new(j, i) = v;
-		}
-	}
+	// 対称化（Matrix層ユーティリティへ委譲）
+	cmath_fx::utils::symmetrize<15, Scalar>(P_new);
 }
 
 void ESKFCore::compute_F_matrix(
@@ -228,7 +224,7 @@ void ESKFCore::update_zupt(const Vector3& v_in, const Matrix15x15& P_in, Vector3
 	Vector3 y; y(0,0) = -v_in(0,0); y(1,0) = -v_in(1,0); y(2,0) = -v_in(2,0);
 	Matrix3x3 P_vv; for (int i = 0; i < 3; ++i) for (int j = 0; j < 3; ++j) P_vv(i, j) = P_in(3 + i, 3 + j);
 	Matrix3x3 R = Matrix3x3::Zero(); float noise_zupt[3] = {0.0001f, 0.0001f, 0.0001f}; for (int i = 0; i < 3; ++i) R(i, i) = noise_zupt[i];
-	Matrix3x3 S = P_vv + R; Matrix3x3 S_inv; bool S_is_singular = !MathUtils::invert3x3(S, S_inv);
+	Matrix3x3 S = P_vv + R; Matrix3x3 S_inv; bool S_is_singular = !cmath_fx::inv::inverse<3, Scalar>(S, S_inv);
 	if (S_is_singular) {
 		v_out(0, 0) = 0.0f; v_out(1, 0) = 0.0f; v_out(2, 0) = 0.0f; P_out = P_in; float factor = 0.01f; P_out(3,3) *= factor; P_out(4,4) *= factor; P_out(5,5) *= factor;
 		for (int i = 0; i < 15; ++i) {

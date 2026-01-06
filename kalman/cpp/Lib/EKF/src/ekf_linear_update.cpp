@@ -6,6 +6,8 @@
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../KF/inc/kalman_filter_core.hpp"
 #include "../../Common/inc/Math/math_utils.hpp"
+#include "../../Matrix/matrix_utils.hpp"
+#include "../../KF/inc/kf_operations.hpp"
 #include <cmath>
 
 namespace ekf {
@@ -35,6 +37,7 @@ void ekf_linear_update(
     common::math::MathUtils::compute_innovation_and_S(z, x, H, P, R, y, S, R_out);
     
     // Step 3: Kalman gain: K = P*H'*S^-1
+    cmath_fx::FixedMatrix Ht = H.transpose();
     cmath_fx::FixedMatrix PHt = P * Ht;
     
     cmath_fx::FixedMatrix S_inv;
@@ -55,47 +58,8 @@ void ekf_linear_update(
         x_upd(i, 0) = x(i, 0) + Ky(i, 0);
     }
     
-    // Step 5: Covariance update: P_upd = (I - K*H)*P*(I - K*H)' + K*R*K' (Joseph form)
-    cmath_fx::FixedMatrix KH = K * H;
-    
-    cmath_fx::FixedMatrix I;
-    I.resize(n, n);
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            I(i, j) = (i == j) ? 1.0f : 0.0f;
-        }
-    }
-    
-    cmath_fx::FixedMatrix I_KH;
-    I_KH.resize(n, n);
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            I_KH(i, j) = I(i, j) - KH(i, j);
-        }
-    }
-    
-    cmath_fx::FixedMatrix I_KHt = I_KH.transpose();
-    cmath_fx::FixedMatrix temp1 = I_KH * P;
-    cmath_fx::FixedMatrix term1 = temp1 * I_KHt;
-    
-    cmath_fx::FixedMatrix KR = K * R;
-    cmath_fx::FixedMatrix Kt = K.transpose();
-    cmath_fx::FixedMatrix term2 = KR * Kt;
-    
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            P_upd(i, j) = term1(i, j) + term2(i, j);
-        }
-    }
-    
-    // Symmetrize P_upd
-    for (int i = 0; i < n; ++i) {
-        for (int j = i + 1; j < n; ++j) {
-            float avg = 0.5f * (P_upd(i, j) + P_upd(j, i));
-            P_upd(i, j) = avg;
-            P_upd(j, i) = avg;
-        }
-    }
+    // Step 5: Covariance update (Joseph form) via centralized helper
+    kf::ops::joseph_form_update(P, K, H, R, P_upd);
 }
 
 } // namespace linear
