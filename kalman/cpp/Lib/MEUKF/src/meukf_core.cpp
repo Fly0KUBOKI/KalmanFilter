@@ -251,20 +251,10 @@ static double vector3_norm(const Vector3& v) {
 
 // Helper for Cholesky Decomposition (3x3)
 // Returns true if successful, false if not positive definite
-static bool cholesky3x3(const Matrix3x3& A, Matrix3x3& L) {
-    // Delegate to Matrix layer optimized 3x3 Cholesky
-    return cmath_fx::decomp::cholesky_3x3_optimized<float>(A, L);
-}
-
-// 堅牢なCholesky分解（MATLAB実装に合わせた多段フォールバック）
-static bool cholesky3x3_robust(Matrix3x3& A, Matrix3x3& L) {
-    return cmath_fx::decomp::cholesky_robust<3, float>(A, L);
-}
-
-// 共分散行列の正定値化
-static void ensure_positive_definite(Matrix3x3& P) {
-    cmath_fx::utils::ensure_positive_definite<3, float>(P);
-}
+// Note: cholesky / robust cholesky / PD enforcement are provided
+// by the Matrix layer (cmath_fx::decomp::cholesky_3x3_optimized,
+// cmath_fx::decomp::cholesky_robust<3>, cmath_fx::utils::ensure_positive_definite<3>).
+// Local wrappers were removed to avoid duplication; call the Matrix APIs directly.
 
 void MEUKFCore::step(const MEUKFInput& input, MEUKFOutput& output) {
     // Initialize output
@@ -647,7 +637,7 @@ void MEUKFCore::update_accel_meukf_ukf_version(State& state, const Vector3& a_me
     for (int i=0;i<3;++i) for (int j=i+1;j<3;++j) {
         float avg = (P_att_upd(i,j) + P_att_upd(j,i)) * 0.5f; P_att_upd(i,j)=avg; P_att_upd(j,i)=avg;
     }
-    ensure_positive_definite(P_att_upd);
+    cmath_fx::utils::ensure_positive_definite<3, float>(P_att_upd);
 
     // Apply full-state update dx_full = K_full * y2
     Vector15 dx_full;
@@ -800,7 +790,7 @@ void MEUKFCore::update_mag_meukf_ukf_version(State& state, const Vector3& m_meas
     cmath_fx::Matrix<3,3,float> P_att_upd = P_att;
     for(int i=0;i<3;++i) for(int j=0;j<3;++j) P_att_upd(i,j) = P_att(i,j) - KSKt(i,j);
     for(int i=0;i<3;++i) for(int j=i+1;j<3;++j) { float avg = 0.5f*(P_att_upd(i,j)+P_att_upd(j,i)); P_att_upd(i,j)=avg; P_att_upd(j,i)=avg; }
-    ensure_positive_definite(P_att_upd);
+    cmath_fx::utils::ensure_positive_definite<3, float>(P_att_upd);
 
     // dx_full and apply to state
     Vector15 dx_full; for(int r=0;r<15;++r) dx_full(r,0) = K_full(r,0)*y3(0,0) + K_full(r,1)*y3(1,0) + K_full(r,2)*y3(2,0);

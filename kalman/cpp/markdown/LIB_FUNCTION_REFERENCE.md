@@ -244,6 +244,12 @@ namespace kalman {
 推奨: Math/math_utils 版の compute_innovation_and_S に統一
 ```
 
+**現在の変更**:
+- `kalman/cpp/Lib/KF/inc/kf_operations.hpp` を追加し、Innovation/Gain/Joseph-form更新および Mahalanobis 計算を集約しました。
+- `KalmanFilterCore` は薄い委譲ラッパにリファクタされ、主要な数値処理は `kf::` 名前空間に移行しています。
+
+参照: `kalman/cpp/Lib/KF/inc/kf_operations.hpp` を確認してください。
+
 ---
 
 #### 3.2 EKF/inc/ekf_core.hpp

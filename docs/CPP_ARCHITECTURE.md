@@ -371,6 +371,32 @@ public:
 
 ---
 
+---
+
+## 🧩 KF 層（Lib/KF）
+
+**目的**: EKF/ESKF/UKF/MEUKF 等、上位フィルタ実装に共通するカルマン特有の行列演算を集約し、重複実装を削減するとともに数値最適化（3x3 特化など）を提供します。
+
+主な実装ファイル:
+- `kalman/cpp/Lib/KF/inc/kf_operations.hpp` — テンプレート化された KF 基本演算を提供。
+
+主要機能:
+- Innovation（残差）と観測共分散 S の計算テンプレート（コンパイル時サイズ指定）
+- Kalman Gain の計算（テンプレート化）
+- 状態更新（Joseph 形式およびシンプル形式）の実装
+- Mahalanobis 距離計算ユーティリティ（固定サイズ/ランタイム両対応のオーバーロード）
+
+設計上の要点:
+- `kalman_filter_core.hpp` は数値処理を `kf::` 名前空間に委譲し、フィルタ固有ロジックへ集中させます。
+- Matrix 層（`Lib/Matrix`）の 3x3 最適化や安定化ルーチンを活用して、高頻度ホットパスの性能と数値安定性を守ります。
+
+利点:
+- コード量削減: 複数モジュールに散在していた Innovation/Gain/Update の重複を排除
+- 数値一貫性: Mahalanobis / Joseph 更新などの振る舞いを一か所で定義
+- 最適化の集中管理: 3x3 特化実装や robust Cholesky を一箇所で保守
+
+参照: `kalman/cpp/Lib/KF/inc/kf_operations.hpp`, `kalman/cpp/Lib/KF/inc/kalman_filter_core.hpp`
+
 ## ⚡ パフォーマンス最適化
 
 ### メモリ管理
