@@ -2,7 +2,7 @@
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../Common/inc/Math/vector_utils.hpp"
 #include "../../Common/inc/filter_mgmt.hpp"
-#include "../../Matrix/matrix_utils.hpp"
+// Matrix utilities consolidated into fixed_matrix.hpp
 #include <cmath>
 
 namespace eskf {

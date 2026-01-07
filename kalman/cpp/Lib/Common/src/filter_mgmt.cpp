@@ -1,6 +1,6 @@
 ﻿#include "../inc/filter_mgmt.hpp"
 #include <cmath>
-#include "../../Matrix/matrix_utils.hpp"
+// Matrix utilities consolidated into fixed_matrix.hpp
 
 namespace common {
 namespace filter {

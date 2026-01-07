@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "matrix_operations.hpp"
+#include "../../../Matrix/fixed_matrix.hpp"
 #include "statistics.hpp"
 #include "geometry.hpp"
 #include "numerical.hpp"

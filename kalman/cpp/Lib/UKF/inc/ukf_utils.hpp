@@ -5,8 +5,6 @@
 // These are extracted from MEUKF to be reusable across different attitude/position filters
 
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Matrix/matrix_decomposition.hpp"
-#include "../../Matrix/matrix_utils.hpp"
 #include <cmath>
 #include <algorithm>
 

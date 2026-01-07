@@ -4,7 +4,7 @@
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../Common/inc/Sensor/sensor_filter.hpp"
 #include "../../Common/inc/filter_mgmt.hpp"
-#include "../../Matrix/matrix_utils.hpp"
+#include "../../Matrix/fixed_matrix.hpp"
 #include <cmath>
 #include <cstring>
 #include <vector>

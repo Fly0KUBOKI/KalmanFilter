@@ -2,7 +2,7 @@
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Common/inc/Math/statistics.hpp"
-#include "../../Common/inc/Math/matrix_operations.hpp"
+#include "../../Matrix/fixed_matrix.hpp"
 #include "../../Common/inc/Math/statistics.hpp"
 #include "../../Common/inc/Math/geometry.hpp"
 #include "../../Common/inc/Math/numerical.hpp"

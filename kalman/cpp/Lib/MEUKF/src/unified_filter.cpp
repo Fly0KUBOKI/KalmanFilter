@@ -1,6 +1,6 @@
 ﻿#include "../inc/unified_filter.hpp"
 #include "../../Common/inc/Sensor/sensor_filter.hpp"
-#include "../../Common/inc/Math/matrix_operations.hpp"
+// Matrix operations consolidated into fixed_matrix.hpp
 #include "../../Common/inc/Math/statistics.hpp"
 #include "../../Common/inc/Math/geometry.hpp"
 #include "../../Common/inc/Math/numerical.hpp"

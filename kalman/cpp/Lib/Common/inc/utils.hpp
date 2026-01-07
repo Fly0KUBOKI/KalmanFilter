@@ -4,7 +4,7 @@
 #include "filter_mgmt.hpp"
 #include <cmath>
 #include "../../Quaternion/quaternion_functions.hpp"
-#include "../../Matrix/matrix_utils.hpp"
+// Matrix utilities consolidated into fixed_matrix.hpp
 
 namespace kalman {
 

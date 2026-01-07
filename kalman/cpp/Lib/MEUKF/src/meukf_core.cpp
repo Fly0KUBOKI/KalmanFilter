@@ -1,12 +1,11 @@
 ﻿#include "../inc/meukf_core.hpp"
-#include "../../Common/inc/Math/matrix_operations.hpp"
+// Matrix operations consolidated into fixed_matrix.hpp
 #include "../../Common/inc/Math/statistics.hpp"
 #include "../../Common/inc/Math/geometry.hpp"
 #include "../../Common/inc/Math/numerical.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../UKF/inc/ukf_update.hpp"
-#include "../../Matrix/matrix_decomposition.hpp"
-#include "../../Matrix/matrix_utils.hpp"
+// Matrix operations consolidated into fixed_matrix.hpp
 #include <cmath>
 #include <cstring>
 #include <algorithm>

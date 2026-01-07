@@ -1,9 +1,6 @@
 ﻿#pragma once
 
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Matrix/matrix_decomposition.hpp"
-#include "../../Matrix/matrix_inverse.hpp"
-#include "../../Matrix/matrix_utils.hpp"
 
 namespace kf {
 
@@ -110,8 +107,6 @@ T mahalanobis_distance_squared(
 #pragma once
 
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Matrix/matrix_utils.hpp"
-#include "../../Matrix/matrix_inverse.hpp"
 
 namespace kf {
 namespace ops {
