@@ -4,7 +4,10 @@
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
-#include "../../Common/inc/Math/math_utils.hpp"
+#include "../../Common/inc/Math/matrix_operations.hpp"
+#include "../../Common/inc/Math/statistics.hpp"
+#include "../../Common/inc/Math/geometry.hpp"
+#include "../../Common/inc/Math/numerical.hpp"
 
 namespace eskf_math {
 

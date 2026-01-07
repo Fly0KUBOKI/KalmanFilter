@@ -5,7 +5,10 @@
 #include "../inc/eskf_math.hpp"
 #include "../../KF/inc/kalman_filter_core.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
-#include "../../Common/inc/Math/math_utils.hpp"
+#include "../../Common/inc/Math/matrix_operations.hpp"
+#include "../../Common/inc/Math/statistics.hpp"
+#include "../../Common/inc/Math/geometry.hpp"
+#include "../../Common/inc/Math/numerical.hpp"
 #include "../../Matrix/matrix_inverse.hpp"
 #include "../../Matrix/matrix_utils.hpp"
 #include <cmath>

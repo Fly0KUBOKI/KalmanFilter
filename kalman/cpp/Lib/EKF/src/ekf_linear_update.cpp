@@ -5,7 +5,10 @@
 #include "../inc/ekf_linear_update.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../KF/inc/kalman_filter_core.hpp"
-#include "../../Common/inc/Math/math_utils.hpp"
+#include "../../Common/inc/Math/matrix_operations.hpp"
+#include "../../Common/inc/Math/statistics.hpp"
+#include "../../Common/inc/Math/geometry.hpp"
+#include "../../Common/inc/Math/numerical.hpp"
 #include "../../Matrix/matrix_utils.hpp"
 #include "../../KF/inc/kf_operations.hpp"
 #include <cmath>

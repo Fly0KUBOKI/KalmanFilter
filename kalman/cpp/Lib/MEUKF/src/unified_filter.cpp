@@ -1,6 +1,9 @@
 ﻿#include "../inc/unified_filter.hpp"
 #include "../../Common/inc/Sensor/sensor_filter.hpp"
-#include "../../Common/inc/Math/math_utils.hpp"
+#include "../../Common/inc/Math/matrix_operations.hpp"
+#include "../../Common/inc/Math/statistics.hpp"
+#include "../../Common/inc/Math/geometry.hpp"
+#include "../../Common/inc/Math/numerical.hpp"
 #include "../inc/meukf_core.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include <cstring>
