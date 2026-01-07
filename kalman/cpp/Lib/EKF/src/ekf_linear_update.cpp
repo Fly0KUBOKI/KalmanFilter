@@ -31,35 +31,38 @@ void ekf_linear_update(
     P_upd.resize(n, n);
     
     // Step 1/2: Innovation and innovation covariance (unified)
-    cmath_fx::FixedMatrix y; y.resize(m,1);
-    cmath_fx::FixedMatrix S; S.resize(m,m);
-    cmath_fx::FixedMatrix R_out; R_out.resize(m,m);
-    common::math::MathUtils::compute_innovation_and_S(z, x, H, P, R, y, S, R_out);
-    
-    // Step 3: Kalman gain: K = P*H'*S^-1
-    cmath_fx::FixedMatrix Ht = H.transpose();
-    cmath_fx::FixedMatrix PHt = P * Ht;
-    
-    cmath_fx::FixedMatrix S_inv;
-    S_inv.resize(m, m);
-    if (!S.inverse(S_inv)) {
-        // If inverse fails, return unchanged state
-        x_upd = x;
-        P_upd = P;
-        return;
+    {
+        // predicted measurement
+        cmath_fx::FixedMatrix h; h.resize(m, 1);
+        h = H * x;
+
+        // innovation y = z - h
+        cmath_fx::FixedMatrix y; y.resize(m, 1);
+        for (int i = 0; i < m; ++i) y(i,0) = z(i,0) - h(i,0);
+
+        // innovation covariance S = H * P * H' + R
+        cmath_fx::FixedMatrix S; S.resize(m, m);
+        S = H * P * H.transpose() + R;
+        S = cmath_fx::utils::symmetrize(S);
+
+        // invert S
+        cmath_fx::FixedMatrix S_inv; S_inv.resize(m, m);
+        if (!S.inverse(S_inv)) {
+            x_upd = x;
+            P_upd = P;
+            return;
+        }
+
+        // Kalman gain K = P * H' * S_inv
+        cmath_fx::FixedMatrix K = P * H.transpose() * S_inv;
+
+        // State update: x_upd = x + K * y
+        cmath_fx::FixedMatrix Ky = K * y;
+        for (int i = 0; i < n; ++i) x_upd(i,0) = x(i,0) + Ky(i,0);
+
+        // Covariance update (Joseph form)
+        kf::ops::joseph_form_update(P, K, H, R, P_upd);
     }
-    
-    cmath_fx::FixedMatrix K = PHt * S_inv;
-    
-    // Step 4: State update: x_upd = x + K*y
-    cmath_fx::FixedMatrix Ky = K * y;
-    
-    for (int i = 0; i < n; ++i) {
-        x_upd(i, 0) = x(i, 0) + Ky(i, 0);
-    }
-    
-    // Step 5: Covariance update (Joseph form) via centralized helper
-    kf::ops::joseph_form_update(P, K, H, R, P_upd);
 }
 
 } // namespace linear

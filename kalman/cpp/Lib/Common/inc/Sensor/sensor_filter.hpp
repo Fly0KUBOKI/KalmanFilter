@@ -5,6 +5,7 @@
 
 #include "../../../Matrix/fixed_matrix.hpp"
 #include "../Math/math_utils.hpp"
+#include "../../../KF/inc/kf_operations.hpp"
 #include <cmath>
 #include <algorithm>
 #include <cstring>
@@ -304,7 +305,7 @@ public:
     // Mahalanobis-based静的判定: innovation とその共分散 S を与えて閾値判定
     // このメソッドは履歴を使わず、MathUtils の実装へ委譲します。
     static bool detect_mahalanobis_static(const common::math::cm& innovation, const common::math::cm& S, float threshold_sigma = 3.0f) {
-        float dist_sq = common::math::MathUtils::mahalanobis_distance_squared(innovation, S);
+        float dist_sq = kf::ops::mahalanobis_distance_squared(innovation, S);
         float dist = sqrtf(dist_sq);
         return dist > threshold_sigma;
     }

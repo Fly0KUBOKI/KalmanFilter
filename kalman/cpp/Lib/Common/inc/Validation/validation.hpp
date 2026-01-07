@@ -68,7 +68,7 @@ class OutlierDetector {
 public:
     // Mahalanobis距離による外れ値検出（統一実装は math_utils.hpp::MathUtils::mahalanobis_distance_squared）
     static bool detect_mahalanobis(const cm& innovation, const cm& S, float threshold = 9.0f) {
-        float dist_sq = MathUtils::mahalanobis_distance_squared(innovation, S);
+        float dist_sq = kf::ops::mahalanobis_distance_squared(innovation, S);
         return (dist_sq > threshold);
     }
     
