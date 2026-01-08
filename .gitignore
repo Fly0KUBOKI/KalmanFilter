@@ -1,0 +1,9 @@
+# Ignore large auto-generated results
+kalman/Results/noise_debug.txt
+kalman/Results/*.mat
+kalman/cpp/bin/*.mexw64
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.swp
