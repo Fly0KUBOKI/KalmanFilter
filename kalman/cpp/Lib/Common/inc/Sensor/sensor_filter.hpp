@@ -4,11 +4,9 @@
 #define COMMON_SENSOR_SENSOR_FILTER_HPP
 
 #include "../../../Matrix/fixed_matrix.hpp"
-#include "../../Matrix/fixed_matrix.hpp"
 #include "../Math/statistics.hpp"
 #include "../Math/geometry.hpp"
 #include "../Math/numerical.hpp"
-#include "../../../KF/inc/kf_operations.hpp"
 #include <cmath>
 #include <algorithm>
 #include <cstring>
