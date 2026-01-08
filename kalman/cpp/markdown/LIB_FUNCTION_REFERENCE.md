@@ -56,7 +56,7 @@
 | 関数名 | シグネチャ | 説明 | 重要度 |
 |--------|----------|------|--------|
 | `normalize_quat()` | `void(Vector<4,T>&)` | 正規化 | ★★★ |
-| `normalize_quaternion()` | `Vector<4,T>(const Vector<4,T>&)` | 値返却版 | ★★ |
+| `normalize_quaternion()` | REMOVED — use `cquat::normalize_quat()` (in-place) | 値返却版 (削除) | ★★ |
 | `multiply_quat()` | `void(Vec4, Vec4, Vec4&)` | 四元数乗算 | ★★★ |
 | `quat_to_rotm()` | `void(Vec4, Mat3x3&)` | 四元数→回転行列 | ★★★ |
 | `from_euler_deg()` | `void(roll°, pitch°, yaw°, Vec4&)` | オイラー角→四元数 | ★★★ |
