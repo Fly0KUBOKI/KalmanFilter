@@ -1,91 +1,133 @@
 function params = config_params()
-% config_params - central configuration for simulation and filters
-params = struct();
+    % シミュレーションパラメータ設定
 
-% timing
-params.dt = 0.01;
-params.T = 100;
+    params = struct();
 
-% initial state for [x y vx vy theta ax ay omega z vz]
-params.initial_state = [0;0;1;0;0;0;0;0;0;0];
+    % タイミング
+    params.dt = 0.0025;
+    params.T = 50;
+    params.static_time = 5;
 
-% motion
-params.motion.mode = 'circular'; % 'circular' or 'random'
-params.motion.center = [0,0];
-params.motion.radius = 50;
-params.motion.omega = 0.2;
-params.motion.phase_noise = deg2rad(0.5);
-params.motion.speed_mean = 0.01;
-params.motion.speed_std = 0.0;
-params.motion.heading_change_std = deg2rad(90);
-params.motion.change_interval = 0.1;
+    % 運動タイプ
+    params.motion_type = 'circular';
 
+    % ヘディングモード
+    params.heading_mode = 'align_velocity'; % 'fixed_north' or 'align_velocity'
 
-% --- Nominal (white) sensor noise levels (per-sensor defaults) ---
-% These are the baseline Gaussian noise stddev values used by sim_generate.
-params.noise.pos = 0.1;           % position noise (m)
-params.noise.vel = 0.1;           % velocity noise (m/s)
-params.noise.accel3 = [0.1, 0.1, 0.1];
-params.noise.gyro3 = deg2rad([0.1, 0.1, 0.1]);
-params.noise.mag3 = [0.1, 0.1, 0.1];
-params.noise.gps = 1.0;
-params.noise.baro = 0.01;
-params.noise.heading = deg2rad(0.1);
+    % センサーノイズ (1σ)
+    params.noise = struct();
+    
+    % ノイズ有効/無効フラグ
+    params.noise.enable = struct();
+    params.noise.enable.accel = true;
+    params.noise.enable.gyro = true;
+    params.noise.enable.mag = true;
+    params.noise.enable.baro = true;
+    params.noise.enable.gps = true;
+    params.noise.enable.outlier = true;
+    params.noise.enable.pink = true;
+    params.noise.enable.allan = true;
+    
+    % ベースノイズレベル (フラグがtrueの場合のみ適用)
+    params.noise.base = struct();
+    params.noise.base.accel_std = single(0.1);
+    params.noise.base.gyro_std = single(0.5);
+    params.noise.base.mag_std = single(5.0);
+    params.noise.base.baro_std = single(1.0);
+    params.noise.base.gps_std = single(1.0);
+    
+    % 実際のノイズ設定 (フラグに基づいて決定)
+    params.noise.accel_std = params.noise.enable.accel * params.noise.base.accel_std;
+    params.noise.gyro_std = params.noise.enable.gyro * params.noise.base.gyro_std;
+    params.noise.mag_std = params.noise.enable.mag * params.noise.base.mag_std;
+    params.noise.baro_std = params.noise.enable.baro * params.noise.base.baro_std;
+    params.noise.gps_std = params.noise.enable.gps * params.noise.base.gps_std;
+    % 外れ値設定
+    params.noise.outlier = struct();
+    if params.noise.enable.outlier
+        params.noise.outlier.prob = single(0.01);
+        params.noise.outlier.range = struct( ...
+            'accel', single(2.0), ...  % m/s^2
+            'gyro', single(2.0), ...   % deg/s
+            'mag', single(50.0), ...    % nT
+            'baro', single(5.0), ...   % meters
+            'gps', single(10.0) ...     % meters
+        );
+    else
+        params.noise.outlier.prob = single(0.0);
+        params.noise.outlier.range = struct( ...
+            'accel', single(0.0), ...
+            'gyro', single(0.0), ...
+            'mag', single(0.0), ...
+            'baro', single(0.0), ...
+            'gps', single(0.0) ...
+        );
+    end
 
+    % ピンクノイズ
+    if params.noise.enable.pink
+        params.noise.accel_pink_std = single(0.1);
+        params.noise.gyro_pink_std = single(0.1);    % Gyroscope pink noise (deg/s)
+        params.noise.gps_pink_std = single(1.0);     % GPS pink noise (meters)
+    else
+        params.noise.accel_pink_std = single(0.0);
+        params.noise.gyro_pink_std = single(0.0);
+        params.noise.gps_pink_std = single(0.0);
+    end
 
-% Global pink-noise settings (apply pink noise to multiple sensors)
-% Set enable=true to add pink noise to the listed sensors. Per-sensor std
-% defaults are taken from the nominal noise fields above.
-params.noise.pink.enable = true;
-params.noise.pink.std.pos = 0.1;
-params.noise.pink.std.vel = 0.1;
-params.noise.pink.std.accel3 = [0.1, 0.1, 0.0];
-params.noise.pink.std.gyro3 = deg2rad([0.1, 0.1, 0.1]);
-params.noise.pink.std.mag3 = [0.1, 0.1, 0.1];
-params.noise.pink.std.gps = 1.0;
-params.noise.pink.std.baro = 1.0;
-params.noise.pink.std.heading = deg2rad(0.1);
+    % Allan偏差
+    if params.noise.enable.allan
+        params.noise.gyro_allan_std = single(0.1);   % Gyroscope Allan deviation (deg/s)
+        params.noise.baro_allan_std = single(0.1);   % Barometer Allan deviation (meters)
+    else
+        params.noise.accel_allan_std = single(0.0);
+        params.noise.gyro_allan_std = single(0.0);
+        params.noise.baro_allan_std = single(0.0);
+    end
 
+    % 運動パラメータ
+    params.motion = struct();
 
-params.noise.gyro_allan.enable = true;
-params.noise.gyro_allan.bias_sigma = deg2rad(0.8);
-params.noise.gyro_allan.rate_rw_sigma = deg2rad(0.01);
+    % 円運動
+    params.motion.circular = struct();
+    params.motion.circular.radius = single(10);
+    params.motion.circular.omega = single(4);
+    params.motion.circular.altitude = single(0);
+    params.motion.circular.accel_time = single(5);
+    params.motion.circular.angular_std = single(2.0);
+    params.motion.circular.angular_tau = single(5.0);
+    % Pitch/Roll振動
+    params.motion.oscillation = struct();
+    params.motion.oscillation.roll_amplitude_deg = single(5);
+    params.motion.oscillation.roll_period = single(5);
+    params.motion.oscillation.pitch_amplitude_deg = single(3);
+    params.motion.oscillation.pitch_period = single(5);
+    params.motion.oscillation.soft_start_time = single(5);
+    % ランダムウォーク
+    params.motion.random_walk = struct();
+    params.motion.random_walk.velocity_std = single(0.0);
+    params.motion.random_walk.angular_std = single(0.0);
+    params.motion.random_walk.altitude_std = single(0.0);
 
+    % GPS原点
+    params.gps_origin = struct();
+    params.gps_origin.lat = 36.0;
+    params.gps_origin.lon = 140.0;
+    params.gps_origin.alt = 0;
 
-params.noise.baro_allan.enable = true;
-params.noise.baro_allan.bias_sigma = 0.8;
-params.noise.baro_allan.rate_rw_sigma = 0.01;
+    % 初期状態
+    params.initial = struct();
+    params.initial.gps_position = [params.gps_origin.lat, params.gps_origin.lon, 0];
+    params.initial.velocity = [0, 0, 0];
+    params.initial.attitude = [0, 0, 0];
 
+    % 出力設定
+    cfg_dir = fileparts(mfilename('fullpath'));
+    params.output = struct();
+    params.output.dir = cfg_dir;
+    params.output.truth_filename = 'truth_data.csv';
+    params.output.sensor_filename = 'sensor_data.csv';
 
-params.noise.outlier.prob_per = struct();
-params.noise.outlier.prob_per.pos = 0.01;
-params.noise.outlier.prob_per.vel = 0.01;
-params.noise.outlier.prob_per.accel3 = 0.01;
-params.noise.outlier.prob_per.gyro3 = 0.01;
-params.noise.outlier.prob_per.mag3 = 0.01;
-params.noise.outlier.prob_per.gps = 0.1;
-params.noise.outlier.prob_per.baro = 0.1;
-params.noise.outlier.prob_per.heading = 0.01;
-
-% nominal magnetic field in world frame (2D + z=0)
-params.sensors.mag_field = [1; 0; 0]; % arbitrary unit vector pointing along +x
-
-% EKF params (10-state model)
-% initial state for EKF: [x y vx vy theta ax ay omega z vz]
-params.kf.x0 = [0;0;1;0;0;0;0;0;0;0]; % default: vx=1
-% initial covariance (10x10)
-params.kf.P0 = diag([10,10,5,5,1,1,1,1,1,1]);
-params.kf.process_noise_accel = 0.5;
-% filter type: 'ekf', 'ukf', or 'kf' (step-wise KF)
-params.kf.type = 'ukf';
-
-% filter options
-params.filter.method = 'none'; % 'none','avg10','ema'
-params.filter.alpha = 0.2;
-
-% data source default: 'sim' or 'csv'
-params.data.source = 'csv';
-% default CSV file: place sim_data.csv next to this config function (GenerateData folder)
-params.data.file = fullfile(fileparts(mfilename('fullpath')),'sim_data.csv');
+    params.thresholds = 1.0e-6;  % Thresholds
 
 end
