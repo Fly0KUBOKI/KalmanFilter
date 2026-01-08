@@ -22,8 +22,6 @@ inline void normalize_quat(cmath_fx::Vector<4, T>& q) {
     for (int i = 0; i < 4; ++i) q(i,0) /= n;
 }
 
-// Wrapper returning a normalized quaternion (value API) for callers using Vec4 return
-template <typename T>
 // NOTE: value-return wrapper `normalize_quaternion` removed — use `cquat::normalize_quat` instead.
 template <typename T>
 inline void multiply_quat(const cmath_fx::Vector<4, T>& a, const cmath_fx::Vector<4, T>& b, cmath_fx::Vector<4, T>& out) {
