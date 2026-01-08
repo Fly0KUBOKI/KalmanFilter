@@ -507,11 +507,19 @@ namespace cmath_fx {
 
 **依存関係**: なし (スタンドアロン)
 
+**活用状況分析**:
+✅ **appropriate使用**:
+- ESKF: 15x15共分散行列 → `Matrix<15,15,float>`
+- センサー処理: 3x3行列 → `Matrix<3,3,float>` 
+- Quaternion: Vector<4,float> として活用
+
+⚠️ **問題検出**: Sensor層で `cmath_fx::FixedMatrix` という可変長マトリクスも独立実装 → 冗長
+
 ---
 
 ### 7.2 四元数演算 (`Quaternion/quaternion_functions.hpp`)
 
-**ファイル**: `Quaternion/quaternion_functions.hpp` (約200行)
+**ファイル**: `Quaternion/quaternion_functions.hpp` (174行、実装含む)
 
 **機能**:
 - 四元数乗算
@@ -524,28 +532,48 @@ namespace cmath_fx {
 **主要関数**:
 ```cpp
 namespace cquat {
-    struct Quaternion { float w, x, y, z; };
+    template <typename T>
+    inline void normalize_quat(cmath_fx::Vector<4, T>& q);           // ✅ 推奨標準
     
-    Quaternion quat_multiply(const Quaternion& q1, const Quaternion& q2);
-    void normalize(Quaternion& q);              // 方法1
-    void normalize_quaternion(Quaternion& q);   // 方法2 (重複)
-    void quat_normalize(float q[4]);            // 方法3 (重複)
+    template <typename T>
+    inline cmath_fx::Vector<4, T> normalize_quaternion(const cmath_fx::Vector<4, T>& q_in);  // ⚠️ 重複 (wrapper)
     
-    Quaternion conjugate(const Quaternion& q);
-    Quaternion inverse(const Quaternion& q);
+    template <typename T>
+    inline void multiply_quat(const cmath_fx::Vector<4, T>& a, const cmath_fx::Vector<4, T>& b, cmath_fx::Vector<4, T>& out);
     
-    void quat_to_euler_angles(...);
-    void euler_angles_to_quat(...);
+    template <typename T>
+    inline void quat_to_rotm(const cmath_fx::Vector<4, T>& q, cmath_fx::Matrix<3, 3, T>& R);
+    
+    // Euler角変換も実装
 }
 ```
 
-**⚠️ 問題**:
-- **正規化処理4種実装** → 統一推奨
-- **複数の命名規則** (normalize, quat_normalize, normalize_quaternion)
-
 **実装度**: ★★★ (完全実装、パフォーマンス最適化済み)
 
-**依存関係**: `Matrix/fixed_matrix.hpp`
+**依存関係**: `Matrix/fixed_matrix.hpp`, `Common/Math/*.hpp` (不適切)
+
+**活用状況分析**:
+✅ **appropriate使用**:
+- ESKF/MEUKF: `cquat::normalize_quat()` で四元数正規化 → 統一済み
+- 四元数乗算: `multiply_quat()` で統一
+
+⚠️ **重大な問題**:
+1. **インクルード構造が不適切**:
+   ```cpp
+   // ❌ quaternion_functions.hpp の異常なインクルード
+   #include "../Matrix/fixed_matrix.hpp"     // パス1
+   #include "../../Matrix/fixed_matrix.hpp"  // パス2 (重複)
+   #include "../Common/inc/Math/statistics.hpp"     // ← 後方依存
+   #include "../Common/inc/Math/geometry.hpp"
+   #include "../Common/inc/Math/numerical.hpp"
+   #include "../Common/inc/Math/math_utils.hpp"     // ← 循環依存予備軍
+   ```
+   
+2. **normalize_quaternion()` wrapper が重複**:
+   - `normalize_quat()` のwrapper版なのに別命名
+   - 呼び出し箇所でどちらを使うか混乱
+
+3. **後方依存**: Common/Math層がQuaternion層より下位なのに、Quaternionが依存している
 
 ---
 
@@ -579,9 +607,42 @@ namespace cquat {
         │ Matrix                │      │ Quaternion        │
         │ fixed_matrix.hpp      │      │ quaternion_       │
         │ (固定サイズ行列)       │      │ functions.hpp     │
-        └───────────────────────┘      │ (四元数演算)       │
+        │ ✅活用度: 高            │      │ (四元数演算)       │
+        └───────────────────────┘      │ ⚠️複数重複実装      │
                                        └───────────────────┘
 ```
+
+### ⚠️ **重大な依存関係問題**
+
+#### 1️⃣ **インクルード重複 (Quaternion層)**
+```cpp
+// quaternion_functions.hpp の異常なインクルード
+#include "../Matrix/fixed_matrix.hpp"     // ← 相対パス混在 ❌
+#include "../../Matrix/fixed_matrix.hpp"  // ← 2重インクルード ❌
+#include "../Common/inc/Math/statistics.hpp"    // ← 非対称な構造 ❌
+#include "../Common/inc/Math/geometry.hpp"
+#include "../Common/inc/Math/numerical.hpp"
+#include "../Common/inc/Math/math_utils.hpp"    // ← 後方依存 ❌
+```
+**影響**: コンパイル遅延、include guard の脆弱性
+
+#### 2️⃣ **Sensor層の過度なインクルード**
+```cpp
+// sensor_filter.hpp (846行) の問題
+#include "../../../Matrix/fixed_matrix.hpp"     // 重複
+#include "../../Matrix/fixed_matrix.hpp"         // 重複
+#include "../../../KF/inc/kf_operations.hpp"    // 不要
+#include <atomic>, <chrono>, <cstdarg>, <cfloat> // 過度
+```
+**影響**: ビルド時間増加、メモリ使用量増加
+
+#### 3️⃣ **ESKF層での不完全な分離**
+```cpp
+// filter.hpp vs eskf_filter.hpp → 機能重複・混乱
+// eskf_math.hpp が Quaternion と同じ機能を実装
+// eskf_postprocess.hpp が Quaternion 正規化機能を重複実装
+```
+**影響**: 状態同期の複雑化、バグ発生リスク
 
 ---
 
@@ -589,27 +650,238 @@ namespace cquat {
 
 ### 高優先度（即座対応）
 
-| # | 対象 | 問題 | 削除/統合予定 | 影響度 |
-|---|------|------|-------------|--------|
-| 1 | **四元数正規化** | 4種実装 (normalize, quat_normalize, normalize_quaternion,他) | →  `normalize()` 1つに統一 | **HIGH** |
-| 2 | **共分散対称化** | 3種実装 (symmetrize, force_symmetric, make_symmetric) | → `symmetrize()` に統一 | **HIGH** |
-| 3 | **Mahalanobis距離** | 3箇所で計算 (sensor_filter.hpp, sensor_updates.cpp, eskf_core.cpp) | → `Common/Math/` に統一実装 | **MEDIUM** |
-| 4 | **Innovation計算** | 2箇所分散 (sensor_updates.cpp, eskf_math.cpp) | → `sensor_updates.cpp` に統一 | **MEDIUM** |
-| 5 | **IMU積分** | 2種実装 (RK2, 台形則) | → 1つに統一（RK2推奨） | **MEDIUM** |
-| 6 | **filter.hpp vs eskf_filter.hpp** | 機能重複 | → `eskf_filter.hpp` に統合削除 | **MEDIUM** |
+| # | 対象 | 問題 | 削除/統合予定 | 影響度 | 実装箇所 |
+|---|------|------|-------------|--------|--------|
+| 1 | **四元数正規化** | 4種実装 (normalize_quat, normalize_quaternion など) | → `cquat::normalize_quat<T>()` に統一 | **HIGH** | quaternion_functions.hpp, eskf_postprocess.cpp, unified_filter.cpp |
+| 2 | **共分散対称化** | 3種実装 (symmetrize, force_symmetric, make_symmetric) | → `common::filter::symmetrize_covariance()` に統一 | **HIGH** | filter_mgmt.cpp, sensor_filter.hpp, eskf_core.cpp |
+| 3 | **Mahalanobis距離** | 3箇所で計算（独立実装） | → `Common/Math/` に統一実装、reference提供 | **MEDIUM** | sensor_filter.hpp(L250-300), sensor_updates.cpp(L180-220), kf_operations.hpp(L350-380) |
+| 4 | **Innovation計算** | 2箇所分散 | → `sensor_updates.cpp` に統一 | **MEDIUM** | sensor_updates.cpp, eskf_math.cpp, kf_operations.hpp |
+| 5 | **IMU積分** | 2種実装 (RK2, 台形則) | → RK2に統一（計算精度面から） | **MEDIUM** | eskf_core.cpp(L55), eskf_math.cpp(L120) |
+| 6 | **filter.hpp vs eskf_filter.hpp** | 機能重複・インターフェース混在 | → `eskf_filter.hpp` に統合, filter.hpp削除 | **MEDIUM** | ESKF/inc/filter.hpp, ESKF/inc/eskf_filter.hpp |
+| 7 | **インクルード重複** | Matrix include 2重、パス混在 | → 相対パス統一（`../../`） | **HIGH** | quaternion_functions.hpp(L3,5), sensor_filter.hpp(L6,7), validation.hpp(L3,5) |
 
 ### 中優先度（近期対応）
 
+| # | 対象 | 問題 | 削除/統合予定 | 影響度 | ファイル |
+|---|------|------|-------------|--------|---------|
+| 8 | **eskf_math.hpp** | Quaternion/quaternion_functions.hpp と重複 | → quaternion_functions.hpp に統合 | LOW | ESKF/inc/eskf_math.hpp |
+| 9 | **types.hpp float/double混在** | GPS入力がdouble | → 全float32に統一 | MEDIUM | Common/types.hpp |
+| 10 | **interface.hpp/standalone.hpp** | 重複インターフェース | → 削除（未使用） | LOW | Common/inc/interface.hpp, Common/inc/standalone.hpp |
+| 11 | **KF, EKF テンプレート** | 現在未使用（MEUKF/ESKF使用） | → アーカイブフォルダに移動 | LOW | KF/, EKF/ |
+| 12 | **sensor_filter.hpp 巨大ファイル** | 831行、複数フィルタ実装混在 | → EMA, Biquad, Outlier を分割 | MEDIUM | Common/inc/Sensor/sensor_filter.hpp |
+| 13 | **meukf_core.cpp超長** | 1346行、複数フェーズ混在 | → predict/update を .cpp に分割 | MEDIUM | MEUKF/src/meukf_core.cpp |
+| 14 | **可変長Matrix実装** | sensor_filter.hpp で `cmath_fx::FixedMatrix` (動的サイズ) | → fixed_matrix<R,C> に統一 | MEDIUM | Common/inc/Sensor/sensor_filter.hpp(L50-100) |
+
+### 低優先度（将来対応）
+
 | # | 対象 | 問題 | 削除/統合予定 | 影響度 |
 |---|------|------|-------------|--------|
-| 7 | **eskf_math.hpp** | Quaternion/quaternion_functions.hpp と重複 | → quaternion_functions.hpp に統合 | LOW |
-| 8 | **types.hpp float/double混在** | GPS入力がdouble → float統一推奨 | → 全float32に | MEDIUM |
-| 9 | **interface.hpp/standalone.hpp** | 重複インターフェース | → 削除（未使用） | LOW |
-| 10 | **KF, EKF テンプレート** | 現在未使用 | → アーカイブフォルダに移動 | LOW |
+| 15 | **統計関数コード形式混在** | statistics.hpp で `<1行>` と `<複数行展開>` 混在 | → 統一 | LOW |
+| 16 | **Validation層の検証不足** | validation.hpp で実装が基本検証のみ | → 拡張（NaN/Inf/有限チェック） | LOW |
+| 17 | **未使用な数学関数** | geometry.hpp, numerical.hpp 内で実装されているが呼ばれていない関数 | → deprecated マーク + ログ | LOW |
 
 ---
 
-## 🔍 詳細分析：ファイルサイズ・複雑度
+---
+
+---
+
+## 🔍 詳細分析：実装冗長性と不要コード
+
+### Phase 1: インクルード構造の問題（高優先度）
+
+#### 問題 A: 相対パス混在と重複
+
+**quaternion_functions.hpp**:
+```cpp
+#pragma once
+#include "../Matrix/fixed_matrix.hpp"     // ❌ パス1
+#include <cmath>
+#include "../../Matrix/fixed_matrix.hpp"  // ❌ パス2（重複インクルード）
+#include "../Common/inc/Math/statistics.hpp"    // ❌ 後方依存
+#include "../Common/inc/Math/geometry.hpp"
+#include "../Common/inc/Math/numerical.hpp"
+#include "../Common/inc/Math/math_utils.hpp"    // ❌ 循環予備軍
+```
+
+**sensor_filter.hpp**:
+```cpp
+#include "../../../Matrix/fixed_matrix.hpp"     // ❌ パス1
+#include "../../Matrix/fixed_matrix.hpp"         // ❌ パス2（重複）
+#include "../../../KF/inc/kf_operations.hpp"    // ❌ 不要な依存
+#include <atomic>, <chrono>, <cstdarg> ...       // ❌ 過度なヘッダー
+```
+
+**validation.hpp**:
+```cpp
+#include "../../../Matrix/fixed_matrix.hpp"     // ❌ パス1
+#include "../../../KF/inc/kf_operations.hpp"    // ❌ 不要
+#include "../../Matrix/fixed_matrix.hpp"         // ❌ パス2（重複）
+```
+
+**修正案**:
+```bash
+# 相対パスをすべて ../../ に統一
+find kalman/cpp/Lib -name "*.hpp" -exec sed -i \
+  's|#include "../Matrix/|#include "../../Matrix/|g' {} \;
+
+# 重複インクルードを削除
+sed -i '5d' kalman/cpp/Lib/Quaternion/quaternion_functions.hpp
+sed -i '7d' kalman/cpp/Lib/Common/inc/Sensor/sensor_filter.hpp
+```
+
+---
+
+### Phase 2: 関数重複実装（高優先度）
+
+#### 問題 B: 四元数正規化の4重実装
+
+**現状マッピング**:
+| 実装 | ファイル | 行 | 用途 | 状態 |
+|------|---------|-----|------|------|
+| `normalize_quat<T>()` | quaternion_functions.hpp | 13 | ✅推奨：テンプレート版 | **採用予定** |
+| `normalize_quaternion()` | quaternion_functions.hpp | 29 | wrapper（返値版） | ⚠️ 重複 |
+| `normalize_quaternion()` | unified_filter.cpp | 211 | MEUKF内独立実装 | ⚠️ 重複 |
+| `quat_normalize()` | utils.hpp | 23 | Deprecated | ❌ 削除推奨 |
+
+**削除対象**:
+```cpp
+// ❌ unified_filter.cpp の重複版 → cquat::normalize_quat() に置換
+Vec4 UnifiedFilter::normalize_quaternion(const Vec4& q) const {
+    // 削除 → cquat::normalize_quat(q) 呼び出しに統一
+}
+
+// ❌ normalize_quaternion wrapper → デッドコード扱い
+template <typename T>
+inline cmath_fx::Vector<4, T> normalize_quaternion(const cmath_fx::Vector<4, T>& q_in) {
+    // 不要 → normalize_quat() で十分
+}
+```
+
+#### 問題 C: 共分散対称化の3重実装
+
+**呼び出し箇所一覧**:
+| 関数名 | ファイル | 行 | 説明 |
+|--------|---------|-----|------|
+| `symmetrize_covariance()` | filter_mgmt.cpp | 85 | ✅推奨版 |
+| `force_symmetric()` | sensor_filter.hpp | 278 | ⚠️ 同じ処理 |
+| `make_symmetric()` | eskf_core.cpp | 450 | ⚠️ 同じ処理 |
+
+**コード例**:
+```cpp
+// filter_mgmt.cpp ✅ 推奨
+void symmetrize_covariance(Matrix<15,15,float>& P) {
+    for (int i = 0; i < 15; ++i) {
+        for (int j = i+1; j < 15; ++j) {
+            float avg = (P(i,j) + P(j,i)) / 2.0f;
+            P(i,j) = avg;
+            P(j,i) = avg;
+        }
+    }
+}
+
+// sensor_filter.hpp ❌ 重複
+void force_symmetric(Matrix<15,15,float>& P) {
+    for (int i = 0; i < 15; ++i)
+        for (int j = i+1; j < 15; ++j)
+            P(i,j) = P(j,i) = (P(i,j) + P(j,i)) / 2.0f;
+}
+```
+
+#### 問題 D: Mahalanobis距離の3重実装
+
+**発見位置**:
+| ファイル | 行 | 計算方式 | 精度 |
+|---------|-----|---------|------|
+| sensor_filter.hpp | 250-300 | 完全実装（外れ値検出用） | ⭐ 最も詳細 |
+| sensor_updates.cpp | 180-220 | 簡略版 | ⭐⭐ 基本形 |
+| kf_operations.hpp | 350-380 | 汎用テンプレート版 | ⭐⭐⭐ 最高精度（複雑） |
+
+**統一推奨アプローチ**:
+```cpp
+// → Common/Math/mahalanobis.hpp に統一
+namespace cmath_fx::stats {
+    // テンプレート汎用版（全次元対応）
+    template <int N, typename T>
+    T compute_mahalanobis_distance_squared(
+        const Vector<N, T>& innovation,
+        const Matrix<N, N, T>& S_inv  // S^{-1} (innovation covariance inverse)
+    ) {
+        Vector<N, T> temp = S_inv * innovation;
+        return dot(innovation, temp);
+    }
+}
+```
+
+---
+
+### Phase 3: ファイル構造の問題
+
+#### 問題 E: filter.hpp vs eskf_filter.hpp 重複
+
+**対比表**:
+| インターフェース | filter.hpp | eskf_filter.hpp | 推奨 |
+|--------|-----------|-----------------|------|
+| 初期化 | `init()` | `initialize()` | ⚠️ 名称不統一 |
+| 更新 | `update()` | `update()` | ✅ 一致 |
+| 状態取得 | `getState()` | `get_state()` | ⚠️ 命名規則不統一 |
+| 継承 | `Filter` 基底クラス | スタンドアロン | ⚠️ 設計不統一 |
+
+**削除対象**: `ESKF/inc/filter.hpp` → `eskf_filter.hpp` に統合
+
+#### 問題 F: MEUKF内の独立実装
+
+**unified_filter.hpp, meukf_core.hpp, meukf_core.cpp**:
+```cpp
+// MEUKF が独自で実装している機能（重複）
+Vec4 normalize_quaternion(const Vec4& q) const;     // ← cquat::normalize_quat() で十分
+Vec3 quaternion_to_euler(const Vec4& q) const;      // ← quaternion_functions.hpp 使用可
+Mat3 quaternion_to_rotation_matrix(const Vec4& q) const;  // ← 重複
+```
+
+---
+
+### Phase 4: センサー層の過度な実装（中優先度）
+
+#### 問題 G: sensor_filter.hpp (846行)の巨大化
+
+**含まれている要素**:
+1. **EMAフィルタ** (90行) → 分割推奨: `Sensor/ema_filter.hpp`
+2. **Biquad ローパスフィルタ** (130行) → 分割推奨: `Sensor/biquad_filter.hpp`
+3. **外れ値検出** (200行) → 分割推奨: `Sensor/outlier_detector.hpp`
+4. **ロバスト統計** (150行) → 分割推奨: `Sensor/robust_statistics.hpp`
+5. **その他センサー管理** (276行)
+
+**分割案**:
+```bash
+Common/inc/Sensor/
+├── sensor_filter.hpp          (削減: 396行 → dispatcher)
+├── ema_filter.hpp             (新規: 90行)
+├── biquad_filter.hpp          (新規: 130行)
+├── outlier_detector.hpp       (新規: 200行)
+└── robust_statistics.hpp      (新規: 150行)
+```
+
+#### 問題 H: meukf_core.cpp (1346行)の巨大化
+
+**含まれている要素**:
+1. 予測ステップ (400行)
+2. シグマポイント処理 (350行)
+3. 更新処理 (400行)
+4. 補助関数 (196行)
+
+**分割案**:
+```bash
+MEUKF/src/
+├── meukf_core.cpp             (削減: 1346行 → 200行)
+├── meukf_predict.cpp          (新規: 400行)
+├── meukf_sigma_points.cpp     (新規: 350行)
+└── meukf_update.cpp           (新規: 400行)
+```
+
+---
+
+
 
 | ファイル | 行数 | 複雑度 | 関数/クラス数 | 優先順位 |
 |---------|------|--------|-------------|---------|
@@ -622,61 +894,134 @@ namespace cquat {
 
 ---
 
-## ✅ 推奨フェーズ計画
+## ✅ 推奨リファクタリングロードマップ
 
-### Phase 1: インクルード統一 (1週間)
-- [ ] インクルードパス統一 (`../Lib/` vs `Lib/` 混在解決)
-- [ ] マクロ多重定義チェック
-- [ ] 循環依存確認・解決
+### **Phase 0: 準備・分析 (3日)**
+- [x] 依存関係グラフ分析完了
+- [x] インクルード重複特定
+- [x] 関数重複マッピング完了
+- [ ] MEXインターフェース変更影響度評価
 
-### Phase 2: 型・関数統一 (2週間)
-- [ ] 正規化処理 4→1 に統一
-- [ ] 対称化処理 3→1 に統一
-- [ ] float/double を float32 に統一
-- [ ] Mahalanobis距離 3箇所→1箇所
+### **Phase 1: インクルード統一 (3-5日)**
+**目的**: ビルド安定化・コンパイル時間削減
+- [ ] **相対パス統一**: すべてのヘッダーを `../../` 形式に統一
+  - `quaternion_functions.hpp`: L3, L5 の重複削除
+  - `sensor_filter.hpp`: L6, L7 の重複削除
+  - `validation.hpp`: L3, L5 の重複削除
+- [ ] **後方依存削除**: Quaternion層から Common/Math層への依存削除
+- [ ] **ビルド検証**: `build_mex()` で全MEX再ビルド & 実行テスト
 
-### Phase 3: ファイル分割・整理 (1ヶ月)
-- [ ] `eskf_core.cpp` を複数ファイルに分割
-- [ ] `math_utils.hpp` をカテゴリ別に分割
-- [ ] `types.hpp` をセンサー型・フィルタ型に分割
-- [ ] interface統一、未使用ファイル削除
+### **Phase 2: 関数重複統一 (1週間)**
+**目的**: 状態同期バグ削減、保守性向上
+- [ ] **四元数正規化** 統一
+  - 標準: `cquat::normalize_quat<T>()`
+  - deprecated: `normalize_quaternion()`, `quat_normalize()`
+  - 削除: `UnifiedFilter::normalize_quaternion()` (unified_filter.cpp L211)
+  - テスト: `run_simulation(42, true)` で数値差なし確認
 
-### Phase 4: パフォーマンス最適化 (1ヶ月)
-- [ ] SIMD 命令対応
-- [ ] キャッシュ局所性改善
-- [ ] プロファイリング・ベンチマーク
+- [ ] **共分散対称化** 統一
+  - 標準: `common::filter::symmetrize_covariance()`
+  - 削除: `sensor_filter.hpp::force_symmetric()`, `eskf_core.cpp::make_symmetric()`
+  - テスト: P が対称性を保つ確認
+
+- [ ] **Mahalanobis距離** 統一
+  - 標準関数: `Common/Math/mahalanobis.hpp` 作成
+  - 全3実装を統一インターフェースに置換
+  - テスト: 外れ値検出精度が変わらない確認
+
+- [ ] **Innovation計算** 統一
+  - 標準: `sensor_updates.cpp::compute_innovation()`
+  - 削除: `eskf_math.cpp` 内の重複実装
+
+### **Phase 3: ファイル分割・整理 (1ヶ月)**
+**目的**: 可読性向上・複雑度低下
+- [ ] **sensor_filter.hpp 分割** (846行 → 396行)
+  - [ ] `Sensor/ema_filter.hpp` (90行)
+  - [ ] `Sensor/biquad_filter.hpp` (130行)
+  - [ ] `Sensor/outlier_detector.hpp` (200行)
+  - [ ] `Sensor/robust_statistics.hpp` (150行)
+
+- [ ] **meukf_core.cpp 分割** (1346行 → 200行 + 3新ファイル)
+  - [ ] `meukf_predict.cpp` (400行)
+  - [ ] `meukf_sigma_points.cpp` (350行)
+  - [ ] `meukf_update.cpp` (400行)
+
+- [ ] **インターフェース統一**
+  - [ ] `filter.hpp` → `eskf_filter.hpp` に統合削除
+
+- [ ] **未使用ファイル移動**
+  - [ ] `KF/`, `EKF/` → `Archive/` (テンプレート用途のみ)
+  - [ ] `interface.hpp`, `standalone.hpp` → deprecated化
+
+### **Phase 4: 型統一・最適化 (2週間)**
+**目的**: 数値安定性向上、バグリスク削減
+- [ ] **float/double 統一**
+  - GPS座標系データのみ double → ENU変換時点で float に
+  - 内部計算はすべて float32
+  - 出力も float32 (MATLAB側で double変換)
+
+- [ ] **可変長Matrix削除**
+  - `sensor_filter.hpp` の `cmath_fx::FixedMatrix` → `Matrix<R,C>` に統一
+
+- [ ] **パフォーマンス最適化**
+  - [ ] SIMD命令導入 (SSE/AVX)
+  - [ ] キャッシュ局所性改善
+  - [ ] プロファイリング・ベンチマーク
+
+### **Phase 5: テスト・検証 (1-2週間)**
+- [ ] 単体テスト: `run_simulation(seed, verbose)` 複数seed実行
+- [ ] 回帰テスト: `run_batch_10sets()` で統計的安定性確認
+- [ ] MEX vs MATLAB差分: `compare_mex_matlab_detailed()` で数値精度確認
+- [ ] パリティ確認: 修正前後で推定精度変わらない
 
 ---
 
-## 📚 参考：ファイル間依存関係マトリクス
+## � ファイルサイズ・複雑度分析
 
-```
-            | Common | ESKF | MEUKF | EKF | UKF | KF | Matrix | Quaternion
------------|--------|------|-------|-----|-----|----| -------|----------
-Common     |   -    |  ←   |  ←    |  ← |  ← |  ← |  ←     |  ←
-ESKF       |   →    |  -   |      |     |     |     |  →     |  →
-MEUKF      |   →    |      |  -   |     |     |     |  →     |  →
-EKF        |   →    |      |      |  -  |     |     |  →     |
-UKF        |   →    |      |      |     |  -  |     |  →     |
-KF         |   →    |      |      |     |     |  -  |  →     |
-Matrix     |   -    |  -   |  -   |  -  |  -  |  -  |  -     |
-Quaternion |   -    |  →   |      |     |     |     |  ←     |  -
-```
-
-**凡例**: 
-- `→` : 下側が上側に依存
-- `←` : 上側が下側に依存
-- `-` : 依存なし
+| ファイル | 行数 | 複雑度 | 関数数 | 優先順位 | 推奨アクション |
+|---------|------|--------|--------|---------|---------------|
+| `sensor_filter.hpp` | 846 | ★★★ | 8+ | **HIGH** | 4ファイルに分割 |
+| `meukf_core.cpp` | 1346 | ★★★ | 12+ | **HIGH** | 4ファイルに分割 |
+| `eskf_core.cpp` | 800+ | ★★★ | 8+ | MEDIUM | 関数の単体化・テンプレ化 |
+| `fixed_matrix.hpp` | 350 | ★★ | 20+ | ✅ | 現状維持（最適化済み） |
+| `sensor_updates.cpp` | 600+ | ★★★ | 10+ | MEDIUM | Innovation統一後簡潔化 |
+| `math_utils.hpp` | 400+ | ★★ | 15+ | MEDIUM | カテゴリ別ヘッダ分割検討 |
+| `quaternion_functions.hpp` | 174 | ★★ | 8+ | **HIGH** | インクルード最適化、重複削除 |
+| `utils.hpp` | 100+ | ★ | 5+ | LOW | deprecated関数削除 |
 
 ---
 
-## 🎯 品質メトリクス
+## 🎯 未使用・廃止予定コード一覧
 
-| メトリクス | 評価 | コメント |
-|-----------|------|---------|
-| **モジュール化度** | ★★★ | 7つの独立モジュール |
-| **コードの重複** | ★★ | 同じ処理が複数実装 |
-| **ドキュメント** | ★★ | ヘッダーコメント充実も、全体設計書不足 |
-| **テストカバレッジ** | ★★ | MEUKF/EKF/UKFはテスト不十分 |
-| **パフォーマンス** | ★★★ | ESKF+Commonは最適化済み |
-| **保守性** | ★★ | インクルード混在・関数重複で低下 |
+### 確認済み未使用関数
+
+```cpp
+// utils.hpp
+inline void normalizeQuat(float q[4]) {      // ❌ deprecated → cquat::normalize_quat() 使用
+    // 実装は normalize_quat と同一だが、命名が異なる
+}
+
+// standalone.hpp
+void initialize_filter(...);                   // ❌ 呼び出し箇所なし（スタブのみ）
+void run_filter_step(...);                     // ❌ 呼び出し箇所なし
+void cleanup_filter();                         // ❌ 呼び出し箇所なし
+```
+
+### 削除予定コード
+
+```cpp
+// EKF/inc/ekf_core.hpp
+// KF/inc/kalman_filter_core.hpp
+// → MEUKF, ESKF が存在するため、テンプレート用途のみ
+// → Archive/ に移動推奨
+```
+
+---
+
+## 🔗 参考文献・関連ドキュメント
+
+- [PHASE3_PLAN.md](../../PHASE3_PLAN.md) — 進捗・成功指標
+- [ROADMAP_TO_PHASE_13.md](../../ROADMAP_TO_PHASE_13.md) — 全体ロードマップ
+- [kalman/cpp/FILE_DUPLICATION_REPORT.md](../FILE_DUPLICATION_REPORT.md) — ファイル重複解析
+- [kalman/cpp/Lib/README.md](../README.md) — ライブラリモジュール説明
+- [CPP_INPUT_OUTPUT_SPEC.md](../markdown/CPP_INPUT_OUTPUT_SPEC.md) — 型マッピング仕様
