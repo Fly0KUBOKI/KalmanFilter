@@ -14,10 +14,5 @@ inline T mahalanobis_distance_squared(const cmath_fx::Vector<M, T>& innovation, 
     return kf::mahalanobis_distance_squared<M, T>(innovation, S);
 }
 
-// Runtime-size FixedMatrix variant -> forward to kf::ops implementation
-inline float mahalanobis_distance_squared(const cm& innovation, const cm& S) {
-    return kf::ops::mahalanobis_distance_squared(innovation, S);
-}
-
 } // namespace math
 } // namespace common
