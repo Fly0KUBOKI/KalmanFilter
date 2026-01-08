@@ -1,0 +1,170 @@
+========================================
+10セット バッチシミュレーション開始
+開始時刻: 08-Jan-2026 18:38:24
+========================================
+
+
+========================================
+=== Run 1/10 ===
+========================================
+Run 1: シミュレーション開始...
+Run 1: シミュレーション完了 (1.15秒)
+Run 1: 結果保存 -> estimation_01.csv
+Run 1: 解析開始...
+Run 1: エラー検出 - Axis RMSE too high: X(10.41), Y(4.53), Z(2.86)
+  Position RMSE: Overall=11.7028 m, X=10.4050 m, Y=4.5300 m, Z=2.8585 m
+  Velocity RMSE: 1.7413 m/s
+  Roll/Pitch/Yaw RMSE: 0.2649 / 0.2782 / 0.6423 deg
+  Gyro bias (final): [-0.2107, 0.0289, -0.0220] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 2/10 ===
+========================================
+Run 2: シミュレーション開始...
+Run 2: シミュレーション完了 (1.09秒)
+Run 2: 結果保存 -> estimation_02.csv
+Run 2: 解析開始...
+Run 2: エラー検出 - Axis RMSE too high: X(1.33), Y(1.94), Z(1.08)
+  Position RMSE: Overall=2.5880 m, X=1.3329 m, Y=1.9391 m, Z=1.0775 m
+  Velocity RMSE: 1.9559 m/s
+  Roll/Pitch/Yaw RMSE: 0.2734 / 0.3056 / 0.6664 deg
+  Gyro bias (final): [0.0128, 0.0556, 0.1837] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 3/10 ===
+========================================
+Run 3: シミュレーション開始...
+Run 3: シミュレーション完了 (1.10秒)
+Run 3: 結果保存 -> estimation_03.csv
+Run 3: 解析開始...
+Run 3: エラー検出 - Axis RMSE too high: X(1.49), Y(2.15), Z(1.11)
+  Position RMSE: Overall=2.8441 m, X=1.4912 m, Y=2.1548 m, Z=1.1054 m
+  Velocity RMSE: 2.0276 m/s
+  Roll/Pitch/Yaw RMSE: 0.2513 / 0.2755 / 0.7120 deg
+  Gyro bias (final): [0.0357, -0.0191, 0.3040] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 4/10 ===
+========================================
+Run 4: シミュレーション開始...
+Run 4: シミュレーション完了 (1.10秒)
+Run 4: 結果保存 -> estimation_04.csv
+Run 4: 解析開始...
+Run 4: エラー検出 - Axis RMSE too high: X(1.73), Y(4.56), Z(1.10)
+  Position RMSE: Overall=4.9943 m, X=1.7266 m, Y=4.5560 m, Z=1.0976 m
+  Velocity RMSE: 1.9099 m/s
+  Roll/Pitch/Yaw RMSE: 0.2780 / 0.2845 / 0.6662 deg
+  Gyro bias (final): [-0.2193, -0.0893, 0.1658] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 5/10 ===
+========================================
+Run 5: シミュレーション開始...
+Run 5: シミュレーション完了 (1.09秒)
+Run 5: 結果保存 -> estimation_05.csv
+Run 5: 解析開始...
+Run 5: エラー検出 - Axis RMSE too high: X(8.82), Y(25.70)
+  Position RMSE: Overall=27.1887 m, X=8.8250 m, Y=25.6989 m, Z=0.9559 m
+  Velocity RMSE: 2.6116 m/s
+  Roll/Pitch/Yaw RMSE: 0.2708 / 0.2848 / 0.6258 deg
+  Gyro bias (final): [0.0458, 0.0854, -0.1272] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 6/10 ===
+========================================
+Run 6: シミュレーション開始...
+Run 6: シミュレーション完了 (1.14秒)
+Run 6: 結果保存 -> estimation_06.csv
+Run 6: 解析開始...
+Run 6: エラー検出 - Axis RMSE too high: X(37445.08), Y(25596.15), Z(3235.90)
+  Position RMSE: Overall=45472.7164 m, X=37445.0783 m, Y=25596.1519 m, Z=3235.9005 m
+  Velocity RMSE: 0.8776 m/s
+  Roll/Pitch/Yaw RMSE: 0.9325 / 0.7898 / 4.1046 deg
+  Gyro bias (final): [0.0000, 0.0000, 0.0000] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 7/10 ===
+========================================
+Run 7: シミュレーション開始...
+Run 7: シミュレーション完了 (1.09秒)
+Run 7: 結果保存 -> estimation_07.csv
+Run 7: 解析開始...
+Run 7: エラー検出 - Axis RMSE too high: X(16.03), Y(4.04), Z(1.01)
+  Position RMSE: Overall=16.5599 m, X=16.0288 m, Y=4.0361 m, Z=1.0075 m
+  Velocity RMSE: 2.5371 m/s
+  Roll/Pitch/Yaw RMSE: 0.2552 / 0.2973 / 0.6027 deg
+  Gyro bias (final): [-0.0890, -0.0302, 0.1898] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 8/10 ===
+========================================
+Run 8: シミュレーション開始...
+Run 8: シミュレーション完了 (1.11秒)
+Run 8: 結果保存 -> estimation_08.csv
+Run 8: 解析開始...
+Run 8: エラー検出 - Axis RMSE too high: X(22275.88), Y(333861.61), Z(11184.75)
+  Position RMSE: Overall=334790.8116 m, X=22275.8769 m, Y=333861.6094 m, Z=11184.7491 m
+  Velocity RMSE: 0.9638 m/s
+  Roll/Pitch/Yaw RMSE: 1.2562 / 0.9607 / 4.5102 deg
+  Gyro bias (final): [0.0000, 0.0000, 0.0000] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 9/10 ===
+========================================
+Run 9: シミュレーション開始...
+Run 9: シミュレーション完了 (1.10秒)
+Run 9: 結果保存 -> estimation_09.csv
+Run 9: 解析開始...
+Run 9: エラー検出 - Axis RMSE too high: X(43272.92), Y(38571.41), Z(41.23)
+  Position RMSE: Overall=57968.0974 m, X=43272.9168 m, Y=38571.4051 m, Z=41.2264 m
+  Velocity RMSE: 0.8717 m/s
+  Roll/Pitch/Yaw RMSE: 0.9399 / 0.6588 / 4.0352 deg
+  Gyro bias (final): [0.0000, 0.0000, 0.0000] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 10/10 ===
+========================================
+Run 10: シミュレーション開始...
+Run 10: シミュレーション完了 (1.11秒)
+Run 10: 結果保存 -> estimation_10.csv
+Run 10: 解析開始...
+Run 10: エラー検出 - Axis RMSE too high: X(1.47), Y(2.09), Z(1.05)
+  Position RMSE: Overall=2.7627 m, X=1.4707 m, Y=2.0884 m, Z=1.0528 m
+  Velocity RMSE: 0.6994 m/s
+  Roll/Pitch/Yaw RMSE: 0.2752 / 0.2906 / 0.6678 deg
+  Gyro bias (final): [0.1275, 0.3938, -0.0372] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== 総合結果 ===
+========================================
+成功: 0/10 (0.0%)
+
+個別結果:
+Run  1: FAILED (Axis RMSE too high: X(10.41), Y(4.53), Z(2.86))
+Run  2: FAILED (Axis RMSE too high: X(1.33), Y(1.94), Z(1.08))
+Run  3: FAILED (Axis RMSE too high: X(1.49), Y(2.15), Z(1.11))
+Run  4: FAILED (Axis RMSE too high: X(1.73), Y(4.56), Z(1.10))
+Run  5: FAILED (Axis RMSE too high: X(8.82), Y(25.70))
+Run  6: FAILED (Axis RMSE too high: X(37445.08), Y(25596.15), Z(3235.90))
+Run  7: FAILED (Axis RMSE too high: X(16.03), Y(4.04), Z(1.01))
+Run  8: FAILED (Axis RMSE too high: X(22275.88), Y(333861.61), Z(11184.75))
+Run  9: FAILED (Axis RMSE too high: X(43272.92), Y(38571.41), Z(41.23))
+Run 10: FAILED (Axis RMSE too high: X(1.47), Y(2.09), Z(1.05))
+
+=== 総合判定: 不合格 (50%未満成功) ===
+
+MAT結果保存: batch_10sets_results.mat
+CSVサマリー保存: batch_10sets_summary.csv
+
+終了時刻: 08-Jan-2026 18:39:05
+========================================
