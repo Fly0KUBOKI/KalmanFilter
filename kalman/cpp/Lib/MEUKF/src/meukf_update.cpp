@@ -10,45 +10,13 @@
 #include <cstdlib>
 #include <algorithm>
 
+#include "../inc/meukf_helpers.hpp"
+
 namespace meukf {
 
 // -----------------------------------------------------------------
 // GPS/Baro/ZUPT UKF-version wrappers
 // -----------------------------------------------------------------
-// Debug helper: control logging via env var MEUKF_DEBUG_LEVEL (0=off, 1=minimal, 2=verbose)
-static int get_debug_level() {
-    const char* s = std::getenv("MEUKF_DEBUG_LEVEL");
-    if (!s) return 0;
-    int v = 0;
-    try { v = std::atoi(s); } catch(...) { v = 0; }
-    return v;
-}
-
-// Helper to create Vector3
-static Vector3 make_vector3(double x, double y, double z) {
-    Vector3 v;
-    v(0,0) = x; v(1,0) = y; v(2,0) = z;
-    return v;
-}
-
-// Helper to create Vector2
-static Vector2 make_vector2(float x, float y) {
-    Vector2 v;
-    v(0,0) = x; v(1,0) = y;
-    return v;
-}
-
-// Helper to create Vector4
-static Vector4 make_vector4(double w, double x, double y, double z) {
-    Vector4 v;
-    v(0,0) = w; v(1,0) = x; v(2,0) = y; v(3,0) = z;
-    return v;
-}
-
-// Helper to calculate norm of Vector3
-static double vector3_norm(const Vector3& v) {
-    return std::sqrt(v(0,0)*v(0,0) + v(1,0)*v(1,0) + v(2,0)*v(2,0));
-}
 
 void MEUKFCore::update_gps_meukf_ukf_version(State& state, const Vector3& gps_meas, const Params& params, MEUKFOutput& output)
 {

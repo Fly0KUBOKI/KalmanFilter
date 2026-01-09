@@ -83,9 +83,10 @@ function build_mex(targets)
             fullfile(mex_src_dir, 'mex_eskf_initializer.cpp');
             fullfile(lib_dir, 'MEUKF', 'src', 'meukf_core.cpp');
             fullfile(lib_dir, 'MEUKF', 'src', 'meukf_predict.cpp');
+            fullfile(lib_dir, 'MEUKF', 'src', 'meukf_sigma_points.cpp');
             fullfile(lib_dir, 'MEUKF', 'src', 'meukf_update.cpp');
         }, [];
-        'mex_meukf_step.cpp', {fullfile(lib_dir, 'MEUKF', 'src', 'meukf_core.cpp'); fullfile(lib_dir, 'MEUKF', 'src', 'meukf_predict.cpp'); fullfile(lib_dir, 'MEUKF', 'src', 'meukf_update.cpp')}, 'mex_meukf_step_v2';
+        'mex_meukf_step.cpp', {fullfile(lib_dir, 'MEUKF', 'src', 'meukf_core.cpp'); fullfile(lib_dir, 'MEUKF', 'src', 'meukf_predict.cpp'); fullfile(lib_dir, 'MEUKF', 'src', 'meukf_sigma_points.cpp'); fullfile(lib_dir, 'MEUKF', 'src', 'meukf_update.cpp')}, 'mex_meukf_step_v2';
     };
     
     built_count = build_mex_targets(mex_targets, compile_opts, inc_args, bin_dir, targets, log_fn, log_fid);

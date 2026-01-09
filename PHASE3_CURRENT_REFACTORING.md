@@ -1,8 +1,8 @@
 # Phase 3: 現在のリファクタリング計画
 
 **更新日**: 2026年1月9日  
-**ステータス**: 🚀 実装中  
-**焦点**: `sensor_filter.hpp` 段階的分割 → 次に `meukf_core.cpp` 分割
+**ステータス**: ✅ 完了  
+**焦点**: `meukf_core.cpp` 分割（完了）、`sensor_filter.hpp` 段階的分割
 
 ---
 
@@ -15,7 +15,9 @@
 | **OutlierDetector 抽出** | `outlier_detector.hpp` 新規作成、分割実装完了 | ✅ |
 | **namespace 曖昧性解決** | グローバル修飾子（`::`）でコンパイル成功 | ✅ |
 | **MEX ビルド** | 両 MEX targets (mex_run_eskf, mex_meukf_step_v2) | ✅ |
-| **回帰テスト** | 10/10 PASS (batch_10sets_log_20260109_110320.txt) | ✅ |
+| **回帰テスト** | 10/10 PASS (batch_10sets_log_20260109_110320.txt 他) | ✅ |
+| **MEUKF 分割 (Phase3)** | `meukf_predict.cpp`, `meukf_sigma_points.cpp`, `meukf_update.cpp` を作成、`meukf_core.cpp` を dispatcher 化 | ✅ |
+| **ヘルパー統合** | `meukf_helpers.hpp` を追加し重複ユーティリティを統合 | ✅ |
 
 ### 📈 数値安定性確認
 ```
@@ -56,7 +58,7 @@ sensor_filter.hpp (845行)
 
 ---
 
-## 🎯 フェーズ3: `meukf_core.cpp` 分割（次のステップ）
+## 🎯 フェーズ3: `meukf_core.cpp` 分割（完了）
 
 ### 現況
 ```
@@ -67,7 +69,7 @@ meukf_core.cpp: 1346行（超大型ファイル）
   └─ helper functions ~200行
 ```
 
-### 分割計画
+### 分割計画（実施済み）
 ```
 MEUKF/src/
 ├── meukf_core.cpp (dispatcher, ~200行)
@@ -76,14 +78,16 @@ MEUKF/src/
 └── meukf_update.cpp (新規, ~400行)
 ```
 
-### 実装予定
+### 実装予定 (完了)
 | ステップ | タスク | 期限 | 状態 |
 |---------|--------|------|------|
-| 3.1 | meukf_predict.cpp 抽出 | 1日 | ⏳ 予定中 |
-| 3.2 | meukf_sigma_points.cpp 抽出 | 1日 | ⏳ 予定中 |
-| 3.3 | meukf_update.cpp 抽出 | 1日 | ⏳ 予定中 |
-| 3.4 | dispatcher化 & ビルド検証 | 1日 | ⏳ 予定中 |
-| 3.5 | 回帰テスト & 精度確認 | 1日 | ⏳ 予定中 |
+| 3.1 | meukf_predict.cpp 抽出 | 1日 | ✅ 完了 |
+| 3.2 | meukf_sigma_points.cpp 抽出 | 1日 | ✅ 完了 |
+| 3.3 | meukf_update.cpp 抽出 | 1日 | ✅ 完了 |
+| 3.4 | dispatcher化 & ビルド検証 | 1日 | ✅ 完了 |
+| 3.5 | 回帰テスト & 精度確認 | 1日 | ✅ 完了 |
+
+**備考**: `build/build_mex.m` を更新し MEX ビルド成功、`kalman/run_batch_10sets.m` による回帰で 10/10 PASS を確認済み。
 
 ---
 

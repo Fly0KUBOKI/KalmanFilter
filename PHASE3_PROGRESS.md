@@ -263,7 +263,7 @@ namespace eskf::sensor {
 ## 📈 進捗状況（リアルタイム更新）
 
 **最終更新**: 2026-01-08 19:10
-**現在の状態**: ✅ モノリシック版で安定稼働中（10/10 PASS）
+**現在の状態**: ✅ モノリシック版→分割版で安定稼働中（MEXビルド成功、回帰10/10 PASS）
 
 ### ✅ 完了済み
 - Phase 1: インクルード統一 ✅
@@ -273,8 +273,8 @@ namespace eskf::sensor {
 ### 🔄 進行中
 | タスク | ステータス | 完了度 | 進捗状況 |
 |--------|-----------|--------|---------|
-| Task 3.1: sensor_filter分割 | 🔄 | 0% | 準備中（再実装方針確定） |
-| Task 3.2: meukf_core分割 | ⏳ | 0% | 待機中 |
+| Task 3.1: sensor_filter分割 | 🔄 | 30% | 再実装中 |
+| Task 3.2: meukf_core分割 | ✅ | 100% | `meukf_predict.cpp`, `meukf_sigma_points.cpp`, `meukf_update.cpp` 分割完了、ビルド・回帰確認済み |
 | Task 3.3: Innovation統一 | ⏳ | 0% | 待機中 |
 | Task 3.4: filter統合 | ⏳ | 0% | 待機中 |
 | Task 3.5: テスト & 検証 | ⏳ | 0% | 待機中 |
