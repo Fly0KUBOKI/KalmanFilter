@@ -3,7 +3,7 @@
 #ifndef COMMON_SENSOR_BIQUAD_FILTER_HPP
 #define COMMON_SENSOR_BIQUAD_FILTER_HPP
 
-#include "../../Matrix/fixed_matrix.hpp"
+#include "../../../Matrix/fixed_matrix.hpp"
 #include <cmath>
 
 namespace common {

@@ -4,6 +4,7 @@
 #define COMMON_SENSOR_OUTLIER_DETECTOR_HPP
 
 #include "../../Matrix/fixed_matrix.hpp"
+#include "../../../KF/inc/kf_operations.hpp"
 #include "../Math/math_utils.hpp"
 #include <cmath>
 
@@ -106,11 +107,11 @@ public:
      * @return true: 外れ値, false: 正常
      */
     static bool detect_mahalanobis_static(
-        const common::math::cm& innovation, 
-        const common::math::cm& S, 
+        const ::common::math::cm& innovation, 
+        const ::common::math::cm& S, 
         float threshold_sigma = 3.0f
     ) {
-        float dist_sq = kf::ops::mahalanobis_distance_squared(innovation, S);
+        float dist_sq = ::kf::ops::mahalanobis_distance_squared(innovation, S);
         float dist = sqrtf(dist_sq);
         return dist > threshold_sigma;
     }

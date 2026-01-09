@@ -1,8 +1,8 @@
 # KalmanFilter プロジェクト統合状況レポート
 
-**更新日**: 2026年1月5日  
-**プロジェクトステージ**: Phase 3（品質向上）準備中  
-**総合ステータス**: ✅ **Phase 2完了 → Phase 3スタート**
+**更新日**: 2026年1月9日  
+**プロジェクトステージ**: Phase 3（ファイル分割・品質向上）進行中  
+**総合ステータス**: 🔄 **Phase 3: Week 1完了（OutlierDetector抽出） → Week 2進行中**
 
 ---
 
@@ -23,6 +23,8 @@
 | **型統一** | ✅ float/double完全統一 | 100% |
 | **モジュール分割** | ✅ Lib統合完了 | 100% |
 | **Include パス統一** | ✅ 全て ../../ 統一 | 100% |
+| **OutlierDetector 抽出** | ✅ 完了（2026-01-09） | 100% |
+| **sensor_filter.hpp 分割** | 🔄 進行中 | 30% |
 
 ---
 
@@ -84,34 +86,74 @@ Status: ✅ origin と同期
 
 ---
 
-## 📈 Phase 3: 計画（開始直前）
+## � Phase 3: 進行中（2026年1月5日開始）
 
-### 🎯 短期目標（2週間）
+### ✅ Week 1 完了事項（2026年1月5日～1月9日）
 
-#### 3.1 重複関数の統一
-| 対象 | 現況 | 目標 | 優先度 |
-|------|------|------|--------|
-| 四元数正規化 | ✅ 統一済み | - | ✅ |
-| 共分散対称化 | ✅ 統一済み | - | ✅ |
-| Mahalanobis距離 | ⚠️ 3種実装 | 1つに統一 | MEDIUM |
-| Innovation計算 | ⚠️ 2分散 | 1つに統一 | MEDIUM |
+#### 3.1 OutlierDetector 抽出（完了）
+**目的**: `sensor_filter.hpp` から OutlierDetector クラスを独立モジュールに抽出し、ファイルサイズ削減と保守性向上
 
-**進捗**: 四元数正規化・共分散対称化は Phase 2 で完了
+| 作業 | 詳細 | 状態 |
+|-----|------|------|
+| OutlierDetector クラス抽出 | `kalman/cpp/Lib/Common/inc/Sensor/outlier_detector.hpp` に移動 | ✅ 完了 |
+| sensor_filter.hpp 簡素化 | 831行 → 150行に削減（ディスパッチャーパターン化） | ✅ 完了 |
+| namespace 衝突解決 | `::common::math::cm`, `::kf::ops` global scope修飾追加 | ✅ 完了 |
+| ビルド検証 | 両MEXターゲット (mex_run_eskf, mex_meukf_step_v2) 成功 | ✅ 完了 |
+| 回帰テスト | 10/10 PASS (batch_10sets_log_20260109_110320.txt) | ✅ 完了 |
 
-#### 3.2 外れ値検出テスト拡充
+**結果**:
+```
+Build Status:    ✅ All MEX targets compiled successfully
+Regression Test: ✅ 10/10 PASS
+  Position RMSE Mean:   0.3136m ± 0.0161m
+  Velocity RMSE:        0.5841 m/s  
+  Attitude RMSE:        Roll=0.3133°, Pitch=0.3112°, Yaw=0.7890°
+```
+
+**コード改善**:
+- sensor_filter.hpp 行数: 831行 → 150行（82%削減）
+- include 関係: シンプル化（all headers included, re-exported via SensorFilterLib）
+- namespace: 外部include後に namespace ブロック（nested namespace 回避）
+
+---
+
+## 📈 Phase 3: 計画と次ステップ（2026年1月9日更新）
+
+### 🎯 Week 2 目標（2026年1月13日～1月17日）
+
+#### 3.2a meukf_core.cpp ファイル分割
+**目的**: meukf_core.cpp (1346行) を機能別に分割し、保守性向上
+
+| タスク | 対象ファイル | 目標行数 | 状態 |
+|--------|-----------|---------|------|
+| predict 関数分離 | meukf_predict.cpp | ~400行 | ⏳ TODO |
+| update 関数分離 | meukf_update.cpp | ~500行 | ⏳ TODO |
+| helper 関数分離 | meukf_helpers.cpp | ~200行 | ⏳ TODO |
+
+#### 3.2b 外れ値検出テスト拡充
 ```
 現状: 正常データのみ (10 seed)
-目標: 外れ値ケース 3+
-  - IMU スパイク
-  - GPS ドロップアウト
-  - バイアス飛び
+目標: 異常シナリオ 3+ ケース
+  ☐ IMU スパイク（加速度 ±50m/s²）
+  ☐ GPS ドロップアウト（衛星信号喪失）
+  ☐ バイアス飛び（ジャイロbias +10deg/s）
 ```
 
-#### 3.3 ドキュメント更新
-- [x] `docs/LIB_STRUCTURE_ANALYSIS.md` 更新予定
-- [ ] `PROJECT_STATUS.md` 作成（本ドキュメント）
-- [ ] `LIB_FUNCTION_REFERENCE.md` 作成（詳細関数リスト）
-- [ ] API ドキュメント作成
+#### 3.2c ドキュメント統一
+- ✅ `docs/LIB_STRUCTURE.md` 作成（LIB_STRUCTURE_ANALYSIS.md 統合完了）
+- ✅ `PHASE3_CURRENT_REFACTORING.md` 作成（現在の実装計画）
+- 📝 `PROJECT_STATUS.md` 更新中（本ファイル）
+- ✅ 古いファイル削除（PHASE3_PLAN.md, TROUBLESHOOTING_REFERENCE.md, UKF_EXTRACTION_PLAN.md, PR_DESCRIPTION.md）
+
+---
+
+### 📅 全体スケジュール（Phase 3）
+```
+Week 1 (Jan 5-9):     ✅ OutlierDetector 抽出 & 検証完了
+Week 2 (Jan 13-17):   🔄 meukf_core.cpp 分割、テスト拡充 (予定)
+Week 3+ (Jan 20~):    📌 その他モジュール分割、API ドキュメント
+Delivery (Late Jan):  ✨ Phase 3完了、PR準備
+```
 
 ---
 
@@ -326,15 +368,25 @@ run_batch_10sets()
 
 ---
 
-## 📚 参考資料
+## 📚 参考資料（最新）
 
-| ドキュメント | 内容 | 参考時機 |
-|-----------|------|--------|
-| [docs/LIB_STRUCTURE_ANALYSIS.md](docs/LIB_STRUCTURE_ANALYSIS.md) | Lib モジュール詳細分析 | アーキテクチャ理解 |
-| [kalman/cpp/markdown/CPP_INPUT_OUTPUT_SPEC.md](kalman/cpp/markdown/CPP_INPUT_OUTPUT_SPEC.md) | 型マッピング・I/O 仕様 | MEX/C++ 間の変換確認 |
-| [PHASE3_PLAN.md](PHASE3_PLAN.md) | Phase 3 詳細計画 | 短期タスク管理 |
-| [.github/copilot-instructions.md](.github/copilot-instructions.md) | AI エージェント用指示 | AI コーディング時参照 |
-| [kalman/cpp/Lib/LIB_FUNCTION_REFERENCE.md](kalman/cpp/Lib/LIB_FUNCTION_REFERENCE.md) | 全関数リスト・依存関係 | デバッグ・リファクタリング時 |
+### 【ナビゲーション】
+| ドキュメント | 内容 | 優先度 | 参考時機 |
+|-----------|------|--------|---------|
+| **[PHASE3_CURRENT_REFACTORING.md](PHASE3_CURRENT_REFACTORING.md)** | Phase 3 現在の実装計画・Week単位の目標 | 🔴 HIGH | 開発タスク計画時 |
+| **[docs/LIB_STRUCTURE.md](docs/LIB_STRUCTURE.md)** | Lib層7層構造・全関数リスト・依存関係 | 🔴 HIGH | アーキテクチャ理解・デバッグ |
+| **[docs/CPP_INPUT_OUTPUT_SPEC.md](docs/CPP_INPUT_OUTPUT_SPEC.md)** | 型マッピング・I/O仕様・MEX-C++変換 | 🟡 MEDIUM | MEX/C++間の変換確認 |
+| **[docs/CPP_ARCHITECTURE.md](docs/CPP_ARCHITECTURE.md)** | C++レイヤー設計・最適化・安定性 | 🟡 MEDIUM | 実装時の設計参照 |
+| **[.github/copilot-instructions.md](.github/copilot-instructions.md)** | 状態ベクトル・型・同期ルール・コード規約 | 🔴 HIGH | AI支援開発時必須 |
+
+### 【非推奨（Phase 3統合済）】
+- ~~docs/TROUBLESHOOTING_REFERENCE.md~~ → 削除（PROJECT_STATUS.md に統合）
+- ~~PHASE3_PLAN.md~~ → 削除（PHASE3_CURRENT_REFACTORING.md に統合）
+- ~~docs/PROJECT_OVERVIEW.md~~ → 削除（PROJECT_STATUS.md に統合）
+- ~~docs/LIB_STRUCTURE_ANALYSIS.md~~ → 削除（docs/LIB_STRUCTURE.md に統合）
+- ~~docs/LIB_FUNCTION_REFERENCE.md~~ → 削除（docs/LIB_STRUCTURE.md に統合）
+- ~~docs/BUILD_AND_WORKFLOW.md~~ → 削除（予定）
+- ~~docs/MATLAB_COMPONENTS.md~~ → 削除（予定）
 
 ---
 
@@ -366,5 +418,7 @@ run_batch_10sets()
 ---
 
 **作成日**: 2026年1月5日  
-**バージョン**: 1.0  
-**監修者**: GitHub Copilot + ユーザー協働
+**更新日**: 2026年1月9日  
+**バージョン**: 2.0（Phase 3 Week 1完了版）  
+**監修者**: GitHub Copilot + ユーザー協働  
+**次回更新**: 2026年1月17日（Week 2完了予定）

@@ -1,23 +1,26 @@
 # KalmanFilter プロジェクトドキュメント
 
-## 📚 ドキュメント構成
+## 📚 ドキュメント構成（2026年1月9日更新）
 
 このプロジェクトは **MATLAB実験フロントエンド + C++ MEX高速計算** のハイブリッド実装による高精度慣性航法システムです。
 
 ### 🚀 クイックスタート
 
-1. **[プロジェクト概要](PROJECT_OVERVIEW.md)** — 全体像・性能指標・システム構成
-2. **[ビルド・実行手順](BUILD_AND_WORKFLOW.md)** — 5分で始める開発サイクル
-3. **[GitHub Copilot 指示](../.github/copilot-instructions.md)** — AI開発者向けガイド
+1. **[PROJECT_STATUS.md](../PROJECT_STATUS.md)** — プロジェクト全体ロードマップ・Phase 3進行状況・メトリクス
+2. **[PHASE3_CURRENT_REFACTORING.md](../PHASE3_CURRENT_REFACTORING.md)** — 現在のPhase 3実装計画・Week単位の目標・チェックリスト
+3. **[.github/copilot-instructions.md](../.github/copilot-instructions.md)** — AI開発者向けガイド・コード規約
 
-### 📖 詳細ドキュメント
+### 📖 詳細リファレンス
 
-#### システム理解
-- **[MATLABコンポーネント](MATLAB_COMPONENTS.md)** — データ生成・実行制御・可視化・テストフレームワーク
-- **[C++アーキテクチャ](CPP_ARCHITECTURE.md)** — MEX層・ESKFライブラリ・最適化技法・数値安定性
+#### システムアーキテクチャ理解
+- **[LIB_STRUCTURE.md](LIB_STRUCTURE.md)** — Lib層7層構造・全関数リスト・モジュール依存関係
+- **[CPP_ARCHITECTURE.md](CPP_ARCHITECTURE.md)** — C++アーキテクチャ・MEX層設計・最適化技法
+- **[CPP_INPUT_OUTPUT_SPEC.md](CPP_INPUT_OUTPUT_SPEC.md)** — 型マッピング・I/O仕様・MEX-MATLAB間の変換
 
-#### 運用・保守
-- **[トラブルシューティング](TROUBLESHOOTING_REFERENCE.md)** — 既知問題・デバッグ技法・品質管理・MEX API仕様
+#### 廃止（Phase 3統合完了）
+- ~~TROUBLESHOOTING_REFERENCE.md~~ → PROJECT_STATUS.md に統合
+- ~~MATLAB_COMPONENTS.md~~ → 実装指示に移行
+- ~~PROJECT_OVERVIEW.md~~ → PROJECT_STATUS.md に統合
 
 ### 🎯 現在の達成状況
 
