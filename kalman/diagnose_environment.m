@@ -16,7 +16,9 @@ function [report, passed_tests] = diagnose_environment()
     pass_count = 0;
     
     % Helper function to add line to report
-    add_line = @(msg) (report = [report sprintf('%s\n', msg)]);
+    function add_line(msg)
+        report = [report sprintf('%s\n', msg)];
+    end
     
     % Header
     add_line('================================================================================');
@@ -27,7 +29,7 @@ function [report, passed_tests] = diagnose_environment()
     
     % ======================== TEST 1: MATLAB Environment ========================
     add_line('【TEST 1】MATLAB Environment');
-    add_line('-' * 80);
+    add_line(repmat('-', 1, 80));
     test_count = test_count + 1;
     
     [~, result] = system('ver');
@@ -57,7 +59,7 @@ function [report, passed_tests] = diagnose_environment()
     
     % ======================== TEST 2: MEX Binary Check ========================
     add_line('【TEST 2】MEX Binary Availability');
-    add_line('-' * 80);
+    add_line(repmat('-', 1, 80));
     test_count = test_count + 1;
     
     mex_bin_dir = fullfile(fileparts(mfilename('fullpath')), '..', 'kalman', 'cpp', 'bin');
@@ -84,7 +86,7 @@ function [report, passed_tests] = diagnose_environment()
     
     % ======================== TEST 3: config_params Check ========================
     add_line('【TEST 3】Configuration Parameters');
-    add_line('-' * 80);
+    add_line(repmat('-', 1, 80));
     test_count = test_count + 1;
     
     try
@@ -124,7 +126,7 @@ function [report, passed_tests] = diagnose_environment()
     
     % ======================== TEST 4: Sensor Data Format ========================
     add_line('【TEST 4】Sensor Data Format & Types');
-    add_line('-' * 80);
+    add_line(repmat('-', 1, 80));
     test_count = test_count + 1;
     
     try
@@ -143,10 +145,7 @@ function [report, passed_tests] = diagnose_environment()
             add_line('Data Types:');
             type_ok = true;
             
-            type_check = @(var, expected_class) ...
-                (strcmp(class(obs.(var)), expected_class) && ...
-                (add_line(sprintf('  ✅ %s: %s', var, class(obs.(var)))), 1) || ...
-                (add_line(sprintf('  ❌ %s: %s (expected %s)', var, class(obs.(var)), expected_class)), type_ok=false, 0));
+            % (removed complex anonymous helper - explicit checks follow below)
             
             % Sensor types
             if strcmp(class(obs.ax), 'single')
@@ -213,7 +212,7 @@ function [report, passed_tests] = diagnose_environment()
     
     % ======================== TEST 5: MEX Function Test ========================
     add_line('【TEST 5】MEX Function Callable Test');
-    add_line('-' * 80);
+    add_line(repmat('-', 1, 80));
     test_count = test_count + 1;
     
     try

@@ -22,7 +22,7 @@ function [diagnostics, success] = environment_quick_fix()
     
     % ======================== STEP 1: Initial Diagnostics ========================
     fprintf('【STEP 1】初期診断中...\n');
-    fprintf('-' * 80 + "\n");
+    fprintf('%s\n', repmat('-', 1, 80));
     
     % Check MATLAB environment
     ver_info = ver('MATLAB');
@@ -44,7 +44,7 @@ function [diagnostics, success] = environment_quick_fix()
     
     % ======================== STEP 2: Check MEX Binary ========================
     fprintf('【STEP 2】MEXバイナリ確認...\n');
-    fprintf('-' * 80 + "\n");
+    fprintf('%s\n', repmat('-', 1, 80));
     
     mex_bin_dir = fullfile(proj_root, '..', 'kalman', 'cpp', 'bin');
     mex_files = dir(fullfile(mex_bin_dir, ['*.' mexext]));
@@ -78,7 +78,7 @@ function [diagnostics, success] = environment_quick_fix()
     
     % ======================== STEP 3: Verify MEX Callable ========================
     fprintf('【STEP 3】MEX関数呼び出し可能性確認...\n');
-    fprintf('-' * 80 + "\n");
+    fprintf('%s\n', repmat('-', 1, 80));
     
     try
         % Add paths
@@ -108,7 +108,7 @@ function [diagnostics, success] = environment_quick_fix()
     
     % ======================== STEP 4: Check Configuration ========================
     fprintf('【STEP 4】設定パラメータ確認...\n');
-    fprintf('-' * 80 + "\n");
+    fprintf('%s\n', repmat('-', 1, 80));
     
     try
         params = config_params();
@@ -136,7 +136,7 @@ function [diagnostics, success] = environment_quick_fix()
     
     % ======================== STEP 5: Check Sensor Data ========================
     fprintf('【STEP 5】センサーデータ確認...\n');
-    fprintf('-' * 80 + "\n");
+    fprintf('%s\n', repmat('-', 1, 80));
     
     try
         obs_file = fullfile(proj_root, '..', 'kalman', 'GenerateData', 'sensor_data.csv');
@@ -182,7 +182,7 @@ function [diagnostics, success] = environment_quick_fix()
     
     % ======================== STEP 6: Test Run ========================
     fprintf('【STEP 6】試運転実行（単一シミュレーション）...\n');
-    fprintf('-' * 80 + "\n");
+    fprintf('%s\n', repmat('-', 1, 80));
     
     try
         fprintf('Initializing and running filter for 1st sample...\n');

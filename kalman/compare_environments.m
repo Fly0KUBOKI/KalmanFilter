@@ -39,7 +39,7 @@ function compare_environments(env1_csv, env2_csv)
     
     % Compare columns
     fprintf('Column Comparison:\n');
-    fprintf('-' * 80 + "\n");
+    fprintf('%s\n', repmat('-', 1, 80));
     
     cols_to_compare = {'p_east', 'p_north', 'p_up', 'v_east', 'v_north', 'v_up', ...
                        'roll', 'pitch', 'yaw', 'ba_x', 'ba_y', 'ba_z', 'bg_x', 'bg_y', 'bg_z'};
