@@ -15,28 +15,34 @@ using namespace cmath_fx;
 // Basic type conversion functions (from mex_type_conv.hpp)
 // ============================================================================
 
-// Convert mxArray (single only) to float array
-// GPS以外のセンサーデータはfloatのみを受け取る（型変換を廃止）
+// Convert mxArray to float array (accepts single or double)
 inline void mxArrayToFloatArray(const mxArray* arr, float* out, std::size_t n) {
     if (!arr) {
         for (std::size_t i = 0; i < n; ++i) out[i] = 0.0f;
         return;
     }
-    
-    // single (float) のみを受け付ける
-    if (mxGetClassID(arr) != mxSINGLE_CLASS) {
-        mexErrMsgIdAndTxt("mex_conv:type_error", 
-            "Expected single (float) array, but got %s.", 
-            mxGetClassName(arr));
+
+    if (mxIsComplex(arr)) {
+        mexErrMsgIdAndTxt("mex_conv:type_error", "Complex arrays not supported.");
         return;
     }
-    
-    const float* pf = (const float*)mxGetData(arr);
-    if (!pf) {
-        for (std::size_t i = 0; i < n; ++i) out[i] = 0.0f;
+
+    mxClassID cid = mxGetClassID(arr);
+    if (cid == mxSINGLE_CLASS) {
+        const float* pf = (const float*)mxGetData(arr);
+        if (!pf) { for (std::size_t i = 0; i < n; ++i) out[i] = 0.0f; return; }
+        for (std::size_t i = 0; i < n; ++i) out[i] = pf[i];
         return;
     }
-    for (std::size_t i = 0; i < n; ++i) out[i] = pf[i];
+
+    if (cid == mxDOUBLE_CLASS) {
+        const double* pd = mxGetPr(arr);
+        if (!pd) { for (std::size_t i = 0; i < n; ++i) out[i] = 0.0f; return; }
+        for (std::size_t i = 0; i < n; ++i) out[i] = static_cast<float>(pd[i]);
+        return;
+    }
+
+    mexErrMsgIdAndTxt("mex_conv:type_error", "Expected single or double array, but got %s.", mxGetClassName(arr));
 }
 
 // Convert float array to mxArray (double format - used for legacy compatibility)

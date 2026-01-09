@@ -36,6 +36,11 @@ struct SensorData {
     uint8_t update_zupt; // ZUPT更新フラグ
     
     float dt;           // 前回からの経過時間 [s]
+    
+    // Default constructor: zero-initialize previous sensors and flags
+    SensorData() : accel{0.0f,0.0f,0.0f}, gyro{0.0f,0.0f,0.0f}, mag{0.0f,0.0f,0.0f}, gps_pos{0.0f,0.0f,0.0f}, alt_baro(0.0f),
+        prev_mag{0.0f,0.0f,0.0f}, prev_gps_pos{0.0f,0.0f,0.0f}, prev_baro_alt(0.0f),
+        update_accel(0), update_gyro(0), update_mag(0), update_gps(0), update_baro(0), update_zupt(0), dt(0.0f) {}
 };
 
 // パラメータ（定数設定）

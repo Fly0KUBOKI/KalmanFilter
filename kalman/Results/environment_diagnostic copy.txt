@@ -1,6 +1,6 @@
 ================================================================================
 ENVIRONMENT DEPENDENCY DIAGNOSTIC REPORT
-Generated at: 09-Jan-2026 22:36:56
+Generated at: 09-Jan-2026 19:08:24
 ================================================================================
 
 【TEST 1】MATLAB Environment
@@ -14,8 +14,8 @@ MEX Extension: mexw64
 --------------------------------------------------------------------------------
 ✅ MEX binary directory found: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\..\kalman\cpp\bin
 Found 2 MEX binaries:
-  - mex_meukf_step_v2.mexw64 (11264 bytes, modified 09-1-2026 22:36:40)
-  - mex_run_eskf.mexw64 (158208 bytes, modified 09-1-2026 22:36:37)
+  - mex_meukf_step_v2.mexw64 (893440 bytes, modified 09-1-2026 19:05:50)
+  - mex_run_eskf.mexw64 (976384 bytes, modified 09-1-2026 19:05:44)
 
 【TEST 3】Configuration Parameters
 --------------------------------------------------------------------------------
@@ -41,13 +41,13 @@ Data Types:
   ✅ alt: double (GPS - must be double)
 
 Data Ranges:
-  ax: [-2.736858, 2.397390] m/s²
-  wx: [-8.202830, 8.479297] deg/s
-  mx: [-92.814911, 95.359901] nT
-  pressure: [101317.38, 101331.54] Pa
-  lat: [35.9999275208, 36.0001945496] rad
-  lon: [139.9998931885, 140.0003356934] rad
-  alt: [-11.05, 10.92] m
+  ax: [-2.385027, 2.328449] m/s²
+  wx: [-7.587002, 9.561584] deg/s
+  mx: [-93.421623, 102.665413] nT
+  pressure: [101317.02, 101332.02] Pa
+  lat: [35.9999046326, 36.0001754761] rad
+  lon: [139.9998626709, 140.0003356934] rad
+  alt: [-10.85, 12.34] m
 
 【TEST 5】MEX Function Callable Test
 --------------------------------------------------------------------------------

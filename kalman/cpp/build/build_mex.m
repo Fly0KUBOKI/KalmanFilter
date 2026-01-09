@@ -47,13 +47,17 @@ function build_mex(targets)
     original_dir = pwd;
     cd(mex_src_dir);
     
-    % Compiler options
-    compile_opts = {'-O', '-DNDEBUG', '-DKALMAN_NO_STANDALONE'};
+    % Compiler options (Phase1: FP consistency)
+    compile_opts = {'-DNDEBUG', '-DKALMAN_NO_STANDALONE'};
     if ispc
+        % On Windows MATLAB's mex doesn't accept -O2; keep other defines
         compile_opts = [compile_opts, {'-DWIN32', '-D_CRT_SECURE_NO_WARNINGS'}];
-        % /utf-8 flags must be passed via COMPFLAGS, not directly
+        % Set COMPFLAGS for MSVC to enforce UTF-8 and precise FP
         old_compflags = getenv('COMPFLAGS');
-        setenv('COMPFLAGS', '/utf-8');
+        setenv('COMPFLAGS', '/utf-8 /fp:precise /arch:SSE2');
+    else
+        % Non-Windows: prefer stricter FP behavior and optimization
+        compile_opts = [compile_opts, {'-O2', '-msse2', '-fno-fast-math', '-ffloat-store'}];
     end
     
     % Include paths

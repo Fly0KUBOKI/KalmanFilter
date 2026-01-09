@@ -18,7 +18,8 @@ using namespace common::math;
 using namespace cmath_fx;
 using namespace cquat;
 
-static void copy_vec(double* dst, const double* src, int n) { memcpy(dst, src, n * sizeof(double)); }
+static void copy_vec_double(double* dst, const double* src, int n) { memcpy(dst, src, n * sizeof(double)); }
+static void copy_vec_float(float* dst, const double* src, int n) { for (int i=0;i<n;++i) dst[i] = static_cast<float>(src[i]); }
 
 ESKFState* initialize_eskf_state(const ESKFInitializationData& data) {
     ESKFState* s = new ESKFState(); memset(s, 0, sizeof(ESKFState)); s->valid = true; s->dt = data.dt;
@@ -51,17 +52,39 @@ ESKFState* initialize_eskf_state(const ESKFInitializationData& data) {
     }
     float Q_f[15*15] = {0.0f}; for (int i=3;i<6;++i) Q_f[i*15 + i] = 0.003f * 0.003f; for (int i=6;i<9;++i) Q_f[i*15 + i] = 0.003f * 0.003f; for (int i=9;i<12;++i) Q_f[i*15 + i] = static_cast<float>(sigma_a * sigma_a * 1e-3); for (int i=12;i<15;++i) Q_f[i*15 + i] = static_cast<float>(sigma_g * sigma_g * 1e-3);
     float P_f[15*15] = {0.0f}; for (int i=0;i<15;++i) P_f[i*15 + i] = 0.01f; for (int i=0;i<3;++i) P_f[i*15 + i] = 5.0f; for (int i=3;i<6;++i) P_f[i*15 + i] = 0.5f; for (int i=9;i<12;++i) P_f[i*15 + i] = 0.5f; for (int i=12;i<15;++i) P_f[i*15 + i] = 0.1f;
-    // write back into ESKFState (which stores double arrays)
-    for (int i=0;i<3;++i) s->p[i] = static_cast<double>(p_f[i]);
-    for (int i=0;i<3;++i) s->v[i] = static_cast<double>(v_f[i]);
-    for (int i=0;i<3;++i) s->ba[i] = static_cast<double>(ba_f[i]);
-    for (int i=0;i<3;++i) s->bg[i] = static_cast<double>(bg_f[i]);
-    for (int i=0;i<15*15;++i) s->P[i] = static_cast<double>(P_f[i]);
-    for (int i=0;i<15*15;++i) s->Q_nominal[i] = static_cast<double>(Q_f[i]);
-    for (int i=0;i<3;++i) s->g[i] = static_cast<double>(g_f[i]);
+    // write back into ESKFState (ESKFState now stores float for core fields)
+    for (int i=0;i<3;++i) s->p[i] = static_cast<float>(p_f[i]);
+    for (int i=0;i<3;++i) s->v[i] = static_cast<float>(v_f[i]);
+    for (int i=0;i<3;++i) s->ba[i] = static_cast<float>(ba_f[i]);
+    for (int i=0;i<3;++i) s->bg[i] = static_cast<float>(bg_f[i]);
+    for (int i=0;i<15*15;++i) s->P[i] = static_cast<float>(P_f[i]);
+    for (int i=0;i<15*15;++i) s->Q_nominal[i] = static_cast<float>(Q_f[i]);
+    for (int i=0;i<3;++i) s->g[i] = static_cast<float>(g_f[i]);
     for (int i=0;i<3;++i) s->gps_origin[i] = static_cast<double>(gps_origin_f[i]);
-    s->gyro_noise_threshold = static_cast<double>(gyro_noise_threshold);
-    double zeros3[3] = {0,0,0}; copy_vec(s->prev_accel, zeros3, 3); copy_vec(s->prev_gyro, zeros3, 3); copy_vec(s->prev_mag, zeros3, 3); s->prev_gps_lat = 0; s->prev_gps_lon = 0; s->prev_gps_alt = 0; s->prev_baro = 0; s->buffer_tolerance = 1e-9; s->zupt_threshold_accel = 1.0; s->zupt_threshold_gyro = DEG2RAD * 3.0; s->zupt_min_duration = 10; s->zupt_counter = 0; s->is_stationary = false; s->adaptive_q_enabled = true; s->velocity_damping = 0.0; s->enable_accel_z_integration = true; s->accel_z_threshold = 0.5; s->accel_z_damping = 0.1; s->baro_weight = 0.2; copy_vec(s->w_body, zeros3, 3); s->last_reset_step = 0; return s; }
+    s->gyro_noise_threshold = static_cast<float>(gyro_noise_threshold);
+    double zeros3_d[3] = {0,0,0};
+    // prev_accel/gyro/mag are float arrays: initialize to zero
+    for (int i=0;i<3;++i) s->prev_accel[i] = 0.0f;
+    for (int i=0;i<3;++i) s->prev_gyro[i] = 0.0f;
+    for (int i=0;i<3;++i) s->prev_mag[i] = 0.0f;
+    s->prev_gps_lat = 0.0f; s->prev_gps_lon = 0.0f; s->prev_gps_alt = 0.0f;
+    s->prev_baro = 0.0f;
+    s->buffer_tolerance = 1e-9f;
+    s->zupt_threshold_accel = 1.0f;
+    s->zupt_threshold_gyro = static_cast<float>(DEG2RAD * 3.0);
+    s->zupt_min_duration = 10;
+    s->zupt_counter = 0;
+    s->is_stationary = false;
+    s->adaptive_q_enabled = true;
+    s->velocity_damping = 0.0f;
+    s->enable_accel_z_integration = true;
+    s->accel_z_threshold = 0.5f;
+    s->accel_z_damping = 0.1f;
+    s->baro_weight = 0.2f;
+    for (int i=0;i<3;++i) s->w_body[i] = 0.0f;
+    s->last_reset_step = 0;
+    return s;
+}
 
 } // namespace eskf
 

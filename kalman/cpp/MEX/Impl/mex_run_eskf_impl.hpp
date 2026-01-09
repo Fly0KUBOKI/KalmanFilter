@@ -21,7 +21,7 @@ extern std::map<uint64_t, ESKFState*> g_states;
 extern uint64_t g_next_handle;
 extern SensorFilterLib g_filter_lib;
 
-inline void call_predict(ESKFState* s, const double* a_meas, const double* w_meas) {
+inline void call_predict(ESKFState* s, const float* a_meas, const float* w_meas) {
     ESKFRunner::predict(s, a_meas, w_meas);
 }
 
@@ -36,24 +36,29 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
     // (debug prints removed)
     
     int idx = k - 1;
-    double a[3], w[3], m[3];
-    getAccel(obs, idx, a);
-    getGyro(obs, idx, w);
-    getMag(obs, idx, m);
-    
-    // Convert gyro to rad/s
-    double deg2rad = M_PI / 180.0;
-    w[0] *= deg2rad; w[1] *= deg2rad; w[2] *= deg2rad;
-    
+    double a_d[3], w_d[3], m_d[3];
+    getAccel(obs, idx, a_d);
+    getGyro(obs, idx, w_d);
+    getMag(obs, idx, m_d);
+
+    // Convert to float and convert gyro to rad/s
+    const double deg2rad = M_PI / 180.0;
+    float a_f[3], w_f[3], m_f[3];
+    for (int i = 0; i < 3; ++i) {
+        a_f[i] = static_cast<float>(a_d[i]);
+        w_f[i] = static_cast<float>(w_d[i] * deg2rad);
+        m_f[i] = static_cast<float>(m_d[i]);
+    }
+
     // Predict
-    call_predict(s, a, w);
+    call_predict(s, a_f, w_f);
     
-    // ZUPT check
-    zupt_check_and_update(s, a, w);
-    
-    // Sensor updates
-    call_sensor_update(s, "accel", a, 3, static_cast<double>(k));
-    call_sensor_update(s, "mag", m, 3, static_cast<double>(k));
+    // ZUPT check (use double buffers returned from getAccel/getGyro)
+    zupt_check_and_update(s, a_d, w_d);
+
+    // Sensor updates (pass original double measurements)
+    call_sensor_update(s, "accel", a_d, 3, static_cast<double>(k));
+    call_sensor_update(s, "mag", m_d, 3, static_cast<double>(k));
     
     // Baro (single型のみ - MATLAB側でsingle型で渡す必要がある)
     mxArray* baro_field = mxGetField(obs, 0, "pressure");
@@ -128,7 +133,8 @@ inline mxArray* do_get_state(ESKFState* s) {
 
     // euler - float (3x1) in degrees
     double euler[3];
-    quat_to_euler(s->q, euler);
+    double q_d[4]; for (int i=0;i<4;++i) q_d[i] = static_cast<double>(s->q[i]);
+    quat_to_euler(q_d, euler);
     mxArray* eu = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* eu_ptr = (float*)mxGetData(eu);
     eu_ptr[0] = static_cast<float>(euler[0] * 180.0 / M_PI);

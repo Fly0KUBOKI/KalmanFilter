@@ -37,14 +37,15 @@ inline void handle_sensor_update_internal(
 inline void call_sensor_update(ESKFState* s, const char* type, const double* meas, int meas_len, double sample) {
     // Revert to original implementation from mex_eskf_sensor_updates_full.cpp
     double p[3], v[3], q[4], ba[3], bg[3], P[15*15], g[3];
-    memcpy(p, s->p, 3 * sizeof(double));
-    memcpy(v, s->v, 3 * sizeof(double));
-    memcpy(q, s->q, 4 * sizeof(double));
-    memcpy(ba, s->ba, 3 * sizeof(double));
-    memcpy(bg, s->bg, 3 * sizeof(double));
-    memcpy(P, s->P, 15*15*sizeof(double));
-    memcpy(g, s->g, 3 * sizeof(double));
-    double dt = s->dt;
+    // Copy from float-typed ESKFState into local double buffers
+    for (int i = 0; i < 3; ++i) p[i] = static_cast<double>(s->p[i]);
+    for (int i = 0; i < 3; ++i) v[i] = static_cast<double>(s->v[i]);
+    for (int i = 0; i < 4; ++i) q[i] = static_cast<double>(s->q[i]);
+    for (int i = 0; i < 3; ++i) ba[i] = static_cast<double>(s->ba[i]);
+    for (int i = 0; i < 3; ++i) bg[i] = static_cast<double>(s->bg[i]);
+    for (int i = 0; i < 15*15; ++i) P[i] = static_cast<double>(s->P[i]);
+    for (int i = 0; i < 3; ++i) g[i] = static_cast<double>(s->g[i]);
+    double dt = static_cast<double>(s->dt);
     
     double out_p[3], out_v[3], out_q[4], out_ba[3], out_bg[3], out_P[15*15];
     memcpy(out_p, p, 3 * sizeof(double));
@@ -84,7 +85,8 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
         
         if (!no_change && !is_nan_any(a_corrected, 3) && !is_outlier && (w_norm <= 1.5)) {
             should_skip = false;
-            memcpy(s->prev_accel, meas, 3 * sizeof(double));
+            // store prev_accel into float prev buffer
+            for (int i = 0; i < 3; ++i) s->prev_accel[i] = static_cast<float>(meas[i]);
         }
         
         if (!should_skip) {
@@ -118,7 +120,7 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
         
         if (!no_change && !is_nan_any(m_filtered, 3) && !is_outlier) {
             should_skip = false;
-            memcpy(s->prev_mag, meas, 3 * sizeof(double));
+            for (int i = 0; i < 3; ++i) s->prev_mag[i] = static_cast<float>(meas[i]);
         }
         
         if (!should_skip) {
@@ -159,12 +161,12 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
     
     // Update state if not skipped
     if (!should_skip) {
-        memcpy(s->p, out_p, 3 * sizeof(double));
-        memcpy(s->v, out_v, 3 * sizeof(double));
-        memcpy(s->q, out_q, 4 * sizeof(double));
-        memcpy(s->ba, out_ba, 3 * sizeof(double));
-        memcpy(s->bg, out_bg, 3 * sizeof(double));
-        memcpy(s->P, out_P, 15*15*sizeof(double));
+        for (int i = 0; i < 3; ++i) s->p[i] = static_cast<float>(out_p[i]);
+        for (int i = 0; i < 3; ++i) s->v[i] = static_cast<float>(out_v[i]);
+        for (int i = 0; i < 4; ++i) s->q[i] = static_cast<float>(out_q[i]);
+        for (int i = 0; i < 3; ++i) s->ba[i] = static_cast<float>(out_ba[i]);
+        for (int i = 0; i < 3; ++i) s->bg[i] = static_cast<float>(out_bg[i]);
+        for (int i = 0; i < 15*15; ++i) s->P[i] = static_cast<float>(out_P[i]);
     }
 }
 
@@ -174,14 +176,14 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
 inline void call_gps_update(ESKFState* s, double lat, double lon, double alt, double sample) {
     // Revert to original implementation from mex_eskf_sensor_updates_full.cpp
     double p[3], v[3], q[4], ba[3], bg[3], P[15*15], g[3];
-    memcpy(p, s->p, 3 * sizeof(double));
-    memcpy(v, s->v, 3 * sizeof(double));
-    memcpy(q, s->q, 4 * sizeof(double));
-    memcpy(ba, s->ba, 3 * sizeof(double));
-    memcpy(bg, s->bg, 3 * sizeof(double));
-    memcpy(P, s->P, 15*15*sizeof(double));
-    memcpy(g, s->g, 3 * sizeof(double));
-    double dt = s->dt;
+    for (int i = 0; i < 3; ++i) p[i] = static_cast<double>(s->p[i]);
+    for (int i = 0; i < 3; ++i) v[i] = static_cast<double>(s->v[i]);
+    for (int i = 0; i < 4; ++i) q[i] = static_cast<double>(s->q[i]);
+    for (int i = 0; i < 3; ++i) ba[i] = static_cast<double>(s->ba[i]);
+    for (int i = 0; i < 3; ++i) bg[i] = static_cast<double>(s->bg[i]);
+    for (int i = 0; i < 15*15; ++i) P[i] = static_cast<double>(s->P[i]);
+    for (int i = 0; i < 3; ++i) g[i] = static_cast<double>(s->g[i]);
+    double dt = static_cast<double>(s->dt);
     
     double out_p[3], out_v[3], out_q[4], out_ba[3], out_bg[3], out_P[15*15];
     memcpy(out_p, p, 3 * sizeof(double));
@@ -231,12 +233,12 @@ inline void call_gps_update(ESKFState* s, double lat, double lon, double alt, do
     
     // Update state if not skipped
     if (!should_skip) {
-        memcpy(s->p, out_p, 3 * sizeof(double));
-        memcpy(s->v, out_v, 3 * sizeof(double));
-        memcpy(s->q, out_q, 4 * sizeof(double));
-        memcpy(s->ba, out_ba, 3 * sizeof(double));
-        memcpy(s->bg, out_bg, 3 * sizeof(double));
-        memcpy(s->P, out_P, 15*15*sizeof(double));
+        for (int i = 0; i < 3; ++i) s->p[i] = static_cast<float>(out_p[i]);
+        for (int i = 0; i < 3; ++i) s->v[i] = static_cast<float>(out_v[i]);
+        for (int i = 0; i < 4; ++i) s->q[i] = static_cast<float>(out_q[i]);
+        for (int i = 0; i < 3; ++i) s->ba[i] = static_cast<float>(out_ba[i]);
+        for (int i = 0; i < 3; ++i) s->bg[i] = static_cast<float>(out_bg[i]);
+        for (int i = 0; i < 15*15; ++i) s->P[i] = static_cast<float>(out_P[i]);
     }
 }
 

@@ -29,7 +29,7 @@ extern SensorFilterLib g_filter_lib;
 /**
  * 予測ステップの呼び出し（ESKFRunnerを使用）
  */
-inline void call_predict(ESKFState* s, const double* a_meas, const double* w_meas) {
+inline void call_predict(ESKFState* s, const float* a_meas, const float* w_meas) {
     ESKFRunner::predict(s, a_meas, w_meas);
 }
 
@@ -48,17 +48,22 @@ inline uint64_t do_init(const mxArray* obs, double static_time, double dt) {
  */
 inline void do_step(ESKFState* s, const mxArray* obs, int k) {
     int idx = k - 1;
-    double a[3], w[3], m[3];
-    getAccel(obs, idx, a);
-    getGyro(obs, idx, w);
-    getMag(obs, idx, m);
-    
-    // Convert gyro to rad/s
-    double deg2rad = M_PI / 180.0;
-    w[0] *= deg2rad; w[1] *= deg2rad; w[2] *= deg2rad;
-    
+    double a_d[3], w_d[3], m_d[3];
+    getAccel(obs, idx, a_d);
+    getGyro(obs, idx, w_d);
+    getMag(obs, idx, m_d);
+
+    // Convert to float and convert gyro to rad/s
+    const double deg2rad = M_PI / 180.0;
+    float a_f[3], w_f[3], m_f[3];
+    for (int i = 0; i < 3; ++i) {
+        a_f[i] = static_cast<float>(a_d[i]);
+        w_f[i] = static_cast<float>(w_d[i] * deg2rad);
+        m_f[i] = static_cast<float>(m_d[i]);
+    }
+
     // Predict
-    call_predict(s, a, w);
+    call_predict(s, a_f, w_f);
     
     // ZUPT check
     zupt_check_and_update(s, a, w);

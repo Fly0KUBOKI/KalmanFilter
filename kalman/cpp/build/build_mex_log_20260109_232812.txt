@@ -1,0 +1,31 @@
+=== MEX Build Log Started at 09-Jan-2026 23:28:12 ===
+Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20260109_232812.txt
+
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+Compiling mex_run_eskf... FAILED
+次を使用中のエラー: mex
+MEX 引数 '-O2' は不明です。
+
+エラー: build_mex>build_mex_targets (行 184)
+            evalc('mex(mex_args{:});');
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: build_mex (行 95)
+    built_count = build_mex_targets(mex_targets, compile_opts, inc_args, bin_dir, targets, log_fn, log_fid);
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Compiling mex_meukf_step_v2... FAILED
+次を使用中のエラー: mex
+MEX 引数 '-O2' は不明です。
+
+エラー: build_mex>build_mex_targets (行 184)
+            evalc('mex(mex_args{:});');
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: build_mex (行 95)
+    built_count = build_mex_targets(mex_targets, compile_opts, inc_args, bin_dir, targets, log_fn, log_fid);
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+=== Build Complete ===
+Successfully built 0 MEX file(s)
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+=== MEX Build Log Ended at 09-Jan-2026 23:28:12 ===
