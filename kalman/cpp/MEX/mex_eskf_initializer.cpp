@@ -32,7 +32,7 @@ static double get_value_at(const mxArray* arr, int idx, const char* field_name =
     }
     
     const float* pf = (const float*)mxGetData(arr);
-    return static_cast<double>(pf[idx]);
+    return pf[idx];
 }
 
 // Get value from double array (for GPS data)

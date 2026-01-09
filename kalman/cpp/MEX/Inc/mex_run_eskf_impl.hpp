@@ -69,8 +69,8 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
     zupt_check_and_update(s, a, w);
     
     // Sensor updates
-    call_sensor_update(s, "accel", a, 3, static_cast<double>(k));
-    call_sensor_update(s, "mag", m, 3, static_cast<double>(k));
+    call_sensor_update(s, "accel", a, 3, k);
+    call_sensor_update(s, "mag", m, 3, k);
     
     // Baro (single型のみ - MATLAB側でsingle型で渡す必要がある)
     mxArray* baro_field = mxGetField(obs, 0, "pressure");
@@ -81,9 +81,9 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
                 mxGetClassName(baro_field));
         }
         const float* pf = (const float*)mxGetData(baro_field);
-        double baro = static_cast<double>(pf[idx]);
+        double baro = pf[idx];
         double baro_arr[1] = {baro};
-        call_sensor_update(s, "baro", baro_arr, 1, static_cast<double>(k));
+        call_sensor_update(s, "baro", baro_arr, 1, k);
     }
     
     // GPS (double only - type conversion removed)
@@ -111,7 +111,7 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
         double lon = mxGetPr(gps_lon)[idx];
         double alt = mxGetPr(gps_alt)[idx];
         if (!std::isnan(lat) && !std::isnan(lon)) {
-            call_gps_update(s, lat, lon, alt, static_cast<double>(k));
+            call_gps_update(s, lat, lon, alt, k);
         }
     }
     
@@ -260,7 +260,7 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
         // single型またはdouble型のスカラー値
         if (mxGetClassID(ff) == mxSINGLE_CLASS) {
             const float* pf = (const float*)mxGetData(ff);
-            return pf ? static_cast<double>(pf[0]) : 0.0;
+            return pf ? pf[0] : 0.0;
         } else if (mxGetClassID(ff) == mxDOUBLE_CLASS) {
             const double* pr = mxGetPr(ff);
             return pr ? pr[0] : 0.0;

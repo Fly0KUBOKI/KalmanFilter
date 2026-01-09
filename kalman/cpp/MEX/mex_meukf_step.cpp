@@ -114,7 +114,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         // single型またはdouble型のスカラー値
         if (mxGetClassID(field) == mxSINGLE_CLASS) {
             const float* pf = (const float*)mxGetData(field);
-            return pf ? static_cast<double>(pf[0]) : 0.0;
+            return pf ? pf[0] : 0.0;
         } else if (mxGetClassID(field) == mxDOUBLE_CLASS) {
             const double* pr = mxGetPr(field);
             return pr ? pr[0] : 0.0;
@@ -276,14 +276,14 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         mxSetField(plhs[2], 0, "last_H", m_last_H);
 
         // last_y_len
-        mxArray* m_ylen = mxCreateDoubleScalar(static_cast<double>(output.last_y_len));
+        mxArray* m_ylen = mxCreateDoubleScalar(output.last_y_len);
         mxSetField(plhs[2], 0, "last_y_len", m_ylen);
 
         // last_sensor_type
-        mxArray* m_stype = mxCreateDoubleScalar(static_cast<double>(output.last_sensor_type));
+        mxArray* m_stype = mxCreateDoubleScalar(output.last_sensor_type);
         mxSetField(plhs[2], 0, "last_sensor_type", m_stype);
         // Echo the raw input flag for debugging (1 if sensor.update_gps was set in input)
-        mxArray* m_input_update = mxCreateDoubleScalar(static_cast<double>(input.sensor.update_gps));
+        mxArray* m_input_update = mxCreateDoubleScalar(input.sensor.update_gps);
         mxSetField(plhs[2], 0, "input_update_gps", m_input_update);
         // Echo the raw input noise_gps vector for debugging (3x1 float)
         mxArray* m_input_noise = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
@@ -297,11 +297,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         try {
             // Build pred_P matrix (15x15) in double from output.pred_P (float row-major)
             double predP[15*15];
-            for(int r=0;r<15;++r) for(int c=0;c<15;++c) predP[r*15 + c] = static_cast<double>(output.pred_P[r*15 + c]);
+            for(int r=0;r<15;++r) for(int c=0;c<15;++c) predP[r*15 + c] = output.pred_P[r*15 + c];
 
             // Build H (3x15) from output.last_H (row-major floats stored similarly)
             double Hm[3*15];
-            for(int r=0;r<3;++r) for(int c=0;c<15;++c) Hm[r*15 + c] = static_cast<double>(output.last_H[r*15 + c]);
+            for(int r=0;r<3;++r) for(int c=0;c<15;++c) Hm[r*15 + c] = output.last_H[r*15 + c];
 
             // Compute HPHT = H * predP * H'
             double HP[3*15]; memset(HP,0,sizeof(HP));

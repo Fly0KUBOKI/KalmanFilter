@@ -38,14 +38,14 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
     // Revert to original implementation from mex_eskf_sensor_updates_full.cpp
     double p[3], v[3], q[4], ba[3], bg[3], P[15*15], g[3];
     // Copy from float-typed ESKFState into local double buffers
-    for (int i = 0; i < 3; ++i) p[i] = static_cast<double>(s->p[i]);
-    for (int i = 0; i < 3; ++i) v[i] = static_cast<double>(s->v[i]);
-    for (int i = 0; i < 4; ++i) q[i] = static_cast<double>(s->q[i]);
-    for (int i = 0; i < 3; ++i) ba[i] = static_cast<double>(s->ba[i]);
-    for (int i = 0; i < 3; ++i) bg[i] = static_cast<double>(s->bg[i]);
-    for (int i = 0; i < 15*15; ++i) P[i] = static_cast<double>(s->P[i]);
-    for (int i = 0; i < 3; ++i) g[i] = static_cast<double>(s->g[i]);
-    double dt = static_cast<double>(s->dt);
+    for (int i = 0; i < 3; ++i) p[i] = s->p[i];
+    for (int i = 0; i < 3; ++i) v[i] = s->v[i];
+    for (int i = 0; i < 4; ++i) q[i] = s->q[i];
+    for (int i = 0; i < 3; ++i) ba[i] = s->ba[i];
+    for (int i = 0; i < 3; ++i) bg[i] = s->bg[i];
+    for (int i = 0; i < 15*15; ++i) P[i] = s->P[i];
+    for (int i = 0; i < 3; ++i) g[i] = s->g[i];
+    double dt = s->dt;
     
     double out_p[3], out_v[3], out_q[4], out_ba[3], out_bg[3], out_P[15*15];
     memcpy(out_p, p, 3 * sizeof(double));
@@ -70,7 +70,7 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
         
         double a_corrected[3];
         for (int i = 0; i < 3; ++i) {
-            a_corrected[i] = static_cast<double>(result.output(i, 0));
+            a_corrected[i] = result.output(i, 0);
         }
         bool is_outlier = result.is_outlier;
         bool no_change = result.no_change;
@@ -113,7 +113,7 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
         
         double m_filtered[3];
         for (int i = 0; i < 3; ++i) {
-            m_filtered[i] = static_cast<double>(result.output(i, 0));
+            m_filtered[i] = result.output(i, 0);
         }
         bool is_outlier = result.is_outlier;
         bool no_change = result.no_change;
@@ -176,14 +176,14 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
 inline void call_gps_update(ESKFState* s, double lat, double lon, double alt, double sample) {
     // Revert to original implementation from mex_eskf_sensor_updates_full.cpp
     double p[3], v[3], q[4], ba[3], bg[3], P[15*15], g[3];
-    for (int i = 0; i < 3; ++i) p[i] = static_cast<double>(s->p[i]);
-    for (int i = 0; i < 3; ++i) v[i] = static_cast<double>(s->v[i]);
-    for (int i = 0; i < 4; ++i) q[i] = static_cast<double>(s->q[i]);
-    for (int i = 0; i < 3; ++i) ba[i] = static_cast<double>(s->ba[i]);
-    for (int i = 0; i < 3; ++i) bg[i] = static_cast<double>(s->bg[i]);
-    for (int i = 0; i < 15*15; ++i) P[i] = static_cast<double>(s->P[i]);
-    for (int i = 0; i < 3; ++i) g[i] = static_cast<double>(s->g[i]);
-    double dt = static_cast<double>(s->dt);
+    for (int i = 0; i < 3; ++i) p[i] = s->p[i];
+    for (int i = 0; i < 3; ++i) v[i] = s->v[i];
+    for (int i = 0; i < 4; ++i) q[i] = s->q[i];
+    for (int i = 0; i < 3; ++i) ba[i] = s->ba[i];
+    for (int i = 0; i < 3; ++i) bg[i] = s->bg[i];
+    for (int i = 0; i < 15*15; ++i) P[i] = s->P[i];
+    for (int i = 0; i < 3; ++i) g[i] = s->g[i];
+    double dt = s->dt;
     
     double out_p[3], out_v[3], out_q[4], out_ba[3], out_bg[3], out_P[15*15];
     memcpy(out_p, p, 3 * sizeof(double));
@@ -204,7 +204,7 @@ inline void call_gps_update(ESKFState* s, double lat, double lon, double alt, do
     bool should_skip = true;
     double z_gps[3];
     for (int i = 0; i < 3; ++i) {
-        z_gps[i] = static_cast<double>(result.output(i, 0));
+        z_gps[i] = result.output(i, 0);
     }
     bool is_outlier = result.is_outlier;
     bool no_change = result.no_change;
@@ -234,11 +234,11 @@ inline void call_gps_update(ESKFState* s, double lat, double lon, double alt, do
     // Update state if not skipped
     if (!should_skip) {
         for (int i = 0; i < 3; ++i) s->p[i] = static_cast<float>(out_p[i]);
-        for (int i = 0; i < 3; ++i) s->v[i] = static_cast<float>(out_v[i]);
-        for (int i = 0; i < 4; ++i) s->q[i] = static_cast<float>(out_q[i]);
-        for (int i = 0; i < 3; ++i) s->ba[i] = static_cast<float>(out_ba[i]);
-        for (int i = 0; i < 3; ++i) s->bg[i] = static_cast<float>(out_bg[i]);
-        for (int i = 0; i < 15*15; ++i) s->P[i] = static_cast<float>(out_P[i]);
+            for (int i = 0; i < 3; ++i) s->v[i] = static_cast<float>(out_v[i]);
+            for (int i = 0; i < 4; ++i) s->q[i] = static_cast<float>(out_q[i]);
+            for (int i = 0; i < 3; ++i) s->ba[i] = static_cast<float>(out_ba[i]);
+            for (int i = 0; i < 3; ++i) s->bg[i] = static_cast<float>(out_bg[i]);
+            for (int i = 0; i < 15*15; ++i) s->P[i] = static_cast<float>(out_P[i]);
     }
 }
 
@@ -275,17 +275,17 @@ inline void handle_sensor_update_internal(
         int n_cols = R.cols;
         if (n_rows == 3 && n_cols == 3) {
             // 3x3行列から対角要素を取得
-            R_noise[0] = static_cast<double>(R(0, 0));
-            R_noise[1] = static_cast<double>(R(1, 1));
-            R_noise[2] = static_cast<double>(R(2, 2));
+            R_noise[0] = R(0, 0);
+            R_noise[1] = R(1, 1);
+            R_noise[2] = R(2, 2);
         } else if (n_rows >= 3 && n_cols == 1) {
             // ベクトル形式
-            R_noise[0] = static_cast<double>(R(0, 0));
-            R_noise[1] = static_cast<double>(R(1, 0));
-            R_noise[2] = static_cast<double>(R(2, 0));
+            R_noise[0] = R(0, 0);
+            R_noise[1] = R(1, 0);
+            R_noise[2] = R(2, 0);
         } else if (n_rows == 1 && n_cols == 1) {
             // スカラー（baroなど）
-            R_noise[0] = R_noise[1] = R_noise[2] = static_cast<double>(R(0, 0));
+            R_noise[0] = R_noise[1] = R_noise[2] = R(0, 0);
         }
     }
 
@@ -556,40 +556,40 @@ inline void handle_sensor_update_internal(
             // Get dx (15x1)
             Vector<15, float> dx;
             if (!mex_conv::matToVector(mxGetField(dbg_out, 0, "dx"), dx)) {
-                // Fallback: use new_state directly (single型から読み取り)
+                // Fallback: read `new_state` (single) fields directly into double buffers
                 mxArray* p_field = mxGetField(new_state, 0, "p");
                 if (p_field && mxGetClassID(p_field) == mxSINGLE_CLASS) {
                     const float* pf = (const float*)mxGetData(p_field);
-                    for (int i = 0; i < 3; ++i) out_p[i] = static_cast<double>(pf[i]);
+                    for (int i = 0; i < 3; ++i) out_p[i] = pf[i];
                 }
                 mxArray* v_field = mxGetField(new_state, 0, "v");
                 if (v_field && mxGetClassID(v_field) == mxSINGLE_CLASS) {
                     const float* vf = (const float*)mxGetData(v_field);
-                    for (int i = 0; i < 3; ++i) out_v[i] = static_cast<double>(vf[i]);
+                    for (int i = 0; i < 3; ++i) out_v[i] = vf[i];
                 }
                 mxArray* q_field = mxGetField(new_state, 0, "q");
                 if (q_field && mxGetClassID(q_field) == mxSINGLE_CLASS) {
                     const float* qf = (const float*)mxGetData(q_field);
-                    for (int i = 0; i < 4; ++i) out_q[i] = static_cast<double>(qf[i]);
+                    for (int i = 0; i < 4; ++i) out_q[i] = qf[i];
                 }
                 mxArray* ba_field = mxGetField(new_state, 0, "ba");
                 if (ba_field && mxGetClassID(ba_field) == mxSINGLE_CLASS) {
                     const float* baf = (const float*)mxGetData(ba_field);
-                    for (int i = 0; i < 3; ++i) out_ba[i] = static_cast<double>(baf[i]);
+                    for (int i = 0; i < 3; ++i) out_ba[i] = baf[i];
                 }
                 mxArray* bg_field = mxGetField(new_state, 0, "bg");
                 if (bg_field && mxGetClassID(bg_field) == mxSINGLE_CLASS) {
                     const float* bgf = (const float*)mxGetData(bg_field);
-                    for (int i = 0; i < 3; ++i) out_bg[i] = static_cast<double>(bgf[i]);
+                    for (int i = 0; i < 3; ++i) out_bg[i] = bgf[i];
                 }
                 mxArray* P_field = mxGetField(new_state, 0, "P");
                 if (P_field && mxGetClassID(P_field) == mxSINGLE_CLASS) {
                     const float* Pf = (const float*)mxGetData(P_field);
                     for (int i = 0; i < 15; ++i) {
                         for (int j = 0; j < 15; ++j) {
-                            // MATLAB column-major to row-major
-                            double val1 = static_cast<double>(Pf[j * 15 + i]);
-                            double val2 = static_cast<double>(Pf[i * 15 + j]);
+                            // MATLAB column-major -> internal row-major, average symmetric entries
+                            double val1 = Pf[j * 15 + i];
+                            double val2 = Pf[i * 15 + j];
                             out_P[i + j*15] = 0.5 * (val1 + val2);
                         }
                     }
@@ -685,17 +685,17 @@ inline void handle_sensor_update_internal(
                 
                 // Convert back to double arrays
                 for (int i = 0; i < 3; ++i) {
-                    out_p[i] = static_cast<double>(new_p(i, 0));
-                    out_v[i] = static_cast<double>(new_v(i, 0));
-                    out_ba[i] = static_cast<double>(new_ba(i, 0));
-                    out_bg[i] = static_cast<double>(new_bg(i, 0));
+                    out_p[i] = new_p(i, 0);
+                    out_v[i] = new_v(i, 0);
+                    out_ba[i] = new_ba(i, 0);
+                    out_bg[i] = new_bg(i, 0);
                 }
                 for (int i = 0; i < 4; ++i) {
-                    out_q[i] = static_cast<double>(new_q(i, 0));
+                    out_q[i] = new_q(i, 0);
                 }
                 for (int i = 0; i < 15; ++i) {
                     for (int j = 0; j < 15; ++j) {
-                        out_P[i + j*15] = static_cast<double>(out_P_mat(i, j));
+                        out_P[i + j*15] = out_P_mat(i, j);
                     }
                 }
             }
@@ -704,27 +704,27 @@ inline void handle_sensor_update_internal(
             mxArray* p_field = mxGetField(new_state, 0, "p");
             if (p_field && mxGetClassID(p_field) == mxSINGLE_CLASS) {
                 const float* pf = (const float*)mxGetData(p_field);
-                for (int i = 0; i < 3; ++i) out_p[i] = static_cast<double>(pf[i]);
+                for (int i = 0; i < 3; ++i) out_p[i] = pf[i];
             }
             mxArray* v_field = mxGetField(new_state, 0, "v");
             if (v_field && mxGetClassID(v_field) == mxSINGLE_CLASS) {
                 const float* vf = (const float*)mxGetData(v_field);
-                for (int i = 0; i < 3; ++i) out_v[i] = static_cast<double>(vf[i]);
+                for (int i = 0; i < 3; ++i) out_v[i] = vf[i];
             }
             mxArray* q_field = mxGetField(new_state, 0, "q");
             if (q_field && mxGetClassID(q_field) == mxSINGLE_CLASS) {
                 const float* qf = (const float*)mxGetData(q_field);
-                for (int i = 0; i < 4; ++i) out_q[i] = static_cast<double>(qf[i]);
+                for (int i = 0; i < 4; ++i) out_q[i] = qf[i];
             }
             mxArray* ba_field = mxGetField(new_state, 0, "ba");
             if (ba_field && mxGetClassID(ba_field) == mxSINGLE_CLASS) {
                 const float* baf = (const float*)mxGetData(ba_field);
-                for (int i = 0; i < 3; ++i) out_ba[i] = static_cast<double>(baf[i]);
+                for (int i = 0; i < 3; ++i) out_ba[i] = baf[i];
             }
             mxArray* bg_field = mxGetField(new_state, 0, "bg");
             if (bg_field && mxGetClassID(bg_field) == mxSINGLE_CLASS) {
                 const float* bgf = (const float*)mxGetData(bg_field);
-                for (int i = 0; i < 3; ++i) out_bg[i] = static_cast<double>(bgf[i]);
+                for (int i = 0; i < 3; ++i) out_bg[i] = bgf[i];
             }
             mxArray* P_field = mxGetField(new_state, 0, "P");
             if (P_field && mxGetClassID(P_field) == mxSINGLE_CLASS) {
@@ -732,8 +732,8 @@ inline void handle_sensor_update_internal(
                 for (int i = 0; i < 15; ++i) {
                     for (int j = 0; j < 15; ++j) {
                         // MATLAB column-major to row-major
-                        double val1 = static_cast<double>(Pf[j * 15 + i]);
-                        double val2 = static_cast<double>(Pf[i * 15 + j]);
+                        double val1 = Pf[j * 15 + i];
+                        double val2 = Pf[i * 15 + j];
                         out_P[i + j*15] = 0.5 * (val1 + val2);
                     }
                 }

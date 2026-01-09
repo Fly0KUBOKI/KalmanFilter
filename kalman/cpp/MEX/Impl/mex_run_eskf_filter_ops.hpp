@@ -37,12 +37,12 @@ inline void check_and_reset(ESKFState* s, int k) {
         setIdentityScaled(P2, 0.01f);
         reset_state_on_divergence(v_float, ba_float, bg_float, q_float, P2);
         for (int i = 0; i < 3; ++i) {
-            s->v[i] = static_cast<double>(v_float(i, 0));
-            s->ba[i] = static_cast<double>(ba_float(i, 0));
-            s->bg[i] = static_cast<double>(bg_float(i, 0));
+            s->v[i] = static_cast<float>(v_float(i, 0));
+            s->ba[i] = static_cast<float>(ba_float(i, 0));
+            s->bg[i] = static_cast<float>(bg_float(i, 0));
         }
-        for (int i = 0; i < 4; ++i) s->q[i] = static_cast<double>(q_float(i, 0));
-        for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) s->P[i + j*15] = static_cast<double>(P2(i, j));
+        for (int i = 0; i < 4; ++i) s->q[i] = static_cast<float>(q_float(i, 0));
+        for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) s->P[i + j*15] = static_cast<float>(P2(i, j));
     }
 }
 
@@ -58,8 +58,8 @@ inline void zupt_check_and_update(ESKFState* s, const double* a_meas, const doub
         for (int i = 0; i < 3; ++i) v_in(i,0) = static_cast<float>(s->v[i]);
         for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) P_in(i,j) = static_cast<float>(s->P[i + j*15]);
         ESKFCore::update_zupt(v_in, P_in, v_out, P_out);
-        for (int i = 0; i < 3; ++i) s->v[i] = static_cast<double>(v_out(i,0));
-        for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) s->P[i + j*15] = static_cast<double>(P_out(i,j));
+        for (int i = 0; i < 3; ++i) s->v[i] = static_cast<float>(v_out(i,0));
+        for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) s->P[i + j*15] = static_cast<float>(P_out(i,j));
     }
 }
 

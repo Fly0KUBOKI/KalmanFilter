@@ -1,6 +1,6 @@
 ================================================================================
 ENVIRONMENT DEPENDENCY DIAGNOSTIC REPORT
-Generated at: 09-Jan-2026 19:08:24
+Generated at: 09-Jan-2026 23:40:13
 ================================================================================
 
 【TEST 1】MATLAB Environment
@@ -14,8 +14,8 @@ MEX Extension: mexw64
 --------------------------------------------------------------------------------
 ✅ MEX binary directory found: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\..\kalman\cpp\bin
 Found 2 MEX binaries:
-  - mex_meukf_step_v2.mexw64 (893440 bytes, modified 09-1-2026 19:05:50)
-  - mex_run_eskf.mexw64 (976384 bytes, modified 09-1-2026 19:05:44)
+  - mex_meukf_step_v2.mexw64 (894464 bytes, modified 09-1-2026 23:40:06)
+  - mex_run_eskf.mexw64 (979456 bytes, modified 09-1-2026 23:40:00)
 
 【TEST 3】Configuration Parameters
 --------------------------------------------------------------------------------
@@ -41,18 +41,19 @@ Data Types:
   ✅ alt: double (GPS - must be double)
 
 Data Ranges:
-  ax: [-2.385027, 2.328449] m/s²
-  wx: [-7.587002, 9.561584] deg/s
-  mx: [-93.421623, 102.665413] nT
-  pressure: [101317.02, 101332.02] Pa
-  lat: [35.9999046326, 36.0001754761] rad
-  lon: [139.9998626709, 140.0003356934] rad
-  alt: [-10.85, 12.34] m
+  ax: [-2.521496, 2.486423] m/s²
+  wx: [-8.508271, 8.136367] deg/s
+  mx: [-89.633453, 99.947418] nT
+  pressure: [101318.05, 101330.57] Pa
+  lat: [35.9999275208, 36.0001754761] rad
+  lon: [139.9998931885, 140.0003204346] rad
+  alt: [-13.47, 12.38] m
 
 【TEST 5】MEX Function Callable Test
 --------------------------------------------------------------------------------
-✅ mex_run_eskf is callable
-✅ MEX loaded successfully (expected usage error)
+❌ mex_run_eskf is NOT callable
+   → Check if mex_run_eskf.mexw64 exists in kalman/cpp/bin/
+   → Add path with: addpath(fullfile(kalman_root, 'cpp', 'bin'))
 
 【TEST 6】Quick Simulation Test (Optional - runs actual filter)
 ฐ
@@ -62,9 +63,10 @@ To run: [~, ~] = diagnose_environment(true);
 ================================================================================
 SUMMARY
 ================================================================================
-Tests Passed: 5/5
+Tests Passed: 4/5
 
-✅ All checks passed! Environment is properly configured.
+⚠️  Most checks passed. Minor issues detected.
+   → See above for details. Simulation may still work.
 
 Next Steps:
 1. If MEX binary not found: cd kalman/cpp/build && build_mex()

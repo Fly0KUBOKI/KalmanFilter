@@ -45,15 +45,9 @@ inline void mxArrayToFloatArray(const mxArray* arr, float* out, std::size_t n) {
     mexErrMsgIdAndTxt("mex_conv:type_error", "Expected single or double array, but got %s.", mxGetClassName(arr));
 }
 
-// Convert float array to mxArray (double format - used for legacy compatibility)
-inline void floatArrayToMxArray(const float* in, mxArray* out, std::size_t rows, std::size_t cols) {
-    double* pr = mxGetPr(out);
-    for (std::size_t c = 0; c < cols; ++c) {
-        for (std::size_t r = 0; r < rows; ++r) {
-            pr[r + c * rows] = static_cast<double>(in[r + c * rows]);
-        }
-    }
-}
+// NOTE: floatArrayToMxArray() was removed as it was legacy compatibility code.
+// Use floatArrayToMxArrayFloat() for float output (preferred in Phase1)
+// or vectorToMat()/matrixToMat() for double output (MATLAB compatibility).
 
 // Convert float array to mxArray (single format - new float output support)
 inline void floatArrayToMxArrayFloat(const float* in, mxArray* out, std::size_t rows, std::size_t cols) {
@@ -123,22 +117,28 @@ bool matToMatrix(const mxArray* arr, Matrix<R, C, float>& out) {
 }
 
 // Helper: Vector -> MATLAB array
+// NOTE: Returns double format for MATLAB compatibility (MATLAB prefers double by default)
+// Phase 1 principle: Convert only at boundaries. float->double here is acceptable since
+// it's the final MEX output conversion to MATLAB.
 template<int R>
 mxArray* vectorToMat(const Vector<R, float>& v) {
     mxArray* out = mxCreateDoubleMatrix(R, 1, mxREAL);
     double* pr = mxGetPr(out);
-    for (int i = 0; i < R; ++i) pr[i] = static_cast<double>(v(i, 0));
+    for (int i = 0; i < R; ++i) pr[i] = v(i, 0);  // implicit float->double conversion
     return out;
 }
 
 // Helper: Matrix -> MATLAB array
+// NOTE: Returns double format for MATLAB compatibility (MATLAB prefers double by default)
+// Phase 1 principle: Convert only at boundaries. float->double here is acceptable since
+// it's the final MEX output conversion to MATLAB.
 template<int R, int C>
 mxArray* matrixToMat(const Matrix<R, C, float>& M) {
     mxArray* out = mxCreateDoubleMatrix(R, C, mxREAL);
     double* pr = mxGetPr(out);
     for (int j = 0; j < C; ++j) {
         for (int i = 0; i < R; ++i) {
-            pr[j * R + i] = static_cast<double>(M(i, j));
+            pr[j * R + i] = M(i, j);  // implicit float->double conversion
         }
     }
     return out;

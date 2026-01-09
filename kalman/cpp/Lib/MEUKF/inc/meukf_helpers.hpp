@@ -35,9 +35,8 @@ inline Vector4 make_vector4(double w, double x, double y, double z) {
 }
 
 inline double vector3_norm(const Vector3& v) {
-    return std::sqrt(static_cast<double>(v(0,0))*static_cast<double>(v(0,0))
-                   + static_cast<double>(v(1,0))*static_cast<double>(v(1,0))
-                   + static_cast<double>(v(2,0))*static_cast<double>(v(2,0)));
+    double s = (double)v(0,0) * v(0,0) + (double)v(1,0) * v(1,0) + (double)v(2,0) * v(2,0);
+    return std::sqrt(s);
 }
 
 } // namespace meukf

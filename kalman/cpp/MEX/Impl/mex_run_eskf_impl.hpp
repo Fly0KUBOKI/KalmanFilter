@@ -57,8 +57,8 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
     zupt_check_and_update(s, a_d, w_d);
 
     // Sensor updates (pass original double measurements)
-    call_sensor_update(s, "accel", a_d, 3, static_cast<double>(k));
-    call_sensor_update(s, "mag", m_d, 3, static_cast<double>(k));
+    call_sensor_update(s, "accel", a_d, 3, k);
+    call_sensor_update(s, "mag", m_d, 3, k);
     
     // Baro (single型のみ - MATLAB側でsingle型で渡す必要がある)
     mxArray* baro_field = mxGetField(obs, 0, "pressure");
@@ -69,9 +69,9 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
                 mxGetClassName(baro_field));
         }
         const float* pf = (const float*)mxGetData(baro_field);
-        double baro = static_cast<double>(pf[idx]);
+        double baro = pf[idx];
         double baro_arr[1] = {baro};
-        call_sensor_update(s, "baro", baro_arr, 1, static_cast<double>(k));
+        call_sensor_update(s, "baro", baro_arr, 1, k);
     }
     
     // GPS (double only - type conversion removed)
@@ -95,11 +95,11 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
                 "Expected double array for GPS 'alt', but got %s.", 
                 mxGetClassName(gps_alt));
         }
-        double lat = mxGetPr(gps_lat)[idx];
+            double lat = mxGetPr(gps_lat)[idx];
         double lon = mxGetPr(gps_lon)[idx];
         double alt = mxGetPr(gps_alt)[idx];
         if (!std::isnan(lat) && !std::isnan(lon)) {
-            call_gps_update(s, lat, lon, alt, static_cast<double>(k));
+            call_gps_update(s, lat, lon, alt, k);
         }
     } else {
         // no GPS fields
@@ -133,7 +133,7 @@ inline mxArray* do_get_state(ESKFState* s) {
 
     // euler - float (3x1) in degrees
     double euler[3];
-    double q_d[4]; for (int i=0;i<4;++i) q_d[i] = static_cast<double>(s->q[i]);
+    double q_d[4]; for (int i=0;i<4;++i) q_d[i] = s->q[i];
     quat_to_euler(q_d, euler);
     mxArray* eu = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* eu_ptr = (float*)mxGetData(eu);
@@ -237,7 +237,7 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
         // single型またはdouble型のスカラー値
         if (mxGetClassID(ff) == mxSINGLE_CLASS) {
             const float* pf = (const float*)mxGetData(ff);
-            return pf ? static_cast<double>(pf[0]) : 0.0;
+            return pf ? pf[0] : 0.0;
         } else if (mxGetClassID(ff) == mxDOUBLE_CLASS) {
             const double* pr = mxGetPr(ff);
             return pr ? pr[0] : 0.0;
@@ -404,15 +404,15 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
     mxSetField(out_dbg_output, 0, "last_H", m_last_H);
 
     // last_y_len
-    mxArray* m_ylen = mxCreateDoubleScalar(static_cast<double>(output.last_y_len));
+    mxArray* m_ylen = mxCreateDoubleScalar(output.last_y_len);
     mxSetField(out_dbg_output, 0, "last_y_len", m_ylen);
 
     // last_sensor_type
-    mxArray* m_stype = mxCreateDoubleScalar(static_cast<double>(output.last_sensor_type));
+    mxArray* m_stype = mxCreateDoubleScalar(output.last_sensor_type);
     mxSetField(out_dbg_output, 0, "last_sensor_type", m_stype);
 
     // input_update_gps and input_noise_gps (echo)
-    mxArray* m_input_update = mxCreateDoubleScalar(static_cast<double>(input.sensor.update_gps));
+    mxArray* m_input_update = mxCreateDoubleScalar(input.sensor.update_gps);
     mxSetField(out_dbg_output, 0, "input_update_gps", m_input_update);
     mxArray* m_input_noise = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* p_noise = (float*)mxGetData(m_input_noise);

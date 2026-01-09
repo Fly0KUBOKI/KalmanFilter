@@ -44,7 +44,7 @@ inline void getVec3(const mxArray* s, const char* xname, const char* yname, cons
     mxArray* fz = mxGetField(s, 0, zname);
     
     // single型のみを受け取る（MATLAB側でsingle型で渡す必要がある）
-    auto get_value = [](const mxArray* arr, mwIndex i, const char* name) -> double {
+        auto get_value = [](const mxArray* arr, mwIndex i, const char* name) -> double {
         if (!arr) return 0.0;
         if (mxGetClassID(arr) != mxSINGLE_CLASS) {
             mexErrMsgIdAndTxt("mex_helpers:type_error", 
@@ -53,7 +53,7 @@ inline void getVec3(const mxArray* s, const char* xname, const char* yname, cons
             return 0.0;
         }
         const float* pf = (const float*)mxGetData(arr);
-        return static_cast<double>(pf[i]);
+        return pf[i];
     };
     
     out[0] = get_value(fx, idx, xname);
@@ -146,9 +146,9 @@ inline void quat_to_euler(const double* q_in, double* euler) {
     
     // Convert degrees to radians
     const double DEG2RAD = 3.14159265358979323846 / 180.0;
-    euler[0] = static_cast<double>(roll_deg) * DEG2RAD;
-    euler[1] = static_cast<double>(pitch_deg) * DEG2RAD;
-    euler[2] = static_cast<double>(yaw_deg) * DEG2RAD;
+    euler[0] = roll_deg * DEG2RAD;
+    euler[1] = pitch_deg * DEG2RAD;
+    euler[2] = yaw_deg * DEG2RAD;
 }
 
 } // namespace mex_helpers

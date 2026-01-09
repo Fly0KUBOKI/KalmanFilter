@@ -109,7 +109,7 @@ public:
     static bool is_outlier_chi_square(const cm& innovation, const cm& S, int dof, double alpha = 0.05) {
         float dist_sq = kf::ops::mahalanobis_distance_squared(innovation, S);
         double crit = chi2_quantile(dof, 1.0 - alpha);
-        return static_cast<double>(dist_sq) > crit;
+        return dist_sq > crit;
     }
 };
 

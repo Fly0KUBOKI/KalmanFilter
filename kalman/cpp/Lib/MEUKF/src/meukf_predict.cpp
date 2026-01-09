@@ -139,7 +139,7 @@ void MEUKFCore::predict(State& state, const SensorData& sensor, const Params& pa
             double max_abs = 0.0;
             for(int i=0;i<15;++i) {
                 for(int j=0;j<15;++j) {
-                    double val = static_cast<double>(P_new(i,j));
+                    double val = P_new(i,j);
                     if (!std::isfinite(val)) any_nan = true;
                     double av = std::abs(val);
                     if (av > max_abs) max_abs = av;
