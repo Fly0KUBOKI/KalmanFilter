@@ -1,0 +1,49 @@
+=== MEX Build Log Started at 09-Jan-2026 13:27:17 ===
+Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20260109_132717.txt
+
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+Compiling mex_run_eskf... FAILED
+次を使用中のエラー: mex
+   ライブラリ C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.lib とオブジェクト C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.exp を作成中
+meukf_core.obj : error LNK2019: 未解決の外部シンボル "public: static void __cdecl meukf::MEUKFCore::predict(struct meukf::State &,struct meukf::SensorData const &,struct meukf::Params const &)" (?predict@MEUKFCore@meukf@@SAXAEAUState@2@AEBUSensorData@2@AEBUParams@2@@Z) が関数 "public: static void __cdecl meukf::MEUKFCore::step(struct meukf::MEUKFInput const &,struct meukf::MEUKFOutput &)" (?step@MEUKFCore@meukf@@SAXAEBUMEUKFInput@2@AEAUMEUKFOutput@2@@Z) で参照されました
+meukf_core.obj : error LNK2019: 未解決の外部シンボル "public: static void __cdecl meukf::MEUKFCore::update_accel_meukf_ukf_version(struct meukf::State &,struct cmath_fx::Matrix<3,1,float> const &,struct meukf::Params const &,struct meukf::MEUKFOutput &)" (?update_accel_meukf_ukf_version@MEUKFCore@meukf@@SAXAEAUState@2@AEBU?$Matrix@$02$00M@cmath_fx@@AEBUParams@2@AEAUMEUKFOutput@2@@Z) が関数 "public: static void __cdecl meukf::MEUKFCore::step(struct meukf::MEUKFInput const &,struct meukf::MEUKFOutput &)" (?step@MEUKFCore@meukf@@SAXAEBUMEUKFInput@2@AEAUMEUKFOutput@2@@Z) で参照されました
+meukf_core.obj : error LNK2019: 未解決の外部シンボル "public: static void __cdecl meukf::MEUKFCore::update_mag_meukf_ukf_version(struct meukf::State &,struct cmath_fx::Matrix<3,1,float> const &,struct meukf::Params const &,struct meukf::MEUKFOutput &)" (?update_mag_meukf_ukf_version@MEUKFCore@meukf@@SAXAEAUState@2@AEBU?$Matrix@$02$00M@cmath_fx@@AEBUParams@2@AEAUMEUKFOutput@2@@Z) が関数 "public: static void __cdecl meukf::MEUKFCore::step(struct meukf::MEUKFInput const &,struct meukf::MEUKFOutput &)" (?step@MEUKFCore@meukf@@SAXAEBUMEUKFInput@2@AEAUMEUKFOutput@2@@Z) で参照されました
+meukf_core.obj : error LNK2019: 未解決の外部シンボル "public: static void __cdecl meukf::MEUKFCore::update_gps_meukf_ukf_version(struct meukf::State &,struct cmath_fx::Matrix<3,1,float> const &,struct meukf::Params const &,struct meukf::MEUKFOutput &)" (?update_gps_meukf_ukf_version@MEUKFCore@meukf@@SAXAEAUState@2@AEBU?$Matrix@$02$00M@cmath_fx@@AEBUParams@2@AEAUMEUKFOutput@2@@Z) が関数 "public: static void __cdecl meukf::MEUKFCore::step(struct meukf::MEUKFInput const &,struct meukf::MEUKFOutput &)" (?step@MEUKFCore@meukf@@SAXAEBUMEUKFInput@2@AEAUMEUKFOutput@2@@Z) で参照されました
+meukf_core.obj : error LNK2019: 未解決の外部シンボル "public: static void __cdecl meukf::MEUKFCore::update_baro_meukf_ukf_version(struct meukf::State &,float,struct meukf::Params const &,struct meukf::MEUKFOutput &)" (?update_baro_meukf_ukf_version@MEUKFCore@meukf@@SAXAEAUState@2@MAEBUParams@2@AEAUMEUKFOutput@2@@Z) が関数 "public: static void __cdecl meukf::MEUKFCore::step(struct meukf::MEUKFInput const &,struct meukf::MEUKFOutput &)" (?step@MEUKFCore@meukf@@SAXAEBUMEUKFInput@2@AEAUMEUKFOutput@2@@Z) で参照されました
+meukf_core.obj : error LNK2019: 未解決の外部シンボル "public: static void __cdecl meukf::MEUKFCore::update_zupt_meukf_ukf_version(struct meukf::State &,struct meukf::Params const &,struct meukf::MEUKFOutput &)" (?update_zupt_meukf_ukf_version@MEUKFCore@meukf@@SAXAEAUState@2@AEBUParams@2@AEAUMEUKFOutput@2@@Z) が関数 "public: static void __cdecl meukf::MEUKFCore::step(struct meukf::MEUKFInput const &,struct meukf::MEUKFOutput &)" (?step@MEUKFCore@meukf@@SAXAEBUMEUKFInput@2@AEAUMEUKFOutput@2@@Z) で参照されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.mexw64 : fatal error LNK1120: 6 件の未解決の外部参照
+
+
+
+エラー: build_mex>build_mex_targets (行 178)
+            evalc('mex(mex_args{:});');
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: build_mex (行 89)
+    built_count = build_mex_targets(mex_targets, compile_opts, inc_args, bin_dir, targets, log_fn, log_fid);
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Compiling mex_meukf_step_v2... FAILED
+次を使用中のエラー: mex
+   ライブラリ C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_meukf_step_v2.lib とオブジェクト C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_meukf_step_v2.exp を作成中
+meukf_core.obj : error LNK2019: 未解決の外部シンボル "public: static void __cdecl meukf::MEUKFCore::predict(struct meukf::State &,struct meukf::SensorData const &,struct meukf::Params const &)" (?predict@MEUKFCore@meukf@@SAXAEAUState@2@AEBUSensorData@2@AEBUParams@2@@Z) が関数 "public: static void __cdecl meukf::MEUKFCore::step(struct meukf::MEUKFInput const &,struct meukf::MEUKFOutput &)" (?step@MEUKFCore@meukf@@SAXAEBUMEUKFInput@2@AEAUMEUKFOutput@2@@Z) で参照されました
+meukf_core.obj : error LNK2019: 未解決の外部シンボル "public: static void __cdecl meukf::MEUKFCore::update_accel_meukf_ukf_version(struct meukf::State &,struct cmath_fx::Matrix<3,1,float> const &,struct meukf::Params const &,struct meukf::MEUKFOutput &)" (?update_accel_meukf_ukf_version@MEUKFCore@meukf@@SAXAEAUState@2@AEBU?$Matrix@$02$00M@cmath_fx@@AEBUParams@2@AEAUMEUKFOutput@2@@Z) が関数 "public: static void __cdecl meukf::MEUKFCore::step(struct meukf::MEUKFInput const &,struct meukf::MEUKFOutput &)" (?step@MEUKFCore@meukf@@SAXAEBUMEUKFInput@2@AEAUMEUKFOutput@2@@Z) で参照されました
+meukf_core.obj : error LNK2019: 未解決の外部シンボル "public: static void __cdecl meukf::MEUKFCore::update_mag_meukf_ukf_version(struct meukf::State &,struct cmath_fx::Matrix<3,1,float> const &,struct meukf::Params const &,struct meukf::MEUKFOutput &)" (?update_mag_meukf_ukf_version@MEUKFCore@meukf@@SAXAEAUState@2@AEBU?$Matrix@$02$00M@cmath_fx@@AEBUParams@2@AEAUMEUKFOutput@2@@Z) が関数 "public: static void __cdecl meukf::MEUKFCore::step(struct meukf::MEUKFInput const &,struct meukf::MEUKFOutput &)" (?step@MEUKFCore@meukf@@SAXAEBUMEUKFInput@2@AEAUMEUKFOutput@2@@Z) で参照されました
+meukf_core.obj : error LNK2019: 未解決の外部シンボル "public: static void __cdecl meukf::MEUKFCore::update_gps_meukf_ukf_version(struct meukf::State &,struct cmath_fx::Matrix<3,1,float> const &,struct meukf::Params const &,struct meukf::MEUKFOutput &)" (?update_gps_meukf_ukf_version@MEUKFCore@meukf@@SAXAEAUState@2@AEBU?$Matrix@$02$00M@cmath_fx@@AEBUParams@2@AEAUMEUKFOutput@2@@Z) が関数 "public: static void __cdecl meukf::MEUKFCore::step(struct meukf::MEUKFInput const &,struct meukf::MEUKFOutput &)" (?step@MEUKFCore@meukf@@SAXAEBUMEUKFInput@2@AEAUMEUKFOutput@2@@Z) で参照されました
+meukf_core.obj : error LNK2019: 未解決の外部シンボル "public: static void __cdecl meukf::MEUKFCore::update_baro_meukf_ukf_version(struct meukf::State &,float,struct meukf::Params const &,struct meukf::MEUKFOutput &)" (?update_baro_meukf_ukf_version@MEUKFCore@meukf@@SAXAEAUState@2@MAEBUParams@2@AEAUMEUKFOutput@2@@Z) が関数 "public: static void __cdecl meukf::MEUKFCore::step(struct meukf::MEUKFInput const &,struct meukf::MEUKFOutput &)" (?step@MEUKFCore@meukf@@SAXAEBUMEUKFInput@2@AEAUMEUKFOutput@2@@Z) で参照されました
+meukf_core.obj : error LNK2019: 未解決の外部シンボル "public: static void __cdecl meukf::MEUKFCore::update_zupt_meukf_ukf_version(struct meukf::State &,struct meukf::Params const &,struct meukf::MEUKFOutput &)" (?update_zupt_meukf_ukf_version@MEUKFCore@meukf@@SAXAEAUState@2@AEBUParams@2@AEAUMEUKFOutput@2@@Z) が関数 "public: static void __cdecl meukf::MEUKFCore::step(struct meukf::MEUKFInput const &,struct meukf::MEUKFOutput &)" (?step@MEUKFCore@meukf@@SAXAEBUMEUKFInput@2@AEAUMEUKFOutput@2@@Z) で参照されました
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_meukf_step_v2.mexw64 : fatal error LNK1120: 6 件の未解決の外部参照
+
+
+
+エラー: build_mex>build_mex_targets (行 178)
+            evalc('mex(mex_args{:});');
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: build_mex (行 89)
+    built_count = build_mex_targets(mex_targets, compile_opts, inc_args, bin_dir, targets, log_fn, log_fid);
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+=== Build Complete ===
+Successfully built 0 MEX file(s)
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+=== MEX Build Log Ended at 09-Jan-2026 13:27:24 ===

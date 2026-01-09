@@ -1,0 +1,43 @@
+=== MEX Build Log Started at 09-Jan-2026 13:17:46 ===
+Log file: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\build\build_mex_log_20260109_131746.txt
+
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+Compiling mex_run_eskf... FAILED
+次を使用中のエラー: mex
+meukf_core.cpp
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(37): error C2870: 'meukf': 名前空間定義はファイル スコープ、または他の名前空間定義の中に置かなければなりません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(39): error C2601: 'meukf::MEUKFCore::step': ローカル関数の定義が正しくありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(37): note: この行に含まれる '{' に対応するものがありません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(91): fatal error C1903: 直前のエラーを修復できません。コンパイルを中止します。
+
+
+
+エラー: build_mex>build_mex_targets (行 178)
+            evalc('mex(mex_args{:});');
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: build_mex (行 89)
+    built_count = build_mex_targets(mex_targets, compile_opts, inc_args, bin_dir, targets, log_fn, log_fid);
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Compiling mex_meukf_step_v2... FAILED
+次を使用中のエラー: mex
+meukf_core.cpp
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(37): error C2870: 'meukf': 名前空間定義はファイル スコープ、または他の名前空間定義の中に置かなければなりません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(39): error C2601: 'meukf::MEUKFCore::step': ローカル関数の定義が正しくありません。
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(37): note: この行に含まれる '{' に対応するものがありません
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\MEUKF\src\meukf_core.cpp(91): fatal error C1903: 直前のエラーを修復できません。コンパイルを中止します。
+
+
+
+エラー: build_mex>build_mex_targets (行 178)
+            evalc('mex(mex_args{:});');
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+エラー: build_mex (行 89)
+    built_count = build_mex_targets(mex_targets, compile_opts, inc_args, bin_dir, targets, log_fn, log_fid);
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+=== Build Complete ===
+Successfully built 0 MEX file(s)
+Output: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\bin
+
+=== MEX Build Log Ended at 09-Jan-2026 13:17:53 ===
