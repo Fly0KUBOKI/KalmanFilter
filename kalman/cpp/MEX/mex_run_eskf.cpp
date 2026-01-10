@@ -42,14 +42,14 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         uint64_t handle = *((uint64_t*)mxGetData(prhs[1]));
         const mxArray* obs = prhs[2];
         int k = (int)mxGetScalar(prhs[3]);
-        auto it = g_states.find(handle);
+        std::map<uint64_t, ESKFState*>::iterator it = g_states.find(handle);
         if (it == g_states.end()) mexErrMsgIdAndTxt("mex_run_eskf:invalid", "Invalid handle");
         do_step(it->second, obs, k);
     }
     else if (cmd == "get_state") {
         if (nrhs < 2) mexErrMsgIdAndTxt("mex_run_eskf:usage", "get_state requires (handle)");
         uint64_t handle = *((uint64_t*)mxGetData(prhs[1]));
-        auto it = g_states.find(handle);
+        std::map<uint64_t, ESKFState*>::iterator it = g_states.find(handle);
         if (it == g_states.end()) mexErrMsgIdAndTxt("mex_run_eskf:invalid", "Invalid handle");
         plhs[0] = do_get_state(it->second);
     }

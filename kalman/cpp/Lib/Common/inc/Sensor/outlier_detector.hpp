@@ -23,7 +23,7 @@ using cm = cmath_fx::FixedMatrix;
  */
 class OutlierDetector {
 private:
-    static constexpr int MAX_HISTORY = 20;  ///< 履歴の最大保持数
+    static const int MAX_HISTORY = 20;  ///< 履歴の最大保持数
     float history_[MAX_HISTORY];            ///< 正常な残差ノルムの履歴
     int count_;                             ///< 現在の履歴数
     

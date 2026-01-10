@@ -437,6 +437,14 @@ bool cholesky_3x3_optimized(const Matrix<3, 3, T>& A, Matrix<3, 3, T>& L) {
     return true;
 }
 
+// Overload for 3x3 that dispatches to the optimized implementation.
+// This provides the effect of a template specialization without using
+// C++17 `if constexpr` or function template partial specialization.
+template <typename T>
+bool cholesky(const Matrix<3, 3, T>& A, Matrix<3, 3, T>& L) {
+    return cholesky_3x3_optimized<T>(A, L);
+}
+
 } // namespace decomp
 
 // ========================================
@@ -470,11 +478,13 @@ bool inverse_3x3_analytic(const Matrix<3, 3, T>& A, Matrix<3, 3, T>& A_inv) {
 // Generic inverse: use Matrix::inverse for arbitrary size
 template <int N, typename T>
 bool inverse(const Matrix<N, N, T>& A, Matrix<N, N, T>& inv) {
-    if constexpr (N == 3) {
-        return inverse_3x3_analytic<T>(A, inv);
-    } else {
-        return A.inverse(inv);
-    }
+    return A.inverse(inv);
+}
+
+// Overload for 3x3 to use analytic inverse for better stability/performance
+template <typename T>
+bool inverse(const Matrix<3, 3, T>& A, Matrix<3, 3, T>& inv) {
+    return inverse_3x3_analytic<T>(A, inv);
 }
 
 } // namespace inv

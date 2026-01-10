@@ -156,14 +156,13 @@ void KalmanFilter::Update() {
             }
         }
         // iterative conditioning check: ensure diagonal not too small and finite
-        auto is_well_conditioned = [&](void)->bool {
+        while (iter < max_iter) {
+            bool ok = true;
             for (uint8_t ii = 0; ii < o; ++ii) {
                 float d = observation_covariance[ii * o + ii];
-                if (!isfinite(d) || fabsf(d) < 1e-12f) return false;
+                if (!isfinite(d) || fabsf(d) < 1e-12f) { ok = false; break; }
             }
-            return true;
-        };
-        while (!is_well_conditioned() && iter < max_iter) {
+            if (ok) break;
             float reg = powf(10.0f, (float)iter) * reg_scale_base * base;
             for (uint8_t i = 0; i < o; ++i) observation_covariance[i * o + i] += reg;
             iter++;

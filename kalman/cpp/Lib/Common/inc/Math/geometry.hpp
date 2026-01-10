@@ -5,7 +5,7 @@
 namespace common {
 namespace math {
 
-static constexpr float PI_CONST = 3.14159265358979323846f;
+static const float PI_CONST = 3.14159265358979323846f;
 
 inline float wrap_to_pi(float angle) {
     angle = fmodf(angle + PI_CONST, 2.0f * PI_CONST);

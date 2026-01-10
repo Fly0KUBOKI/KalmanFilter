@@ -59,7 +59,7 @@ public:
         x = f_func(x);
         
         // 共分散予測 P = F*P*F' + Q
-        auto FP = F * P;
+        MatrixNN FP = F * P;
         P = FP * F.transpose() + Q;
         
         // 対称化
@@ -90,7 +90,7 @@ public:
         
         // イノベーションとその共分散 S を統一関数で計算
         VectorM z_pred_v = z_pred;
-        auto res = kf::compute_innovation<M, N, T>(z, z_pred_v, H, P, R);
+        kf::InnovationResult<M, N, T> res = kf::compute_innovation<M, N, T>(z, z_pred_v, H, P, R);
         VectorM y = res.y;
         MatrixMM S = res.S;
         
@@ -103,12 +103,12 @@ public:
         
         // 共分散更新（Joseph形式）
         MatrixNN I = MatrixNN::Identity();
-        auto KH = K * H;
+        MatrixNN KH = K * H;
         MatrixNN IKH = I - KH;
-        
-        auto term1 = IKH * P * IKH.transpose();
-        auto KR = K * R;
-        auto term2 = KR * K.transpose();
+
+        MatrixNN term1 = IKH * P * IKH.transpose();
+        MatrixNM KR = K * R;
+        MatrixNN term2 = KR * K.transpose();
         
         P = term1 + term2;
         
@@ -150,7 +150,7 @@ private:
         HFunc h_func,
         MatrixMN& H
     ) {
-        constexpr T eps = 1e-6;
+        const T eps = static_cast<T>(1e-6);
         
         VectorM h0 = h_func(x);
         

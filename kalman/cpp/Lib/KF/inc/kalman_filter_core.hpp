@@ -38,7 +38,7 @@ public:
         cmath_fx::Matrix<M, M, T>& R_out
     ) {
         // Use KF common implementation
-        auto res = ::kf::compute_innovation<M, N, T>(z, h, H, P_pred, R);
+        kf::InnovationResult<M, N, T> res = ::kf::compute_innovation<M, N, T>(z, h, H, P_pred, R);
         y = res.y;
         S = res.S;
         R_out = R;
@@ -57,7 +57,7 @@ public:
         cmath_fx::Matrix<N, N, T>& P_upd
     ) {
         // Delegate to KF operation
-        auto res = ::kf::update_state_joseph<N, M, T>(x_pred, P_pred, K, H, y, R);
+        kf::UpdateResult<N, M, T> res = ::kf::update_state_joseph<N, M, T>(x_pred, P_pred, K, H, y, R);
         x_upd = res.x;
         P_upd = res.P;
     }

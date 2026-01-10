@@ -18,7 +18,7 @@ namespace meukf {
 class AccelObservationModel {
 public:
     // gravity vector in NED frame
-    static constexpr float g_ned[3] = {0.0f, 0.0f, 9.81f};
+    static const float g_ned[3];
 
     // Quaternion to rotation matrix and apply to gravity
     // Input: 4D state vector representing quaternion [w, x, y, z]
@@ -64,7 +64,7 @@ class MagObservationModel {
 public:
     // magnetic field in NED frame (normalized, site-dependent)
     // For simplicity, assume pointing North with small dip
-    static constexpr float m_ned[3] = {1.0f, 0.0f, 0.2f};  // Placeholder
+    static const float m_ned[3];  // Placeholder
 
     static cmath_fx::Vector<3, float> h_mag(const cmath_fx::Vector<15, float>& x_15) {
         // Extract quaternion from state: x_15[6:10] = [w, x, y, z]

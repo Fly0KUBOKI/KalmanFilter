@@ -2,7 +2,6 @@
 
 #include "../../../Matrix/fixed_matrix.hpp"
 #include "../../../KF/inc/kf_operations.hpp"
-#include "../../Matrix/fixed_matrix.hpp"
 #include "../Math/statistics.hpp"
 #include "../Math/geometry.hpp"
 #include "../Math/numerical.hpp"
@@ -19,9 +18,9 @@ using MathUtils = common::math::MathUtils;
 // ========== 共分散正則化 ==========
 class CovarianceRegularizer {
 public:
-    static constexpr float MIN_VARIANCE = 1.0e-12f;
-    static constexpr float MAX_VARIANCE = 1.0e6f;
-    static constexpr float MIN_EIGENVALUE = 1.0e-9f;
+    static const float MIN_VARIANCE;
+    static const float MAX_VARIANCE;
+    static const float MIN_EIGENVALUE;
     
     // 共分散行列の正則化
     static cm regularize(const cm& P) {
@@ -31,7 +30,7 @@ public:
         cm P_reg = P;
         
         // 1. 対称性の強制
-        cmath_fx::utils::symmetrize<n, float>(P_reg);
+        cmath_fx::utils::symmetrize(P_reg);
         
         // 2. 対角成分の範囲制限
         for (int i = 0; i < n; ++i) {
@@ -95,10 +94,10 @@ public:
 // ========== 状態検証器 ==========
 class StateValidator {
 public:
-    static constexpr float MAX_POSITION = 1.0e6f;      // m
-    static constexpr float MAX_VELOCITY = 1000.0f;    // m/s
-    static constexpr float MAX_ACCELERATION = 100.0f;  // m/s^2
-    static constexpr float MAX_ANGULAR_RATE = 10.0f;  // rad/s
+    static const float MAX_POSITION;      // m
+    static const float MAX_VELOCITY;    // m/s
+    static const float MAX_ACCELERATION;  // m/s^2
+    static const float MAX_ANGULAR_RATE;  // rad/s
     
     // 位置の妥当性チェック
     static bool validate_position(const cm& p) {
@@ -203,7 +202,7 @@ public:
 // ========== ノイズ推定器 ==========
 class NoiseEstimator {
 private:
-    static constexpr int WINDOW_SIZE = 50;
+    static const int WINDOW_SIZE;
     float innovation_history_[WINDOW_SIZE];
     int count_;
     

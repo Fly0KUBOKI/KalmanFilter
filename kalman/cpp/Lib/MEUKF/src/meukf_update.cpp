@@ -18,6 +18,29 @@ namespace meukf {
 // GPS/Baro/ZUPT UKF-version wrappers
 // -----------------------------------------------------------------
 
+// File-scope measurement mapping helpers (avoid block-scope function definitions)
+static ukf::UKFUpdate<15,3,float>::VectorM h_func_gps_fn(const ukf::UKFUpdate<15,3,float>::VectorN& xv) {
+    ukf::UKFUpdate<15,3,float>::VectorM zv;
+    zv(0,0) = xv(0,0);
+    zv(1,0) = xv(1,0);
+    zv(2,0) = xv(2,0);
+    return zv;
+}
+
+static ukf::UKFUpdate<15,1,float>::VectorM h_func_baro_fn(const ukf::UKFUpdate<15,1,float>::VectorN& xv) {
+    ukf::UKFUpdate<15,1,float>::VectorM zv;
+    zv(0,0) = xv(2,0);
+    return zv;
+}
+
+static ukf::UKFUpdate<15,3,float>::VectorM h_func_zupt_fn(const ukf::UKFUpdate<15,3,float>::VectorN& xv) {
+    ukf::UKFUpdate<15,3,float>::VectorM zv;
+    zv(0,0) = xv(3,0);
+    zv(1,0) = xv(4,0);
+    zv(2,0) = xv(5,0);
+    return zv;
+}
+
 void MEUKFCore::update_gps_meukf_ukf_version(State& state, const Vector3& gps_meas, const Params& params, MEUKFOutput& output)
 {
     using UKF = ukf::UKFUpdate<15, 3, float>;
@@ -40,13 +63,7 @@ void MEUKFCore::update_gps_meukf_ukf_version(State& state, const Vector3& gps_me
     z(1,0) = gps_meas(1,0);
     z(2,0) = gps_meas(2,0);
 
-    auto h_func = [](const Vector15& xv) {
-        Vector3f zv;
-        zv(0,0) = xv(0,0);
-        zv(1,0) = xv(1,0);
-        zv(2,0) = xv(2,0);
-        return zv;
-    };
+    // GPS measurement mapping: state -> measurement (uses file-scope helper)
 
     Matrix3x3 R = Matrix3x3::Zero();
     for (int i = 0; i < 3; ++i) R(i,i) = params.noise_gps[i];
@@ -57,7 +74,7 @@ void MEUKFCore::update_gps_meukf_ukf_version(State& state, const Vector3& gps_me
     Matrix3x3 S_out;
     Vector3f y_out;
 
-    bool ok = UKF::update(x, P, z, h_func, R, up, &K_out, &S_out, &y_out);
+    bool ok = UKF::update(x, P, z, h_func_gps_fn, R, up, &K_out, &S_out, &y_out);
     if (!ok) {
         output.status = 1;
         return;
@@ -102,17 +119,13 @@ void MEUKFCore::update_baro_meukf_ukf_version(State& state, float alt_baro, cons
 
     Vector1f z; z(0,0) = alt_baro;
 
-    auto h_func_bar = [](const Vector15& xv) {
-        Vector1f zv;
-        zv(0,0) = xv(2,0); // p_z
-        return zv;
-    };
+    // Baro measurement mapping: state -> altitude (uses file-scope helper)
 
     Matrix1x1 R = Matrix1x1::Zero(); R(0,0) = params.noise_baro;
     ukf::UKFParams up; up.alpha = params.alpha; up.beta = params.beta; up.kappa = params.kappa;
 
     Matrix15x1 K_out; Matrix1x1 S_out; Vector1f y_out;
-    bool ok = UKF1::update(x, P, z, h_func_bar, R, up, &K_out, &S_out, &y_out);
+    bool ok = UKF1::update(x, P, z, h_func_baro_fn, R, up, &K_out, &S_out, &y_out);
     if (!ok) { output.status = 1; return; }
 
     for (int i = 0; i < 3; ++i) state.p[i] = x(i,0);
@@ -150,20 +163,14 @@ void MEUKFCore::update_zupt_meukf_ukf_version(State& state, const Params& params
 
     Vector3f z; z(0,0)=0.0f; z(1,0)=0.0f; z(2,0)=0.0f;
 
-    auto h_func_zupt = [](const Vector15& xv) {
-        Vector3f zv;
-        zv(0,0) = xv(3,0);
-        zv(1,0) = xv(4,0);
-        zv(2,0) = xv(5,0);
-        return zv;
-    };
+    // ZUPT measurement mapping: velocity components (uses file-scope helper)
 
     Matrix3x3 R = Matrix3x3::Zero();
     for (int i = 0; i < 3; ++i) R(i,i) = params.noise_zupt[i];
     ukf::UKFParams up; up.alpha = params.alpha; up.beta = params.beta; up.kappa = params.kappa;
 
     Matrix15x3 K_out; Matrix3x3 S_out; Vector3f y_out;
-    bool ok = UKF3::update(x, P, z, h_func_zupt, R, up, &K_out, &S_out, &y_out);
+    bool ok = UKF3::update(x, P, z, h_func_zupt_fn, R, up, &K_out, &S_out, &y_out);
     if (!ok) { output.status = 1; return; }
 
     for (int i = 0; i < 3; ++i) state.p[i] = x(i,0);
@@ -215,35 +222,33 @@ void MEUKFCore::update_accel_meukf_ukf_version(State& state, const Vector3& a_me
     using UKF = ukf::UKFUpdate<3, 2, float>;
     cmath_fx::Vector<3,float> x_err = cmath_fx::Vector<3,float>::Zero();
 
-    auto h_func_2d = [q_nom, params](const cmath_fx::Vector<3,float>& dtheta) -> cmath_fx::Vector<2,float> {
-        float dx = dtheta(0,0); float dy = dtheta(1,0); float dz = dtheta(2,0);
-        float angle = std::sqrt(dx*dx + dy*dy + dz*dz);
-        cmath_fx::Vector<4,float> dq;
-        if (angle < 1e-9f) {
-            dq(0,0) = 1.0f; dq(1,0) = 0.0f; dq(2,0) = 0.0f; dq(3,0) = 0.0f;
-        } else {
-            float s = std::sin(angle * 0.5f);
-            dq(0,0) = std::cos(angle * 0.5f);
-            dq(1,0) = (dx/angle) * s;
-            dq(2,0) = (dy/angle) * s;
-            dq(3,0) = (dz/angle) * s;
+    // Functor version of observation mapping (captures q_nom and params)
+    struct HFunc2D {
+        cmath_fx::Vector<4,float> q_nom_local;
+        Params params_local;
+        HFunc2D(const cmath_fx::Vector<4,float>& q, const Params& p) : q_nom_local(q), params_local(p) {}
+        cmath_fx::Vector<2,float> operator()(const cmath_fx::Vector<3,float>& dtheta) const {
+            float dx = dtheta(0,0); float dy = dtheta(1,0); float dz = dtheta(2,0);
+            float angle = std::sqrt(dx*dx + dy*dy + dz*dz);
+            cmath_fx::Vector<4,float> dq;
+            if (angle < 1e-9f) {
+                dq(0,0) = 1.0f; dq(1,0) = 0.0f; dq(2,0) = 0.0f; dq(3,0) = 0.0f;
+            } else {
+                float s = std::sin(angle * 0.5f);
+                dq(0,0) = std::cos(angle * 0.5f);
+                dq(1,0) = (dx/angle) * s;
+                dq(2,0) = (dy/angle) * s;
+                dq(3,0) = (dz/angle) * s;
+            }
+            cmath_fx::Vector<4,float> q_i; cquat::multiply_quat(q_nom_local, dq, q_i); cquat::normalize_quat(q_i);
+            cmath_fx::Matrix<3,3,float> Rm; cquat::quat_to_rotm(q_i, Rm);
+            cmath_fx::Vector<3,float> g_vec; g_vec(0,0) = params_local.g[0]; g_vec(1,0) = params_local.g[1]; g_vec(2,0) = params_local.g[2];
+            cmath_fx::Vector<3,float> a_pred = (Rm.transpose() * g_vec) * -1.0f;
+            cmath_fx::Vector<2,float> z2; z2(0,0) = a_pred(0,0); z2(1,0) = a_pred(1,0);
+            return z2;
         }
-
-        cmath_fx::Vector<4,float> q_i;
-        cquat::multiply_quat(q_nom, dq, q_i);
-        cquat::normalize_quat(q_i);
-
-        cmath_fx::Matrix<3,3,float> Rm;
-        cquat::quat_to_rotm(q_i, Rm);
-        cmath_fx::Vector<3,float> g_vec;
-        g_vec(0,0) = params.g[0]; g_vec(1,0) = params.g[1]; g_vec(2,0) = params.g[2];
-        cmath_fx::Vector<3,float> a_pred = (Rm.transpose() * g_vec) * -1.0f;
-
-        cmath_fx::Vector<2,float> z2;
-        z2(0,0) = a_pred(0,0);
-        z2(1,0) = a_pred(1,0);
-        return z2;
     };
+    HFunc2D h_func_2d(q_nom, params);
 
     float a_norm = std::sqrt(a_meas(0,0)*a_meas(0,0) + a_meas(1,0)*a_meas(1,0) + a_meas(2,0)*a_meas(2,0));
     float gravity_deviation = std::abs(a_norm - std::sqrt(params.g[0]*params.g[0] + params.g[1]*params.g[1] + params.g[2]*params.g[2]));
@@ -408,19 +413,25 @@ void MEUKFCore::update_mag_meukf_ukf_version(State& state, const Vector3& m_meas
 
     cmath_fx::Vector<3,float> x_err = cmath_fx::Vector<3,float>::Zero();
 
-    auto h_func_3d = [q_nom, params](const cmath_fx::Vector<3,float>& dtheta) -> cmath_fx::Vector<3,float> {
-        float dx = dtheta(0,0), dy = dtheta(1,0), dz = dtheta(2,0);
-        float angle = std::sqrt(dx*dx + dy*dy + dz*dz);
-        cmath_fx::Vector<4,float> dq;
-        if (angle < 1e-9f) { dq(0,0)=1; dq(1,0)=dq(2,0)=dq(3,0)=0; }
-        else { float s = std::sin(angle*0.5f); dq(0,0)=std::cos(angle*0.5f); dq(1,0)=(dx/angle)*s; dq(2,0)=(dy/angle)*s; dq(3,0)=(dz/angle)*s; }
-        cmath_fx::Vector<4,float> q_i; cquat::multiply_quat(q_nom, dq, q_i); cquat::normalize_quat(q_i);
-        cmath_fx::Matrix<3,3,float> Rm; cquat::quat_to_rotm(q_i, Rm);
-        cmath_fx::Vector<3,float> mag_ref;
-        mag_ref(0,0) = params.mag_ref[0]; mag_ref(1,0) = params.mag_ref[1]; mag_ref(2,0) = params.mag_ref[2];
-        cmath_fx::Vector<3,float> m_pred = Rm.transpose() * mag_ref;
-        return m_pred;
+    // Functor version for 3D observation mapping (captures q_nom and params)
+    struct HFunc3D {
+        cmath_fx::Vector<4,float> q_nom_local;
+        Params params_local;
+        HFunc3D(const cmath_fx::Vector<4,float>& q, const Params& p) : q_nom_local(q), params_local(p) {}
+        cmath_fx::Vector<3,float> operator()(const cmath_fx::Vector<3,float>& dtheta) const {
+            float dx = dtheta(0,0), dy = dtheta(1,0), dz = dtheta(2,0);
+            float angle = std::sqrt(dx*dx + dy*dy + dz*dz);
+            cmath_fx::Vector<4,float> dq;
+            if (angle < 1e-9f) { dq(0,0)=1; dq(1,0)=dq(2,0)=dq(3,0)=0; }
+            else { float s = std::sin(angle*0.5f); dq(0,0)=std::cos(angle*0.5f); dq(1,0)=(dx/angle)*s; dq(2,0)=(dy/angle)*s; dq(3,0)=(dz/angle)*s; }
+            cmath_fx::Vector<4,float> q_i; cquat::multiply_quat(q_nom_local, dq, q_i); cquat::normalize_quat(q_i);
+            cmath_fx::Matrix<3,3,float> Rm; cquat::quat_to_rotm(q_i, Rm);
+            cmath_fx::Vector<3,float> mag_ref; mag_ref(0,0) = params_local.mag_ref[0]; mag_ref(1,0) = params_local.mag_ref[1]; mag_ref(2,0) = params_local.mag_ref[2];
+            cmath_fx::Vector<3,float> m_pred = Rm.transpose() * mag_ref;
+            return m_pred;
+        }
     };
+    HFunc3D h_func_3d(q_nom, params);
 
     cmath_fx::Matrix<3,3,float> R3 = cmath_fx::Matrix<3,3,float>::Zero();
     for (int i=0;i<3;++i) R3(i,i) = std::max(params.noise_mag[i], 1e-6f);

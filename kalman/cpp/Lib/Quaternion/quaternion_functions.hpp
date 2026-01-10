@@ -12,7 +12,7 @@ inline void normalize_quat(cmath_fx::Vector<4, T>& q) {
     T n = 0.0;
     for (int i = 0; i < 4; ++i) n += q(i,0) * q(i,0);
     n = std::sqrt(n);
-    if (n < static_cast<T>(1e-12)) { 
+    if (n < static_cast<T>(common::math::MathUtils::EPS)) { 
         q(0,0)=static_cast<T>(1.0); 
         q(1,0)=static_cast<T>(0.0); 
         q(2,0)=static_cast<T>(0.0); 
@@ -49,9 +49,9 @@ inline void quat_to_rotm(const cmath_fx::Vector<4, T>& q, cmath_fx::Matrix<3, 3,
 
 template <typename T>
 inline void from_euler_deg(T roll_deg, T pitch_deg, T yaw_deg, cmath_fx::Vector<4, T>& q_out) {
-    T roll = roll_deg * static_cast<T>(common::math::PI_CONST) / static_cast<T>(180.0);
-    T pitch = pitch_deg * static_cast<T>(common::math::PI_CONST) / static_cast<T>(180.0);
-    T yaw = yaw_deg * static_cast<T>(common::math::PI_CONST) / static_cast<T>(180.0);
+    T roll = roll_deg * static_cast<T>(common::math::MathUtils::PI) / static_cast<T>(180.0);
+    T pitch = pitch_deg * static_cast<T>(common::math::MathUtils::PI) / static_cast<T>(180.0);
+    T yaw = yaw_deg * static_cast<T>(common::math::MathUtils::PI) / static_cast<T>(180.0);
     T cy = std::cos(yaw * static_cast<T>(0.5));
     T sy = std::sin(yaw * static_cast<T>(0.5));
     T cp = std::cos(pitch * static_cast<T>(0.5));
@@ -75,15 +75,15 @@ inline void to_euler_deg(const cmath_fx::Vector<4, T>& q, cmath_fx::Vector<3, T>
     T sinp = static_cast<T>(2.0) * (qw * qy - qz * qx);
     T pitch;
     if (std::abs(sinp) >= static_cast<T>(1.0))
-        pitch = std::copysign(static_cast<T>(common::math::PI_CONST)/static_cast<T>(2.0), sinp);
+        pitch = std::copysign(static_cast<T>(common::math::MathUtils::PI)/static_cast<T>(2.0), sinp);
     else
         pitch = std::asin(sinp);
     T siny_cosp = static_cast<T>(2.0) * (qw * qz + qx * qy);
     T cosy_cosp = static_cast<T>(1.0) - static_cast<T>(2.0) * (qy*qy + qz*qz);
     T yaw = std::atan2(siny_cosp, cosy_cosp);
-    euler_deg(0,0) = roll * static_cast<T>(180.0) / static_cast<T>(common::math::PI_CONST);
-    euler_deg(1,0) = pitch * static_cast<T>(180.0) / static_cast<T>(common::math::PI_CONST);
-    euler_deg(2,0) = yaw * static_cast<T>(180.0) / static_cast<T>(common::math::PI_CONST);
+    euler_deg(0,0) = roll * static_cast<T>(180.0) / static_cast<T>(common::math::MathUtils::PI);
+    euler_deg(1,0) = pitch * static_cast<T>(180.0) / static_cast<T>(common::math::MathUtils::PI);
+    euler_deg(2,0) = yaw * static_cast<T>(180.0) / static_cast<T>(common::math::MathUtils::PI);
 }
 
 // Convert quaternion to Euler angles in degrees (value API)
@@ -96,22 +96,22 @@ inline void to_euler_deg(const cmath_fx::Vector<4, T>& q, T& roll_deg, T& pitch_
     T sinp = static_cast<T>(2.0) * (qw * qy - qz * qx);
     T pitch;
     if (std::abs(sinp) >= static_cast<T>(1.0))
-        pitch = std::copysign(static_cast<T>(common::math::PI_CONST)/static_cast<T>(2.0), sinp);
+        pitch = std::copysign(static_cast<T>(common::math::MathUtils::PI)/static_cast<T>(2.0), sinp);
     else
         pitch = std::asin(sinp);
     T siny_cosp = static_cast<T>(2.0) * (qw * qz + qx * qy);
     T cosy_cosp = static_cast<T>(1.0) - static_cast<T>(2.0) * (qy*qy + qz*qz);
     T yaw = std::atan2(siny_cosp, cosy_cosp);
-    roll_deg = roll * static_cast<T>(180.0) / static_cast<T>(common::math::PI_CONST);
-    pitch_deg = pitch * static_cast<T>(180.0) / static_cast<T>(common::math::PI_CONST);
-    yaw_deg = yaw * static_cast<T>(180.0) / static_cast<T>(common::math::PI_CONST);
+    roll_deg = roll * static_cast<T>(180.0) / static_cast<T>(common::math::MathUtils::PI);
+    pitch_deg = pitch * static_cast<T>(180.0) / static_cast<T>(common::math::MathUtils::PI);
+    yaw_deg = yaw * static_cast<T>(180.0) / static_cast<T>(common::math::MathUtils::PI);
 }
 
 // Quaternion from small-angle approximation
 template <typename T>
 inline void from_small_angle(T theta_x, T theta_y, T theta_z, cmath_fx::Vector<4, T>& q_out) {
     T th2 = theta_x*theta_x + theta_y*theta_y + theta_z*theta_z;
-    constexpr T EPS = static_cast<T>(1e-9);
+    const T EPS = static_cast<T>(common::math::MathUtils::EPS);
     
     if (th2 < EPS*EPS) {
         q_out(0,0) = static_cast<T>(1.0);
@@ -148,7 +148,7 @@ inline void quat_to_rotm_array(const cmath_fx::Vector<4, T>& q, T R[9]) {
     R[8] = static_cast<T>(1.0) - static_cast<T>(2.0)*(qx*qx + qy*qy);
     
     // Cleanup small numerical noise: snap near-zero to 0 and near-one to ±1
-    constexpr T EPS = static_cast<T>(1e-9);
+    const T EPS = static_cast<T>(common::math::MathUtils::EPS);
     for (int i = 0; i < 9; ++i) {
         if (std::abs(R[i]) < EPS) {
             R[i] = static_cast<T>(0.0);

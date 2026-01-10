@@ -11,8 +11,8 @@ using Scalar = float;
 using Index = uint8_t;
 
 // 固定サイズ制限
-static constexpr Index MAX_STATE_DIM = 20;
-static constexpr Index MAX_MEAS_DIM = 10;
+static const Index MAX_STATE_DIM = 20;
+static const Index MAX_MEAS_DIM = 10;
 
 // ステータスコード
 enum Status : uint8_t {

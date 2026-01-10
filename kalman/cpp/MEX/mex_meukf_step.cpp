@@ -5,6 +5,34 @@
 #include <cstring>
 #include <cmath>
 
+// Helpers
+static void set_vec3_float_field(mxArray* m_state, const char* name, const float* in) {
+    mxArray* f = mxGetField(m_state, 0, name);
+    if(!f) return;
+    if (mxGetClassID(f) != mxSINGLE_CLASS) {
+        mexErrMsgIdAndTxt("mex_meukf_step:type_error",
+            "Expected single (float) array for field '%s', but got %s. 出力はfloatのみです。",
+            name, mxGetClassName(f));
+        return;
+    }
+    float* pf = (float*)mxGetData(f);
+    pf[0] = in[0]; pf[1] = in[1]; pf[2] = in[2];
+}
+
+static double get_field_scalar_helper(const mxArray* s, const char* f) {
+    mxArray* field = mxGetField(s, 0, f);
+    if (!field) return 0.0;
+    if (mxIsLogical(field)) return mxIsLogicalScalarTrue(field) ? 1.0 : 0.0;
+    if (mxGetClassID(field) == mxSINGLE_CLASS) {
+        const float* pf = (const float*)mxGetData(field);
+        return pf ? pf[0] : 0.0;
+    } else if (mxGetClassID(field) == mxDOUBLE_CLASS) {
+        const double* pr = mxGetPr(field);
+        return pr ? pr[0] : 0.0;
+    }
+    return 0.0;
+}
+
 // ヘルパー: MATLAB構造体からC++構造体へ
 void matlab_to_state(const mxArray* m_state, meukf::State& c_state) {
     // p, v, q, ba, bg, P
@@ -30,26 +58,10 @@ void matlab_to_state(const mxArray* m_state, meukf::State& c_state) {
 
 // Output state to MATLAB (float only - type conversion removed)
 void state_to_matlab(const meukf::State& c_state, mxArray* m_state) {
-    auto set_vec3_float = [&](const char* name, const float* in) {
-        mxArray* f = mxGetField(m_state, 0, name);
-        if(!f) {
-            return; 
-        }
-        // single (float) のみを受け付ける（型変換を廃止）
-        if (mxGetClassID(f) != mxSINGLE_CLASS) {
-            mexErrMsgIdAndTxt("mex_meukf_step:type_error", 
-                "Expected single (float) array for field '%s', but got %s. 出力はfloatのみです。", 
-                name, mxGetClassName(f));
-            return;
-        }
-        float* pf = (float*)mxGetData(f);
-        pf[0] = in[0]; pf[1] = in[1]; pf[2] = in[2];
-    };
-    
-    set_vec3_float("p", c_state.p);
-    set_vec3_float("v", c_state.v);
-    set_vec3_float("ba", c_state.ba);
-    set_vec3_float("bg", c_state.bg);
+    set_vec3_float_field(m_state, "p", c_state.p);
+    set_vec3_float_field(m_state, "v", c_state.v);
+    set_vec3_float_field(m_state, "ba", c_state.ba);
+    set_vec3_float_field(m_state, "bg", c_state.bg);
     
     mxArray* f_q = mxGetField(m_state, 0, "q");
     if(f_q) {
@@ -104,23 +116,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     matlab_to_state(m_prev_state, input.prev_state);
     
     // 2. SensorData変換
-    auto get_field_scalar = [&](const mxArray* s, const char* f) -> double {
-        mxArray* field = mxGetField(s, 0, f);
-        if (!field) return 0.0;
-        // logical型（boolean）も受け取る
-        if (mxIsLogical(field)) {
-            return mxIsLogicalScalarTrue(field) ? 1.0 : 0.0;
-        }
-        // single型またはdouble型のスカラー値
-        if (mxGetClassID(field) == mxSINGLE_CLASS) {
-            const float* pf = (const float*)mxGetData(field);
-            return pf ? pf[0] : 0.0;
-        } else if (mxGetClassID(field) == mxDOUBLE_CLASS) {
-            const double* pr = mxGetPr(field);
-            return pr ? pr[0] : 0.0;
-        }
-        return 0.0;
-    };
+    // use helper
+    // get_field_scalar_helper
 
     mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"accel"), input.sensor.accel, 3);
     mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"gyro"), input.sensor.gyro, 3);
@@ -161,12 +158,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     }
     input.sensor.prev_baro_alt = mex_conv::mxGetScalarAsFloat(mxGetField(m_sensor,0,"prev_baro_alt"));
     
-    input.sensor.update_accel = (uint8_t)get_field_scalar(m_sensor, "update_accel");
-    input.sensor.update_gyro = (uint8_t)get_field_scalar(m_sensor, "update_gyro");
-    input.sensor.update_mag = (uint8_t)get_field_scalar(m_sensor, "update_mag");
-    input.sensor.update_gps = (uint8_t)get_field_scalar(m_sensor, "update_gps");
-    input.sensor.update_baro = (uint8_t)get_field_scalar(m_sensor, "update_baro");
-    input.sensor.update_zupt = (uint8_t)get_field_scalar(m_sensor, "update_zupt");
+    input.sensor.update_accel = (uint8_t)get_field_scalar_helper(m_sensor, "update_accel");
+    input.sensor.update_gyro = (uint8_t)get_field_scalar_helper(m_sensor, "update_gyro");
+    input.sensor.update_mag = (uint8_t)get_field_scalar_helper(m_sensor, "update_mag");
+    input.sensor.update_gps = (uint8_t)get_field_scalar_helper(m_sensor, "update_gps");
+    input.sensor.update_baro = (uint8_t)get_field_scalar_helper(m_sensor, "update_baro");
+    input.sensor.update_zupt = (uint8_t)get_field_scalar_helper(m_sensor, "update_zupt");
     input.sensor.dt = mex_conv::mxGetScalarAsFloat(mxGetField(m_sensor,0,"dt"));
 
     // 3. Params変換

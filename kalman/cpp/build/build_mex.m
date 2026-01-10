@@ -89,8 +89,12 @@ function build_mex(targets)
             fullfile(lib_dir, 'MEUKF', 'src', 'meukf_predict.cpp');
             fullfile(lib_dir, 'MEUKF', 'src', 'meukf_sigma_points.cpp');
             fullfile(lib_dir, 'MEUKF', 'src', 'meukf_update.cpp');
+            fullfile(lib_dir, 'Common', 'src', 'robust_statistics_constants.cpp');
+            fullfile(lib_dir, 'Common', 'src', 'sensor_filter_constants.cpp');
+            fullfile(lib_dir, 'Common', 'src', 'math_utils_constants.cpp');
+            fullfile(lib_dir, 'MEUKF', 'src', 'meukf_observation_models_constants.cpp');
         }, [];
-        'mex_meukf_step.cpp', {fullfile(lib_dir, 'MEUKF', 'src', 'meukf_core.cpp'); fullfile(lib_dir, 'MEUKF', 'src', 'meukf_predict.cpp'); fullfile(lib_dir, 'MEUKF', 'src', 'meukf_sigma_points.cpp'); fullfile(lib_dir, 'MEUKF', 'src', 'meukf_update.cpp')}, 'mex_meukf_step_v2';
+        'mex_meukf_step.cpp', {fullfile(lib_dir, 'MEUKF', 'src', 'meukf_core.cpp'); fullfile(lib_dir, 'MEUKF', 'src', 'meukf_predict.cpp'); fullfile(lib_dir, 'MEUKF', 'src', 'meukf_sigma_points.cpp'); fullfile(lib_dir, 'MEUKF', 'src', 'meukf_update.cpp'); fullfile(lib_dir, 'MEUKF', 'src', 'meukf_observation_models_constants.cpp'); fullfile(lib_dir, 'Common', 'src', 'math_utils_constants.cpp')}, 'mex_meukf_step_v2';
     };
     
     built_count = build_mex_targets(mex_targets, compile_opts, inc_args, bin_dir, targets, log_fn, log_fid);

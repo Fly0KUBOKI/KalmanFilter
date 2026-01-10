@@ -246,7 +246,7 @@ public:
 // 2025/12/22: 履歴が空の場合の動作をMATLAB側と一致させる修正
 class OutlierDetector {
 private:
-    static constexpr int MAX_HISTORY = 20;
+    static const int MAX_HISTORY = 20;
     float history_[MAX_HISTORY];
     int count_;
     
@@ -320,10 +320,10 @@ public:
 // ========== ノイズ推定器 ==========
 class NoiseEstimator {
 private:
-    static constexpr int MAX_WARMUP = 10;
-    static constexpr float R_ABS_MIN = 1e-12f;
-    static constexpr float R_ABS_MAX = 1e6f;
-    static constexpr float OUTLIER_FACTOR = 20.0f;
+    static const int MAX_WARMUP = 10;
+    static const float R_ABS_MIN;
+    static const float R_ABS_MAX;
+    static const float OUTLIER_FACTOR;
     
     cm R_accel_, R_gyro_, R_mag_, R_gps_;
     float R_baro_;
@@ -430,7 +430,7 @@ public:
             } else {
                 // timestamp and sample index
                 uint64_t sample_idx = ++g_log_counter;
-                auto now = std::chrono::system_clock::now();
+                std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
                 double ts = std::chrono::duration_cast<std::chrono::duration<double>>(now.time_since_epoch()).count();
                 if(strcmp(sensor_type, "gps") == 0 && R.rows >= 3) {
                     nd << "MARKER=NOISE_LOG sensor=gps sample=" << sample_idx << " time=" << ts << " R=" << R(0,0) << "," << R(1,1) << "," << R(2,2) << std::endl;
@@ -451,7 +451,7 @@ public:
 
         // 保険として MATLAB コンソールにも出す
         uint64_t sample_idx = ++g_log_counter;
-        auto now = std::chrono::system_clock::now();
+        std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
         double ts = std::chrono::duration_cast<std::chrono::duration<double>>(now.time_since_epoch()).count();
         if(strcmp(sensor_type, "gps") == 0 && R.rows >= 3) {
             sensor_log("MARKER=NOISE_LOG sensor=gps sample=%llu time=%.9g R=%.9g,%.9g,%.9g\n", (unsigned long long)sample_idx, ts, R(0,0), R(1,1), R(2,2));
@@ -491,8 +491,8 @@ private:
 // ========== 発散防止 ==========
 class DivergenceGuard {
 private:
-    static constexpr int MAX_SENSORS = 5;
-    static constexpr int MAX_INNOV_HISTORY = 20;
+    static const int MAX_SENSORS = 5;
+    static const int MAX_INNOV_HISTORY = 20;
     
     struct SensorHistory {
         cm prev_innovation;
@@ -540,7 +540,7 @@ public:
                 std::ofstream dd("Results/divergence_debug.txt", std::ios::app);
                 if(dd) {
                     uint64_t sample_idx = ++g_log_counter;
-                    auto now = std::chrono::system_clock::now();
+                    std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
                     double ts = std::chrono::duration_cast<std::chrono::duration<double>>(now.time_since_epoch()).count();
                     dd << "MARKER=DIV_LOG sensor=" << sensor_name << " sample=" << sample_idx << " time=" << ts << " reason=OUTLIER_SKIP innov_norm=" << innov_norm << std::endl;
                 }
@@ -561,7 +561,7 @@ public:
                 std::ofstream dd("Results/divergence_debug.txt", std::ios::app);
                 if(dd) {
                     uint64_t sample_idx = ++g_log_counter;
-                    auto now = std::chrono::system_clock::now();
+                    std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
                     double ts = std::chrono::duration_cast<std::chrono::duration<double>>(now.time_since_epoch()).count();
                     dd << "MARKER=DIV_LOG sensor=" << sensor_name << " sample=" << sample_idx << " time=" << ts << " reason=INNOV_CAP original_norm=" << (innov_norm/scale) << " capped_norm=" << innov_norm << std::endl;
                 }
@@ -592,7 +592,7 @@ public:
                         std::ofstream dd("Results/divergence_debug.txt", std::ios::app);
                         if(dd) {
                             uint64_t sample_idx = ++g_log_counter;
-                            auto now = std::chrono::system_clock::now();
+                            std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
                             double ts = std::chrono::duration_cast<std::chrono::duration<double>>(now.time_since_epoch()).count();
                             dd << "MARKER=DIV_LOG sensor=" << sensor_name << " sample=" << sample_idx << " time=" << ts << " reason=RATIO_ATTENUATE ratio=" << ratio << " attenuation=" << attenuation_factor_ << std::endl;
                         }

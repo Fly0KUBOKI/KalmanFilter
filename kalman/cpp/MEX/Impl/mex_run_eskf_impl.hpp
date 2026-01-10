@@ -25,6 +25,36 @@ inline void call_predict(ESKFState* s, const float* a_meas, const float* w_meas)
     ESKFRunner::predict(s, a_meas, w_meas);
 }
 
+// File-scope helper: get scalar field (logical/single/double) as double
+inline double get_field_scalar_impl(const mxArray* s, const char* f) {
+    if (!s) return 0.0;
+    mxArray* ff = mxGetField((mxArray*)s,0,f);
+    if (!ff) return 0.0;
+    if (mxIsLogical(ff)) return mxIsLogicalScalarTrue(ff) ? 1.0 : 0.0;
+    if (mxGetClassID(ff) == mxSINGLE_CLASS) {
+        const float* pf = reinterpret_cast<const float*>(mxGetData(ff));
+        return pf ? pf[0] : 0.0;
+    } else if (mxGetClassID(ff) == mxDOUBLE_CLASS) {
+        const double* pr = mxGetPr(ff);
+        return pr ? pr[0] : 0.0;
+    }
+    return 0.0;
+}
+
+// File-scope helper: set vec3 into struct (single float field)
+inline void set_vec3_impl(mxArray* out_new_state_local, const char* name, const float* in) {
+    mxArray* f = mxGetField(out_new_state_local, 0, name);
+    if(!f) return;
+    if (mxGetClassID(f) != mxSINGLE_CLASS) {
+        mexErrMsgIdAndTxt("mex_run_eskf:type_error",
+            "Expected single (float) array for field '%s', but got %s.",
+            name, mxGetClassName(f));
+        return;
+    }
+    float* pf = (float*)mxGetData(f);
+    pf[0] = in[0]; pf[1] = in[1]; pf[2] = in[2];
+}
+
 inline uint64_t do_init(const mxArray* obs, double static_time, double dt) {
     ESKFState* s = initialize_eskf_from_matlab(obs, static_time, dt);
     uint64_t handle = g_next_handle++;
@@ -116,19 +146,19 @@ inline mxArray* do_get_state(ESKFState* s) {
     // p - float (3x1)
     mxArray* p = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* p_ptr = (float*)mxGetData(p);
-    for (int i = 0; i < 3; i++) p_ptr[i] = static_cast<float>(s->p[i]);
+    for (int i = 0; i < 3; i++) p_ptr[i] = s->p[i];
     mxSetField(out, 0, "p", p);
 
     // v - float (3x1)
     mxArray* v = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* v_ptr = (float*)mxGetData(v);
-    for (int i = 0; i < 3; i++) v_ptr[i] = static_cast<float>(s->v[i]);
+    for (int i = 0; i < 3; i++) v_ptr[i] = s->v[i];
     mxSetField(out, 0, "v", v);
 
     // q - float (4x1)
     mxArray* q = mxCreateNumericMatrix(4, 1, mxSINGLE_CLASS, mxREAL);
     float* q_ptr = (float*)mxGetData(q);
-    for (int i = 0; i < 4; i++) q_ptr[i] = static_cast<float>(s->q[i]);
+    for (int i = 0; i < 4; i++) q_ptr[i] = s->q[i];
     mxSetField(out, 0, "q", q);
 
     // euler - float (3x1) in degrees
@@ -145,26 +175,26 @@ inline mxArray* do_get_state(ESKFState* s) {
     // ba - float (3x1)
     mxArray* ba = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* ba_ptr = (float*)mxGetData(ba);
-    for (int i = 0; i < 3; i++) ba_ptr[i] = static_cast<float>(s->ba[i]);
+    for (int i = 0; i < 3; i++) ba_ptr[i] = s->ba[i];
     mxSetField(out, 0, "ba", ba);
 
     // bg - float (3x1)
     mxArray* bg = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* bg_ptr = (float*)mxGetData(bg);
-    for (int i = 0; i < 3; i++) bg_ptr[i] = static_cast<float>(s->bg[i]);
+    for (int i = 0; i < 3; i++) bg_ptr[i] = s->bg[i];
     mxSetField(out, 0, "bg", bg);
 
     // P - float (15x15)
     mxArray* P = mxCreateNumericMatrix(15, 15, mxSINGLE_CLASS, mxREAL);
     float* P_ptr = (float*)mxGetData(P);
-    for (int i = 0; i < 15*15; i++) P_ptr[i] = static_cast<float>(s->P[i]);
+    for (int i = 0; i < 15*15; i++) P_ptr[i] = s->P[i];
     mxSetField(out, 0, "P", P);
 
     return out;
 }
 
 inline void do_free(uint64_t handle) {
-    auto it = g_states.find(handle);
+    std::map<uint64_t, ESKFState*>::iterator it = g_states.find(handle);
     if (it != g_states.end()) {
         delete it->second;
         g_states.erase(it);
@@ -227,29 +257,12 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
         input.sensor.prev_gps_pos[0] = input.sensor.prev_gps_pos[1] = input.sensor.prev_gps_pos[2] = 0.0f;
     }
     input.sensor.prev_baro_alt = mex_conv::mxGetScalarAsFloat(mxGetField(m_sensor,0,"prev_baro_alt"));
-    auto get_field_scalar = [&](const mxArray* s, const char* f)->double{ 
-        mxArray* ff = mxGetField(s,0,f); 
-        if (!ff) return 0.0;
-        // logical型（boolean）も受け取る
-        if (mxIsLogical(ff)) {
-            return mxIsLogicalScalarTrue(ff) ? 1.0 : 0.0;
-        }
-        // single型またはdouble型のスカラー値
-        if (mxGetClassID(ff) == mxSINGLE_CLASS) {
-            const float* pf = (const float*)mxGetData(ff);
-            return pf ? pf[0] : 0.0;
-        } else if (mxGetClassID(ff) == mxDOUBLE_CLASS) {
-            const double* pr = mxGetPr(ff);
-            return pr ? pr[0] : 0.0;
-        }
-        return 0.0;
-    };
-    input.sensor.update_accel = (uint8_t)get_field_scalar(m_sensor, "update_accel");
-    input.sensor.update_gyro = (uint8_t)get_field_scalar(m_sensor, "update_gyro");
-    input.sensor.update_mag = (uint8_t)get_field_scalar(m_sensor, "update_mag");
-    input.sensor.update_gps = (uint8_t)get_field_scalar(m_sensor, "update_gps");
-    input.sensor.update_baro = (uint8_t)get_field_scalar(m_sensor, "update_baro");
-    input.sensor.update_zupt = (uint8_t)get_field_scalar(m_sensor, "update_zupt");
+    input.sensor.update_accel = (uint8_t)get_field_scalar_impl(m_sensor, "update_accel");
+    input.sensor.update_gyro = (uint8_t)get_field_scalar_impl(m_sensor, "update_gyro");
+    input.sensor.update_mag = (uint8_t)get_field_scalar_impl(m_sensor, "update_mag");
+    input.sensor.update_gps = (uint8_t)get_field_scalar_impl(m_sensor, "update_gps");
+    input.sensor.update_baro = (uint8_t)get_field_scalar_impl(m_sensor, "update_baro");
+    input.sensor.update_zupt = (uint8_t)get_field_scalar_impl(m_sensor, "update_zupt");
     input.sensor.dt = mex_conv::mxGetScalarAsFloat(mxGetField(m_sensor,0,"dt"));
 
     // Params
@@ -299,23 +312,10 @@ inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, 
     // Prepare MATLAB output: duplicate prev_state and update fields
     out_new_state = mxDuplicateArray(m_prev_state);
     // helper to set vec3 (float only - type conversion removed)
-    auto set_vec3 = [&](const char* name, const float* in) {
-        mxArray* f = mxGetField(out_new_state, 0, name);
-        if(!f) return;
-        // single (float) のみを受け付ける（型変換を廃止）
-        if (mxGetClassID(f) != mxSINGLE_CLASS) {
-            mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
-                "Expected single (float) array for field '%s', but got %s.", 
-                name, mxGetClassName(f));
-            return;
-        }
-        float* pf = (float*)mxGetData(f);
-        pf[0] = in[0]; pf[1] = in[1]; pf[2] = in[2];
-    };
-    set_vec3("p", output.new_state.p);
-    set_vec3("v", output.new_state.v);
-    set_vec3("ba", output.new_state.ba);
-    set_vec3("bg", output.new_state.bg);
+    set_vec3_impl(out_new_state, "p", output.new_state.p);
+    set_vec3_impl(out_new_state, "v", output.new_state.v);
+    set_vec3_impl(out_new_state, "ba", output.new_state.ba);
+    set_vec3_impl(out_new_state, "bg", output.new_state.bg);
     // q
     mxArray* f_q = mxGetField(out_new_state, 0, "q"); 
     if(f_q) { 

@@ -124,7 +124,7 @@ PreprocessResult preprocess_gps(
     
     // GPS座標をメートル単位に変換
     double y_m = dlat / 9.0e-6;
-    double lat0rad = lat0 * common::math::PI_CONST / 180.0;
+    double lat0rad = lat0 * common::math::MathUtils::PI / 180.0;
     double x_m = dlon / (9.0e-6 / std::cos(lat0rad));
     double z_m = -dalt;
     

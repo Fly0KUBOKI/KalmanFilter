@@ -13,8 +13,8 @@ using cm = cmath_fx::FixedMatrix;
 
 class MathUtils {
 public:
-    static constexpr float EPS = 1.0e-9f;
-    static constexpr float PI = 3.14159265358979323846f;
+    static const float EPS;
+    static const float PI;
 
     static float wrap_to_pi(float angle) {
         angle = fmodf(angle + PI, 2.0f * PI);

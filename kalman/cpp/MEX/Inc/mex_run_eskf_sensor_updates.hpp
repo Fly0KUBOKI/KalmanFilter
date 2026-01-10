@@ -63,7 +63,7 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
         cmath_fx::Vector<3, float> prev_a_f;
         for (int i = 0; i < 3; ++i) {
             a_meas_f(i, 0) = static_cast<float>(meas[i]);
-            prev_a_f(i, 0) = static_cast<float>(s->prev_accel[i]);
+            prev_a_f(i, 0) = s->prev_accel[i];
         }
         
         PreprocessResult result = preprocess_accel(a_meas_f, prev_a_f, s->buffer_tolerance);
@@ -106,7 +106,7 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
         cmath_fx::Vector<3, float> prev_m_f;
         for (int i = 0; i < 3; ++i) {
             m_meas_f(i, 0) = static_cast<float>(meas[i]);
-            prev_m_f(i, 0) = static_cast<float>(s->prev_mag[i]);
+            prev_m_f(i, 0) = s->prev_mag[i];
         }
         
         PreprocessResult result = preprocess_mag(m_meas_f, prev_m_f, s->buffer_tolerance);
@@ -334,7 +334,7 @@ inline void handle_sensor_update_internal(
     // prev_magはsingle（float）
     mxArray* prev_mag_arr = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* prev_mag_ptr = (float*)mxGetData(prev_mag_arr);
-    for (int i = 0; i < 3; ++i) prev_mag_ptr[i] = static_cast<float>(s->prev_mag[i]);
+    for (int i = 0; i < 3; ++i) prev_mag_ptr[i] = s->prev_mag[i];
     mxSetField(sensor_data, 0, "prev_mag", prev_mag_arr);
     
     // Convert GPS lat/lon/alt to ECEF position (or use stored prev_gps_pos if available)
@@ -349,7 +349,7 @@ inline void handle_sensor_update_internal(
     // prev_baro_altはsingle（float）
     mxArray* prev_baro_alt_arr = mxCreateNumericMatrix(1, 1, mxSINGLE_CLASS, mxREAL);
     float* prev_baro_alt_ptr = (float*)mxGetData(prev_baro_alt_arr);
-    prev_baro_alt_ptr[0] = static_cast<float>(s->prev_baro);
+    prev_baro_alt_ptr[0] = s->prev_baro;
     mxSetField(sensor_data, 0, "prev_baro_alt", prev_baro_alt_arr);
 
     // mex_params構造体（GPS以外はsingle、GPSはdouble）

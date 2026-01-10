@@ -142,7 +142,7 @@ public:
         x = x + Ky;
 
         // Covariance update: P = P - K * S * K'
-        auto KS = K * S;
+        MatrixNM KS = K * S;
         MatrixNN KSKt = KS * K.transpose();
         P = P - KSKt;
 

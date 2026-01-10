@@ -58,8 +58,8 @@ UpdateResult<N, M, T> update_state_joseph(
 ) {
     UpdateResult<N, M, T> result;
     result.x = x_pred + K * y;
-    auto I = cmath_fx::Matrix<N, N, T>::Identity();
-    auto I_KH = I - K * H;
+    cmath_fx::Matrix<N, N, T> I = cmath_fx::Matrix<N, N, T>::Identity();
+    cmath_fx::Matrix<N, N, T> I_KH = I - K * H;
     result.P = I_KH * P_pred * I_KH.transpose() + K * R * K.transpose();
     cmath_fx::utils::symmetrize(result.P);
     return result;
@@ -76,7 +76,7 @@ UpdateResult<N, M, T> update_state_simple(
 ) {
     UpdateResult<N, M, T> result;
     result.x = x_pred + K * y;
-    auto I = cmath_fx::Matrix<N, N, T>::Identity();
+    cmath_fx::Matrix<N, N, T> I = cmath_fx::Matrix<N, N, T>::Identity();
     result.P = (I - K * H) * P_pred;
     cmath_fx::utils::symmetrize(result.P);
     return result;
@@ -97,7 +97,7 @@ T mahalanobis_distance_squared(
         for (int i = 0; i < M; ++i) norm_sq += innovation(i, 0) * innovation(i, 0);
         return norm_sq / max_var;
     }
-    auto tmp = S_inv * innovation;
+    cmath_fx::Vector<M, T> tmp = S_inv * innovation;
     T dist_sq = static_cast<T>(0);
     for (int i = 0; i < M; ++i) dist_sq += innovation(i, 0) * tmp(i, 0);
     return dist_sq;
@@ -144,9 +144,9 @@ inline void joseph_form_update(const cmath_fx::Matrix<N, N, T>& P_pred,
                                const cmath_fx::Matrix<M, N, T>& H,
                                const cmath_fx::Matrix<M, M, T>& R,
                                cmath_fx::Matrix<N, N, T>& P_upd) {
-    auto I = cmath_fx::Matrix<N, N, T>::Identity();
-    auto KH = K * H;
-    auto IKH = I - KH;
+    cmath_fx::Matrix<N, N, T> I = cmath_fx::Matrix<N, N, T>::Identity();
+    cmath_fx::Matrix<N, N, T> KH = K * H;
+    cmath_fx::Matrix<N, N, T> IKH = I - KH;
     P_upd = IKH * P_pred * IKH.transpose() + K * R * K.transpose();
     cmath_fx::utils::symmetrize<N, T>(P_upd);
 }
