@@ -1,4 +1,4 @@
-#include "../inc/Sensor/robust_statistics.hpp"
+﻿#include "../inc/Sensor/robust_statistics.hpp"
 
 // Provide explicit definitions for static members to satisfy MSVC linker
 // (some MSVC versions require an out-of-class definition even for constexpr class members)
