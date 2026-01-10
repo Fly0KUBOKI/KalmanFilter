@@ -1,0 +1,74 @@
+================================================================================
+ENVIRONMENT DEPENDENCY DIAGNOSTIC REPORT
+Generated at: 10-Jan-2026 22:33:40
+================================================================================
+
+【TEST 1】MATLAB Environment
+--------------------------------------------------------------------------------
+MATLABVersion: 25.2
+Architecture: PCWIN64
+MEX Extension: mexw64
+✅ 64-bit MATLAB detected (correct for mex_run_eskf.mexw64)
+
+【TEST 2】MEX Binary Availability
+--------------------------------------------------------------------------------
+✅ MEX binary directory found: C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\..\kalman\cpp\bin
+Found 2 MEX binaries:
+  - mex_meukf_step_v2.mexw64 (11264 bytes, modified 10-1-2026 22:22:45)
+  - mex_run_eskf.mexw64 (155648 bytes, modified 10-1-2026 22:22:42)
+
+【TEST 3】Configuration Parameters
+--------------------------------------------------------------------------------
+✅ config_params() loaded successfully
+  static_time: 5.0 sec
+  dt: 0.0025 sec
+  GPS origin: lat=36.000000, lon=140.000000, alt=0.00
+  Sensor Noise Std (σ):
+    - accel: 0.100 m/s²
+    - gyro: 0.500 deg/s
+    - mag: 5.000 nT
+
+【TEST 4】Sensor Data Format & Types
+--------------------------------------------------------------------------------
+✅ sensor_data.csv loaded
+  Samples: 20001
+Data Types:
+  ✅ ax: single
+  ✅ wx: single
+  ✅ mx: single
+  ✅ lat: double (GPS - must be double)
+  ✅ lon: double (GPS - must be double)
+  ✅ alt: double (GPS - must be double)
+
+Data Ranges:
+  ax: [-2.736858, 2.397390] m/s²
+  wx: [-8.202830, 8.479297] deg/s
+  mx: [-92.814911, 95.359901] nT
+  pressure: [101317.38, 101331.54] Pa
+  lat: [35.9999275208, 36.0001945496] rad
+  lon: [139.9998931885, 140.0003356934] rad
+  alt: [-11.05, 10.92] m
+
+【TEST 5】MEX Function Callable Test
+--------------------------------------------------------------------------------
+✅ mex_run_eskf is callable
+✅ MEX loaded successfully (expected usage error)
+
+【TEST 6】Quick Simulation Test (Optional - runs actual filter)
+ฐ
+⏭️  Skipping quick simulation test (may take 30+ seconds)
+To run: [~, ~] = diagnose_environment(true);
+
+================================================================================
+SUMMARY
+================================================================================
+Tests Passed: 5/5
+
+✅ All checks passed! Environment is properly configured.
+
+Next Steps:
+1. If MEX binary not found: cd kalman/cpp/build && build_mex()
+2. If sensor data types wrong: check read_csv() function
+3. If config_params error: verify kalman/GenerateData/config_params.m exists
+4. Run: run_simulation(42, false) to test single simulation
+================================================================================

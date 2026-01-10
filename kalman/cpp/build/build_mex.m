@@ -1,5 +1,8 @@
 function build_mex(targets)
     % BUILD_MEX  Build C++/MEX libraries for Kalman Filters
+    % 
+    % 環境依存問題を解決するため、コンパイラ情報を記録し、
+    % 最適化フラグを明示的に設定します。
     
     clc;
     clear mex;
@@ -22,6 +25,27 @@ function build_mex(targets)
     log_fn = @(varargin) fprintf_both(log_fid, varargin{:});
     log_fn('=== MEX Build Log Started at %s ===\n', datestr(now));
     log_fn('Log file: %s\n\n', log_file);
+    
+    % ========== コンパイラ情報を記録 ==========
+    log_fn('【Compiler Information】\n');
+    log_fn('MATLAB Version: %s\n', version);
+    log_fn('Architecture: %s\n', computer('arch'));
+    try
+        cc = mex.getCompilerConfigurations('C++', 'Selected');
+        if ~isempty(cc)
+            log_fn('C++ Compiler: %s\n', cc.Name);
+            log_fn('Compiler Version: %s\n', cc.Version);
+            log_fn('Compiler Location: %s\n', cc.Location);
+            compiler_name = cc.Name;
+        else
+            log_fn('WARNING: No C++ compiler selected\n');
+            compiler_name = 'Unknown';
+        end
+    catch
+        log_fn('WARNING: Could not retrieve compiler info\n');
+        compiler_name = 'Unknown';
+    end
+    log_fn('\n');
     
     cpp_root = fileparts(build_dir);
     mex_src_dir = fullfile(cpp_root, 'MEX');
@@ -47,18 +71,37 @@ function build_mex(targets)
     original_dir = pwd;
     cd(mex_src_dir);
     
-    % Compiler options (Phase1: FP consistency)
+    % ========== コンパイラ別の最適化フラグ ==========
+    % 基本オプション
     compile_opts = {'-DNDEBUG', '-DKALMAN_NO_STANDALONE'};
+    old_compflags = '';
+    
     if ispc
-        % On Windows MATLAB's mex doesn't accept -O2; keep other defines
         compile_opts = [compile_opts, {'-DWIN32', '-D_CRT_SECURE_NO_WARNINGS'}];
-        % Set COMPFLAGS for MSVC to enforce UTF-8 and precise FP
         old_compflags = getenv('COMPFLAGS');
-        setenv('COMPFLAGS', '/utf-8 /fp:precise /arch:SSE2');
+        
+        if contains(compiler_name, 'Microsoft') || contains(compiler_name, 'MSVC')
+            % MSVC: 最適化フラグを明示的に設定
+            % /O2 = 速度最適化, /fp:precise = 浮動小数点精度優先
+            % /arch:SSE2 = SSE2命令セット, /MD = マルチスレッドDLL
+            setenv('COMPFLAGS', '/O2 /fp:precise /arch:SSE2 /MD /utf-8 /EHsc');
+            log_fn('Using MSVC optimization flags: /O2 /fp:precise /arch:SSE2 /MD\n');
+        elseif contains(compiler_name, 'MinGW')
+            % MinGW: GCC互換フラグ
+            % COMPFLAGSではなく、CXXFLAGSを使用
+            compile_opts = [compile_opts, {'CXXFLAGS=$CXXFLAGS -O2 -msse2 -fno-fast-math'}];
+            log_fn('Using MinGW optimization flags: -O2 -msse2 -fno-fast-math\n');
+        else
+            % 不明なコンパイラ: 安全なデフォルト
+            log_fn('WARNING: Unknown compiler, using default flags\n');
+            setenv('COMPFLAGS', '/utf-8');
+        end
     else
-        % Non-Windows: prefer stricter FP behavior and optimization
-        compile_opts = [compile_opts, {'-O2', '-msse2', '-fno-fast-math', '-ffloat-store'}];
+        % Non-Windows: GCC/Clang互換
+        compile_opts = [compile_opts, {'CXXFLAGS=$CXXFLAGS -O2 -msse2 -fno-fast-math -ffloat-store'}];
+        log_fn('Using GCC/Clang optimization flags\n');
     end
+    log_fn('\n');
     
     % Include paths
     inc_args = {['-I' lib_dir]};
@@ -112,9 +155,40 @@ function build_mex(targets)
     
     log_fn('\n=== Build Complete ===\n');
     log_fn('Successfully built %d MEX file(s)\n', built_count);
-    log_fn('Output: %s\n', bin_dir);
+    log_fn('Output: %s\n\n', bin_dir);
     
-    log_fn('\n=== MEX Build Log Ended at %s ===\n', datestr(now));
+    % ========== バイナリサイズ検証 ==========
+    log_fn('【Binary Size Verification】\n');
+    mex_files = dir(fullfile(bin_dir, ['*.' mexext]));
+    size_warnings = false;
+    for i = 1:length(mex_files)
+        fpath = fullfile(bin_dir, mex_files(i).name);
+        finfo = dir(fpath);
+        size_kb = finfo.bytes / 1024;
+        
+        log_fn('  %s: %.1f KB\n', mex_files(i).name, size_kb);
+        
+        % 期待サイズ範囲のチェック
+        if finfo.bytes > 500000  % 500KB以上
+            log_fn('    ⚠️ WARNING: Large binary - may contain debug symbols!\n');
+            log_fn('    Expected: 100-300 KB, Got: %.1f KB\n', size_kb);
+            size_warnings = true;
+        elseif finfo.bytes < 10000  % 10KB未満
+            log_fn('    ⚠️ WARNING: Very small binary - may be incomplete!\n');
+            size_warnings = true;
+        else
+            log_fn('    ✅ Size OK\n');
+        end
+    end
+    
+    if size_warnings
+        log_fn('\n⚠️ Binary size anomalies detected!\n');
+        log_fn('This may cause different behavior between PCs.\n');
+        log_fn('Check compiler settings and rebuild if necessary.\n');
+    end
+    log_fn('\n');
+    
+    log_fn('=== MEX Build Log Ended at %s ===\n', datestr(now));
     if ~isempty(log_fid)
         fclose(log_fid);
     end
