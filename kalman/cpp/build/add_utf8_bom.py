@@ -20,6 +20,7 @@ RECURSE_DIRS = [
     "../Inc",
     "../examples",
     "../../../tests",
+    "../../cpp_backup",
 ]
 
 EXTENSIONS = {'.cpp', '.c', '.hpp', '.h', '.cc', '.hh'}
