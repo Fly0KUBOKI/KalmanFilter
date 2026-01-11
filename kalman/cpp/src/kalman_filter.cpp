@@ -6,6 +6,7 @@
  */
 
 #include "../inc/kalman_filter.hpp"
+#include "../Lib/Common/inc/Math/portable_math.hpp"
 
 
 
@@ -163,7 +164,7 @@ void KalmanFilter::Update() {
                 if (!isfinite(d) || fabsf(d) < 1e-12f) { ok = false; break; }
             }
             if (ok) break;
-            float reg = powf(10.0f, (float)iter) * reg_scale_base * base;
+                float reg = common::math::portable_pow(10.0f, static_cast<float>(iter)) * reg_scale_base * base;
             for (uint8_t i = 0; i < o; ++i) observation_covariance[i * o + i] += reg;
             iter++;
         }
@@ -205,7 +206,7 @@ void KalmanFilter::Update() {
             for (uint8_t j = 0; j <= i; ++j) {
                 float sum = observation_covariance[i * o + j];
                 for (uint8_t k = 0; k < j; ++k) sum -= L[i * o + k] * L[j * o + k];
-                L[i * o + j] = (i == j) ? sqrtf(sum > 1e-10f ? sum : 1e-10f) : sum / L[j * o + j];
+                L[i * o + j] = (i == j) ? common::math::portable_sqrt(sum > 1e-10f ? sum : 1e-10f) : sum / L[j * o + j];
             }
         }
         // Solve L Y = PHt^T for Y (o x s), then L^T K^T = Y

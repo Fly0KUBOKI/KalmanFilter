@@ -5,6 +5,7 @@
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include <cmath>
+#include "../../Common/inc/Math/portable_math.hpp"
 
 namespace meukf {
 
@@ -75,7 +76,7 @@ public:
 
         // Rotate m_ned from NED to body frame using q
         // m_body = R(q) @ m_ned
-        float m_norm = std::sqrt(m_ned[0]*m_ned[0] + m_ned[1]*m_ned[1] + m_ned[2]*m_ned[2]);
+        float m_norm = common::math::portable_sqrt(m_ned[0]*m_ned[0] + m_ned[1]*m_ned[1] + m_ned[2]*m_ned[2]);
 
         // Simple rotation via quaternion conjugate multiplication
         // For now, use simplified form (full implementation would be more complex)

@@ -39,7 +39,7 @@ inline void robust_statistics(const cm& data, float& mean_val, float& std_val,
         float z = fabsf(data(i,0) - mu) / (sigma + 1e-9f);
         if (z < outlier_threshold) { sum += data(i,0); sum_sq += data(i,0)*data(i,0); n_inliers++; }
     }
-    if (n_inliers > 0) { mean_val = sum / n_inliers; std_val = sqrtf(sum_sq / n_inliers - mean_val * mean_val); }
+    if (n_inliers > 0) { mean_val = sum / n_inliers; std_val = common::math::portable_sqrt(sum_sq / n_inliers - mean_val * mean_val); }
     else { mean_val = mu; std_val = sigma; }
 }
 
@@ -69,7 +69,7 @@ inline T compute_std(const T* data, std::size_t n, T mean) {
         T diff = data[i] - mean;
         sum_sq += diff * diff;
     }
-    return std::sqrt(sum_sq / static_cast<T>(n - 1));
+    return common::math::portable_sqrt(sum_sq / static_cast<T>(n - 1));
 }
 
 template<typename T>

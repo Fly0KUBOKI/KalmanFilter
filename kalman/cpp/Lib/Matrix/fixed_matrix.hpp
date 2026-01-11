@@ -4,6 +4,8 @@
 // Moved from Inc/Common/Math/fixed_matrix.hpp to Lib/Matrix/fixed_matrix.hpp
 
 #include <cmath>
+#include "../Common/inc/Math/portable_math.hpp"
+#include "../Common/inc/Math/portable_math.hpp"
 #include <cstring>
 #include <cassert>
 #include <algorithm>
@@ -157,7 +159,7 @@ struct Matrix {
                 if (i == j) {
                     T val = (*this)(i, i) - sum;
                     if (val <= static_cast<T>(1e-12)) return false; // Not positive definite
-                    L(i, i) = std::sqrt(val);
+                    L(i, i) = common::math::portable_sqrt(val);
                 } else {
                     if (std::abs(L(j, j)) < static_cast<T>(1e-12)) return false;
                     L(i, j) = ((*this)(i, j) - sum) / L(j, j);
@@ -332,10 +334,10 @@ struct FixedMatrix {
                     sum += L(i, k) * L(j, k);
                 }
 
-                if (i == j) {
+                    if (i == j) {
                     float val = (*this)(i, i) - sum;
                     if (val <= 1e-12f) return false; // Not positive definite
-                    L(i, i) = std::sqrt(val);
+                    L(i, i) = common::math::portable_sqrt(val);
                 } else {
                     if (std::abs(L(j, j)) < 1e-12f) return false;
                     L(i, j) = ((*this)(i, j) - sum) / L(j, j);
@@ -366,7 +368,7 @@ bool cholesky(const Matrix<N, N, T>& A, Matrix<N, N, T>& L) {
             if (i == j) {
                 T val = A(i, i) - sum;
                 if (val <= static_cast<T>(1e-12)) return false;
-                L(i, i) = std::sqrt(val);
+                L(i, i) = common::math::portable_sqrt(val);
             } else {
                 if (std::abs(L(j, j)) < static_cast<T>(1e-12)) return false;
                 L(i, j) = (A(i, j) - sum) / L(j, j);
@@ -410,7 +412,7 @@ bool cholesky_robust(Matrix<N, N, T>& A, Matrix<N, N, T>& L) {
     // 6. Fallback: diagonal sqrt approximation
     L = Matrix<N, N, T>::Zero();
     for (int i = 0; i < N; ++i) {
-        L(i, i) = std::sqrt(std::max(static_cast<T>(0), A(i, i)));
+        L(i, i) = common::math::portable_sqrt(std::max(static_cast<T>(0), A(i, i)));
     }
     return true; // succeed with approximation
 }
@@ -421,18 +423,18 @@ bool cholesky_3x3_optimized(const Matrix<3, 3, T>& A, Matrix<3, 3, T>& L) {
     L = Matrix<3, 3, T>::Zero();
 
     if (A(0, 0) <= static_cast<T>(1e-12)) return false;
-    L(0, 0) = std::sqrt(A(0, 0));
+    L(0, 0) = common::math::portable_sqrt(A(0, 0));
 
     L(1, 0) = A(1, 0) / L(0, 0);
     T val11 = A(1, 1) - L(1, 0) * L(1, 0);
     if (val11 <= static_cast<T>(1e-12)) return false;
-    L(1, 1) = std::sqrt(val11);
+    L(1, 1) = common::math::portable_sqrt(val11);
 
     L(2, 0) = A(2, 0) / L(0, 0);
     L(2, 1) = (A(2, 1) - L(2, 0) * L(1, 0)) / L(1, 1);
     T val22 = A(2, 2) - L(2, 0) * L(2, 0) - L(2, 1) * L(2, 1);
     if (val22 <= static_cast<T>(1e-12)) return false;
-    L(2, 2) = std::sqrt(val22);
+    L(2, 2) = common::math::portable_sqrt(val22);
 
     return true;
 }
@@ -616,7 +618,7 @@ inline bool safe_cholesky(const cm& A, cm& L) {
     // Final fallback: diagonal
     for (int i=0;i<n;++i) for (int j=0;j<n;++j) L(i,j) = 0.0f;
     for (int i=0;i<n;++i) {
-        float v = A(i,i); if (v < 0.0f) v = 0.0f; L(i,i) = std::sqrt(v);
+        float v = A(i,i); if (v < 0.0f) v = 0.0f; L(i,i) = common::math::portable_sqrt(v);
     }
     return true;
 }

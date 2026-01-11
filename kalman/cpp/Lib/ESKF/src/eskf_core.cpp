@@ -11,6 +11,7 @@
 #include "../../Common/inc/Math/numerical.hpp"
 // Matrix utilities consolidated into fixed_matrix.hpp
 #include <cmath>
+#include "../../Common/inc/Math/portable_math.hpp"
 
 namespace eskf {
 
@@ -159,7 +160,7 @@ void ESKFCore::update_accel(Vector4& q, const Vector3& a_meas, Scalar scale_fact
 	q(3, 0) = qrp0 * q3 + qrp1 * q2 - qrp2 * q1 + qrp3 * q0;
     
 	// 正規化
-	Scalar norm = std::sqrt(q(0,0)*q(0,0) + q(1,0)*q(1,0) + q(2,0)*q(2,0) + q(3,0)*q(3,0));
+	Scalar norm = common::math::portable_sqrt(q(0,0)*q(0,0) + q(1,0)*q(1,0) + q(2,0)*q(2,0) + q(3,0)*q(3,0));
 	if (norm > 1e-6f) {
 		for (int i = 0; i < 4; ++i) q(i, 0) /= norm;
 	}
@@ -189,15 +190,8 @@ void ESKFCore::inject_error_state(Vector3& p, Vector3& v, Vector4& q, Vector3& b
 }
 
 Scalar ESKFCore::pressure_to_altitude(Scalar pressure) {
-	const Scalar p0 = static_cast<Scalar>(101325.0);
-	const Scalar L = static_cast<Scalar>(0.0065);
-	const Scalar T0 = static_cast<Scalar>(288.15);
-	const Scalar g = static_cast<Scalar>(9.80665);
-	const Scalar M = static_cast<Scalar>(0.0289644);
-	const Scalar R = static_cast<Scalar>(8.31447);
 	if (pressure <= static_cast<Scalar>(0.0)) return static_cast<Scalar>(0.0);
-	Scalar h = (T0 / L) * (static_cast<Scalar>(1.0) - std::pow(pressure / p0, (R * L) / (g * M)));
-	return h;
+	return static_cast<Scalar>(common::math::pressure_to_altitude(static_cast<float>(pressure)));
 }
 
 void ESKFCore::gps_to_local(const Vector3& gps_pos, const Vector3& origin, Vector3& local_pos) {
@@ -210,10 +204,10 @@ void ESKFCore::compute_adaptive_Q(const Matrix15x15& Q_nominal, const Vector3& a
 	Q_adapted = Q_nominal;
 	Scalar a_norm = static_cast<Scalar>(0.0);
 	for (int i = 0; i < 3; ++i) a_norm += a_meas(i, 0) * a_meas(i, 0);
-	a_norm = std::sqrt(a_norm);
+	a_norm = common::math::portable_sqrt(a_norm);
 	Scalar gravity_error = std::fabs(a_norm - static_cast<Scalar>(9.81));
 	Scalar accel_scale = static_cast<Scalar>(1.0) + (gravity_error / static_cast<Scalar>(3.0));
-	Scalar w_norm = static_cast<Scalar>(0.0); for (int i = 0; i < 3; ++i) w_norm += w_meas(i, 0) * w_meas(i, 0); w_norm = std::sqrt(w_norm);
+	Scalar w_norm = static_cast<Scalar>(0.0); for (int i = 0; i < 3; ++i) w_norm += w_meas(i, 0) * w_meas(i, 0); w_norm = common::math::portable_sqrt(w_norm);
 	Scalar deg2rad15 = static_cast<Scalar>(15.0) * static_cast<Scalar>(3.14159265) / static_cast<Scalar>(180.0);
 	Scalar gyro_scale = static_cast<Scalar>(1.0) + (w_norm / deg2rad15);
 	Scalar q_scale = std::fmax(accel_scale, gyro_scale); if (q_scale > static_cast<Scalar>(5.0)) q_scale = static_cast<Scalar>(5.0);

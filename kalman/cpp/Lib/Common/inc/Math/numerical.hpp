@@ -12,7 +12,7 @@ inline float safe_divide(float numerator, float denominator, float default_value
 }
 
 inline float safe_sqrt(float x) {
-    return sqrtf(fmaxf(x, 0.0f));
+    return common::math::portable_sqrt(fmaxf(x, 0.0f));
 }
 
 inline float safe_asin(float x) {

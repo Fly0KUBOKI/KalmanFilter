@@ -4,6 +4,7 @@
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../Common/inc/filter_mgmt.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
+#include "../../Common/inc/Math/portable_math.hpp"
 #include <cmath>
 
 namespace eskf_math {
@@ -15,10 +16,10 @@ void ESKFMath::quaternion_integration(const Vector4& q_in, const Vector3& w, Sca
 }
 
 void ESKFMath::accel_to_quaternion(const Vector3& a_meas, Scalar scale_factor, Vector4& q_out) {
-    Scalar a_norm = 0.0f; for (int i=0;i<3;++i) a_norm += a_meas(i,0)*a_meas(i,0); a_norm = std::sqrt(a_norm);
+    Scalar a_norm = 0.0f; for (int i=0;i<3;++i) a_norm += a_meas(i,0)*a_meas(i,0); a_norm = common::math::portable_sqrt(a_norm);
     if (a_norm < static_cast<Scalar>(1e-6)) { q_out(0,0)=static_cast<Scalar>(1.0); q_out(1,0)=0; q_out(2,0)=0; q_out(3,0)=0; return; }
     Vector3 a_norm_vec = a_meas; for (int i=0;i<3;++i){ a_norm_vec(i,0) /= a_norm; a_norm_vec(i,0) *= scale_factor; }
-    Scalar roll = std::atan2(a_norm_vec(1,0), a_norm_vec(2,0)); Scalar pitch = std::asin(-a_norm_vec(0,0));
+    Scalar roll = common::math::portable_atan2(a_norm_vec(1,0), a_norm_vec(2,0)); Scalar pitch = std::asin(-a_norm_vec(0,0));
     Scalar cr = std::cos(roll * static_cast<Scalar>(0.5)); Scalar sr = std::sin(roll * static_cast<Scalar>(0.5)); Scalar cp = std::cos(pitch * static_cast<Scalar>(0.5)); Scalar sp = std::sin(pitch * static_cast<Scalar>(0.5));
     q_out(0,0) = cr * cp; q_out(1,0) = sr * cp; q_out(2,0) = cr * sp; q_out(3,0) = -sr * sp; cquat::normalize_quat(q_out);
 }
@@ -51,6 +52,6 @@ void ESKFMath::mag_observation_prediction(const Vector4& q, const Vector3& m_wor
 
 void ESKFMath::gps_to_local(const Vector3& gps_pos, const Vector3& origin_pos, Vector3& local_pos) { for (int i=0;i<3;++i) local_pos(i,0) = gps_pos(i,0) - origin_pos(i,0); }
 
-Scalar ESKFMath::pressure_to_altitude(Scalar pressure) { const Scalar p0 = static_cast<Scalar>(101325.0); const Scalar L = static_cast<Scalar>(0.0065); const Scalar T0 = static_cast<Scalar>(288.15); const Scalar g = static_cast<Scalar>(9.80665); const Scalar M = static_cast<Scalar>(0.0289644); const Scalar R = static_cast<Scalar>(8.31447); if (pressure <= static_cast<Scalar>(0.0)) return static_cast<Scalar>(0.0); Scalar h = (T0 / L) * (static_cast<Scalar>(1.0) - std::pow(pressure / p0, (R * L) / (g * M))); return h; }
+Scalar ESKFMath::pressure_to_altitude(Scalar pressure) { const Scalar p0 = static_cast<Scalar>(101325.0); if (pressure <= static_cast<Scalar>(0.0)) return static_cast<Scalar>(0.0); return static_cast<Scalar>(common::math::pressure_to_altitude(static_cast<float>(pressure))); }
 
 } // namespace eskf_math

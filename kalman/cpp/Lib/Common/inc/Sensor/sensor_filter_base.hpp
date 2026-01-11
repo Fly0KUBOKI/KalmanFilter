@@ -8,6 +8,7 @@
 #include "../Math/statistics.hpp"
 #include "../Math/geometry.hpp"
 #include "../Math/numerical.hpp"
+#include "../Math/portable_math.hpp"
 #include <cmath>
 #include <algorithm>
 #include <cstring>
@@ -268,8 +269,8 @@ public:
                 sum_sq += history_[i] * history_[i];
             }
             float mean = sum / count_;
-            float variance = sum_sq / count_ - mean * mean;
-            noise_std = sqrtf(fmaxf(variance, 0.0f));
+                float variance = sum_sq / count_ - mean * mean;
+                noise_std = common::math::portable_sqrt(fmaxf(variance, 0.0f));
             noise_std = fmaxf(noise_std, fmaxf(residual_norm / 3.0f, min_std));
         } else {
             // 通常ケース: 履歴から標準偏差を計算
@@ -279,7 +280,7 @@ public:
                 sum_sq += history_[i] * history_[i];
             }
             float mean = sum / count_;
-            noise_std = sqrtf(sum_sq / count_ - mean * mean);
+            noise_std = common::math::portable_sqrt(sum_sq / count_ - mean * mean);
             // MATLAB parity: noise_estimate = max(noise_std, residual_norm / 3.0)
             // This prevents noise_std from being too small when residuals are consistent
             noise_std = fmaxf(noise_std, fmaxf(residual_norm / 3.0f, min_std));
@@ -308,7 +309,7 @@ public:
     // このメソッドは履歴を使わず、MathUtils の実装へ委譲します。
     static bool detect_mahalanobis_static(const common::math::cm& innovation, const common::math::cm& S, float threshold_sigma = 3.0f) {
         float dist_sq = kf::ops::mahalanobis_distance_squared(innovation, S);
-        float dist = sqrtf(dist_sq);
+        float dist = common::math::portable_sqrt(dist_sq);
         return dist > threshold_sigma;
     }
     
@@ -532,7 +533,7 @@ public:
         
         float innov_norm = 0.0f;
         for(int i=0; i<innovation.rows; i++) innov_norm += innovation(i,0) * innovation(i,0);
-        innov_norm = sqrtf(innov_norm);
+        innov_norm = common::math::portable_sqrt(innov_norm);
         
         // 巨大な外れ値はスキップ
         if(innov_norm > max_allowed_innov_ * 1e6f) {
@@ -574,7 +575,7 @@ public:
         if(hist.valid && hist.update_count > 0) {
             float prev_norm = 0.0f;
             for(int i=0; i<hist.prev_innovation.rows; i++) prev_norm += hist.prev_innovation(i,0) * hist.prev_innovation(i,0);
-            prev_norm = sqrtf(prev_norm);
+            prev_norm = common::math::portable_sqrt(prev_norm);
             
             if(prev_norm > 1e-6f) {
                 float change = 0.0f;
@@ -582,7 +583,7 @@ public:
                     float diff = innovation(i,0) - hist.prev_innovation(i,0);
                     change += diff * diff;
                 }
-                change = sqrtf(change);
+                change = common::math::portable_sqrt(change);
                 float ratio = change / prev_norm;
                 
                 if(ratio > innov_change_ratio_threshold_) {
@@ -694,23 +695,23 @@ public:
         float max_pos = 10.0f, max_vel = 5.0f, max_att = 0.5f, max_ba = 0.5f, max_bg = 0.1f;
         
         float pos_norm = 0.0f; for(int i=0; i<3; i++) pos_norm += dx(i,0) * dx(i,0);
-        pos_norm = sqrtf(pos_norm);
+        pos_norm = common::math::portable_sqrt(pos_norm);
         if(pos_norm > max_pos) { float s = max_pos/pos_norm; for(int i=0; i<3; i++) dx(i,0) *= s; }
         
         float vel_norm = 0.0f; for(int i=3; i<6; i++) vel_norm += dx(i,0) * dx(i,0);
-        vel_norm = sqrtf(vel_norm);
+        vel_norm = common::math::portable_sqrt(vel_norm);
         if(vel_norm > max_vel) { float s = max_vel/vel_norm; for(int i=3; i<6; i++) dx(i,0) *= s; }
         
         float att_norm = 0.0f; for(int i=6; i<9; i++) att_norm += dx(i,0) * dx(i,0);
-        att_norm = sqrtf(att_norm);
+        att_norm = common::math::portable_sqrt(att_norm);
         if(att_norm > max_att) { float s = max_att/att_norm; for(int i=6; i<9; i++) dx(i,0) *= s; }
         
         float ba_norm = 0.0f; for(int i=9; i<12; i++) ba_norm += dx(i,0) * dx(i,0);
-        ba_norm = sqrtf(ba_norm);
+        ba_norm = common::math::portable_sqrt(ba_norm);
         if(ba_norm > max_ba) { float s = max_ba/ba_norm; for(int i=9; i<12; i++) dx(i,0) *= s; }
         
         float bg_norm = 0.0f; for(int i=12; i<15; i++) bg_norm += dx(i,0) * dx(i,0);
-        bg_norm = sqrtf(bg_norm);
+        bg_norm = common::math::portable_sqrt(bg_norm);
         if(bg_norm > max_bg) { float s = max_bg/bg_norm; for(int i=12; i<15; i++) dx(i,0) *= s; }
     }
 };
@@ -784,7 +785,7 @@ public:
         for (int i = 0; i < 3; ++i) {
             a_norm_sq += a_meas(i,0) * a_meas(i,0);
         }
-        float a_norm = sqrtf(a_norm_sq);
+        float a_norm = common::math::portable_sqrt(a_norm_sq);
         
         if (a_norm < gravity_range_min_ || a_norm > gravity_range_max_) {
             is_outlier = true;
@@ -815,7 +816,7 @@ public:
             float diff = m_meas(i,0) - m_expected(i,0);
             residual_norm += diff * diff;
         }
-        residual_norm = sqrtf(residual_norm);
+        residual_norm = common::math::portable_sqrt(residual_norm);
         
             // イノベーション（3x1）を作成し、統一 Mahalanobis 判定へ委譲
             common::math::cm innov; innov.resize(3,1);

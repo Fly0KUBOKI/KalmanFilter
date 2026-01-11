@@ -3,6 +3,7 @@
 #include <cmath>
 #include "../Matrix/fixed_matrix.hpp"
 #include "../Common/inc/Math/math_utils.hpp"
+#include "../Common/inc/Math/portable_math.hpp"
 
 namespace cquat {
 
@@ -11,7 +12,7 @@ template <typename T>
 inline void normalize_quat(cmath_fx::Vector<4, T>& q) {
     T n = 0.0;
     for (int i = 0; i < 4; ++i) n += q(i,0) * q(i,0);
-    n = std::sqrt(n);
+    n = common::math::portable_sqrt(n);
     if (n < static_cast<T>(common::math::MathUtils::EPS)) { 
         q(0,0)=static_cast<T>(1.0); 
         q(1,0)=static_cast<T>(0.0); 
@@ -71,7 +72,7 @@ inline void to_euler_deg(const cmath_fx::Vector<4, T>& q, cmath_fx::Vector<3, T>
     T qw=q(0,0), qx=q(1,0), qy=q(2,0), qz=q(3,0);
     T sinr_cosp = static_cast<T>(2.0) * (qw * qx + qy * qz);
     T cosr_cosp = static_cast<T>(1.0) - static_cast<T>(2.0) * (qx*qx + qy*qy);
-    T roll = std::atan2(sinr_cosp, cosr_cosp);
+    T roll = common::math::portable_atan2(sinr_cosp, cosr_cosp);
     T sinp = static_cast<T>(2.0) * (qw * qy - qz * qx);
     T pitch;
     if (std::abs(sinp) >= static_cast<T>(1.0))
@@ -80,7 +81,7 @@ inline void to_euler_deg(const cmath_fx::Vector<4, T>& q, cmath_fx::Vector<3, T>
         pitch = std::asin(sinp);
     T siny_cosp = static_cast<T>(2.0) * (qw * qz + qx * qy);
     T cosy_cosp = static_cast<T>(1.0) - static_cast<T>(2.0) * (qy*qy + qz*qz);
-    T yaw = std::atan2(siny_cosp, cosy_cosp);
+    T yaw = common::math::portable_atan2(siny_cosp, cosy_cosp);
     euler_deg(0,0) = roll * static_cast<T>(180.0) / static_cast<T>(common::math::MathUtils::PI);
     euler_deg(1,0) = pitch * static_cast<T>(180.0) / static_cast<T>(common::math::MathUtils::PI);
     euler_deg(2,0) = yaw * static_cast<T>(180.0) / static_cast<T>(common::math::MathUtils::PI);
@@ -92,7 +93,7 @@ inline void to_euler_deg(const cmath_fx::Vector<4, T>& q, T& roll_deg, T& pitch_
     T qw=q(0,0), qx=q(1,0), qy=q(2,0), qz=q(3,0);
     T sinr_cosp = static_cast<T>(2.0) * (qw * qx + qy * qz);
     T cosr_cosp = static_cast<T>(1.0) - static_cast<T>(2.0) * (qx*qx + qy*qy);
-    T roll = std::atan2(sinr_cosp, cosr_cosp);
+    T roll = common::math::portable_atan2(sinr_cosp, cosr_cosp);
     T sinp = static_cast<T>(2.0) * (qw * qy - qz * qx);
     T pitch;
     if (std::abs(sinp) >= static_cast<T>(1.0))
@@ -101,7 +102,7 @@ inline void to_euler_deg(const cmath_fx::Vector<4, T>& q, T& roll_deg, T& pitch_
         pitch = std::asin(sinp);
     T siny_cosp = static_cast<T>(2.0) * (qw * qz + qx * qy);
     T cosy_cosp = static_cast<T>(1.0) - static_cast<T>(2.0) * (qy*qy + qz*qz);
-    T yaw = std::atan2(siny_cosp, cosy_cosp);
+    T yaw = common::math::portable_atan2(siny_cosp, cosy_cosp);
     roll_deg = roll * static_cast<T>(180.0) / static_cast<T>(common::math::MathUtils::PI);
     pitch_deg = pitch * static_cast<T>(180.0) / static_cast<T>(common::math::MathUtils::PI);
     yaw_deg = yaw * static_cast<T>(180.0) / static_cast<T>(common::math::MathUtils::PI);
@@ -119,7 +120,7 @@ inline void from_small_angle(T theta_x, T theta_y, T theta_z, cmath_fx::Vector<4
         q_out(2,0) = static_cast<T>(0.5) * theta_y;
         q_out(3,0) = static_cast<T>(0.5) * theta_z;
     } else {
-        T angle = std::sqrt(th2);
+        T angle = common::math::portable_sqrt(th2);
         T half_angle = angle * static_cast<T>(0.5);
         T s = std::sin(half_angle) / angle;
         q_out(0,0) = std::cos(half_angle);

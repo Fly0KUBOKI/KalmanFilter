@@ -8,6 +8,7 @@
 #include "../Math/math_utils.hpp"
 #include <cmath>
 #include <algorithm>
+#include "../Math/portable_math.hpp"
 
 namespace common {
 namespace validation {
@@ -80,7 +81,7 @@ public:
         for (int i = 0; i < innovation.rows; ++i) {
             norm_sq += innovation(i,0) * innovation(i,0);
         }
-        float norm = sqrtf(norm_sq);
+        float norm = common::math::portable_sqrt(norm_sq);
         return (norm > threshold);
     }
     
@@ -149,7 +150,7 @@ public:
         for (int i = 0; i < 4; ++i) {
             norm_sq += q(i,0) * q(i,0);
         }
-        float norm = sqrtf(norm_sq);
+        float norm = common::math::portable_sqrt(norm_sq);
         
         // ノルムが1に近いかチェック（±10%の許容範囲）
         if (norm < 0.9f || norm > 1.1f) return false;
@@ -215,7 +216,7 @@ public:
         for (int i = 0; i < innovation.rows; ++i) {
             norm_sq += innovation(i,0) * innovation(i,0);
         }
-            float norm = sqrtf(norm_sq);
+            float norm = common::math::portable_sqrt(norm_sq);
         
         // 履歴追加
         if (count_ < WINDOW_SIZE) {
@@ -240,7 +241,7 @@ public:
         float mean = sum / count_;
         float variance = sum_sq / count_ - mean * mean;
         
-            return sqrtf(fmaxf(variance, 0.0f));
+            return common::math::portable_sqrt(fmaxf(variance, 0.0f));
     }
     
     void reset() {

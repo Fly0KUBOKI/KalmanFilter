@@ -8,6 +8,7 @@
 #include <chrono>
 #include <string>
 #include <cmath>
+#include "../Math/portable_math.hpp"
 #include <cfloat>
 
 using cm = cmath_fx::FixedMatrix;
@@ -176,7 +177,7 @@ public:
         
         float innov_norm = 0.0f;
         for(int i=0; i<innovation.rows; i++) innov_norm += innovation(i,0) * innovation(i,0);
-        innov_norm = sqrtf(innov_norm);
+        innov_norm = common::math::portable_sqrt(innov_norm);
         
         // 巨大な外れ値はスキップ
         if(innov_norm > max_allowed_innov_ * 1e6f) {
@@ -198,7 +199,7 @@ public:
         if(hist.valid && hist.update_count > 0) {
             float prev_norm = 0.0f;
             for(int i=0; i<hist.prev_innovation.rows; i++) prev_norm += hist.prev_innovation(i,0) * hist.prev_innovation(i,0);
-            prev_norm = sqrtf(prev_norm);
+            prev_norm = common::math::portable_sqrt(prev_norm);
             
             if(prev_norm > 1e-6f) {
                 float change = 0.0f;
@@ -206,7 +207,7 @@ public:
                     float diff = innovation(i,0) - hist.prev_innovation(i,0);
                     change += diff * diff;
                 }
-                change = sqrtf(change);
+                change = common::math::portable_sqrt(change);
                 float ratio = change / prev_norm;
                 
                 if(ratio > innov_change_ratio_threshold_) {
@@ -299,23 +300,23 @@ public:
         float max_pos = 10.0f, max_vel = 5.0f, max_att = 0.5f, max_ba = 0.5f, max_bg = 0.1f;
         
         float pos_norm = 0.0f; for(int i=0; i<3; i++) pos_norm += dx(i,0) * dx(i,0);
-        pos_norm = sqrtf(pos_norm);
+        pos_norm = common::math::portable_sqrt(pos_norm);
         if(pos_norm > max_pos) { float s = max_pos/pos_norm; for(int i=0; i<3; i++) dx(i,0) *= s; }
         
         float vel_norm = 0.0f; for(int i=3; i<6; i++) vel_norm += dx(i,0) * dx(i,0);
-        vel_norm = sqrtf(vel_norm);
+        vel_norm = common::math::portable_sqrt(vel_norm);
         if(vel_norm > max_vel) { float s = max_vel/vel_norm; for(int i=3; i<6; i++) dx(i,0) *= s; }
         
         float att_norm = 0.0f; for(int i=6; i<9; i++) att_norm += dx(i,0) * dx(i,0);
-        att_norm = sqrtf(att_norm);
+        att_norm = common::math::portable_sqrt(att_norm);
         if(att_norm > max_att) { float s = max_att/att_norm; for(int i=6; i<9; i++) dx(i,0) *= s; }
         
         float ba_norm = 0.0f; for(int i=9; i<12; i++) ba_norm += dx(i,0) * dx(i,0);
-        ba_norm = sqrtf(ba_norm);
+        ba_norm = common::math::portable_sqrt(ba_norm);
         if(ba_norm > max_ba) { float s = max_ba/ba_norm; for(int i=9; i<12; i++) dx(i,0) *= s; }
         
         float bg_norm = 0.0f; for(int i=12; i<15; i++) bg_norm += dx(i,0) * dx(i,0);
-        bg_norm = sqrtf(bg_norm);
+        bg_norm = common::math::portable_sqrt(bg_norm);
         if(bg_norm > max_bg) { float s = max_bg/bg_norm; for(int i=12; i<15; i++) dx(i,0) *= s; }
     }
 };
@@ -563,7 +564,7 @@ public:
         
         float innov_norm = 0.0f;
         for(int i=0; i<innovation.rows; i++) innov_norm += innovation(i,0) * innovation(i,0);
-        innov_norm = sqrtf(innov_norm);
+        innov_norm = common::math::portable_sqrt(innov_norm);
         
         // 巨大な外れ値はスキップ
         if(innov_norm > max_allowed_innov_ * 1e6f) {
@@ -605,7 +606,7 @@ public:
         if(hist.valid && hist.update_count > 0) {
             float prev_norm = 0.0f;
             for(int i=0; i<hist.prev_innovation.rows; i++) prev_norm += hist.prev_innovation(i,0) * hist.prev_innovation(i,0);
-            prev_norm = sqrtf(prev_norm);
+            prev_norm = common::math::portable_sqrt(prev_norm);
             
             if(prev_norm > 1e-6f) {
                 float change = 0.0f;
@@ -613,7 +614,7 @@ public:
                     float diff = innovation(i,0) - hist.prev_innovation(i,0);
                     change += diff * diff;
                 }
-                change = sqrtf(change);
+                change = common::math::portable_sqrt(change);
                 float ratio = change / prev_norm;
                 
                 if(ratio > innov_change_ratio_threshold_) {
@@ -721,23 +722,23 @@ public:
         float max_pos = 10.0f, max_vel = 5.0f, max_att = 0.5f, max_ba = 0.5f, max_bg = 0.1f;
         
         float pos_norm = 0.0f; for(int i=0; i<3; i++) pos_norm += dx(i,0) * dx(i,0);
-        pos_norm = sqrtf(pos_norm);
+        pos_norm = common::math::portable_sqrt(pos_norm);
         if(pos_norm > max_pos) { float s = max_pos/pos_norm; for(int i=0; i<3; i++) dx(i,0) *= s; }
         
         float vel_norm = 0.0f; for(int i=3; i<6; i++) vel_norm += dx(i,0) * dx(i,0);
-        vel_norm = sqrtf(vel_norm);
+        vel_norm = common::math::portable_sqrt(vel_norm);
         if(vel_norm > max_vel) { float s = max_vel/vel_norm; for(int i=3; i<6; i++) dx(i,0) *= s; }
         
         float att_norm = 0.0f; for(int i=6; i<9; i++) att_norm += dx(i,0) * dx(i,0);
-        att_norm = sqrtf(att_norm);
+        att_norm = common::math::portable_sqrt(att_norm);
         if(att_norm > max_att) { float s = max_att/att_norm; for(int i=6; i<9; i++) dx(i,0) *= s; }
         
         float ba_norm = 0.0f; for(int i=9; i<12; i++) ba_norm += dx(i,0) * dx(i,0);
-        ba_norm = sqrtf(ba_norm);
+        ba_norm = common::math::portable_sqrt(ba_norm);
         if(ba_norm > max_ba) { float s = max_ba/ba_norm; for(int i=9; i<12; i++) dx(i,0) *= s; }
         
         float bg_norm = 0.0f; for(int i=12; i<15; i++) bg_norm += dx(i,0) * dx(i,0);
-        bg_norm = sqrtf(bg_norm);
+        bg_norm = common::math::portable_sqrt(bg_norm);
         if(bg_norm > max_bg) { float s = max_bg/bg_norm; for(int i=12; i<15; i++) dx(i,0) *= s; }
     }
 };

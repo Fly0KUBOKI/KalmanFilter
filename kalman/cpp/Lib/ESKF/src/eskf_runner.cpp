@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstring>
 #include <vector>
+#include "../../Common/inc/Math/portable_math.hpp"
 
 namespace eskf {
 
@@ -96,7 +97,7 @@ void ESKFRunner::apply_accel_z_integration(cmath_fx::Vector<3, float>& v, const 
 }
 
 void ESKFRunner::apply_velocity_clipping(cmath_fx::Vector<3, float>& v, cmath_fx::Matrix<15, 15, float>& P, float max_vel) {
-    float vnorm = 0.0f; for (int i=0;i<3;++i) vnorm += v(i,0)*v(i,0); vnorm = std::sqrt(vnorm); if (vnorm > max_vel) { float scale = max_vel / vnorm; for (int i=0;i<3;++i) v(i,0) *= scale; }
+    float vnorm = 0.0f; for (int i=0;i<3;++i) vnorm += v(i,0)*v(i,0); vnorm = common::math::portable_sqrt(vnorm); if (vnorm > max_vel) { float scale = max_vel / vnorm; for (int i=0;i<3;++i) v(i,0) *= scale; }
 }
 
 void ESKFRunner::regularize_covariance(cmath_fx::Matrix<15, 15, float>& P) {

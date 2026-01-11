@@ -6,6 +6,7 @@
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../../KF/inc/kf_operations.hpp"
 #include "../Math/math_utils.hpp"
+#include "../Math/portable_math.hpp"
 #include <cmath>
 
 namespace common {
@@ -60,7 +61,7 @@ public:
             }
             float mean = sum / count_;
             float variance = sum_sq / count_ - mean * mean;
-            noise_std = sqrtf(fmaxf(variance, 0.0f));
+            noise_std = common::math::portable_sqrt(fmaxf(variance, 0.0f));
             noise_std = fmaxf(noise_std, fmaxf(residual_norm / 3.0f, min_std));
         } else {
             // 通常ケース: 履歴から標準偏差を計算
@@ -70,7 +71,7 @@ public:
                 sum_sq += history_[i] * history_[i];
             }
             float mean = sum / count_;
-            noise_std = sqrtf(sum_sq / count_ - mean * mean);
+            noise_std = common::math::portable_sqrt(sum_sq / count_ - mean * mean);
             // ノイズ推定が過度に小さくならないように下限を設定
             noise_std = fmaxf(noise_std, fmaxf(residual_norm / 3.0f, min_std));
         }
@@ -112,7 +113,7 @@ public:
         float threshold_sigma = 3.0f
     ) {
         float dist_sq = ::kf::ops::mahalanobis_distance_squared(innovation, S);
-        float dist = sqrtf(dist_sq);
+        float dist = common::math::portable_sqrt(dist_sq);
         return dist > threshold_sigma;
     }
     

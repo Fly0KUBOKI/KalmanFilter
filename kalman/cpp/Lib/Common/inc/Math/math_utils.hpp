@@ -5,6 +5,7 @@
 #include "geometry.hpp"
 #include "numerical.hpp"
 #include "mahalanobis.hpp"
+#include "portable_math.hpp"
 
 namespace common {
 namespace math {
@@ -33,14 +34,14 @@ public:
     static cm normalize_vector(const cm& v) {
         cm result = v; float n = 0.0f;
         for (int i = 0; i < v.rows; ++i) n += v(i,0) * v(i,0);
-        n = sqrtf(n);
+        n = common::math::portable_sqrt(n);
         if (n < EPS) { for (int i = 0; i < result.rows; ++i) result(i,0)=0.0f; }
         else { for (int i = 0; i < result.rows; ++i) result(i,0)=v(i,0)/n; }
         return result;
     }
 
     static cm clip_vector(const cm& v, float max_norm, bool& clipped) {
-        cm result = v; float n = 0.0f; for (int i=0;i<v.rows;++i) n += v(i,0)*v(i,0); n = sqrtf(n);
+        cm result = v; float n = 0.0f; for (int i=0;i<v.rows;++i) n += v(i,0)*v(i,0); n = common::math::portable_sqrt(n);
         if (n > max_norm) { float s = max_norm / n; for (int i=0;i<result.rows;++i) result(i,0)=v(i,0)*s; clipped=true; }
         else { clipped=false; }
         return result;
@@ -82,7 +83,7 @@ public:
 
         double q, r;
         if (p < p_low) {
-            q = sqrt(-2.0 * log(p));
+            q = common::math::portable_sqrt(-2.0 * std::log(p));
             return (((((c1*q + c2)*q + c3)*q + c4)*q + c5)*q + c6) /
                    ((((d1*q + d2)*q + d3)*q + d4)*q + 1.0);
         } else if (p <= p_high) {
@@ -91,7 +92,7 @@ public:
             return (((((a1*r + a2)*r + a3)*r + a4)*r + a5)*r + a6)*q /
                    (((((b1*r + b2)*r + b3)*r + b4)*r + b5)*r + 1.0);
         } else {
-            q = sqrt(-2.0 * log(1.0 - p));
+            q = common::math::portable_sqrt(-2.0 * std::log(1.0 - p));
             return -(((((c1*q + c2)*q + c3)*q + c4)*q + c5)*q + c6) /
                     ((((d1*q + d2)*q + d3)*q + d4)*q + 1.0);
         }
@@ -101,7 +102,7 @@ public:
     static double chi2_quantile(int k, double p) {
         if (k <= 0) return 0.0;
         double z = inv_normal_cdf(p);
-        double term = 1.0 - 2.0/(9.0*k) + z * sqrt(2.0/(9.0*k));
+        double term = 1.0 - 2.0/(9.0*k) + z * common::math::portable_sqrt(2.0/(9.0*k));
         return k * term * term * term;
     }
 

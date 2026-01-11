@@ -5,6 +5,7 @@
 
 #include "../../../Matrix/fixed_matrix.hpp"
 #include <cmath>
+#include "portable_math.hpp"
 #include <cstring>
 
 namespace common {
@@ -13,7 +14,7 @@ namespace math {
 // 3次元ベクトルのノルム計算
 template<typename T>
 T norm3(const T* v) {
-    return std::sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+    return common::math::portable_sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
 }
 
 // 配列にNaNが含まれているかチェック
@@ -41,7 +42,7 @@ bool clip_vector_norm(cmath_fx::Vector<R, T>& v, T max_norm) {
     for (int i = 0; i < R; ++i) {
         v_norm += v(i, 0) * v(i, 0);
     }
-    v_norm = std::sqrt(v_norm);
+    v_norm = common::math::portable_sqrt(v_norm);
     if (v_norm > max_norm) {
         T scale = max_norm / v_norm;
         for (int i = 0; i < R; ++i) {

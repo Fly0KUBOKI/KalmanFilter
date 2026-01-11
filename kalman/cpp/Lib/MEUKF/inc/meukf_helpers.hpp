@@ -2,6 +2,7 @@
 #include "meukf_core.hpp"
 #include <cstdlib>
 #include <cmath>
+#include "../../Common/inc/Math/portable_math.hpp"
 
 namespace meukf {
 
@@ -36,7 +37,7 @@ inline Vector4 make_vector4(double w, double x, double y, double z) {
 
 inline double vector3_norm(const Vector3& v) {
     double s = (double)v(0,0) * v(0,0) + (double)v(1,0) * v(1,0) + (double)v(2,0) * v(2,0);
-    return std::sqrt(s);
+    return common::math::portable_sqrt(static_cast<float>(s));
 }
 
 } // namespace meukf

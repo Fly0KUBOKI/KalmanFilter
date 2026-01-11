@@ -8,6 +8,7 @@
 #include "../../Quaternion/quaternion_functions.hpp"
 #include <cstring>
 #include <cmath>
+#include "../../Common/inc/Math/portable_math.hpp"
 
 namespace meukf {
 
@@ -40,7 +41,7 @@ FilterOutput UnifiedFilter::update(FilterState& state, const FilterInput& input)
             float d = input.mag(i,0) - prev_mag_(i,0);
             diff += d * d;
         }
-        mag_changed = (std::sqrt(diff) > tolerance_);
+        mag_changed = (common::math::portable_sqrt(diff) > tolerance_);
     }
     
     bool gps_changed = false;
@@ -50,7 +51,7 @@ FilterOutput UnifiedFilter::update(FilterState& state, const FilterInput& input)
             float d = input.gps_pos(i,0) - prev_gps_pos_(i,0);
             diff += d * d;
         }
-        gps_changed = (std::sqrt(diff) > tolerance_);
+        gps_changed = (common::math::portable_sqrt(diff) > tolerance_);
     }
     
     bool baro_changed = false;

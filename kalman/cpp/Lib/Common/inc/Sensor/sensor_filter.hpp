@@ -8,6 +8,7 @@
 #include "../Math/statistics.hpp"
 #include "../Math/geometry.hpp"
 #include "../Math/numerical.hpp"
+#include "../Math/portable_math.hpp"
 #include <cmath>
 #include <algorithm>
 #include <cstring>
@@ -134,7 +135,7 @@ public:
         for (int i = 0; i < 3; ++i) {
             a_norm_sq += a_meas(i,0) * a_meas(i,0);
         }
-        float a_norm = sqrtf(a_norm_sq);
+        float a_norm = common::math::portable_sqrt(a_norm_sq);
         
         if (a_norm < gravity_range_min_ || a_norm > gravity_range_max_) {
             is_outlier = true;
@@ -165,7 +166,7 @@ public:
             float diff = m_meas(i,0) - m_expected(i,0);
             residual_norm += diff * diff;
         }
-        residual_norm = sqrtf(residual_norm);
+        residual_norm = common::math::portable_sqrt(residual_norm);
         
             // イノベーション（3x1）を作成し、統一 Mahalanobis 判定へ委譲
             ::common::math::cm innov; innov.resize(3,1);
