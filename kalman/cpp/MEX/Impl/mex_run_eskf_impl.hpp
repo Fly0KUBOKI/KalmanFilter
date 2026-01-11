@@ -10,10 +10,10 @@
 #include "mex_eskf_common.hpp"
 #include <cstdint>
 
-#include "../Inc/mex_run_eskf_sensor_updates.hpp"
+#include "mex_run_eskf_sensor_updates.hpp"
 #include "mex_run_eskf_filter_ops.hpp"
 #include "../../Lib/MEUKF/inc/meukf_core.hpp"
-#include "../Inc/mex_type_conversion.hpp"
+#include "mex_type_conversion.hpp"
 
 namespace mex_run_eskf_impl {
 
