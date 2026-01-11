@@ -7,10 +7,10 @@
 
 #include "../Matrix/fixed_matrix.hpp"
 #include "../KF/inc/kf_operations.hpp"
-#include "../Common/inc/Math/statistics.hpp"
-#include "../Common/inc/Math/geometry.hpp"
-#include "../Common/inc/Math/numerical.hpp"
-#include "../Common/inc/Math/portable_math.hpp"
+#include "../Core/statistics.hpp"
+#include "../Core/geometry.hpp"
+#include "../Core/numerical.hpp"
+#include "../Core/portable_math.hpp"
 #include <cmath>
 #include <algorithm>
 #include <cstring>

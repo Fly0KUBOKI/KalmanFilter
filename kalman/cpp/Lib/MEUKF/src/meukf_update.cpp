@@ -1,8 +1,8 @@
 ﻿#include "../inc/meukf_core.hpp"
-// Matrix operations consolidated into fixed_matrix.hpp
-#include "../../Common/inc/Math/statistics.hpp"
-#include "../../Common/inc/Math/geometry.hpp"
-#include "../../Common/inc/Math/numerical.hpp"
+#include "../../Matrix/fixed_matrix.hpp"
+#include "../../Core/statistics.hpp"
+#include "../../Core/geometry.hpp"
+#include "../../Core/numerical.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../UKF/inc/ukf_update.hpp"
 #include <cmath>
@@ -10,7 +10,7 @@
 #include <cstdlib>
 #include <algorithm>
 
-#include "../../Common/inc/Math/portable_math.hpp"
+#include "../../Core/portable_math.hpp"
 
 #include "../inc/meukf_helpers.hpp"
 

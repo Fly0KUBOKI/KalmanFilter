@@ -1,6 +1,6 @@
 ﻿#include "../inc/eskf_postprocess.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
-#include "../../Common/inc/Math/vector_utils.hpp"
+#include "../../Core/vector_utils.hpp"
 #include "../../Common/inc/filter_mgmt.hpp"
 // Matrix utilities consolidated into fixed_matrix.hpp
 #include <cmath>

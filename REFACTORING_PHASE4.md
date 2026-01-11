@@ -347,14 +347,14 @@ run_batch_10sets()
 
 ---
 
-## 9. 完了確認チェックリスト
+### 9. 完了確認チェックリスト
 
-- [ ] MathUtils → namespace math 変換完了
-- [ ] CovarianceRegularizer → namespace covariance 変換完了
-- [ ] StateValidator → namespace state 変換完了
-- [ ] 全呼び出し箇所の修正完了
-- [ ] `build_mex()` 成功
-- [ ] `run_batch_10sets()` 10/10 PASS
+- [x] MathUtils → namespace math 変換完了
+- [x] CovarianceRegularizer → namespace covariance 変換完了
+- [x] StateValidator → namespace state 変換完了
+- [x] 全呼び出し箇所の修正完了
+- [x] `build_mex()` 成功
+- [x] `run_batch_10sets()` 10/10 PASS
 - [ ] Git commit 完了
 
 ---

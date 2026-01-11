@@ -48,12 +48,16 @@ if is_msvc
     opt_flags = {};
 else
     % MinGW
-    opt_flags = {'CXXFLAGS=$CXXFLAGS -O2 -msse2 -mfpmath=sse -fno-fast-math -ffloat-store -frounding-math -s'};
+    opt_flags = {'CXXFLAGS=$CXXFLAGS -O2 -msse2 -mfpmath=sse -fno-fast-math -ffloat-store -frounding-math -s -std=gnu++17'};
 end
 % Compile options
 compile_opts = [opt_flags, {'-DNDEBUG', '-DKALMAN_NO_STANDALONE'}];
 if ispc
     compile_opts = [compile_opts, {'-DWIN32', '-D_CRT_SECURE_NO_WARNINGS'}];
+    if is_msvc
+        % Enable C++17 on MSVC
+        setenv('COMPFLAGS', [getenv('COMPFLAGS') ' /std:c++17']);
+    end
 end
 
 % Build include paths
@@ -119,7 +123,7 @@ end
 
 % Build targets
 built = 0;
-for t = 1:size(mex_targets, 1)
+for t = 1:numel(mex_targets)
     entry = mex_targets{t};
     mex_file = entry{1};
     extra_srcs = entry{2};
@@ -141,10 +145,10 @@ for t = 1:size(mex_targets, 1)
 
     % If MSVC requested and verbose requested, enable verbose mex output
     if is_msvc && verbose
-        mex_args = ['-v', mex_args];
+        mex_args = [{'-v'}, mex_args];
     end
 
-    fprintf('[%d/%d] Compiling %s... ', t, size(mex_targets, 1), outname);
+    fprintf('[%d/%d] Compiling %s... ', t, numel(mex_targets), outname);
     % Capture mex output to logfile for post-mortem (always capture, but
     % only enable -v on MSVC when verbose requested)
     try
@@ -172,7 +176,7 @@ for t = 1:size(mex_targets, 1)
     end
 end
 
-fprintf('\nBuild finished: %d/%d MEX built\n', built, size(mex_targets, 1));
+fprintf('\nBuild finished: %d/%d MEX built\n', built, numel(mex_targets));
 fprintf('Output: %s\n\n', bin_dir);
 
 if ~isempty(fid_log)

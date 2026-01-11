@@ -5,7 +5,7 @@
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include <cmath>
-#include "../../Common/inc/Math/portable_math.hpp"
+#include "../../Core/portable_math.hpp"
 
 namespace meukf {
 

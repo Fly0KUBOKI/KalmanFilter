@@ -1,4 +1,4 @@
-﻿#include "../../Core/math_utils.hpp"
+﻿// Deprecated: constants moved to inline constexpr in Core/math_utils.hpp
+#include "../../Core/math_utils.hpp"
 
-const float common::math::MathUtils::EPS = 1.0e-9f;
-const float common::math::MathUtils::PI = 3.14159265358979323846f;
+// Nothing to define here; `common::math::EPS` and `common::math::PI` are inline constexpr in header.

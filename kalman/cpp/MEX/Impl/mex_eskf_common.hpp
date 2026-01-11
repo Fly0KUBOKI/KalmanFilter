@@ -27,9 +27,9 @@
 #include "../../Lib/Matrix/fixed_matrix.hpp"
 
 // レイヤー2: ユーティリティ
-#include "../../Lib/Common/inc/Math/vector_utils.hpp"
+#include "../../Lib/Core/vector_utils.hpp"
 #include "../../Lib/Quaternion/quaternion_functions.hpp"
-#include "../../Lib/Common/inc/Math/statistics.hpp"
+#include "../../Lib/Core/statistics.hpp"
 
 // レイヤー3: ESKF コア
 #include "../../Lib/ESKF/inc/eskf_core.hpp"
