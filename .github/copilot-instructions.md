@@ -12,7 +12,7 @@ MATLAB実験フロントエンド + C++ MEXで計算ホットパスを高速化�
   - GPS座標系データのみ `double`（`lat`, `lon`, `alt`）  
   - 他の全センサー出力は `float32` で統一
   - 共分散行列 `P[15x15]` は `float32` column-major で返却
-  - [CPP_INPUT_OUTPUT_SPEC.md](kalman/cpp/markdown/CPP_INPUT_OUTPUT_SPEC.md)で型マッピング確認必須
+  - [docs/CPP_INPUT_OUTPUT_SPEC.md](docs/CPP_INPUT_OUTPUT_SPEC.md)で型マッピング確認必須
 
 - **MEX-MATLAB同期ルール**:  
   - MEXバイナリ置換後は必ず `clear mex` してから再実行
@@ -104,7 +104,7 @@ compare_mex_matlab_detailed();
 | [kalman/cpp/MEX/mex_run_eskf.cpp](kalman/cpp/MEX/mex_run_eskf.cpp) | MEX entry point（init/step/get_state dispatcher） | MEX I/O仕様確認 |
 | [kalman/cpp/Lib/ESKF/src/*.cpp](kalman/cpp/Lib/ESKF/src/) | ESKF状態更新・予測・リセット実装 | フィルタアルゴリズム修正 |
 | [kalman/cpp/Lib/Common/Sensor/sensor_filter.hpp](kalman/cpp/Lib/Common/Sensor/sensor_filter.hpp) | 外れ値検出・ロバスト統計 | センサー異常値処理 |
-| [kalman/cpp/markdown/CPP_INPUT_OUTPUT_SPEC.md](kalman/cpp/markdown/CPP_INPUT_OUTPUT_SPEC.md) | 型マッピング・配列レイアウト | MATLAB←→C++型変換debug時 |
+| [CPP_INPUT_OUTPUT_SPEC.md](docs/CPP_INPUT_OUTPUT_SPEC.md) | 型マッピング・配列レイアウト | MATLAB←→C++型変換debug時 |
 
 ## よくある落とし穴【10分で整理】
 
@@ -258,10 +258,9 @@ grep -rn "state\\.q\\[0\\].*state\\.p\\|state\\.ba\\[0\\].*state\\.v" kalman/cpp
 6. ビルド & テスト：`run_batch_10sets()` で回帰確認
 
 ## 【参考資料】
-- PLAN.md — 進捗・成功指標  
-- ROADMAP_TO_PHASE_13.md — 全体ロードマップ  
-- kalman/cpp/FILE_DUPLICATION_REPORT.md — ファイル重複解析  
-- kalman/cpp/Lib/README.md — ライブラリモジュール説明
+- docs/CPP_ARCHITECTURE.md — C++アーキテクチャ説明
+- docs/CPP_INPUT_OUTPUT_SPEC.md — 型マッピング・配列レイアウト
+- docs/CODING_STANDARDS.md — コーディング規約
 
 ---
 
@@ -382,7 +381,7 @@ Output state struct:
 ## C++ エラーの出所トップ 10
 
 1. **状態ベクトル順序混乱** (`p,v,q,ba,bg` 以外のセッション) → grep `state.q[0]`, `state.p[0]`
-2. **Float/Double混在** → [CPP_INPUT_OUTPUT_SPEC.md](kalman/cpp/markdown/CPP_INPUT_OUTPUT_SPEC.md) で型確認
+2. **Float/Double混在** → [docs/CPP_INPUT_OUTPUT_SPEC.md](docs/CPP_INPUT_OUTPUT_SPEC.md) で型確認
 3. **四元数正規化忘れ** → `cquat::normalize_quat()` は全積分後に必須
 4. **共分散非対称** → 出力前に `P = (P+P')/2`
 5. **メモリレイアウト** → `P[i,j]` が row-major と column-major で反転
