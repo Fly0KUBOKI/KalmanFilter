@@ -8,9 +8,9 @@
 namespace eskf {
 
 void predict_postprocess(cmath_fx::Vector<3, float>& v, const cmath_fx::Vector<4, float>& q, cmath_fx::Matrix<15, 15, float>& P, const cmath_fx::Vector<3, float>& a_for_vel, float dt, const cmath_fx::Vector<3, float>& g, const PredictPostprocessParams& params) {
-    using namespace common::math; using namespace common::filter; using namespace cquat;
+    using namespace common::math; using namespace cquat;
     if (params.velocity_damping > 0.0f) { v(0,0) = v(0,0) * (1.0f - params.velocity_damping * dt); v(1,0) = v(1,0) * (1.0f - params.velocity_damping * dt); }
-    normalize_covariance(P); clip_vector_norm(v, 10.0f);
+    common::covariance::ensure_positive_definite(P); clip_vector_norm(v, 10.0f);
 }
 
 UpdatePostprocessResult update_state_from_dx(const cmath_fx::Vector<15, float>& dx, const cmath_fx::Vector<3, float>& state_p, const cmath_fx::Vector<3, float>& state_v, const cmath_fx::Vector<4, float>& state_q, const cmath_fx::Vector<3, float>& state_ba, const cmath_fx::Vector<3, float>& state_bg, const cmath_fx::Matrix<15, 15, float>& new_state_P) {

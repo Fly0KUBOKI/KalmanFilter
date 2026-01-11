@@ -89,6 +89,39 @@ void reset_state_on_divergence(
 );
 
 } // namespace filter
+// Backward-compatible namespaces for gradual migration from
+// CovarianceRegularizer / StateValidator -> common::covariance / common::state
+namespace covariance {
+    using cm = cmath_fx::Matrix<15, 15, float>;
+
+    inline void symmetrize(cm& P) { common::filter::symmetrize_covariance(P); }
+
+    inline void ensure_positive_definite(cm& P) { common::filter::normalize_covariance(P); }
+
+    // Simple add_process_noise: add scaled identity to covariance
+    inline void add_process_noise(cm& P, float scale) { common::filter::setIdentityScaled(P, scale); }
+}
+
+namespace state {
+    using vec3 = cmath_fx::Vector<3, float>;
+    using vec4 = cmath_fx::Vector<4, float>;
+    using cm = cmath_fx::Matrix<15, 15, float>;
+
+    inline bool check_quaternion_norm(const vec4& q, float tol = 1e-3f) {
+        float sum = 0.0f;
+        for (size_t i = 0; i < 4; ++i) sum += q(i,0) * q(i,0);
+        return std::fabs(sum - 1.0f) <= tol;
+    }
+
+    template <typename T>
+    inline bool check_finite(const T* arr, size_t n) {
+        for (size_t i = 0; i < n; ++i) if (!std::isfinite(static_cast<double>(arr[i]))) return false;
+        return true;
+    }
+
+    inline bool check_covariance(const cm& P) { return !common::filter::hasNaNOrInf(P); }
+}
+
 } // namespace common
 
 #endif // COMMON_FILTER_MANAGEMENT_HPP

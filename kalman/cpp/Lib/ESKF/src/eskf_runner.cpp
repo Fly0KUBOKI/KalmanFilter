@@ -81,9 +81,9 @@ void ESKFRunner::predict(ESKFState* s, const float* a_meas, const float* w_meas)
     filter_lib.divergence_guard.regularize_covariance(P_fixed);
     for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) P_f(i,j) = P_fixed(i,j);
 
-    regularize_covariance(P_f);
+    common::covariance::ensure_positive_definite(P_f);
     apply_velocity_clipping(v_f, P_f, 3.0f);
-    cmath_fx::utils::symmetrize<15, float>(P_f);
+    common::covariance::symmetrize(P_f);
 
     // Write results back to state (no casts)
     for (int i = 0; i < 3; ++i) { s->p[i] = p_f(i,0); s->v[i] = v_f(i,0); s->ba[i] = ba_f(i,0); s->bg[i] = bg_f(i,0); }
@@ -102,8 +102,8 @@ void ESKFRunner::apply_velocity_clipping(cmath_fx::Vector<3, float>& v, cmath_fx
 
 void ESKFRunner::regularize_covariance(cmath_fx::Matrix<15, 15, float>& P) {
     // Delegate to common normalization and central symmetrization helper
-    common::filter::normalize_covariance(P);
-    cmath_fx::utils::symmetrize<15, float>(P);
+    common::covariance::ensure_positive_definite(P);
+    common::covariance::symmetrize(P);
 }
 
 } // namespace eskf

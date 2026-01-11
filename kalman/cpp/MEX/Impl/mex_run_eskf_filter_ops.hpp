@@ -32,9 +32,8 @@ inline void check_and_reset(ESKFState* s, int k) {
     bool need_reset = check_state_divergence(p_float, v_float, q_float, ba_float, bg_float, P_float);
     if (need_reset) {
         s->last_reset_step = k;
-        using namespace common::filter;
         Matrix<15, 15, float> P2;
-        setIdentityScaled(P2, 0.01f);
+        common::covariance::add_process_noise(P2, 0.01f);
         reset_state_on_divergence(v_float, ba_float, bg_float, q_float, P2);
         for (int i = 0; i < 3; ++i) {
             s->v[i] = v_float(i, 0);
