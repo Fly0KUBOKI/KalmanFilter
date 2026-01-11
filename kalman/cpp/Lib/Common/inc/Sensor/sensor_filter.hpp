@@ -12,20 +12,7 @@
 #include <cmath>
 #include <algorithm>
 #include <cstring>
-#include <fstream>
-#include <atomic>
-#include <chrono>
-#include <cstdarg>
 #include <cfloat>
-#include <cstdio>
-#include <string>
-// mexPrintf を使ったログ出力（MEX ビルド時）
-#ifdef MATLAB_MEX_FILE
-# include "mex.h"
-#else
-# include <stdio.h>
-# define mexPrintf printf
-#endif
 
 #include "ema_filter.hpp"
 #include "biquad_filter.hpp"
@@ -35,25 +22,6 @@
 
 namespace common {
 namespace sensor {
-
-// グローバルのログカウンタ（各ログ呼び出しごとにインクリメントされます）
-static std::atomic<uint64_t> g_log_counter{0};
-
-// ログ出力のグローバル制御フラグ (false = ログ無効)
-static std::atomic<bool> g_enable_sensor_logging{false};
-
-// センサーログ用の安全な printf ラッパー
-inline void sensor_log_enable(bool en) { g_enable_sensor_logging.store(en); }
-
-inline void sensor_log(const char* fmt, ...) {
-    if(!g_enable_sensor_logging.load()) return;
-    char buf[1024];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-    mexPrintf("%s", buf);
-}
 
 
 using cm = cmath_fx::FixedMatrix;

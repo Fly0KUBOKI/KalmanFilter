@@ -1,6 +1,5 @@
-﻿#include "../inc/Sensor/sensor_filter_base.hpp"
-
-// Out-of-class definitions for static const float members
-const float common::sensor::NoiseEstimator::R_ABS_MIN = 1e-12f;
-const float common::sensor::NoiseEstimator::R_ABS_MAX = 1e6f;
-const float common::sensor::NoiseEstimator::OUTLIER_FACTOR = 20.0f;
+﻿// This file previously contained out-of-class definitions for
+// common::sensor::NoiseEstimator static constants. Definitions
+// have been consolidated into robust_statistics_constants.cpp
+// to avoid multiple-definition linker errors.
+#include "../inc/Sensor/sensor_filter.hpp"

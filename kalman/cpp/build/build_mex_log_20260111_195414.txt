@@ -1,0 +1,197 @@
+Build started: 11-Jan-2026 19:54:14
+--- mex_run_eskf FAILED ---
+次を使用中のエラー: mex
+In file included from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/Common/inc/Sensor/sensor_filter.hpp:33,
+                 from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/ESKF/inc/eskf_runner.hpp:10,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:38,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:14:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/Common/inc/Sensor/robust_statistics.hpp:3: error: unterminated #ifndef
+ #ifndef COMMON_SENSOR_ROBUST_STATISTICS_HPP
+ 
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:90:1: error: expected '}' at end of input
+ }
+ ^
+In file included from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/Common/inc/Sensor/sensor_filter.hpp:33,
+                 from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/ESKF/inc/eskf_runner.hpp:10,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:38,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:14:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/Common/inc/Sensor/robust_statistics.hpp:17:22: note: to match this '{'
+ class NoiseEstimator {
+                      ^
+In file included from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/Common/inc/Sensor/sensor_filter.hpp:33,
+                 from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/ESKF/inc/eskf_runner.hpp:10,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:38,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:14:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/Common/inc/Sensor/robust_statistics.hpp: In member function 'void NoiseEstimator::estimate(const char*, const cm&, const cm&, const cm&)':
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/Common/inc/Sensor/robust_statistics.hpp:298:12: error: 'dx' was not declared in this scope
+         if(dx.rows < 15) return;
+            ^~
+In file included from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/Common/inc/Sensor/sensor_filter.hpp:34,
+                 from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/ESKF/inc/eskf_runner.hpp:10,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:38,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:14:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/Common/inc/Sensor/outlier_detector.hpp:12:1: error: 'namespace' definition is not allowed here
+ namespace common {
+ ^~~~~~~~~
+In file included from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/ESKF/inc/eskf_runner.hpp:10,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:38,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:14:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/Common/inc/Sensor/sensor_filter.hpp:36:1: error: 'namespace' definition is not allowed here
+ namespace common {
+ ^~~~~~~~~
+In file included from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:38,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:14:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/ESKF/inc/eskf_runner.hpp:13:1: error: 'namespace' definition is not allowed here
+ namespace eskf {
+ ^~~~~~~~~
+In file included from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:39,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:14:
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_initializer.hpp:9:1: error: 'namespace' definition is not allowed here
+ namespace eskf {
+ ^~~~~~~~~
+In file included from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:42,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:14:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/Common/inc/filter_mgmt.hpp:9:1: error: 'namespace' definition is not allowed here
+ namespace common {
+ ^~~~~~~~~
+In file included from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:44,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:14:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/Common/inc/Sensor/sensor_preprocessor.hpp:9:1: error: 'namespace' definition is not allowed here
+ namespace common {
+ ^~~~~~~~~
+In file included from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:45,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:14:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/ESKF/inc/eskf_sensor_updates.hpp:13:1: error: 'namespace' definition is not allowed here
+ namespace eskf {
+ ^~~~~~~~~
+In file included from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_type_conversion.hpp:4,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:46,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:14:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/MEX/Inc/mex_type_conversion.hpp:10:1: error: 'namespace' definition is not allowed here
+ namespace mex_conv {
+ ^~~~~~~~~
+In file included from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_helpers.hpp:4,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:47,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:14:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/MEX/Inc/mex_helpers.hpp:12:1: error: 'namespace' definition is not allowed here
+ namespace mex_helpers {
+ ^~~~~~~~~
+In file included from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:14:
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:51:25: error: 'filter' is not a namespace-name
+ using namespace common::filter;
+                         ^~~~~~
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:51:31: error: expected namespace-name before ';' token
+ using namespace common::filter;
+                               ^
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:58:17: error: 'mex_conv' is not a namespace-name
+ using namespace mex_conv;
+                 ^~~~~~~~
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:58:25: error: expected namespace-name before ';' token
+ using namespace mex_conv;
+                         ^
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:59:17: error: 'mex_helpers' is not a namespace-name
+ using namespace mex_helpers;
+                 ^~~~~~~~~~~
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:59:28: error: expected namespace-name before ';' token
+ using namespace mex_helpers;
+                            ^
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:68:1: error: 'namespace' definition is not allowed here
+ namespace mex_run_eskf_impl {
+ ^~~~~~~~~
+In file included from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/MEX/Inc/mex_eskf_common.hpp:38,
+                 from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/MEX/Inc/mex_run_eskf_sensor_updates.hpp:12,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_run_eskf_impl.hpp:13,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:15:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/MEX/Inc/mex_eskf_initializer.hpp:9:1: error: 'namespace' definition is not allowed here
+ namespace eskf {
+ ^~~~~~~~~
+In file included from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/MEX/Inc/mex_run_eskf_sensor_updates.hpp:12,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_run_eskf_impl.hpp:13,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:15:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/MEX/Inc/mex_eskf_common.hpp:49:25: error: 'filter' is not a namespace-name
+ using namespace common::filter;
+                         ^~~~~~
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/MEX/Inc/mex_eskf_common.hpp:49:31: error: expected namespace-name before ';' token
+ using namespace common::filter;
+                               ^
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/MEX/Inc/mex_eskf_common.hpp:56:17: error: 'mex_conv' is not a namespace-name
+ using namespace mex_conv;
+                 ^~~~~~~~
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/MEX/Inc/mex_eskf_common.hpp:56:25: error: expected namespace-name before ';' token
+ using namespace mex_conv;
+                         ^
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/MEX/Inc/mex_eskf_common.hpp:57:17: error: 'mex_helpers' is not a namespace-name
+ using namespace mex_helpers;
+                 ^~~~~~~~~~~
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/MEX/Inc/mex_eskf_common.hpp:57:28: error: expected namespace-name before ';' token
+ using namespace mex_helpers;
+                            ^
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/MEX/Inc/mex_eskf_common.hpp:66:1: error: 'namespace' definition is not allowed here
+ namespace mex_run_eskf_impl {
+ ^~~~~~~~~
+In file included from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_run_eskf_impl.hpp:13,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:15:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/MEX/Inc/mex_run_eskf_sensor_updates.hpp:17:1: error: 'namespace' definition is not allowed here
+ namespace mex_run_eskf_impl {
+ ^~~~~~~~~
+In file included from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_run_eskf_impl.hpp:14,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:15:
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_run_eskf_filter_ops.hpp:12:1: error: 'namespace' definition is not allowed here
+ namespace mex_run_eskf_impl {
+ ^~~~~~~~~
+In file included from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/MEUKF/inc/meukf_core.hpp:5,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_run_eskf_impl.hpp:15,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:15:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/MEUKF/inc/unified_types.hpp:6:1: error: 'namespace' definition is not allowed here
+ namespace meukf {
+ ^~~~~~~~~
+In file included from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/MEUKF/inc/meukf_core.hpp:6,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_run_eskf_impl.hpp:15,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:15:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/MEUKF/inc/meukf_types.hpp:5:1: error: 'namespace' definition is not allowed here
+ namespace meukf {
+ ^~~~~~~~~
+In file included from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_run_eskf_impl.hpp:15,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:15:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/MEUKF/inc/meukf_core.hpp:10:1: error: 'namespace' definition is not allowed here
+ namespace meukf {
+ ^~~~~~~~~
+In file included from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:15:
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_run_eskf_impl.hpp:18:1: error: 'namespace' definition is not allowed here
+ namespace mex_run_eskf_impl {
+ ^~~~~~~~~
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:17:17: error: 'mex_run_eskf_impl' is not a namespace-name
+ using namespace mex_run_eskf_impl;
+                 ^~~~~~~~~~~~~~~~~
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:17:34: error: expected namespace-name before ';' token
+ using namespace mex_run_eskf_impl;
+                                  ^
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:20:1: error: 'namespace' definition is not allowed here
+ namespace mex_run_eskf_impl {
+ ^~~~~~~~~
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:27:78: error: a function-definition is not allowed here before '{' token
+ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
+                                                                              ^
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:90:1: error: expected '}' at end of input
+ }
+ ^
+In file included from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/Common/inc/Sensor/sensor_filter.hpp:33,
+                 from C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/ESKF/inc/eskf_runner.hpp:10,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\Impl/mex_eskf_common.hpp:38,
+                 from C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:14:
+C:/Users/takut/OneDrive/ドキュメント/MATLAB/KalmanFilter/kalman/cpp/Lib/Common/inc/Sensor/robust_statistics.hpp:50:97: note: to match this '{'
+     void estimate(const char* sensor_type, const cm& innovation, const cm& H, const cm& P_pred) {
+                                                                                                 ^
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp: At global scope:
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\MEX\mex_run_eskf.cpp:90:1: error: expected unqualified-id at end of input
+ }
+ ^
+
+
+エラー: build_mex (行 151)
+        out = evalc('mex(mex_args{:});');
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+--- mex_meukf_step_v2 ---
+'MinGW64 Compiler (C++)' でビルドしています。
+MEX は正常に完了しました。
+

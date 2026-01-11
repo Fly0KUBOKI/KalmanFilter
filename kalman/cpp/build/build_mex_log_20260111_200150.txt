@@ -1,0 +1,21 @@
+Build started: 11-Jan-2026 20:01:50
+--- mex_run_eskf FAILED ---
+次を使用中のエラー: mex
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\Common\src\robust_statistics_constants.cpp:5:13: error: 'NoiseEstimator' has not been declared
+ const float NoiseEstimator::R_ABS_MIN = 1e-12f;
+             ^~~~~~~~~~~~~~
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\Common\src\robust_statistics_constants.cpp:6:13: error: 'NoiseEstimator' has not been declared
+ const float NoiseEstimator::R_ABS_MAX = 1e6f;
+             ^~~~~~~~~~~~~~
+C:\Users\takut\OneDrive\ドキュメント\MATLAB\KalmanFilter\kalman\cpp\Lib\Common\src\robust_statistics_constants.cpp:7:13: error: 'NoiseEstimator' has not been declared
+ const float NoiseEstimator::OUTLIER_FACTOR = 20.0f;
+             ^~~~~~~~~~~~~~
+
+
+エラー: build_mex (行 151)
+        out = evalc('mex(mex_args{:});');
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+--- mex_meukf_step_v2 ---
+'MinGW64 Compiler (C++)' でビルドしています。
+MEX は正常に完了しました。
+
