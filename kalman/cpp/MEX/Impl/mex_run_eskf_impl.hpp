@@ -86,7 +86,7 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
     // ZUPT check (use double buffers returned from getAccel/getGyro)
     zupt_check_and_update(s, a_d, w_d);
 
-    // Sensor updates (pass original double measurements)
+    // Sensor updates (pass original double measurements as旧版expects)
     call_sensor_update(s, "accel", a_d, 3, k);
     call_sensor_update(s, "mag", m_d, 3, k);
     
