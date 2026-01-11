@@ -6,12 +6,12 @@
 #include "../../Common/inc/Math/statistics.hpp"
 #include "../../Common/inc/Math/geometry.hpp"
 #include "../../Common/inc/Math/numerical.hpp"
-#include "../../Common/inc/Math/math_utils.hpp"
+#include "../../Core/math_utils.hpp"
 #include <cmath>
 #include <cstring>
 #include <algorithm>
 #include <vector>
-#include "../../Common/inc/Math/portable_math.hpp"
+#include "../../Core/portable_math.hpp"
 
 namespace eskf {
 

@@ -2,8 +2,8 @@
 // Moved from Inc/Common/Math/quaternion.hpp to Lib/Quaternion/quaternion_functions.hpp
 #include <cmath>
 #include "../Matrix/fixed_matrix.hpp"
-#include "../Common/inc/Math/math_utils.hpp"
-#include "../Common/inc/Math/portable_math.hpp"
+#include "../Core/math_utils.hpp"
+#include "../Core/portable_math.hpp"
 
 namespace cquat {
 

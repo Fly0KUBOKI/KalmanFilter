@@ -3,8 +3,8 @@
 #include "../../inc/Math/statistics.hpp"
 #include "../../inc/Math/geometry.hpp"
 #include "../../inc/Math/numerical.hpp"
-#include "../../inc/Math/math_utils.hpp"
-#include "../../inc/Math/portable_math.hpp"
+#include "../../../Core/math_utils.hpp"
+#include "../../../Core/portable_math.hpp"
 #include <cmath>
 
 namespace common {

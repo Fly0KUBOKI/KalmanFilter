@@ -5,7 +5,7 @@
 
 #include "eskf_state.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Common/inc/Sensor/sensor_filter.hpp"
+#include "../../Sensor/filters.hpp"
 #include "../../Common/inc/Sensor/sensor_preprocessor.hpp"
 #include "eskf_core.hpp"
 #include "eskf_postprocess.hpp"
