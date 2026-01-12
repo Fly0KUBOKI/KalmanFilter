@@ -60,14 +60,24 @@ if ispc
     end
 end
 
-% Build include paths
+% Build include paths (explicit for refactored layout)
 inc_args = {['-I' fullfile(proj_root, 'inc')]};
-lib_dirs = dir(lib_dir);
-for ii = 1:numel(lib_dirs)
-    if ~lib_dirs(ii).isdir, continue; end
-    if ismember(lib_dirs(ii).name, {'.', '..'}), continue; end
-    incp = fullfile(lib_dir, lib_dirs(ii).name, 'inc');
-    if exist(incp, 'dir'), inc_args{end+1} = ['-I' incp]; end
+candidates = {
+    fullfile(lib_dir, 'Core')
+    fullfile(lib_dir, 'Sensor')
+    fullfile(lib_dir, 'Matrix')
+    fullfile(lib_dir, 'Quaternion')
+    fullfile(lib_dir, 'ESKF', 'inc')
+    fullfile(lib_dir, 'MEUKF', 'inc')
+    fullfile(lib_dir, 'KF', 'inc')
+    fullfile(lib_dir, 'EKF', 'inc')
+    fullfile(lib_dir, 'UKF', 'inc')
+    fullfile(lib_dir, 'Common', 'inc')
+};
+for ii = 1:numel(candidates)
+    if exist(candidates{ii}, 'dir')
+        inc_args{end+1} = ['-I' candidates{ii}];
+    end
 end
 
 % Define MEX targets

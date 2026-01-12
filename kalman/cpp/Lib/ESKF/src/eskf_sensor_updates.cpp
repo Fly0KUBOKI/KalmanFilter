@@ -1,7 +1,7 @@
 ﻿#include "../inc/eskf_sensor_updates.hpp"
 #include "../inc/eskf_state.hpp"
 #include <cmath>
-#include "../../Core/portable_math.hpp"
+#include "../../Common/inc/Math/portable_math.hpp"
 
 namespace eskf {
 

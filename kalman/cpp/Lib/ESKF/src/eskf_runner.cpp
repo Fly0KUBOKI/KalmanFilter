@@ -2,13 +2,13 @@
 #include "../inc/eskf_core.hpp"
 #include "../inc/eskf_postprocess.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
-#include "../../Common/inc/Sensor/sensor_filter.hpp"
+#include "../../Sensor/sensor_filter.hpp"
 #include "../../Common/inc/filter_mgmt.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
 #include <cmath>
 #include <cstring>
 #include <vector>
-#include "../../Core/portable_math.hpp"
+#include "../../Common/inc/Math/portable_math.hpp"
 
 namespace eskf {
 

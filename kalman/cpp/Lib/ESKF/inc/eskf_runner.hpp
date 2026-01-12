@@ -7,7 +7,7 @@
 #include "eskf_core.hpp"
 #include "eskf_postprocess.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Common/inc/Sensor/sensor_filter.hpp"
+#include "../../Sensor/sensor_filter.hpp"
 #include <cstddef>
 
 namespace eskf {

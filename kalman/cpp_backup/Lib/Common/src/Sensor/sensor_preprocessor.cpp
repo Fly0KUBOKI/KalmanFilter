@@ -3,8 +3,8 @@
 #include "../../inc/Math/statistics.hpp"
 #include "../../inc/Math/geometry.hpp"
 #include "../../inc/Math/numerical.hpp"
-#include "../../inc/Math/math_utils.hpp"
-#include "../../inc/Math/portable_math.hpp"
+#include "../../../Core/math_utils.hpp"
+#include "../../../Core/portable_math.hpp"
 #include <cmath>
 
 namespace common {
@@ -125,7 +125,7 @@ PreprocessResult preprocess_gps(
     
     // GPS座標をメートル単位に変換
     double y_m = dlat / 9.0e-6;
-    double lat0rad = lat0 * common::math::MathUtils::PI / 180.0;
+    double lat0rad = lat0 * common::math::PI / 180.0;
     double x_m = dlon / (9.0e-6 / std::cos(lat0rad));
     double z_m = -dalt;
     

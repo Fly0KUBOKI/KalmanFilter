@@ -4,6 +4,6 @@
 #define COMMON_MATH_MAHALANOBIS_HPP
 
 // Wrapper to Core implementation
-#include "../../../Core/mahalanobis.hpp"
+// Implementation embedded
 
 #endif // COMMON_MATH_MAHALANOBIS_HPP

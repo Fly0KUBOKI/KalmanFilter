@@ -4,7 +4,7 @@
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../Common/inc/filter_mgmt.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Common/inc/Math/portable_math.hpp"
+#include "../../Core/portable_math.hpp"
 #include <cmath>
 
 namespace eskf_math {

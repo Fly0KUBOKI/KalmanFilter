@@ -8,7 +8,7 @@
 #include <cmath>
 #include <cstring>
 #include <vector>
-#include "../../Common/inc/Math/portable_math.hpp"
+#include "../../Core/portable_math.hpp"
 
 namespace eskf {
 

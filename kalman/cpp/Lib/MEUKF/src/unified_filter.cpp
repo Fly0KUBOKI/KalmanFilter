@@ -1,14 +1,14 @@
 ﻿#include "../inc/unified_filter.hpp"
-#include "../../Common/inc/Sensor/sensor_filter.hpp"
+#include "../../Sensor/sensor_filter.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Core/statistics.hpp"
-#include "../../Core/geometry.hpp"
-#include "../../Core/numerical.hpp"
+#include "../../Common/inc/Math/statistics.hpp"
+#include "../../Common/inc/Math/geometry.hpp"
+#include "../../Common/inc/Math/numerical.hpp"
 #include "../inc/meukf_core.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include <cstring>
 #include <cmath>
-#include "../../Core/portable_math.hpp"
+#include "../../Common/inc/Math/portable_math.hpp"
 
 namespace meukf {
 

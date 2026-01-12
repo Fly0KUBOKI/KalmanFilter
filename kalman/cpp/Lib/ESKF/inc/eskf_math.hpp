@@ -8,6 +8,7 @@
 #include "../../Common/inc/Math/statistics.hpp"
 #include "../../Common/inc/Math/geometry.hpp"
 #include "../../Common/inc/Math/numerical.hpp"
+#include "../../KF/inc/kalman_filter_core.hpp"
 
 namespace eskf_math {
 

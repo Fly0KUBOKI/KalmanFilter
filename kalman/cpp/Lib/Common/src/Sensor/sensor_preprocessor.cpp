@@ -1,10 +1,9 @@
 ﻿#include "../../inc/Sensor/sensor_preprocessor.hpp"
-// Matrix operations consolidated into fixed_matrix.hpp
 #include "../../inc/Math/statistics.hpp"
 #include "../../inc/Math/geometry.hpp"
 #include "../../inc/Math/numerical.hpp"
-#include "../../../Core/math_utils.hpp"
-#include "../../../Core/portable_math.hpp"
+#include "../../inc/Math/math_utils.hpp"
+#include "../../inc/Math/portable_math.hpp"
 #include <cmath>
 
 namespace common {

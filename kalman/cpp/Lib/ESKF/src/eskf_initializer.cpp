@@ -1,17 +1,17 @@
 ﻿#include "../inc/eskf_initializer.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Core/statistics.hpp"
+#include "../../Common/inc/Math/statistics.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Core/statistics.hpp"
-#include "../../Core/geometry.hpp"
-#include "../../Core/numerical.hpp"
-#include "../../Core/math_utils.hpp"
+#include "../../Common/inc/Math/statistics.hpp"
+#include "../../Common/inc/Math/geometry.hpp"
+#include "../../Common/inc/Math/numerical.hpp"
+#include "../../Common/inc/Math/math_utils.hpp"
 #include <cmath>
 #include <cstring>
 #include <algorithm>
 #include <vector>
-#include "../../Core/portable_math.hpp"
+#include "../../Common/inc/Math/portable_math.hpp"
 
 namespace eskf {
 

@@ -27,9 +27,9 @@
 #include "../../Lib/Matrix/fixed_matrix.hpp"
 
 // レイヤー2: ユーティリティ
-#include "../../Lib/Core/vector_utils.hpp"
+#include "../../Lib/Common/inc/Math/vector_utils.hpp"
 #include "../../Lib/Quaternion/quaternion_functions.hpp"
-#include "../../Lib/Core/statistics.hpp"
+#include "../../Lib/Common/inc/Math/statistics.hpp"
 
 // レイヤー3: ESKF コア
 #include "../../Lib/ESKF/inc/eskf_core.hpp"
@@ -40,8 +40,8 @@
 
 // レイヤー4: 統合層
 #include "../../Lib/Common/inc/filter_mgmt.hpp"
-#include "../../Lib/Common/inc/Sensor/sensor_filter.hpp"
-#include "../../Lib/Common/inc/Sensor/sensor_preprocessor.hpp"
+#include "../../Lib/Sensor/sensor_filter.hpp"
+#include "../../Lib/Sensor/sensor_preprocessor.hpp"
 #include "../../Lib/ESKF/inc/eskf_sensor_updates.hpp"
 #include "mex_type_conversion.hpp"
 #include "mex_helpers.hpp"

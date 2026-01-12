@@ -14,7 +14,6 @@ namespace common {
 namespace validation {
 
 using cm = cmath_fx::FixedMatrix;
-using MathUtils = common::math::MathUtils;
 
 // ========== 共分散正則化 ==========
 class CovarianceRegularizer {
@@ -69,7 +68,7 @@ public:
 // ========== 外れ値検出器（非推奨：math_utils.hpp の関数を使用） ==========
 class OutlierDetector {
 public:
-    // Mahalanobis距離による外れ値検出（統一実装は math_utils.hpp::MathUtils::mahalanobis_distance_squared）
+    // Mahalanobis距離による外れ値検出（統一実装は common::math::mahalanobis_distance_squared相当）
     static bool detect_mahalanobis(const cm& innovation, const cm& S, float threshold = 9.0f) {
         float dist_sq = kf::ops::mahalanobis_distance_squared(innovation, S);
         return (dist_sq > threshold);
@@ -85,10 +84,10 @@ public:
         return (norm > threshold);
     }
     
-    // Chi-square検定による外れ値検出（統一実装は math_utils.hpp::MathUtils::is_outlier_chi_square）
+    // Chi-square検定による外れ値検出（統一実装は common::math::is_outlier_chi_square）
     static bool detect_chi_square(const cm& innovation, const cm& S, float alpha = 0.05f) {
         int dof = innovation.rows;
-        return MathUtils::is_outlier_chi_square(innovation, S, dof, alpha);
+        return common::math::is_outlier_chi_square(innovation, S, dof, alpha);
     }
 };
             #pragma once

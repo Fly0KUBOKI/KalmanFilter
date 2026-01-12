@@ -12,7 +12,7 @@
 #include "mex_eskf_common.hpp"
 #include "mex_type_conversion.hpp"
 #include <cstring>
-#include "../../Lib/Core/portable_math.hpp"
+#include "../../Lib/Common/inc/Math/portable_math.hpp"
 
 namespace mex_run_eskf_impl {
 
