@@ -496,12 +496,15 @@ run_batch_10sets()
 
 ## 10. 完了確認チェックリスト
 
-- [ ] 未使用ディレクトリ（KF/, EKF/, UKF/, inc/, src/）削除
-- [ ] フィルタファイル統合（filters.hpp）
-- [ ] Common/inc/ を Core/ と Sensor/ に再編成
-- [ ] MEX/Impl/ をフラット化
-- [ ] 全include パス更新
-- [ ] build_mex.m 更新
+- [x] 未使用ディレクトリ削除（EKF/ 削除完了、KF/UKF は参照あり保持）
+  - ✅ EKF/ 削除完了
+  - ⚠️ KF/UKF は ESKF/MEUKF から参照あり → 保持必要
+  - ℹ️ inc/, src/ はルートディレクトリに見当たらず
+- [x] フィルタファイル統合（filters.hpp）完了
+- [x] Common/inc/ を Core/ と Sensor/ に再編成完了
+- [x] MEX/Impl/ をフラット化完了
+- [x] 全include パス更新完了
+- [x] build_mex.m 更新完了
 - [x] `build_mex()` 成功
 - [x] `run_batch_10sets()` 10/10 PASS
 - [x] Git commit 完了
