@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_ESKF_INC_ESKF_RUNNER_HPP
+#define LIB_ESKF_INC_ESKF_RUNNER_HPP
 
-#ifndef ESKF_ESKF_RUNNER_HPP
-#define ESKF_ESKF_RUNNER_HPP
 
 #include "eskf_state.hpp"
 #include "eskf_core.hpp"

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef CORE_MATH_VECTOR_UTILS_HPP
 #define CORE_MATH_VECTOR_UTILS_HPP

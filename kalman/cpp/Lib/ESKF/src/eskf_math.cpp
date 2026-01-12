@@ -1,4 +1,4 @@
-﻿// eskf_math.cpp
+// eskf_math.cpp
 
 #include "../inc/eskf_math.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"

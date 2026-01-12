@@ -1,4 +1,4 @@
-﻿// Out-of-class definitions for static const arrays declared in the header.
+// Out-of-class definitions for static const arrays declared in the header.
 #include "../inc/meukf_observation_models.hpp"
 
 namespace meukf {

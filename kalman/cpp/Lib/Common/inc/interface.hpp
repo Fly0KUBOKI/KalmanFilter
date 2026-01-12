@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_COMMON_INC_INTERFACE_HPP
+#define LIB_COMMON_INC_INTERFACE_HPP
 
 #include <cstdint>
 
@@ -237,3 +239,5 @@ private:
 };
 
 } // namespace kalman
+
+#endif // LIB_COMMON_INC_INTERFACE_HPP

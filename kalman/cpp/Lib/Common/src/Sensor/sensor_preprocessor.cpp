@@ -1,4 +1,4 @@
-﻿#include "../../inc/Sensor/sensor_preprocessor.hpp"
+#include "../../inc/Sensor/sensor_preprocessor.hpp"
 #include "../../inc/Math/statistics.hpp"
 #include "../../inc/Math/geometry.hpp"
 #include "../../inc/Math/numerical.hpp"

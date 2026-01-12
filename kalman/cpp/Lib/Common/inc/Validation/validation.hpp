@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_COMMON_INC_VALIDATION_VALIDATION_HPP
+#define LIB_COMMON_INC_VALIDATION_VALIDATION_HPP
 
 #include "../../../Matrix/fixed_matrix.hpp"
 #include "../../../KF/inc/kf_operations.hpp"

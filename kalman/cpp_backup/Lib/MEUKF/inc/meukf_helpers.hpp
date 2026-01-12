@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "meukf_core.hpp"
 #include <cstdlib>
 #include <cmath>

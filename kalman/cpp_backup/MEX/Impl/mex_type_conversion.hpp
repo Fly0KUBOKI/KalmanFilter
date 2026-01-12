@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // Canonical mex type conversion implementation (moved from MEX/Inc)
 #ifndef MEX_MEX_TYPE_CONVERSION_HPP

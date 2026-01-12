@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_UKF_INC_UKF_UTILS_HPP
+#define LIB_UKF_INC_UKF_UTILS_HPP
 
 // UKF Shared Utilities
 // Common operations for UKF-based filters (Cholesky, sigma point generation, weight calculation)
@@ -144,3 +146,5 @@ inline void generate_position_sigma_points_3d(
 }
 
 } // namespace ukf_utils
+
+#endif // LIB_UKF_INC_UKF_UTILS_HPP

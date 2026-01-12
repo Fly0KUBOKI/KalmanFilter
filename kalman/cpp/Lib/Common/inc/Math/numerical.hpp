@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_COMMON_INC_MATH_NUMERICAL_HPP
+#define LIB_COMMON_INC_MATH_NUMERICAL_HPP
 
-#ifndef COMMON_MATH_NUMERICAL_HPP
-#define COMMON_MATH_NUMERICAL_HPP
 
 // Wrapper to new Core numerical implementation
 // Implementation embedded

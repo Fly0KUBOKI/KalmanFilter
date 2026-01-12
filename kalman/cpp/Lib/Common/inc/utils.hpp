@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_COMMON_INC_UTILS_HPP
+#define LIB_COMMON_INC_UTILS_HPP
 
 #include "interface.hpp"
 #include "filter_mgmt.hpp"
@@ -26,3 +28,5 @@ inline void normalizeQuat(float q[4]) {
 }
 
 } // namespace kalman
+
+#endif // LIB_COMMON_INC_UTILS_HPP

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef LIB_SENSOR_SENSOR_PREPROCESSOR_HPP
 #define LIB_SENSOR_SENSOR_PREPROCESSOR_HPP

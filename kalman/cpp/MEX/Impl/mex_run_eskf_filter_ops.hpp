@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
+#ifndef MEX_IMPL_MEX_RUN_ESKF_FILTER_OPS_HPP
+#define MEX_IMPL_MEX_RUN_ESKF_FILTER_OPS_HPP
 
-#ifndef MEX_MEX_RUN_ESKF_FILTER_OPS_HPP_IMPL
-#define MEX_MEX_RUN_ESKF_FILTER_OPS_HPP_IMPL
 
 /**
  * mex_run_eskf.cpp用のフィルター操作関数群

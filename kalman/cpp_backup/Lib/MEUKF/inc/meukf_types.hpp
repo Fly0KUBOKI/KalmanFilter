@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <cstdint>
 #include "../../Matrix/fixed_matrix.hpp"
 

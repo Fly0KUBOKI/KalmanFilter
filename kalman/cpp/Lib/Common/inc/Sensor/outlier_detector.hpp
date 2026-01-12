@@ -1,7 +1,8 @@
-﻿// Wrapper to new location
 #pragma once
-#ifndef COMMON_SENSOR_OUTLIER_DETECTOR_HPP
-#define COMMON_SENSOR_OUTLIER_DETECTOR_HPP
+#ifndef LIB_COMMON_INC_SENSOR_OUTLIER_DETECTOR_HPP
+#define LIB_COMMON_INC_SENSOR_OUTLIER_DETECTOR_HPP
+// Wrapper to new location
+#pragma once
 
 #include "../../../Sensor/outlier_detector.hpp"
 

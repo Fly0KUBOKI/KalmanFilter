@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
+#ifndef MEX_IMPL_MEX_ESKF_INITIALIZER_HPP
+#define MEX_IMPL_MEX_ESKF_INITIALIZER_HPP
 
-#ifndef MEX_MEX_ESKF_INITIALIZER_HPP_IMPL
-#define MEX_MEX_ESKF_INITIALIZER_HPP_IMPL
 
 #include "../../Lib/ESKF/inc/eskf_state.hpp"
 #include <mex.h>

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // Implementation: このヘッダー内に実装含む（テンプレート実装）
 // Moved from Inc/Common/Math/fixed_matrix.hpp to Lib/Matrix/fixed_matrix.hpp

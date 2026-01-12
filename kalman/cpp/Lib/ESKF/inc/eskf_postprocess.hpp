@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_ESKF_INC_ESKF_POSTPROCESS_HPP
+#define LIB_ESKF_INC_ESKF_POSTPROCESS_HPP
 
-#ifndef ESKF_ESKF_POSTPROCESS_HPP
-#define ESKF_ESKF_POSTPROCESS_HPP
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include <cstddef>

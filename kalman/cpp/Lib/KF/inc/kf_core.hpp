@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_KF_INC_KF_CORE_HPP
+#define LIB_KF_INC_KF_CORE_HPP
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Common/Sensor/sensor_filter.hpp"
@@ -121,3 +123,5 @@ public:
 };
 
 } // namespace kf
+
+#endif // LIB_KF_INC_KF_CORE_HPP

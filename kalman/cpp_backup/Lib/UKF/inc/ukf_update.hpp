@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // UKF Update Step
 // Provides templated UKF measurement update for arbitrary state/measurement dimensions

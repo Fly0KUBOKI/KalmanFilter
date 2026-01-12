@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_COMMON_INC_SENSOR_SENSOR_PREPROCESSOR_HPP
+#define LIB_COMMON_INC_SENSOR_SENSOR_PREPROCESSOR_HPP
 
-#ifndef COMMON_SENSOR_SENSOR_PREPROCESSOR_HPP
-#define COMMON_SENSOR_SENSOR_PREPROCESSOR_HPP
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include <cmath>

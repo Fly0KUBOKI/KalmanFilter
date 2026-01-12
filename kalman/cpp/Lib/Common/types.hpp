@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_COMMON_TYPES_HPP
+#define LIB_COMMON_TYPES_HPP
 
 #include <cstdint>
 
@@ -26,3 +28,5 @@ enum Status : uint8_t {
 
 
 
+
+#endif // LIB_COMMON_TYPES_HPP

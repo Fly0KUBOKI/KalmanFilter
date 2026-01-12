@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_COMMON_INC_MATH_MAHALANOBIS_HPP
+#define LIB_COMMON_INC_MATH_MAHALANOBIS_HPP
 
-#ifndef COMMON_MATH_MAHALANOBIS_HPP
-#define COMMON_MATH_MAHALANOBIS_HPP
 
 // Wrapper to Core implementation
 // Implementation embedded

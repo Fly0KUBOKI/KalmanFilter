@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_ESKF_INC_ESKF_HELPER_HPP
+#define LIB_ESKF_INC_ESKF_HELPER_HPP
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
@@ -55,3 +57,5 @@ public:
 };
 
 } // namespace eskf
+
+#endif // LIB_ESKF_INC_ESKF_HELPER_HPP

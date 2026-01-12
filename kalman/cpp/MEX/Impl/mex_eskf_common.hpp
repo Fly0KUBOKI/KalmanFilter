@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
+#ifndef MEX_IMPL_MEX_ESKF_COMMON_HPP
+#define MEX_IMPL_MEX_ESKF_COMMON_HPP
 
-#ifndef MEX_MEX_ESKF_COMMON_HPP_IMPL
-#define MEX_MEX_ESKF_COMMON_HPP_IMPL
 
 /**
  * mex_run_eskf.cpp用の共通インクルードと定義
@@ -15,13 +15,9 @@
 #include <cmath>
 #include <cstring>
 #include <string>
-#include <map>
 #include <vector>
 
 // 定数定義
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 // レイヤー1: 基本型（最初に配置）
 #include "../../Lib/Matrix/fixed_matrix.hpp"
@@ -69,5 +65,5 @@ namespace mex_run_eskf_impl {
     extern SensorFilterLib g_filter_lib;
 }
 
-#endif // MEX_MEX_ESKF_COMMON_HPP_IMPL
+#endif // MEX_IMPL_MEX_ESKF_COMMON_HPP
 

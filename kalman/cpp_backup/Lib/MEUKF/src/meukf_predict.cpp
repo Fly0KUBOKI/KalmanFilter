@@ -1,4 +1,4 @@
-﻿#include "../inc/meukf_core.hpp"
+#include "../inc/meukf_core.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Core/statistics.hpp"
 #include "../../Core/geometry.hpp"

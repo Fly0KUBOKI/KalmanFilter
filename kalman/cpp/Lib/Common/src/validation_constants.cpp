@@ -1,4 +1,4 @@
-﻿#include "../inc/Validation/validation.hpp"
+#include "../inc/Validation/validation.hpp"
 
 namespace common {
 namespace validation {

@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_COMMON_INC_FILTER_MGMT_HPP
+#define LIB_COMMON_INC_FILTER_MGMT_HPP
 
-#ifndef COMMON_FILTER_MANAGEMENT_HPP
-#define COMMON_FILTER_MANAGEMENT_HPP
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include <cstddef>

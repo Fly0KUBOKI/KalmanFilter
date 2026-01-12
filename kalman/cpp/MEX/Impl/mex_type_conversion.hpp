@@ -1,8 +1,8 @@
-﻿#pragma once
+#pragma once
+#ifndef MEX_IMPL_MEX_TYPE_CONVERSION_HPP
+#define MEX_IMPL_MEX_TYPE_CONVERSION_HPP
 
 // Canonical mex type conversion implementation (moved from MEX/Inc)
-#ifndef MEX_MEX_TYPE_CONVERSION_HPP
-#define MEX_MEX_TYPE_CONVERSION_HPP
 
 #include "mex.h"
 #include "../../Lib/Matrix/fixed_matrix.hpp"
@@ -124,7 +124,4 @@ mxArray* matrixToMat(const Matrix<R, C, float>& M) {
 
 } // namespace mex_conv
 
-#endif // MEX_MEX_TYPE_CONVERSION_HPP
-
-
-
+#endif // MEX_IMPL_MEX_TYPE_CONVERSION_HPP

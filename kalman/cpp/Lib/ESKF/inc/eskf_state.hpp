@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_ESKF_INC_ESKF_STATE_HPP
+#define LIB_ESKF_INC_ESKF_STATE_HPP
 
-#ifndef ESKF_ESKF_STATE_HPP
-#define ESKF_ESKF_STATE_HPP
 
 namespace eskf {
 

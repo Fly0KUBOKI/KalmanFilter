@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef LIB_SENSOR_OUTLIER_DETECTOR_HPP
 #define LIB_SENSOR_OUTLIER_DETECTOR_HPP

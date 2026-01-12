@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
+#ifndef MEX_IMPL_MEX_RUN_ESKF_SENSOR_UPDATES_HPP
+#define MEX_IMPL_MEX_RUN_ESKF_SENSOR_UPDATES_HPP
 
-#ifndef MEX_MEX_RUN_ESKF_SENSOR_UPDATES_HPP_IMPL
-#define MEX_MEX_RUN_ESKF_SENSOR_UPDATES_HPP_IMPL
 
 /**
  * mex_run_eskf.cpp用のセンサー更新関数群

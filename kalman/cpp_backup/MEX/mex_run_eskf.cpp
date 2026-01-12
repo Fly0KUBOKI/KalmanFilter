@@ -1,4 +1,4 @@
-﻿/* mex_run_eskf.cpp
+/* mex_run_eskf.cpp
  * Complete ESKF implementation in a single MEX file.
  * Replaces ESKF.m entirely.
  * Uses mexCallMATLAB to call existing MEX functions for accuracy.

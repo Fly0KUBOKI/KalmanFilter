@@ -1,14 +1,13 @@
-﻿// Deprecated wrapper: include new robust_statistics implementation
 #pragma once
-#ifndef COMMON_SENSOR_SENSOR_FILTER_BASE_HPP
-#define COMMON_SENSOR_SENSOR_FILTER_BASE_HPP
+#ifndef LIB_COMMON_INC_SENSOR_SENSOR_FILTER_BASE_HPP
+#define LIB_COMMON_INC_SENSOR_SENSOR_FILTER_BASE_HPP
+// Deprecated wrapper: include new robust_statistics implementation
+#pragma once
 
 #include "../../../Sensor/robust_statistics.hpp"
 
 // Deprecated wrapper: include new robust_statistics implementation
 #pragma once
-#ifndef COMMON_SENSOR_SENSOR_FILTER_BASE_HPP
-#define COMMON_SENSOR_SENSOR_FILTER_BASE_HPP
 
 #include "../../../Sensor/robust_statistics.hpp"
 

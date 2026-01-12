@@ -1,4 +1,4 @@
-﻿/* mex_run_eskf.cpp
+/* mex_run_eskf.cpp
  * Hybrid Filter MEX Interface (ESKF Prediction + MEUKF Update)
  *
  * ARCHITECTURE:
@@ -25,9 +25,42 @@ using namespace mex_run_eskf_impl;
 
 // グローバル変数の実装（名前空間内で定義）
 namespace mex_run_eskf_impl {
-    std::map<uint64_t, ESKFState*> g_states;
-    uint64_t g_next_handle = 1;
+    struct StateEntry { uint64_t handle; ESKFState* state; bool used; };
+    static const int MAX_STATES = 100;
+    static StateEntry g_state_table[MAX_STATES] = {};
+    static uint64_t g_next_handle = 1;
     SensorFilterLib g_filter_lib;  // Global sensor filter library instance
+
+    uint64_t allocate_handle(ESKFState* s) {
+        for (int i = 0; i < MAX_STATES; ++i) {
+            if (!g_state_table[i].used) {
+                g_state_table[i].used = true;
+                g_state_table[i].handle = g_next_handle++;
+                g_state_table[i].state = s;
+                return g_state_table[i].handle;
+            }
+        }
+        mexErrMsgIdAndTxt("mex_run_eskf:alloc", "Max state handles reached (%d)", MAX_STATES);
+        return 0;
+    }
+
+    ESKFState* find_state(uint64_t handle) {
+        for (int i = 0; i < MAX_STATES; ++i) {
+            if (g_state_table[i].used && g_state_table[i].handle == handle) return g_state_table[i].state;
+        }
+        return nullptr;
+    }
+
+    void remove_handle(uint64_t handle) {
+        for (int i = 0; i < MAX_STATES; ++i) {
+            if (g_state_table[i].used && g_state_table[i].handle == handle) {
+                g_state_table[i].used = false;
+                g_state_table[i].state = nullptr;
+                g_state_table[i].handle = 0;
+                return;
+            }
+        }
+    }
 }
 
 // mexFunctionのみを実装（他の関数はすべてヘッダーに移動済み）
@@ -49,16 +82,16 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         uint64_t handle = *((uint64_t*)mxGetData(prhs[1]));
         const mxArray* obs = prhs[2];
         int k = (int)mxGetScalar(prhs[3]);
-        std::map<uint64_t, ESKFState*>::iterator it = g_states.find(handle);
-        if (it == g_states.end()) mexErrMsgIdAndTxt("mex_run_eskf:invalid", "Invalid handle");
-        do_step(it->second, obs, k);
+        ESKFState* s = find_state(handle);
+        if (!s) mexErrMsgIdAndTxt("mex_run_eskf:invalid", "Invalid handle");
+        do_step(s, obs, k);
     }
     else if (cmd == "get_state") {
         if (nrhs < 2) mexErrMsgIdAndTxt("mex_run_eskf:usage", "get_state requires (handle)");
         uint64_t handle = *((uint64_t*)mxGetData(prhs[1]));
-        std::map<uint64_t, ESKFState*>::iterator it = g_states.find(handle);
-        if (it == g_states.end()) mexErrMsgIdAndTxt("mex_run_eskf:invalid", "Invalid handle");
-        plhs[0] = do_get_state(it->second);
+        ESKFState* s = find_state(handle);
+        if (!s) mexErrMsgIdAndTxt("mex_run_eskf:invalid", "Invalid handle");
+        plhs[0] = do_get_state(s);
     }
     else if (cmd == "free") {
         if (nrhs < 2) mexErrMsgIdAndTxt("mex_run_eskf:usage", "free requires (handle)");

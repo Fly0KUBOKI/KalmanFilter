@@ -1,7 +1,6 @@
-﻿#pragma once
-
-#ifndef MEX_MEX_RUN_ESKF_IMPL_HPP_IMPL
-#define MEX_MEX_RUN_ESKF_IMPL_HPP_IMPL
+#pragma once
+#ifndef MEX_IMPL_MEX_RUN_ESKF_IMPL_HPP
+#define MEX_IMPL_MEX_RUN_ESKF_IMPL_HPP
 
 /**
  * mex_run_eskf.cpp用の実装関数群（Impl）
@@ -17,8 +16,10 @@
 
 namespace mex_run_eskf_impl {
 
-extern std::map<uint64_t, ESKFState*> g_states;
-extern uint64_t g_next_handle;
+// State handle table API (fixed-size table used instead of std::map)
+uint64_t allocate_handle(ESKFState* s);
+ESKFState* find_state(uint64_t handle);
+void remove_handle(uint64_t handle);
 extern SensorFilterLib g_filter_lib;
 
 inline void call_predict(ESKFState* s, const float* a_meas, const float* w_meas) {
@@ -57,14 +58,10 @@ inline void set_vec3_impl(mxArray* out_new_state_local, const char* name, const 
 
 inline uint64_t do_init(const mxArray* obs, double static_time, double dt) {
     ESKFState* s = initialize_eskf_from_matlab(obs, static_time, dt);
-    uint64_t handle = g_next_handle++;
-    g_states[handle] = s;
-    return handle;
+    return allocate_handle(s);
 }
 
 inline void do_step(ESKFState* s, const mxArray* obs, int k) {
-    // (debug prints removed)
-    
     int idx = k - 1;
     double a_d[3], w_d[3], m_d[3];
     getAccel(obs, idx, a_d);
@@ -83,14 +80,14 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
     // Predict
     call_predict(s, a_f, w_f);
     
-    // ZUPT check (use double buffers returned from getAccel/getGyro)
+    // ZUPT check
     zupt_check_and_update(s, a_d, w_d);
 
-    // Sensor updates (pass original double measurements as旧版expects)
+    // Sensor updates
     call_sensor_update(s, "accel", a_d, 3, k);
     call_sensor_update(s, "mag", m_d, 3, k);
-    
-    // Baro (single型のみ - MATLAB側でsingle型で渡す必要がある)
+
+    // Baro
     mxArray* baro_field = mxGetField(obs, 0, "pressure");
     if (baro_field) {
         if (mxGetClassID(baro_field) != mxSINGLE_CLASS) {
@@ -103,13 +100,12 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
         double baro_arr[1] = {baro};
         call_sensor_update(s, "baro", baro_arr, 1, k);
     }
-    
-    // GPS (double only - type conversion removed)
+
+    // GPS
     mxArray* gps_lat = mxGetField(obs, 0, "lat");
     mxArray* gps_lon = mxGetField(obs, 0, "lon");
     mxArray* gps_alt = mxGetField(obs, 0, "alt");
     if (gps_lat && gps_lon && gps_alt) {
-        // GPSデータはdoubleのみを受け取る（型変換を廃止）
         if (mxGetClassID(gps_lat) != mxDOUBLE_CLASS) {
             mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
                 "Expected double array for GPS 'lat', but got %s.", 
@@ -125,14 +121,12 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
                 "Expected double array for GPS 'alt', but got %s.", 
                 mxGetClassName(gps_alt));
         }
-            double lat = mxGetPr(gps_lat)[idx];
+        double lat = mxGetPr(gps_lat)[idx];
         double lon = mxGetPr(gps_lon)[idx];
         double alt = mxGetPr(gps_alt)[idx];
         if (!std::isnan(lat) && !std::isnan(lon)) {
             call_gps_update(s, lat, lon, alt, k);
         }
-    } else {
-        // no GPS fields
     }
     
     // Reset check
@@ -143,25 +137,21 @@ inline mxArray* do_get_state(ESKFState* s) {
     const char* fields[] = {"p", "v", "q", "euler", "ba", "bg", "P"};
     mxArray* out = mxCreateStructMatrix(1, 1, 7, fields);
 
-    // p - float (3x1)
     mxArray* p = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* p_ptr = (float*)mxGetData(p);
     for (int i = 0; i < 3; i++) p_ptr[i] = s->p[i];
     mxSetField(out, 0, "p", p);
 
-    // v - float (3x1)
     mxArray* v = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* v_ptr = (float*)mxGetData(v);
     for (int i = 0; i < 3; i++) v_ptr[i] = s->v[i];
     mxSetField(out, 0, "v", v);
 
-    // q - float (4x1)
     mxArray* q = mxCreateNumericMatrix(4, 1, mxSINGLE_CLASS, mxREAL);
     float* q_ptr = (float*)mxGetData(q);
     for (int i = 0; i < 4; i++) q_ptr[i] = s->q[i];
     mxSetField(out, 0, "q", q);
 
-    // euler - float (3x1) in degrees
     double euler[3];
     double q_d[4]; for (int i=0;i<4;++i) q_d[i] = s->q[i];
     quat_to_euler(q_d, euler);
@@ -172,19 +162,16 @@ inline mxArray* do_get_state(ESKFState* s) {
     eu_ptr[2] = static_cast<float>(euler[2] * 180.0 / M_PI);
     mxSetField(out, 0, "euler", eu);
 
-    // ba - float (3x1)
     mxArray* ba = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* ba_ptr = (float*)mxGetData(ba);
     for (int i = 0; i < 3; i++) ba_ptr[i] = s->ba[i];
     mxSetField(out, 0, "ba", ba);
 
-    // bg - float (3x1)
     mxArray* bg = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* bg_ptr = (float*)mxGetData(bg);
     for (int i = 0; i < 3; i++) bg_ptr[i] = s->bg[i];
     mxSetField(out, 0, "bg", bg);
 
-    // P - float (15x15)
     mxArray* P = mxCreateNumericMatrix(15, 15, mxSINGLE_CLASS, mxREAL);
     float* P_ptr = (float*)mxGetData(P);
     for (int i = 0; i < 15*15; i++) P_ptr[i] = s->P[i];
@@ -194,30 +181,21 @@ inline mxArray* do_get_state(ESKFState* s) {
 }
 
 inline void do_free(uint64_t handle) {
-    std::map<uint64_t, ESKFState*>::iterator it = g_states.find(handle);
-    if (it != g_states.end()) {
-        delete it->second;
-        g_states.erase(it);
+    ESKFState* s = find_state(handle);
+    if (s != nullptr) {
+        delete s;
+        remove_handle(handle);
     }
 }
 
 inline void do_sensor_update_meukf(const mxArray* m_prev_state, const mxArray* m_sensor, const mxArray* m_params,
                          mxArray*& out_new_state, mxArray*& out_dbg_out, mxArray*& out_dbg_output) {
-    // MEUKF-based sensor update (UKF core)
-    // This function performs Kalman gain calculation using MEUKFCore::step()
-    // which implements Unscented Kalman Filter for sensor updates.
-    // Called from handle_sensor_update_internal() in mex_run_eskf_sensor_updates.hpp
-    
     meukf::MEUKFInput input;
-    // State変換
-    // p, v, ba, bg
     mex_conv::mxArrayToFloatArray(mxGetField(m_prev_state,0,"p"), input.prev_state.p, 3);
     mex_conv::mxArrayToFloatArray(mxGetField(m_prev_state,0,"v"), input.prev_state.v, 3);
     mex_conv::mxArrayToFloatArray(mxGetField(m_prev_state,0,"ba"), input.prev_state.ba, 3);
     mex_conv::mxArrayToFloatArray(mxGetField(m_prev_state,0,"bg"), input.prev_state.bg, 3);
-    // q
     mex_conv::mxArrayToFloatArray(mxGetField(m_prev_state,0,"q"), input.prev_state.q, 4);
-    // P: MATLAB column-major -> internal row-major
     mxArray* f_P = mxGetField(m_prev_state, 0, "P");
     if (f_P) {
         float P_tmp[15*15];
@@ -225,11 +203,9 @@ inline void do_sensor_update_meukf(const mxArray* m_prev_state, const mxArray* m
         for (int r=0;r<15;++r) for (int c=0;c<15;++c) input.prev_state.P[r*15 + c] = P_tmp[c*15 + r];
     }
 
-    // SensorData変換（必要なフィールドのみ）
     mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"accel"), input.sensor.accel, 3);
     mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"gyro"), input.sensor.gyro, 3);
     mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"mag"), input.sensor.mag, 3);
-    // GPSデータはdouble型で読み取る（GPSはdoubleのみ）
     mxArray* gps_pos_field = mxGetField(m_sensor, 0, "gps_pos");
     if (gps_pos_field) {
         if (mxGetClassID(gps_pos_field) != mxDOUBLE_CLASS) {
@@ -246,7 +222,6 @@ inline void do_sensor_update_meukf(const mxArray* m_prev_state, const mxArray* m
     }
     input.sensor.alt_baro = mex_conv::mxGetScalarAsFloat(mxGetField(m_sensor,0,"alt_baro"));
     mex_conv::mxArrayToFloatArray(mxGetField(m_sensor,0,"prev_mag"), input.sensor.prev_mag, 3);
-    // prev_gps_posもdouble型で読み取る（GPSはdoubleのみ）
     mxArray* prev_gps_pos_field = mxGetField(m_sensor, 0, "prev_gps_pos");
     if (prev_gps_pos_field) {
         if (mxGetClassID(prev_gps_pos_field) != mxDOUBLE_CLASS) {
@@ -258,171 +233,37 @@ inline void do_sensor_update_meukf(const mxArray* m_prev_state, const mxArray* m
         for (int i = 0; i < 3; ++i) {
             input.sensor.prev_gps_pos[i] = static_cast<float>(prev_gps_pr[i]);
         }
-    } else {
-        input.sensor.prev_gps_pos[0] = input.sensor.prev_gps_pos[1] = input.sensor.prev_gps_pos[2] = 0.0f;
-    }
-    input.sensor.prev_baro_alt = mex_conv::mxGetScalarAsFloat(mxGetField(m_sensor,0,"prev_baro_alt"));
-    input.sensor.update_accel = (uint8_t)get_field_scalar_impl(m_sensor, "update_accel");
-    input.sensor.update_gyro = (uint8_t)get_field_scalar_impl(m_sensor, "update_gyro");
-    input.sensor.update_mag = (uint8_t)get_field_scalar_impl(m_sensor, "update_mag");
-    input.sensor.update_gps = (uint8_t)get_field_scalar_impl(m_sensor, "update_gps");
-    input.sensor.update_baro = (uint8_t)get_field_scalar_impl(m_sensor, "update_baro");
-    input.sensor.update_zupt = (uint8_t)get_field_scalar_impl(m_sensor, "update_zupt");
-    input.sensor.dt = mex_conv::mxGetScalarAsFloat(mxGetField(m_sensor,0,"dt"));
-
-    // Params
-    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"g"), input.params.g, 3);
-    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"mag_ref"), input.params.mag_ref, 3);
-    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_accel"), input.params.noise_accel, 3);
-    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_gyro"), input.params.noise_gyro, 3);
-    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_ba"), input.params.noise_ba, 3);
-    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_bg"), input.params.noise_bg, 3);
-    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_mag"), input.params.noise_mag, 3);
-    // noise_gpsはdouble型で読み取る（GPSはdoubleのみ）
-    mxArray* noise_gps_field = mxGetField(m_params, 0, "noise_gps");
-    if (noise_gps_field) {
-        if (mxGetClassID(noise_gps_field) != mxDOUBLE_CLASS) {
-            mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
-                "Expected double array for GPS 'noise_gps', but got %s.", 
-                mxGetClassName(noise_gps_field));
-        }
-        const double* noise_gps_pr = mxGetPr(noise_gps_field);
-        for (int i = 0; i < 3; ++i) {
-            input.params.noise_gps[i] = static_cast<float>(noise_gps_pr[i]);
-        }
-    } else {
-        input.params.noise_gps[0] = input.params.noise_gps[1] = input.params.noise_gps[2] = 0.0f;
-    }
-    input.params.noise_baro = mex_conv::mxGetScalarAsFloat(mxGetField(m_params,0,"noise_baro"));
-    mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_zupt"), input.params.noise_zupt, 3);
-    input.params.alpha = mex_conv::mxGetScalarAsFloat(mxGetField(m_params,0,"alpha"));
-    input.params.beta = mex_conv::mxGetScalarAsFloat(mxGetField(m_params,0,"beta"));
-    input.params.kappa = mex_conv::mxGetScalarAsFloat(mxGetField(m_params,0,"kappa"));
-
-    // Validate GPS noise
-    for(int i=0;i<3;++i) {
-        float v = input.params.noise_gps[i];
-        if(!std::isfinite(v) || v < 0.0f) {
-            mexErrMsgIdAndTxt("MEUKF:step:invalidNoiseGPS", "noise_gps must be finite non-negative variances (meters^2). Got %g at index %d", (double)v, i+1);
-        }
     }
 
-    // Phase 1: MEUKF呼び出し（最も簡単な部分）
+    // Call MEUKF core
     meukf::MEUKFOutput output;
     meukf::MEUKFCore::step(input, output);
 
-    // Phase 2: C++→MATLAB変換（後で実装）
-    // Phase 3: MATLAB→C++変換（既に実装済み）
+    // Convert output back to mxArray (new_state)
+    const char* fields[] = {"p","v","q","ba","bg","P"};
+    out_new_state = mxCreateStructMatrix(1,1,6,fields);
+    mxArray* p_out = mxCreateNumericMatrix(3,1,mxSINGLE_CLASS,mxREAL);
+    float* p_out_ptr = (float*)mxGetData(p_out);
+    for (int i=0;i<3;++i) p_out_ptr[i] = output.new_state.p[i]; mxSetField(out_new_state,0,"p",p_out);
+    mxArray* v_out = mxCreateNumericMatrix(3,1,mxSINGLE_CLASS,mxREAL);
+    float* v_out_ptr = (float*)mxGetData(v_out);
+    for (int i=0;i<3;++i) v_out_ptr[i] = output.new_state.v[i]; mxSetField(out_new_state,0,"v",v_out);
+    mxArray* q_out = mxCreateNumericMatrix(4,1,mxSINGLE_CLASS,mxREAL);
+    float* q_out_ptr = (float*)mxGetData(q_out);
+    for (int i=0;i<4;++i) q_out_ptr[i] = output.new_state.q[i]; mxSetField(out_new_state,0,"q",q_out);
+    mxArray* ba_out = mxCreateNumericMatrix(3,1,mxSINGLE_CLASS,mxREAL);
+    float* ba_out_ptr = (float*)mxGetData(ba_out);
+    for (int i=0;i<3;++i) ba_out_ptr[i] = output.new_state.ba[i]; mxSetField(out_new_state,0,"ba",ba_out);
+    mxArray* bg_out = mxCreateNumericMatrix(3,1,mxSINGLE_CLASS,mxREAL);
+    float* bg_out_ptr = (float*)mxGetData(bg_out);
+    for (int i=0;i<3;++i) bg_out_ptr[i] = output.new_state.bg[i]; mxSetField(out_new_state,0,"bg",bg_out);
+    mxArray* P_out = mxCreateNumericMatrix(15,15,mxSINGLE_CLASS,mxREAL);
+    float* P_out_ptr = (float*)mxGetData(P_out);
+    for (int r=0;r<15;++r) for (int c=0;c<15;++c) P_out_ptr[c*15 + r] = output.new_state.P[r*15 + c];
+    mxSetField(out_new_state,0,"P",P_out);
 
-    // Prepare MATLAB output: duplicate prev_state and update fields
-    out_new_state = mxDuplicateArray(m_prev_state);
-    // helper to set vec3 (float only - type conversion removed)
-    set_vec3_impl(out_new_state, "p", output.new_state.p);
-    set_vec3_impl(out_new_state, "v", output.new_state.v);
-    set_vec3_impl(out_new_state, "ba", output.new_state.ba);
-    set_vec3_impl(out_new_state, "bg", output.new_state.bg);
-    // q
-    mxArray* f_q = mxGetField(out_new_state, 0, "q"); 
-    if(f_q) { 
-        if (mxGetClassID(f_q) != mxSINGLE_CLASS) {
-            mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
-                "Expected single (float) array for field 'q', but got %s.", 
-                mxGetClassName(f_q));
-        } else {
-            float* pf = (float*)mxGetData(f_q);
-            pf[0] = output.new_state.q[0]; 
-            pf[1] = output.new_state.q[1]; 
-            pf[2] = output.new_state.q[2]; 
-            pf[3] = output.new_state.q[3];
-        }
-    }
-    // P
-    mxArray* fP = mxGetField(out_new_state, 0, "P"); 
-    if(fP) {
-        if (mxGetClassID(fP) != mxSINGLE_CLASS) {
-            mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
-                "Expected single (float) array for field 'P', but got %s.", 
-                mxGetClassName(fP));
-        } else {
-            float* pf = (float*)mxGetData(fP);
-            for(int c=0;c<15;++c) {
-                for(int r=0;r<15;++r) {
-                    pf[r + c*15] = output.new_state.P[r*15 + c];
-                }
-            }
-        }
-    }
-
-    // Phase 1: MEUKF呼び出しは完了（MEUKFCore::step()を直接呼び出し）
-    // Phase 2: C++→MATLAB変換は完了（state_to_matlab相当）
-    
-    // Phase 2の残り: dbg_outとdbg_outputの作成
-    // dbg_out: handle_sensor_update_internalが期待する構造体（innov, H, dxを含む）
-    // 今は空の構造体を返す（handle_sensor_update_internalはフォールバック処理がある）
-    const char* dbg_out_fnames[] = {"innov", "H", "dx"};
-    out_dbg_out = mxCreateStructMatrix(1, 1, 3, dbg_out_fnames);
-    // TODO: Phase 2で実装（innov, H, dxを設定）
-    // 今は空なので、handle_sensor_update_internalはフォールバック処理（new_stateから直接読み取り）を使用
-    
-    // dbg_output: 構造体（mex_meukf_step_v2のplhs[2]と互換）
-    const char* fnames[] = {"pred_P", "last_K", "last_S", "last_S_inv", "last_H", "last_y", "last_y_len", "last_sensor_type", "input_update_gps", "input_noise_gps"};
-    out_dbg_output = mxCreateStructMatrix(1, 1, 10, fnames);
-    // Fill dbg output from MEUKFOutput 'output'
-    // pred_P: 15 x 15 float matrix (predicted P after predict(), row-major in C++)
-    mxArray* m_pred_P = mxCreateNumericMatrix(15, 15, mxSINGLE_CLASS, mxREAL);
-    float* p_pred = (float*)mxGetData(m_pred_P);
-    for(int r=0;r<15;++r) for(int c=0;c<15;++c) p_pred[r + c*15] = output.pred_P[r*15 + c];
-    mxSetField(out_dbg_output, 0, "pred_P", m_pred_P);
-
-    // last_K: 15 x 3 float matrix (stored column-major in MATLAB)
-    mxArray* m_last_K = mxCreateNumericMatrix(15, 3, mxSINGLE_CLASS, mxREAL);
-    float* p_K = (float*)mxGetData(m_last_K);
-    for(int r=0;r<15;++r) for(int c=0;c<3;++c) p_K[r + c*15] = output.last_K[r*3 + c];
-    mxSetField(out_dbg_output, 0, "last_K", m_last_K);
-
-    // last_S: 3 x 3 float matrix (innovation covariance, stored column-major in MATLAB)
-    mxArray* m_last_S = mxCreateNumericMatrix(3, 3, mxSINGLE_CLASS, mxREAL);
-    float* p_S = (float*)mxGetData(m_last_S);
-    for(int r=0;r<3;++r) for(int c=0;c<3;++c) p_S[r + c*3] = output.last_S[r*3 + c];
-    mxSetField(out_dbg_output, 0, "last_S", m_last_S);
-
-    // last_y: variable length up to 3 (float)
-    int ylen = output.last_y_len;
-    if(ylen < 0) ylen = 0; if(ylen > 3) ylen = 3;
-    mxArray* m_last_y = mxCreateNumericMatrix(ylen, 1, mxSINGLE_CLASS, mxREAL);
-    if(ylen > 0) {
-        float* p_y = (float*)mxGetData(m_last_y);
-        for(int i=0;i<ylen;++i) p_y[i] = output.last_y[i];
-    }
-    mxSetField(out_dbg_output, 0, "last_y", m_last_y);
-
-    // last_S_inv: 3 x 3 float matrix (inverse innovation covariance)
-    mxArray* m_last_S_inv = mxCreateNumericMatrix(3, 3, mxSINGLE_CLASS, mxREAL);
-    float* p_Sinv = (float*)mxGetData(m_last_S_inv);
-    for(int r=0;r<3;++r) for(int c=0;c<3;++c) p_Sinv[r + c*3] = output.last_S_inv[r*3 + c];
-    mxSetField(out_dbg_output, 0, "last_S_inv", m_last_S_inv);
-
-    // last_H: 3 x 15 float matrix (measurement matrix H, stored column-major in MATLAB)
-    mxArray* m_last_H = mxCreateNumericMatrix(3, 15, mxSINGLE_CLASS, mxREAL);
-    float* p_H = (float*)mxGetData(m_last_H);
-    for(int r=0;r<3;++r) for(int c=0;c<15;++c) p_H[r + c*3] = output.last_H[r*15 + c];
-    mxSetField(out_dbg_output, 0, "last_H", m_last_H);
-
-    // last_y_len
-    mxArray* m_ylen = mxCreateDoubleScalar(output.last_y_len);
-    mxSetField(out_dbg_output, 0, "last_y_len", m_ylen);
-
-    // last_sensor_type
-    mxArray* m_stype = mxCreateDoubleScalar(output.last_sensor_type);
-    mxSetField(out_dbg_output, 0, "last_sensor_type", m_stype);
-
-    // input_update_gps and input_noise_gps (echo)
-    mxArray* m_input_update = mxCreateDoubleScalar(input.sensor.update_gps);
-    mxSetField(out_dbg_output, 0, "input_update_gps", m_input_update);
-    mxArray* m_input_noise = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
-    float* p_noise = (float*)mxGetData(m_input_noise);
-    for(int i=0;i<3;++i) p_noise[i] = input.params.noise_gps[i];
-    mxSetField(out_dbg_output, 0, "input_noise_gps", m_input_noise);
+    out_dbg_out = mxCreateLogicalScalar(true);
+    out_dbg_output = mxCreateLogicalScalar(true);
 }
 
 /** Sensor filter wrappers (copied from Inc implementation) **/
@@ -493,9 +334,9 @@ inline mxArray* do_sensor_filter_update(const mxArray* m_sensor) {
     mxSetField(out,0,"is_outlier_mag", mxCreateLogicalScalar(is_outlier_mag));
 
     return out;
-}
 
 } // namespace mex_run_eskf_impl
+}
 
-#endif // MEX_MEX_RUN_ESKF_IMPL_HPP_IMPL
+#endif // MEX_IMPL_MEX_RUN_ESKF_IMPL_HPP
 

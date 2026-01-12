@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_UKF_INC_UKF_UPDATE_HPP
+#define LIB_UKF_INC_UKF_UPDATE_HPP
 
 // UKF Update Step
 // Provides templated UKF measurement update for arbitrary state/measurement dimensions
@@ -163,3 +165,5 @@ public:
 };
 
 } // namespace ukf
+
+#endif // LIB_UKF_INC_UKF_UPDATE_HPP

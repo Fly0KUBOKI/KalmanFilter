@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_MEUKF_INC_MEUKF_OBSERVATION_MODELS_HPP
+#define LIB_MEUKF_INC_MEUKF_OBSERVATION_MODELS_HPP
 
 // MEUKF observation models for use with generic UKF library
 
@@ -119,3 +121,5 @@ public:
 };
 
 } // namespace meukf
+
+#endif // LIB_MEUKF_INC_MEUKF_OBSERVATION_MODELS_HPP

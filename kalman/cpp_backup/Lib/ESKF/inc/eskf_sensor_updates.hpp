@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef ESKF_ESKF_SENSOR_UPDATES_HPP
 #define ESKF_ESKF_SENSOR_UPDATES_HPP

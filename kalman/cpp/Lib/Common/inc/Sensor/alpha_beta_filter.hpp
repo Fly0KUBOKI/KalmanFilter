@@ -1,7 +1,8 @@
-﻿// Wrapper to new location
 #pragma once
-#ifndef COMMON_SENSOR_ALPHA_BETA_FILTER_HPP
-#define COMMON_SENSOR_ALPHA_BETA_FILTER_HPP
+#ifndef LIB_COMMON_INC_SENSOR_ALPHA_BETA_FILTER_HPP
+#define LIB_COMMON_INC_SENSOR_ALPHA_BETA_FILTER_HPP
+// Wrapper to new location
+#pragma once
 
 #include "../../../Sensor/alpha_beta_filter.hpp"
 

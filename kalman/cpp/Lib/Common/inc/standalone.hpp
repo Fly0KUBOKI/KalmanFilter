@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_COMMON_INC_STANDALONE_HPP
+#define LIB_COMMON_INC_STANDALONE_HPP
 
 #include "interface.hpp"
 
@@ -20,3 +22,5 @@ uint8_t filter_reset(void);
 uint8_t filter_setType(FilterType t);
 
 } // namespace kalman
+
+#endif // LIB_COMMON_INC_STANDALONE_HPP

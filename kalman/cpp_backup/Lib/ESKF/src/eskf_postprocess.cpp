@@ -1,4 +1,4 @@
-﻿#include "../inc/eskf_postprocess.hpp"
+#include "../inc/eskf_postprocess.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../Core/vector_utils.hpp"
 #include "../../Common/inc/filter_mgmt.hpp"

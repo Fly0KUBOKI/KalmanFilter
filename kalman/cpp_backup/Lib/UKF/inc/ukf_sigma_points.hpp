@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // UKF Sigma Point Generation
 // Provides templated sigma point generation for arbitrary state dimensions

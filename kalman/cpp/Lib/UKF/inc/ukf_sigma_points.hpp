@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_UKF_INC_UKF_SIGMA_POINTS_HPP
+#define LIB_UKF_INC_UKF_SIGMA_POINTS_HPP
 
 // UKF Sigma Point Generation
 // Provides templated sigma point generation for arbitrary state dimensions
@@ -95,3 +97,5 @@ public:
 };
 
 } // namespace ukf
+
+#endif // LIB_UKF_INC_UKF_SIGMA_POINTS_HPP

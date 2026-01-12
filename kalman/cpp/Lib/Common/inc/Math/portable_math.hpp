@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_COMMON_INC_MATH_PORTABLE_MATH_HPP
+#define LIB_COMMON_INC_MATH_PORTABLE_MATH_HPP
 
 #include <cmath>
 #include <cstdlib>
@@ -68,3 +70,5 @@ inline float pressure_to_altitude_simple(float pressure_pa) {
 
 } // namespace math
 } // namespace common
+
+#endif // LIB_COMMON_INC_MATH_PORTABLE_MATH_HPP

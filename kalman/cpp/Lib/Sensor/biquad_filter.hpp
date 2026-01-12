@@ -1,4 +1,5 @@
-﻿// Wrapper to new location
+#pragma once
+// Wrapper to new location
 #pragma once
 
 #ifndef LIB_SENSOR_BIQUAD_FILTER_HPP

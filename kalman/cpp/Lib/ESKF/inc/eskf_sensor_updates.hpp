@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_ESKF_INC_ESKF_SENSOR_UPDATES_HPP
+#define LIB_ESKF_INC_ESKF_SENSOR_UPDATES_HPP
 
-#ifndef ESKF_ESKF_SENSOR_UPDATES_HPP
-#define ESKF_ESKF_SENSOR_UPDATES_HPP
 
 #include "eskf_state.hpp"
 #include "../../Matrix/fixed_matrix.hpp"

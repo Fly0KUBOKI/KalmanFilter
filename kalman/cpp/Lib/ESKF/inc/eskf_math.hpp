@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_ESKF_INC_ESKF_MATH_HPP
+#define LIB_ESKF_INC_ESKF_MATH_HPP
 
 // Implementation: Src/ESKF/eskf_math.cpp
 
@@ -63,3 +65,5 @@ void ESKFMath::kalman_update(const cmath_fx::Vector<N, Scalar>& x_in, const cmat
 }
 
 } // namespace eskf_math
+
+#endif // LIB_ESKF_INC_ESKF_MATH_HPP

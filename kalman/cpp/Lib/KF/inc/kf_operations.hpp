@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_KF_INC_KF_OPERATIONS_HPP
+#define LIB_KF_INC_KF_OPERATIONS_HPP
 
 #include "../../Matrix/fixed_matrix.hpp"
 
@@ -195,3 +197,5 @@ inline float mahalanobis_distance_squared(const cmath_fx::FixedMatrix& innovatio
 } // namespace ops
 
 } // namespace kf
+
+#endif // LIB_KF_INC_KF_OPERATIONS_HPP

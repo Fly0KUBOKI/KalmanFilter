@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_COMMON_INC_MATH_STATISTICS_HPP
+#define LIB_COMMON_INC_MATH_STATISTICS_HPP
 
-#ifndef COMMON_MATH_STATISTICS_HPP
-#define COMMON_MATH_STATISTICS_HPP
 
 #include "portable_math.hpp"
 #include <cstddef>

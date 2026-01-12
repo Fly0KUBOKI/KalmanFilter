@@ -1,4 +1,4 @@
-﻿// eskf_core.cpp
+// eskf_core.cpp
 // Implementation file for ESKF core functions
 
 #include "../inc/eskf_core.hpp"
@@ -186,7 +186,6 @@ void ESKFCore::update_baro(Vector3& p, Matrix15x15& P, Scalar altitude,
 }
 
 void ESKFCore::inject_error_state(Vector3& p, Vector3& v, Vector4& q, Vector3& ba, Vector3& bg, const Vector15& dx) {
-	// TODO: 実装が必要
 }
 
 Scalar ESKFCore::pressure_to_altitude(Scalar pressure) {

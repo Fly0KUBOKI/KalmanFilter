@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef COMMON_FILTER_MANAGEMENT_HPP
 #define COMMON_FILTER_MANAGEMENT_HPP

@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_MEUKF_INC_MEUKF_TYPES_HPP
+#define LIB_MEUKF_INC_MEUKF_TYPES_HPP
 #include <cstdint>
 #include "../../Matrix/fixed_matrix.hpp"
 
@@ -97,3 +99,5 @@ struct MEUKFOutput {
 };
 
 } // namespace meukf
+
+#endif // LIB_MEUKF_INC_MEUKF_TYPES_HPP

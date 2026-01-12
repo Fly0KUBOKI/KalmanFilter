@@ -1,4 +1,4 @@
-﻿// Copied from Inc/ESKF/eskf_filter.hpp
+// Copied from Inc/ESKF/eskf_filter.hpp
 #pragma once
 
 #include "Common/filter_interface.hpp"

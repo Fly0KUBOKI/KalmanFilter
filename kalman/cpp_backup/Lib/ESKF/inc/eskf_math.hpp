@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // Implementation: Src/ESKF/eskf_math.cpp
 

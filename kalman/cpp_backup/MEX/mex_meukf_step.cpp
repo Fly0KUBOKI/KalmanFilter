@@ -1,4 +1,4 @@
-﻿#include "mex.h"
+#include "mex.h"
 // meukf_core.hpp is located in kalman/cpp/Lib/MEUKF/inc
 #include "../Lib/MEUKF/inc/meukf_core.hpp"
 #include "Impl/mex_type_conversion.hpp"

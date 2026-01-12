@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_SENSOR_SENSOR_FILTER_HPP
+#define LIB_SENSOR_SENSOR_FILTER_HPP
 
-#ifndef COMMON_SENSOR_SENSOR_FILTER_HPP
-#define COMMON_SENSOR_SENSOR_FILTER_HPP
 
 // Centralized sensor aggregator
 #include "filters.hpp"

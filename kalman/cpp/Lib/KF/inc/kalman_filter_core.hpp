@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_KF_INC_KALMAN_FILTER_CORE_HPP
+#define LIB_KF_INC_KALMAN_FILTER_CORE_HPP
 
 // Implementation: このヘッダー内に実装含む（テンプレート実装）
 
@@ -74,3 +76,5 @@ public:
 };
 
 } // namespace kf
+
+#endif // LIB_KF_INC_KALMAN_FILTER_CORE_HPP

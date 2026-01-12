@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef COMMON_MATH_GEOMETRY_HPP
 #define COMMON_MATH_GEOMETRY_HPP

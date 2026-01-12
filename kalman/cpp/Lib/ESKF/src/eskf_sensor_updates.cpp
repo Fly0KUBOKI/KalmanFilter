@@ -1,4 +1,4 @@
-﻿#include "../inc/eskf_sensor_updates.hpp"
+#include "../inc/eskf_sensor_updates.hpp"
 #include "../inc/eskf_state.hpp"
 #include <cmath>
 #include "../../Common/inc/Math/portable_math.hpp"

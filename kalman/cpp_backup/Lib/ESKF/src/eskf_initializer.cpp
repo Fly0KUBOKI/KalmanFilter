@@ -1,4 +1,4 @@
-﻿#include "../inc/eskf_initializer.hpp"
+#include "../inc/eskf_initializer.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Core/statistics.hpp"

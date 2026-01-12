@@ -1,8 +1,8 @@
-﻿#pragma once
+#pragma once
+#ifndef MEX_IMPL_MEX_HELPERS_HPP
+#define MEX_IMPL_MEX_HELPERS_HPP
 
 // Canonical mex_helpers implementation (moved from MEX/Inc)
-#ifndef MEX_MEX_HELPERS_HPP
-#define MEX_MEX_HELPERS_HPP
 
 #include <mex.h>
 #include <string>

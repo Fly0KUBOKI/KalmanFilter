@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_QUATERNION_QUATERNION_FUNCTIONS_HPP
+#define LIB_QUATERNION_QUATERNION_FUNCTIONS_HPP
 // Moved from Inc/Common/Math/quaternion.hpp to Lib/Quaternion/quaternion_functions.hpp
 #include <cmath>
 #include "../Matrix/fixed_matrix.hpp"
@@ -162,3 +164,5 @@ inline void quat_to_rotm_array(const cmath_fx::Vector<4, T>& q, T R[9]) {
 } // namespace cquat
 
 
+
+#endif // LIB_QUATERNION_QUATERNION_FUNCTIONS_HPP

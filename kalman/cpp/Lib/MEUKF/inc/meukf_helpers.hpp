@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_MEUKF_INC_MEUKF_HELPERS_HPP
+#define LIB_MEUKF_INC_MEUKF_HELPERS_HPP
 #include "meukf_core.hpp"
 #include <cstdlib>
 #include <cmath>
@@ -41,3 +43,5 @@ inline double vector3_norm(const Vector3& v) {
 }
 
 } // namespace meukf
+
+#endif // LIB_MEUKF_INC_MEUKF_HELPERS_HPP

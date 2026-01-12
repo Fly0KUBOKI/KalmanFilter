@@ -1,4 +1,4 @@
-﻿#include "../inc/interface.hpp"
+#include "../inc/interface.hpp"
 #include "../inc/utils.hpp"
 #include <cmath>
 #include <cstring>

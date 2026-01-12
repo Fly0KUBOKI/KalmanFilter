@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+#ifndef LIB_MATRIX_FIXED_MATRIX_HPP
+#define LIB_MATRIX_FIXED_MATRIX_HPP
 
 // Implementation: このヘッダー内に実装含む（テンプレート実装）
 // Moved from Inc/Common/Math/fixed_matrix.hpp to Lib/Matrix/fixed_matrix.hpp
@@ -665,3 +667,5 @@ inline cm skew_symmetric(const cm& v) {
 
 } // namespace math
 } // namespace common
+
+#endif // LIB_MATRIX_FIXED_MATRIX_HPP

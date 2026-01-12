@@ -1,7 +1,8 @@
-﻿// Wrapper to new location
 #pragma once
-#ifndef COMMON_SENSOR_SENSOR_PREPROCESSOR_HPP
-#define COMMON_SENSOR_SENSOR_PREPROCESSOR_HPP
+#ifndef LIB_SENSOR_SENSOR_PREPROCESSOR_HPP
+#define LIB_SENSOR_SENSOR_PREPROCESSOR_HPP
+// Wrapper to new location
+#pragma once
 
 #include "../Matrix/fixed_matrix.hpp"
 #include <cmath>

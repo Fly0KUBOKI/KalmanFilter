@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef ESKF_ESKF_STATE_HPP
 #define ESKF_ESKF_STATE_HPP
