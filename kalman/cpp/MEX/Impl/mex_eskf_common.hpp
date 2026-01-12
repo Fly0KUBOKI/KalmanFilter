@@ -18,6 +18,9 @@
 #include <vector>
 
 // 定数定義
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 // レイヤー1: 基本型（最初に配置）
 #include "../../Lib/Matrix/fixed_matrix.hpp"
