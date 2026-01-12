@@ -342,14 +342,14 @@ run_batch_10sets()
 
 ## 8. 完了確認チェックリスト
 
-- [ ] validation.hpp から重複クラス定義を削除
-- [ ] validation.hpp にincludeとusingエイリアスを追加
-- [ ] MEX/Inc/ ディレクトリを削除
-- [ ] mex_run_eskf.cpp のincludeパスを確認・修正
-- [ ] 未使用のKF/EKF/UKFファイルを確認
-- [ ] `build_mex()` 成功
-- [ ] `run_batch_10sets()` 10/10 PASS
-- [ ] Git commit 完了
+- [x] validation.hpp から重複クラス定義を削除
+- [x] validation.hpp にincludeとusingエイリアスを追加
+- [x] MEX/Inc/ ディレクトリを削除
+- [x] mex_run_eskf.cpp のincludeパスを確認・修正
+- [x] 未使用のKF/EKF/UKFファイルを確認
+- [x] `build_mex()` 成功
+- [x] `run_batch_10sets()` 10/10 PASS
+- [x] Git commit 完了
 
 ---
 

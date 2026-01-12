@@ -355,7 +355,7 @@ run_batch_10sets()
 - [x] 全呼び出し箇所の修正完了
 - [x] `build_mex()` 成功
 - [x] `run_batch_10sets()` 10/10 PASS
-- [ ] Git commit 完了
+- [x] Git commit 完了
 
 ---
 

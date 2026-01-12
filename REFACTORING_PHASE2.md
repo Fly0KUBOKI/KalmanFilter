@@ -464,14 +464,14 @@ run_batch_10sets()
 
 ## 7. 完了確認チェックリスト
 
-- [ ] `sensor_filter_base.hpp` 削除済み
-- [ ] `sensor_filter.hpp` からログ関連コード削除済み
-- [ ] `sensor_filter.hpp` から不要include削除済み
-- [ ] `robust_statistics.hpp` から重複定義削除済み
-- [ ] `robust_statistics.hpp` からデバッグ機能削除済み
-- [ ] `build_mex()` 成功
-- [ ] `run_batch_10sets()` 10/10 PASS
-- [ ] Git commit 完了
+- [x] `sensor_filter_base.hpp` 削除済み
+- [x] `sensor_filter.hpp` からログ関連コード削除済み
+- [x] `sensor_filter.hpp` から不要include削除済み
+- [x] `robust_statistics.hpp` から重複定義削除済み
+- [x] `robust_statistics.hpp` からデバッグ機能削除済み
+- [x] `build_mex()` 成功
+- [x] `run_batch_10sets()` 10/10 PASS
+- [x] Git commit 完了
 
  - [x] `Lib/Common/inc/Sensor/sensor_filter_base.hpp` 削除済み
  - [x] `sensor_filter.hpp` からログ関連コード削除済み
