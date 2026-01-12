@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef LIB_ESKF_INC_ESKF_FILTER_HPP
 #define LIB_ESKF_INC_ESKF_FILTER_HPP
 // Copied from Inc/ESKF/eskf_filter.hpp

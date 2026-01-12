@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef LIB_MEUKF_INC_MEUKF_HELPERS_HPP
 #define LIB_MEUKF_INC_MEUKF_HELPERS_HPP
 #include "meukf_core.hpp"

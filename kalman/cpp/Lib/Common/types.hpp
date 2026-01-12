@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef LIB_COMMON_TYPES_HPP
 #define LIB_COMMON_TYPES_HPP
 

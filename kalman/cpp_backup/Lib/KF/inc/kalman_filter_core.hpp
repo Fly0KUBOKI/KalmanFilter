@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // Implementation: このヘッダー内に実装含む（テンプレート実装）
 

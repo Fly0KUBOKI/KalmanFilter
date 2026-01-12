@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"

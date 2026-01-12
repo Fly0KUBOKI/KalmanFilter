@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #ifndef MEX_MEX_RUN_ESKF_SENSOR_UPDATES_HPP_IMPL
 #define MEX_MEX_RUN_ESKF_SENSOR_UPDATES_HPP_IMPL

@@ -1,4 +1,4 @@
-// Deprecated wrapper: include new robust_statistics implementation
+﻿// Deprecated wrapper: include new robust_statistics implementation
 #pragma once
 #ifndef COMMON_SENSOR_SENSOR_FILTER_BASE_HPP
 #define COMMON_SENSOR_SENSOR_FILTER_BASE_HPP

@@ -1,4 +1,4 @@
-#include "../inc/filter_mgmt.hpp"
+﻿#include "../inc/filter_mgmt.hpp"
 #include <cmath>
 #include "../inc/Math/portable_math.hpp"
 // Matrix utilities consolidated into fixed_matrix.hpp

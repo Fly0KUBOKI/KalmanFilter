@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // Canonical mex_helpers implementation (moved from MEX/Inc)
 #ifndef MEX_MEX_HELPERS_HPP

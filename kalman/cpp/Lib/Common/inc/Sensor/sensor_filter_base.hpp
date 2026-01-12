@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef LIB_COMMON_INC_SENSOR_SENSOR_FILTER_BASE_HPP
 #define LIB_COMMON_INC_SENSOR_SENSOR_FILTER_BASE_HPP
 // Deprecated wrapper: include new robust_statistics implementation

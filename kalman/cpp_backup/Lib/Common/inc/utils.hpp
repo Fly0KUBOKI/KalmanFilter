@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "interface.hpp"
 #include "filter_mgmt.hpp"

@@ -1,4 +1,4 @@
-#include "../inc/unified_filter.hpp"
+﻿#include "../inc/unified_filter.hpp"
 #include "../../Common/inc/Sensor/sensor_filter.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Core/statistics.hpp"

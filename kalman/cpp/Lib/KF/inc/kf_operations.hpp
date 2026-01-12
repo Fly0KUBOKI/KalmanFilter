@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef LIB_KF_INC_KF_OPERATIONS_HPP
 #define LIB_KF_INC_KF_OPERATIONS_HPP
 

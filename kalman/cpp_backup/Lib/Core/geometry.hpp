@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #ifndef CORE_MATH_GEOMETRY_HPP
 #define CORE_MATH_GEOMETRY_HPP

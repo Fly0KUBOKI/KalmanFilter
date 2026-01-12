@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef MEX_IMPL_MEX_ESKF_INITIALIZER_HPP
 #define MEX_IMPL_MEX_ESKF_INITIALIZER_HPP
 

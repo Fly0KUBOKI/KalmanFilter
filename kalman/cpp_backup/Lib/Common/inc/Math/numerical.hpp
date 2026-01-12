@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #ifndef COMMON_MATH_NUMERICAL_HPP
 #define COMMON_MATH_NUMERICAL_HPP

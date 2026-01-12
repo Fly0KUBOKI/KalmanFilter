@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef LIB_CORE_STATISTICS_HPP
 #define LIB_CORE_STATISTICS_HPP
 

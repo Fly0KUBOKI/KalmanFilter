@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef LIB_COMMON_INC_SENSOR_ROBUST_STATISTICS_HPP
 #define LIB_COMMON_INC_SENSOR_ROBUST_STATISTICS_HPP
 // Wrapper to new location

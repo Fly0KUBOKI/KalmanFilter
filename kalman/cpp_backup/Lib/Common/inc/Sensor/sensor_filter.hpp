@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #ifndef COMMON_SENSOR_SENSOR_FILTER_HPP
 #define COMMON_SENSOR_SENSOR_FILTER_HPP

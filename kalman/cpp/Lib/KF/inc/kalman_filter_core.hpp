@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef LIB_KF_INC_KALMAN_FILTER_CORE_HPP
 #define LIB_KF_INC_KALMAN_FILTER_CORE_HPP
 

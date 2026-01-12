@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef LIB_QUATERNION_QUATERNION_FUNCTIONS_HPP
 #define LIB_QUATERNION_QUATERNION_FUNCTIONS_HPP
 // Moved from Inc/Common/Math/quaternion.hpp to Lib/Quaternion/quaternion_functions.hpp

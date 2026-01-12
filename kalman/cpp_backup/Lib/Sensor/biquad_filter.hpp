@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #ifndef LIB_SENSOR_BIQUAD_FILTER_HPP
 #define LIB_SENSOR_BIQUAD_FILTER_HPP

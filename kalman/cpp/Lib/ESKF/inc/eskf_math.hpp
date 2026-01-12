@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef LIB_ESKF_INC_ESKF_MATH_HPP
 #define LIB_ESKF_INC_ESKF_MATH_HPP
 
