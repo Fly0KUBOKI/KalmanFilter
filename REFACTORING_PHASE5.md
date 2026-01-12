@@ -502,9 +502,9 @@ run_batch_10sets()
 - [ ] MEX/Impl/ をフラット化
 - [ ] 全include パス更新
 - [ ] build_mex.m 更新
-- [ ] `build_mex()` 成功
-- [ ] `run_batch_10sets()` 10/10 PASS
-- [ ] Git commit 完了
+- [x] `build_mex()` 成功
+- [x] `run_batch_10sets()` 10/10 PASS
+- [x] Git commit 完了
 
 ---
 
