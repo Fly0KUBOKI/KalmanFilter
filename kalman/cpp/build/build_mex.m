@@ -101,16 +101,9 @@ mex_targets = {
         fullfile(lib_dir, 'Common', 'src', 'math_utils_constants.cpp')
         fullfile(lib_dir, 'MEUKF', 'src', 'meukf_observation_models_constants.cpp')
     }, 'mex_run_eskf'}
-
-    {'mex_meukf_step.cpp', {
-        fullfile(lib_dir, 'MEUKF', 'src', 'meukf_core.cpp')
-        fullfile(lib_dir, 'MEUKF', 'src', 'meukf_predict.cpp')
-        fullfile(lib_dir, 'MEUKF', 'src', 'meukf_sigma_points.cpp')
-        fullfile(lib_dir, 'MEUKF', 'src', 'meukf_update.cpp')
-        fullfile(lib_dir, 'MEUKF', 'src', 'meukf_observation_models_constants.cpp')
-        fullfile(lib_dir, 'Common', 'src', 'math_utils_constants.cpp')
-    }, 'mex_meukf_step_v2'}
 };
+% NOTE: mex_meukf_step_v2 target removed (not used in run_simulation.m, 
+%       MEUKF functionality is integrated into do_sensor_update_meukf within mex_run_eskf)
 
 % Clean previous outputs
 old_mexs = dir(fullfile(bin_dir, ['*.' mexext]));

@@ -68,7 +68,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         mxArray* new_state = nullptr;
         mxArray* dbg_out = nullptr;
         mxArray* dbg_output = nullptr;
-        do_meukf_step(prev_state, sensor, params, new_state, dbg_out, dbg_output);
+        do_sensor_update_meukf(prev_state, sensor, params, new_state, dbg_out, dbg_output);
         if (nlhs > 0) plhs[0] = new_state;
         if (nlhs > 1) plhs[1] = dbg_out;
         if (nlhs > 2) plhs[2] = dbg_output;

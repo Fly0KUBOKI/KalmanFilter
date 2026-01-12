@@ -17,7 +17,7 @@
 namespace mex_run_eskf_impl {
 
 // 前方宣言
-inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, const mxArray* m_params,
+inline void do_sensor_update_meukf(const mxArray* m_prev_state, const mxArray* m_sensor, const mxArray* m_params,
                           mxArray*& out_new_state, mxArray*& out_dbg_out, mxArray*& out_dbg_output);
 
 inline void handle_sensor_update_internal(
@@ -495,12 +495,12 @@ inline void handle_sensor_update_internal(
     mxSetField(state_s, 0, "bg", bg_arr);
     mxSetField(state_s, 0, "P", P_arr);
 
-    // Phase 1: MEUKF呼び出しの統合（mexCallMATLAB → do_meukf_step）
+    // Phase 1: MEUKF呼び出しの統合（mexCallMATLAB → do_sensor_update_meukf）
     // 最も簡単な部分から統合開始
     mxArray* new_state = nullptr;
     mxArray* dbg_out = nullptr;
     mxArray* dbg_output = nullptr;
-    do_meukf_step(state_s, sensor_data, mex_params, new_state, dbg_out, dbg_output);
+    do_sensor_update_meukf(state_s, sensor_data, mex_params, new_state, dbg_out, dbg_output);
     
     if (new_state) {
         // 後続処理は同じ（noise estimate更新、postprocess等）
@@ -741,7 +741,7 @@ inline void handle_sensor_update_internal(
             }
         }
         
-        // Phase 1統合完了: mexCallMATLABの代わりにdo_meukf_stepを直接呼び出し
+        // Phase 1統合完了: mexCallMATLABの代わりにdo_sensor_update_meukfを直接呼び出し
         // メモリ管理: new_state, dbg_out, dbg_outputは呼び出し側で管理
     }
 

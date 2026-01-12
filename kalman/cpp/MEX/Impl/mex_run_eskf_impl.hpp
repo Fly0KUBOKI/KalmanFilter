@@ -201,8 +201,13 @@ inline void do_free(uint64_t handle) {
     }
 }
 
-inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, const mxArray* m_params,
-                          mxArray*& out_new_state, mxArray*& out_dbg_out, mxArray*& out_dbg_output) {
+inline void do_sensor_update_meukf(const mxArray* m_prev_state, const mxArray* m_sensor, const mxArray* m_params,
+                         mxArray*& out_new_state, mxArray*& out_dbg_out, mxArray*& out_dbg_output) {
+    // MEUKF-based sensor update (UKF core)
+    // This function performs Kalman gain calculation using MEUKFCore::step()
+    // which implements Unscented Kalman Filter for sensor updates.
+    // Called from handle_sensor_update_internal() in mex_run_eskf_sensor_updates.hpp
+    
     meukf::MEUKFInput input;
     // State変換
     // p, v, ba, bg

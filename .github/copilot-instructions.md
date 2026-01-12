@@ -2,7 +2,32 @@
 
 MATLAB実験フロントエンド + C++ MEXで計算ホットパスを高速化するハイブリッド実装です。
 
-## 【最優先ルール】状態・型・同期
+## 【最優先ルール】フィルタ実装の構造
+
+### ハイブリッドフィルタ構成（重要）
+**注意**: `mex_run_eskf` という名前だが、実装は **ESKF予測 + MEUKF更新のハイブリッド** です。
+
+- **予測ステップ**: ESKFCore（Error-State Kalman Filter）
+  - 状態積分: `ESKFCore::integrate_nominal()` (RK2積分)
+  - 共分散予測: `ESKFCore::predict_covariance()` 
+  - ZUPT更新: `ESKFCore::update_zupt()`
+  
+- **更新ステップ**: MEUKFCore（Multiplicative Extended UKF）
+  - センサー更新: `MEUKFCore::step()` → UKFベースのカルマンゲイン計算
+  - Accel/Mag/GPS/Baro の全更新は MEUKF が担当
+  
+- **実行フロー**:
+  ```
+  mex_run_eskf('step') 
+    → ESKFRunner::predict()        (ESKF予測)
+    → call_sensor_update()
+      → do_sensor_update_meukf()             (MEUKF更新)
+        → MEUKFCore::step()
+  ```
+
+詳細は [IMPLEMENTATION_ANALYSIS.md](IMPLEMENTATION_ANALYSIS.md) 参照。
+
+### 状態・型・同期ルール
 
 - **状態ベクトル順序（変更厳禁）**: `[p(3), v(3), q(4), ba(3), bg(3)]` 計15次元  
   - `q = [w, x, y, z]` スカラー先頭（ここがbugの出どころになりやすい）
@@ -28,7 +53,9 @@ MATLAB frontend (実験・可視化)
 
 C++ MEX実装層（計算エンジン）
 ├─ MEX/mex_run_eskf.cpp          ← メインエントリーポイント（init/step/get_state）
-├─ Lib/ESKF/                     ← ESKF filter実装（15x15共分散更新）
+│                                  ※名前はESKFだが、実装はESKF予測+MEUKF更新のハイブリッド
+├─ Lib/ESKF/                     ← ESKF予測実装（状態積分・共分散予測）
+├─ Lib/MEUKF/                    ← MEUKFセンサー更新実装（UKFベース）
 ├─ Lib/Common/Sensor/            ← センサー外れ値検出・ロバスト統計
 ├─ Lib/Quaternion/               ← 四元数演算（正規化・乗算）
 └─ Lib/Matrix/                   ← 固定サイズ行列（Cholesky分解など）

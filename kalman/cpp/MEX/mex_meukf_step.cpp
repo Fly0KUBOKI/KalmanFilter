@@ -105,9 +105,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     const mxArray* m_sensor = prhs[1];
     const mxArray* m_params = prhs[2];
 
-    // 【統合完了: 以下の処理はdo_meukf_stepに統合済みのためコメントアウト】
-    // mex_run_eskf内のdo_meukf_stepが直接MEUKFCore::step()を呼び出すようになりました。
-    // このMEXファイルは後方互換性のために残していますが、実際の処理はdo_meukf_stepで行われます。
+    // 【統合完了: 以下の処理はdo_sensor_update_meukfに統合済みのためコメントアウト】
+    // mex_run_eskf内のdo_sensor_update_meukfが直接MEUKFCore::step()を呼び出すようになりました。
+    // このMEXファイルは後方互換性のために残していますが、実際の処理はdo_sensor_update_meukfで行われます。
     
     /*
     meukf::MEUKFInput input;
@@ -209,7 +209,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     meukf::MEUKFCore::step(input, output);
     */
     
-    // 【統合完了: 出力作成部分もdo_meukf_stepに統合済み】
+    // 【統合完了: 出力作成部分もdo_sensor_update_meukfに統合済み】
     /*
     // 出力作成（呼び出し側が要求した出力数に合わせて安全に割り当てる）
     if(nlhs > 0) {
@@ -346,11 +346,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     }
     */
     
-    // 【統合完了: 上記の処理はdo_meukf_stepに統合済み】
-    // 実際の処理はmex_run_eskf内のdo_meukf_stepで行われます。
+    // 【統合完了: 上記の処理はdo_sensor_update_meukfに統合済み】
+    // 実際の処理はmex_run_eskf内のdo_sensor_update_meukfで行われます。
     // このMEXファイルは後方互換性のために残していますが、実際には使用されていません。
     // 
     // 注意: このMEXファイルは現在使用されていないため、エラーを返します。
     mexErrMsgIdAndTxt("mex_meukf_step:deprecated", 
-        "mex_meukf_step_v2は統合済みです。mex_run_eskf内のdo_meukf_stepを使用してください。");
+        "mex_meukf_step_v2は統合済みです。mex_run_eskf内のdo_sensor_update_meukfを使用してください。");
 }

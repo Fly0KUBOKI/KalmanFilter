@@ -66,8 +66,8 @@ function params = config_params()
 
     % ピンクノイズ
     if params.noise.enable.pink
-        params.noise.accel_pink_std = single(0.1);
-        params.noise.gyro_pink_std = single(0.1);    % Gyroscope pink noise (deg/s)
+        params.noise.accel_pink_std = single(0.2);
+        params.noise.gyro_pink_std = single(0.2);    % Gyroscope pink noise (deg/s)
         params.noise.gps_pink_std = single(1.0);     % GPS pink noise (meters)
     else
         params.noise.accel_pink_std = single(0.0);
@@ -77,8 +77,8 @@ function params = config_params()
 
     % Allan偏差
     if params.noise.enable.allan
-        params.noise.gyro_allan_std = single(0.1);   % Gyroscope Allan deviation (deg/s)
-        params.noise.baro_allan_std = single(0.1);   % Barometer Allan deviation (meters)
+        params.noise.gyro_allan_std = single(0.2);   % Gyroscope Allan deviation (deg/s)
+        params.noise.baro_allan_std = single(0.2);   % Barometer Allan deviation (meters)
     else
         params.noise.accel_allan_std = single(0.0);
         params.noise.gyro_allan_std = single(0.0);

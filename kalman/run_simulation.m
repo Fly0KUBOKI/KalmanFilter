@@ -20,6 +20,8 @@ function loop_elapsed = run_simulation(seed, skip_data_gen)
     try
         [results, loop_elapsed] = run_filter_mex(handle, obs, params.static_time, dt);
         save_results(proj_root, results);
+        % Show plots of the results
+        plot_results(proj_root);
     catch ME
         mex_run_eskf('free', handle);
         rethrow(ME);

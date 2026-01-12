@@ -201,7 +201,7 @@ inline void do_free(uint64_t handle) {
     }
 }
 
-inline void do_meukf_step(const mxArray* m_prev_state, const mxArray* m_sensor, const mxArray* m_params,
+inline void do_sensor_update_meukf(const mxArray* m_prev_state, const mxArray* m_sensor, const mxArray* m_params,
                           mxArray*& out_new_state, mxArray*& out_dbg_out, mxArray*& out_dbg_output) {
     meukf::MEUKFInput input;
     // State変換

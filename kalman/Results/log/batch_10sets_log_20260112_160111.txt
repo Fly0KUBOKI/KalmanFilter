@@ -1,0 +1,170 @@
+========================================
+10セット バッチシミュレーション開始
+開始時刻: 12-Jan-2026 16:01:11
+========================================
+
+
+========================================
+=== Run 1/10 ===
+========================================
+Run 1: シミュレーション開始...
+Run 1: シミュレーション完了 (0.90秒)
+Run 1: 結果保存 -> estimation_01.csv
+Run 1: 解析開始...
+Run 1: エラー検出 - Axis RMSE too high: X(53.66), Y(20.70), Z(10.88), Att(R=28.70,P=28.63,Y=7.04)
+  Position RMSE: Overall=58.5362 m, X=53.6614 m, Y=20.7029 m, Z=10.8778 m
+  Velocity RMSE: 2.9046 m/s
+  Roll/Pitch/Yaw RMSE: 28.7044 / 28.6268 / 7.0432 deg
+  Gyro bias (final): [0.0000, 0.0000, 0.0000] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 2/10 ===
+========================================
+Run 2: シミュレーション開始...
+Run 2: シミュレーション完了 (0.90秒)
+Run 2: 結果保存 -> estimation_02.csv
+Run 2: 解析開始...
+Run 2: エラー検出 - Axis RMSE too high: X(10.91), Y(32.32), Z(12.59), Att(R=1.50,P=5.17,Y=28.20)
+  Position RMSE: Overall=36.3573 m, X=10.9085 m, Y=32.3168 m, Z=12.5888 m
+  Velocity RMSE: 2.1562 m/s
+  Roll/Pitch/Yaw RMSE: 1.5042 / 5.1732 / 28.1995 deg
+  Gyro bias (final): [0.0000, 0.0000, 0.0000] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 3/10 ===
+========================================
+Run 3: シミュレーション開始...
+Run 3: シミュレーション完了 (0.90秒)
+Run 3: 結果保存 -> estimation_03.csv
+Run 3: 解析開始...
+Run 3: エラー検出 - Axis RMSE too high: X(32.19), Y(36.36), Z(12.31), Att(R=6.87,P=13.11,Y=25.07)
+  Position RMSE: Overall=50.0975 m, X=32.1922 m, Y=36.3591 m, Z=12.3060 m
+  Velocity RMSE: 2.4586 m/s
+  Roll/Pitch/Yaw RMSE: 6.8661 / 13.1134 / 25.0669 deg
+  Gyro bias (final): [0.0000, 0.0000, 0.0000] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 4/10 ===
+========================================
+Run 4: シミュレーション開始...
+Run 4: シミュレーション完了 (0.91秒)
+Run 4: 結果保存 -> estimation_04.csv
+Run 4: 解析開始...
+Run 4: エラー検出 - Axis RMSE too high: X(21.62), Y(65.13), Z(12.12), Att(R=8.24,P=12.25,Y=11.84)
+  Position RMSE: Overall=69.6908 m, X=21.6234 m, Y=65.1332 m, Z=12.1202 m
+  Velocity RMSE: 3.3180 m/s
+  Roll/Pitch/Yaw RMSE: 8.2439 / 12.2527 / 11.8426 deg
+  Gyro bias (final): [0.0000, 0.0000, 0.0000] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 5/10 ===
+========================================
+Run 5: シミュレーション開始...
+Run 5: シミュレーション完了 (0.90秒)
+Run 5: 結果保存 -> estimation_05.csv
+Run 5: 解析開始...
+Run 5: エラー検出 - Axis RMSE too high: X(26.41), Y(70.69), Z(11.89), Att(R=19.84,P=14.80,Y=7.92)
+  Position RMSE: Overall=76.3919 m, X=26.4074 m, Y=70.6900 m, Z=11.8863 m
+  Velocity RMSE: 3.3535 m/s
+  Roll/Pitch/Yaw RMSE: 19.8402 / 14.8026 / 7.9231 deg
+  Gyro bias (final): [0.0000, 0.0000, 0.0000] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 6/10 ===
+========================================
+Run 6: シミュレーション開始...
+Run 6: シミュレーション完了 (0.93秒)
+Run 6: 結果保存 -> estimation_06.csv
+Run 6: 解析開始...
+Run 6: エラー検出 - Axis RMSE too high: X(17.85), Y(72.48), Z(12.31), Att(R=6.50,P=12.83,Y=28.05)
+  Position RMSE: Overall=75.6548 m, X=17.8487 m, Y=72.4819 m, Z=12.3065 m
+  Velocity RMSE: 3.4656 m/s
+  Roll/Pitch/Yaw RMSE: 6.4968 / 12.8255 / 28.0523 deg
+  Gyro bias (final): [0.0000, 0.0000, 0.0000] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 7/10 ===
+========================================
+Run 7: シミュレーション開始...
+Run 7: シミュレーション完了 (0.95秒)
+Run 7: 結果保存 -> estimation_07.csv
+Run 7: 解析開始...
+Run 7: エラー検出 - Axis RMSE too high: X(57.31), Y(9.36), Z(12.61), Att(R=5.86,P=2.62,Y=26.68)
+  Position RMSE: Overall=59.4243 m, X=57.3124 m, Y=9.3599 m, Z=12.6069 m
+  Velocity RMSE: 2.7689 m/s
+  Roll/Pitch/Yaw RMSE: 5.8572 / 2.6205 / 26.6846 deg
+  Gyro bias (final): [0.0000, 0.0000, 0.0000] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 8/10 ===
+========================================
+Run 8: シミュレーション開始...
+Run 8: シミュレーション完了 (0.90秒)
+Run 8: 結果保存 -> estimation_08.csv
+Run 8: 解析開始...
+Run 8: エラー検出 - Axis RMSE too high: X(31.41), Y(46.24), Z(12.32), Att(R=14.32,P=5.91,Y=8.89)
+  Position RMSE: Overall=57.2400 m, X=31.4111 m, Y=46.2389 m, Z=12.3179 m
+  Velocity RMSE: 2.7763 m/s
+  Roll/Pitch/Yaw RMSE: 14.3215 / 5.9102 / 8.8890 deg
+  Gyro bias (final): [0.0000, 0.0000, 0.0000] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 9/10 ===
+========================================
+Run 9: シミュレーション開始...
+Run 9: シミュレーション完了 (0.93秒)
+Run 9: 結果保存 -> estimation_09.csv
+Run 9: 解析開始...
+Run 9: エラー検出 - Axis RMSE too high: X(38.54), Y(11.93), Z(12.43), Att(R=6.45,P=11.70,Y=3.62)
+  Position RMSE: Overall=42.2166 m, X=38.5414 m, Y=11.9309 m, Z=12.4278 m
+  Velocity RMSE: 2.8086 m/s
+  Roll/Pitch/Yaw RMSE: 6.4472 / 11.6952 / 3.6226 deg
+  Gyro bias (final): [0.0000, 0.0000, 0.0000] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== Run 10/10 ===
+========================================
+Run 10: シミュレーション開始...
+Run 10: シミュレーション完了 (0.91秒)
+Run 10: 結果保存 -> estimation_10.csv
+Run 10: 解析開始...
+Run 10: エラー検出 - Axis RMSE too high: X(48.79), Y(44.52), Z(11.54), Att(R=32.43,P=19.05,Y=9.52)
+  Position RMSE: Overall=67.0523 m, X=48.7925 m, Y=44.5204 m, Z=11.5428 m
+  Velocity RMSE: 3.2432 m/s
+  Roll/Pitch/Yaw RMSE: 32.4291 / 19.0549 / 9.5158 deg
+  Gyro bias (final): [0.0000, 0.0000, 0.0000] deg/s
+  Max Innovation: 0.0000
+
+========================================
+=== 総合結果 ===
+========================================
+成功: 0/10 (0.0%)
+
+個別結果:
+Run  1: FAILED (Axis RMSE too high: X(53.66), Y(20.70), Z(10.88), Att(R=28.70,P=28.63,Y=7.04))
+Run  2: FAILED (Axis RMSE too high: X(10.91), Y(32.32), Z(12.59), Att(R=1.50,P=5.17,Y=28.20))
+Run  3: FAILED (Axis RMSE too high: X(32.19), Y(36.36), Z(12.31), Att(R=6.87,P=13.11,Y=25.07))
+Run  4: FAILED (Axis RMSE too high: X(21.62), Y(65.13), Z(12.12), Att(R=8.24,P=12.25,Y=11.84))
+Run  5: FAILED (Axis RMSE too high: X(26.41), Y(70.69), Z(11.89), Att(R=19.84,P=14.80,Y=7.92))
+Run  6: FAILED (Axis RMSE too high: X(17.85), Y(72.48), Z(12.31), Att(R=6.50,P=12.83,Y=28.05))
+Run  7: FAILED (Axis RMSE too high: X(57.31), Y(9.36), Z(12.61), Att(R=5.86,P=2.62,Y=26.68))
+Run  8: FAILED (Axis RMSE too high: X(31.41), Y(46.24), Z(12.32), Att(R=14.32,P=5.91,Y=8.89))
+Run  9: FAILED (Axis RMSE too high: X(38.54), Y(11.93), Z(12.43), Att(R=6.45,P=11.70,Y=3.62))
+Run 10: FAILED (Axis RMSE too high: X(48.79), Y(44.52), Z(11.54), Att(R=32.43,P=19.05,Y=9.52))
+
+=== 総合判定: 不合格 (50%未満成功) ===
+
+MAT結果保存: batch_10sets_results.mat
+CSVサマリー保存: batch_10sets_summary.csv
+
+終了時刻: 12-Jan-2026 16:02:02
+========================================

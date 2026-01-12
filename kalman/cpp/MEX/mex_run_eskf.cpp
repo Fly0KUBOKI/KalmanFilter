@@ -1,7 +1,14 @@
 ﻿/* mex_run_eskf.cpp
- * Complete ESKF implementation in a single MEX file.
- * Replaces ESKF.m entirely.
- * Uses mexCallMATLAB to call existing MEX functions for accuracy.
+ * Hybrid Filter MEX Interface (ESKF Prediction + MEUKF Update)
+ *
+ * ARCHITECTURE:
+ *   - Prediction Step: ESKF (Error-State Kalman Filter)
+ *     └─ ESKFRunner::predict() → ESKFCore::integrate_nominal() + predict_covariance()
+ *   - Update Step: MEUKF (Multiplicative Extended UKF)
+ *     └─ do_sensor_update_meukf() → MEUKFCore::step() → UKF-based sensor updates
+ *
+ * NOTE: Despite the name "eskf", this implementation uses MEUKF for all
+ *       sensor updates (Accel, Mag, GPS, Baro). See IMPLEMENTATION_ANALYSIS.md.
  *
  * API:
  *   handle = mex_run_eskf('init', obs, static_time, dt)
@@ -68,7 +75,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         mxArray* new_state = nullptr;
         mxArray* dbg_out = nullptr;
         mxArray* dbg_output = nullptr;
-        do_meukf_step(prev_state, sensor, params, new_state, dbg_out, dbg_output);
+        do_sensor_update_meukf(prev_state, sensor, params, new_state, dbg_out, dbg_output);
         if (nlhs > 0) plhs[0] = new_state;
         if (nlhs > 1) plhs[1] = dbg_out;
         if (nlhs > 2) plhs[2] = dbg_output;

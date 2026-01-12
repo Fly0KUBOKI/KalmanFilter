@@ -19,6 +19,22 @@
 
 ## 1. 現状分析サマリー
 
+### 1.0 フィルタ実装の実態（重要）
+
+**実装構造**: `mex_run_eskf` は名前に反して **ESKF予測 + MEUKF更新のハイブリッド**
+
+| コンポーネント | 実装 | 役割 |
+|-------------|------|------|
+| ESKFCore | ✅ 実装済み・使用中 | 予測（状態積分・共分散予測）、ZUPT更新 |
+| ESKFRunner | ✅ 実装済み・使用中 | 予測ステップの統合実行 |
+| MEUKFCore | ✅ 実装済み・使用中 | センサー更新（Accel/Mag/GPS/Baro） |
+| `do_sensor_update_meukf` | ✅ 実装済み・使用中 | MEUKFCore::step() の呼び出しラッパー |
+| `mex_meukf_step_v2` | ❌ レガシー・未使用 | 削除済み（ビルドターゲットから除外） |
+
+詳細は [IMPLEMENTATION_ANALYSIS.md](IMPLEMENTATION_ANALYSIS.md) 参照。
+
+**結論**: ESKFとMEUKFは**どちらも必須**。削除不可。
+
 ### 1.1 ファイル構成概要
 
 ```
@@ -330,20 +346,23 @@ namespace math {
 }
 ```
 
-### 4.3 保持するクラス
+### 4.3 保持するクラス（重要：ESKF/MEUKFは削除不可）
 
 | クラス | 理由 |
 |-------|------|
 | `Matrix<R,C,T>` | テンプレート行列、状態保持が必要 |
 | `FixedMatrix` | ランタイムサイズ行列、状態保持が必要 |
-| `ESKFCore` | フィルタコア、staticメソッドだが構造は適切 |
-| `MEUKFCore` | フィルタコア、同上 |
+| **`ESKFCore`** | **予測ステップで使用中（削除不可）** |
+| **`ESKFRunner`** | **予測統合で使用中（削除不可）** |
+| **`MEUKFCore`** | **センサー更新で使用中（削除不可）** |
 | `EMAFilter` | 状態（filtered_）を保持 |
 | `AlphaBetaFilter` | 状態を保持 |
 | `OutlierDetector` | 履歴（history_）を保持 |
 | `NoiseEstimator` | 状態を保持 |
 | `DivergenceGuard` | 状態を保持 |
 | `SensorFilterLib` | センサーフィルタ統合 |
+
+**注意**: `ESKFCore::update_accel/mag/gps/baro` は未使用だが、クラス自体は**予測で必須**。
 
 ### 4.4 実施チェックリスト
 
@@ -415,6 +434,8 @@ kalman/cpp/
 | `Lib/EKF/` | 未使用 |
 | `Lib/UKF/` | 未使用 |
 | `cpp/inc/` | 旧構造、未使用 |
+
+**注意**: `Lib/ESKF/` と `Lib/MEUKF/` は**削除不可**（ハイブリッド実装で両方使用中）。
 
 ### 5.3 ファイル統合計画
 
