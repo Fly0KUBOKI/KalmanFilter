@@ -29,7 +29,7 @@ struct ESKFInitializationData {
     double dt;               
 };
 
-ESKFState* initialize_eskf_state(const ESKFInitializationData& data);
+FilterState* initialize_eskf_state(const ESKFInitializationData& data);
 
 } // namespace eskf
 

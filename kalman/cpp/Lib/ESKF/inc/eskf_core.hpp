@@ -20,7 +20,7 @@ using Matrix3x3 = cmath_fx::Matrix<3, 3, Scalar>;
 using Matrix15x15 = cmath_fx::Matrix<15, 15, Scalar>;
 using Vector15 = cmath_fx::Vector<15, Scalar>;
 
-class ESKFCore {
+class HybridFilterCore {
 public:
     // ノミナル状態積分（RK2/台形則）
     static void integrate_nominal(

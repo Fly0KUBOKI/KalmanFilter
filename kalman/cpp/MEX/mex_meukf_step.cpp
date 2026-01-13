@@ -106,16 +106,16 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     const mxArray* m_params = prhs[2];
 
     // 【統合完了: 以下の処理はdo_sensor_update_meukfに統合済みのためコメントアウト】
-    // mex_run_eskf内のdo_sensor_update_meukfが直接MEUKFCore::step()を呼び出すようになりました。
+    // mex_hybrid_filter内のdo_sensor_update_meukfが直接MEUKFCore::step()を呼び出すようになりました。
     // このMEXファイルは後方互換性のために残していますが、実際の処理はdo_sensor_update_meukfで行われます。
     
     
     
     // 【統合完了: 上記の処理はdo_sensor_update_meukfに統合済み】
-    // 実際の処理はmex_run_eskf内のdo_sensor_update_meukfで行われます。
+    // 実際の処理はmex_hybrid_filter内のdo_sensor_update_meukfで行われます。
     // このMEXファイルは後方互換性のために残していますが、実際には使用されていません。
     // 
     // 注意: このMEXファイルは現在使用されていないため、エラーを返します。
     mexErrMsgIdAndTxt("mex_meukf_step:deprecated", 
-        "mex_meukf_step_v2は統合済みです。mex_run_eskf内のdo_sensor_update_meukfを使用してください。");
+        "mex_meukf_step_v2は統合済みです。mex_hybrid_filter内のdo_sensor_update_meukfを使用してください。");
 }

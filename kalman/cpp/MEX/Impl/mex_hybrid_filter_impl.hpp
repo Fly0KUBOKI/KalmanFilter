@@ -1,29 +1,29 @@
 ﻿#pragma once
-#ifndef MEX_IMPL_MEX_RUN_ESKF_IMPL_HPP
-#define MEX_IMPL_MEX_RUN_ESKF_IMPL_HPP
+#ifndef MEX_IMPL_MEX_HYBRID_FILTER_IMPL_HPP
+#define MEX_IMPL_MEX_HYBRID_FILTER_IMPL_HPP
 
 /**
- * mex_run_eskf.cpp用の実装関数群（Impl）
+ * mex_hybrid_filter.cpp用の実装関数群（Impl）
  */
 
-#include "mex_eskf_common.hpp"
+#include "mex_hybrid_filter_common.hpp"
 #include <cstdint>
 
-#include "mex_run_eskf_sensor_updates.hpp"
-#include "mex_run_eskf_filter_ops.hpp"
+#include "mex_hybrid_filter_sensor_updates.hpp"
+#include "mex_hybrid_filter_filter_ops.hpp"
 #include "../../Lib/MEUKF/inc/meukf_core.hpp"
 #include "mex_type_conversion.hpp"
 
-namespace mex_run_eskf_impl {
+namespace mex_hybrid_filter_impl {
 
 // State handle table API (fixed-size table used instead of std::map)
-uint64_t allocate_handle(ESKFState* s);
-ESKFState* find_state(uint64_t handle);
+uint64_t allocate_handle(FilterState* s);
+FilterState* find_state(uint64_t handle);
 void remove_handle(uint64_t handle);
 extern SensorFilterLib g_filter_lib;
 
-inline void call_predict(ESKFState* s, const float* a_meas, const float* w_meas) {
-    ESKFRunner::predict(s, a_meas, w_meas);
+inline void call_predict(FilterState* s, const float* a_meas, const float* w_meas) {
+    HybridFilterRunner::predict(s, a_meas, w_meas);
 }
 
 // File-scope helper: get scalar field (logical/single/double) as double
@@ -47,7 +47,7 @@ inline void set_vec3_impl(mxArray* out_new_state_local, const char* name, const 
     mxArray* f = mxGetField(out_new_state_local, 0, name);
     if(!f) return;
     if (mxGetClassID(f) != mxSINGLE_CLASS) {
-        mexErrMsgIdAndTxt("mex_run_eskf:type_error",
+        mexErrMsgIdAndTxt("mex_hybrid_filter:type_error",
             "Expected single (float) array for field '%s', but got %s.",
             name, mxGetClassName(f));
         return;
@@ -57,11 +57,11 @@ inline void set_vec3_impl(mxArray* out_new_state_local, const char* name, const 
 }
 
 inline uint64_t do_init(const mxArray* obs, double static_time, double dt) {
-    ESKFState* s = initialize_eskf_from_matlab(obs, static_time, dt);
+    FilterState* s = initialize_eskf_from_matlab(obs, static_time, dt);
     return allocate_handle(s);
 }
 
-inline void do_step(ESKFState* s, const mxArray* obs, int k) {
+inline void do_step(FilterState* s, const mxArray* obs, int k) {
     int idx = k - 1;
     double a_d[3], w_d[3], m_d[3];
     getAccel(obs, idx, a_d);
@@ -91,7 +91,7 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
     mxArray* baro_field = mxGetField(obs, 0, "pressure");
     if (baro_field) {
         if (mxGetClassID(baro_field) != mxSINGLE_CLASS) {
-            mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
+            mexErrMsgIdAndTxt("mex_hybrid_filter:type_error", 
                 "Expected single (float) array for field 'pressure', but got %s.", 
                 mxGetClassName(baro_field));
         }
@@ -107,17 +107,17 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
     mxArray* gps_alt = mxGetField(obs, 0, "alt");
     if (gps_lat && gps_lon && gps_alt) {
         if (mxGetClassID(gps_lat) != mxDOUBLE_CLASS) {
-            mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
+            mexErrMsgIdAndTxt("mex_hybrid_filter:type_error", 
                 "Expected double array for GPS 'lat', but got %s.", 
                 mxGetClassName(gps_lat));
         }
         if (mxGetClassID(gps_lon) != mxDOUBLE_CLASS) {
-            mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
+            mexErrMsgIdAndTxt("mex_hybrid_filter:type_error", 
                 "Expected double array for GPS 'lon', but got %s.", 
                 mxGetClassName(gps_lon));
         }
         if (mxGetClassID(gps_alt) != mxDOUBLE_CLASS) {
-            mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
+            mexErrMsgIdAndTxt("mex_hybrid_filter:type_error", 
                 "Expected double array for GPS 'alt', but got %s.", 
                 mxGetClassName(gps_alt));
         }
@@ -133,7 +133,7 @@ inline void do_step(ESKFState* s, const mxArray* obs, int k) {
     check_and_reset(s, k);
 }
 
-inline mxArray* do_get_state(ESKFState* s) {
+inline mxArray* do_get_state(FilterState* s) {
     const char* fields[] = {"p", "v", "q", "euler", "ba", "bg", "P"};
     mxArray* out = mxCreateStructMatrix(1, 1, 7, fields);
 
@@ -181,14 +181,14 @@ inline mxArray* do_get_state(ESKFState* s) {
 }
 
 inline void do_free(uint64_t handle) {
-    ESKFState* s = find_state(handle);
+    FilterState* s = find_state(handle);
     if (s != nullptr) {
         delete s;
         remove_handle(handle);
     }
 }
 
-inline void do_sensor_update_meukf(const mxArray* m_prev_state, const mxArray* m_sensor, const mxArray* m_params,
+inline void do_sensor_update(const mxArray* m_prev_state, const mxArray* m_sensor, const mxArray* m_params,
                          mxArray*& out_new_state, mxArray*& out_dbg_out, mxArray*& out_dbg_output) {
     meukf::MEUKFInput input;
     mex_conv::mxArrayToFloatArray(mxGetField(m_prev_state,0,"p"), input.prev_state.p, 3);
@@ -209,7 +209,7 @@ inline void do_sensor_update_meukf(const mxArray* m_prev_state, const mxArray* m
     mxArray* gps_pos_field = mxGetField(m_sensor, 0, "gps_pos");
     if (gps_pos_field) {
         if (mxGetClassID(gps_pos_field) != mxDOUBLE_CLASS) {
-            mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
+            mexErrMsgIdAndTxt("mex_hybrid_filter:type_error", 
                 "Expected double array for GPS 'gps_pos', but got %s.", 
                 mxGetClassName(gps_pos_field));
         }
@@ -225,7 +225,7 @@ inline void do_sensor_update_meukf(const mxArray* m_prev_state, const mxArray* m
     mxArray* prev_gps_pos_field = mxGetField(m_sensor, 0, "prev_gps_pos");
     if (prev_gps_pos_field) {
         if (mxGetClassID(prev_gps_pos_field) != mxDOUBLE_CLASS) {
-            mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
+            mexErrMsgIdAndTxt("mex_hybrid_filter:type_error", 
                 "Expected double array for GPS 'prev_gps_pos', but got %s.", 
                 mxGetClassName(prev_gps_pos_field));
         }
@@ -256,7 +256,7 @@ inline void do_sensor_update_meukf(const mxArray* m_prev_state, const mxArray* m
     mxArray* noise_gps_field = mxGetField(m_params, 0, "noise_gps");
     if (noise_gps_field) {
         if (mxGetClassID(noise_gps_field) != mxDOUBLE_CLASS) {
-            mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
+            mexErrMsgIdAndTxt("mex_hybrid_filter:type_error", 
                 "Expected double array for GPS 'noise_gps', but got %s.", 
                 mxGetClassName(noise_gps_field));
         }
@@ -296,7 +296,7 @@ inline void do_sensor_update_meukf(const mxArray* m_prev_state, const mxArray* m
     mxArray* f_q = mxGetField(out_new_state, 0, "q");
     if(f_q) {
         if (mxGetClassID(f_q) != mxSINGLE_CLASS) {
-            mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
+            mexErrMsgIdAndTxt("mex_hybrid_filter:type_error", 
                 "Expected single (float) array for field 'q', but got %s.", 
                 mxGetClassName(f_q));
         } else {
@@ -311,7 +311,7 @@ inline void do_sensor_update_meukf(const mxArray* m_prev_state, const mxArray* m
     mxArray* fP = mxGetField(out_new_state, 0, "P");
     if(fP) {
         if (mxGetClassID(fP) != mxSINGLE_CLASS) {
-            mexErrMsgIdAndTxt("mex_run_eskf:type_error", 
+            mexErrMsgIdAndTxt("mex_hybrid_filter:type_error", 
                 "Expected single (float) array for field 'P', but got %s.", 
                 mxGetClassName(fP));
         } else {
@@ -458,7 +458,7 @@ inline mxArray* do_sensor_filter_update(const mxArray* m_sensor) {
 
     return out;
 
-} // namespace mex_run_eskf_impl
+} // namespace mex_hybrid_filter_impl
 }
 
 #endif // MEX_IMPL_MEX_RUN_ESKF_IMPL_HPP

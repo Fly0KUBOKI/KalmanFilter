@@ -72,7 +72,7 @@ end
 
 % Define MEX targets
 mex_targets = {
-    {'mex_run_eskf.cpp', {
+    {'mex_hybrid_filter.cpp', {
         fullfile(lib_dir, 'Common', 'src', 'filter_mgmt.cpp')
         fullfile(lib_dir, 'ESKF', 'src', 'eskf_postprocess.cpp')
         fullfile(lib_dir, 'ESKF', 'src', 'eskf_core.cpp')
@@ -90,7 +90,7 @@ mex_targets = {
         fullfile(lib_dir, 'Common', 'src', 'sensor_filter_constants.cpp')
         fullfile(lib_dir, 'Common', 'src', 'math_utils_constants.cpp')
         fullfile(lib_dir, 'MEUKF', 'src', 'meukf_observation_models_constants.cpp')
-    }, 'mex_run_eskf'}
+    }, 'mex_hybrid_filter'}
 
     {'mex_meukf_step.cpp', {
         fullfile(lib_dir, 'MEUKF', 'src', 'meukf_core.cpp')

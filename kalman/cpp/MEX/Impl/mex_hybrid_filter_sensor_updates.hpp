@@ -3,15 +3,15 @@
 #define MEX_IMPL_MEX_RUN_ESKF_SENSOR_UPDATES_HPP
 
 
-#include "mex_eskf_common.hpp"
+#include "mex_hybrid_filter_common.hpp"
 #include "mex_type_conversion.hpp"
 #include <cstring>
 #include "../../Lib/Common/inc/Math/portable_math.hpp"
 
-namespace mex_run_eskf_impl {
+namespace mex_hybrid_filter_impl {
 
 // 前方宣言
-inline void do_sensor_update_meukf(const mxArray* m_prev_state, const mxArray* m_sensor, const mxArray* m_params,
+inline void do_sensor_update(const mxArray* m_prev_state, const mxArray* m_sensor, const mxArray* m_params,
                           mxArray*& out_new_state, mxArray*& out_dbg_out, mxArray*& out_dbg_output);
 
 inline void handle_sensor_update_internal(
@@ -20,7 +20,7 @@ inline void handle_sensor_update_internal(
     const double* p, const double* v, const double* q,
     const double* ba, const double* bg, const double* P,
     const double* g, double dt, double sample,
-    ESKFState* s,  // ESKFState pointer for accessing prev_* values
+    FilterState* s,  // FilterState pointer for accessing prev_* values
     double* out_p, double* out_v, double* out_q,
     double* out_ba, double* out_bg, double* out_P,
     bool& should_skip
@@ -29,10 +29,10 @@ inline void handle_sensor_update_internal(
 /**
  * センサー更新処理（mexCallMATLAB実装）
  */
-inline void call_sensor_update(ESKFState* s, const char* type, const double* meas, int meas_len, double sample) {
+inline void call_sensor_update(FilterState* s, const char* type, const double* meas, int meas_len, double sample) {
     // Revert to original implementation from mex_eskf_sensor_updates_full.cpp
     double p[3], v[3], q[4], ba[3], bg[3], P[15*15], g[3];
-    // Copy from float-typed ESKFState into local double buffers
+    // Copy from float-typed FilterState into local double buffers
     for (int i = 0; i < 3; ++i) p[i] = s->p[i];
     for (int i = 0; i < 3; ++i) v[i] = s->v[i];
     for (int i = 0; i < 4; ++i) q[i] = s->q[i];
@@ -168,7 +168,7 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
 /**
  * GPS更新処理（mexCallMATLAB実装）
  */
-inline void call_gps_update(ESKFState* s, double lat, double lon, double alt, double sample) {
+inline void call_gps_update(FilterState* s, double lat, double lon, double alt, double sample) {
     // Revert to original implementation from mex_eskf_sensor_updates_full.cpp
     double p[3], v[3], q[4], ba[3], bg[3], P[15*15], g[3];
     for (int i = 0; i < 3; ++i) p[i] = s->p[i];
@@ -248,7 +248,7 @@ inline void handle_sensor_update_internal(
     const double* p, const double* v, const double* q,
     const double* ba, const double* bg, const double* P,
     const double* g, double dt, double sample,
-    ESKFState* s,  // ESKFState pointer for accessing prev_* values
+    FilterState* s,  // FilterState pointer for accessing prev_* values
     double* out_p, double* out_v, double* out_q,
     double* out_ba, double* out_bg, double* out_P,
     bool& should_skip
@@ -325,7 +325,7 @@ inline void handle_sensor_update_internal(
     mxSetField(sensor_data, 0, "update_baro", mxCreateLogicalScalar(false));
     mxSetField(sensor_data, 0, "update_zupt", mxCreateLogicalScalar(false));
     
-    // Set prev_* values from ESKFState
+    // Set prev_* values from FilterState
     // prev_magはsingle（float）
     mxArray* prev_mag_arr = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* prev_mag_ptr = (float*)mxGetData(prev_mag_arr);
@@ -489,12 +489,12 @@ inline void handle_sensor_update_internal(
     mxSetField(state_s, 0, "bg", bg_arr);
     mxSetField(state_s, 0, "P", P_arr);
 
-    // Phase 1: MEUKF呼び出しの統合（mexCallMATLAB → do_sensor_update_meukf）
+    // Phase 1: MEUKFセンサー更新の統合（mexCallMATLAB → do_sensor_update）
     // 最も簡単な部分から統合開始
     mxArray* new_state = nullptr;
     mxArray* dbg_out = nullptr;
     mxArray* dbg_output = nullptr;
-    do_sensor_update_meukf(state_s, sensor_data, mex_params, new_state, dbg_out, dbg_output);
+    do_sensor_update(state_s, sensor_data, mex_params, new_state, dbg_out, dbg_output);
     
     if (new_state) {
         // 後続処理は同じ（noise estimate更新、postprocess等）
@@ -744,7 +744,7 @@ inline void handle_sensor_update_internal(
     mxDestroyArray(state_s);
 }
 
-} // namespace mex_run_eskf_impl
+} // namespace mex_hybrid_filter_impl
 
 #endif // MEX_MEX_RUN_ESKF_SENSOR_UPDATES_HPP_IMPL
 

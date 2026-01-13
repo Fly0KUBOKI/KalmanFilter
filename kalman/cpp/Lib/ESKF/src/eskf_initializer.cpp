@@ -22,8 +22,8 @@ using namespace cquat;
 static void copy_vec_double(double* dst, const double* src, int n) { memcpy(dst, src, n * sizeof(double)); }
 static void copy_vec_float(float* dst, const double* src, int n) { for (int i=0;i<n;++i) dst[i] = static_cast<float>(src[i]); }
 
-ESKFState* initialize_eskf_state(const ESKFInitializationData& data) {
-    ESKFState* s = new ESKFState(); memset(s, 0, sizeof(ESKFState)); s->valid = true; s->dt = data.dt;
+FilterState* initialize_eskf_state(const ESKFInitializationData& data) {
+    FilterState* s = new FilterState(); memset(s, 0, sizeof(FilterState)); s->valid = true; s->dt = data.dt;
     const float GRAVITY = 9.80665f; const float DEG2RAD = 0.017453292f;
     int N_static = data.n_static; if (N_static > data.n_samples) N_static = data.n_samples;
     float p_f[3] = {0.0f,0.0f,0.0f}; float v_f[3] = {0.0f,0.0f,0.0f}; float g_f[3] = {0.0f,0.0f,GRAVITY}; double q[4] = {1,0,0,0}; float ba_f[3]={0.0f,0.0f,0.0f}; float bg_f[3]={0.0f,0.0f,0.0f};
@@ -53,7 +53,7 @@ ESKFState* initialize_eskf_state(const ESKFInitializationData& data) {
     }
     float Q_f[15*15] = {0.0f}; for (int i=3;i<6;++i) Q_f[i*15 + i] = 0.003f * 0.003f; for (int i=6;i<9;++i) Q_f[i*15 + i] = 0.003f * 0.003f; for (int i=9;i<12;++i) Q_f[i*15 + i] = static_cast<float>(sigma_a * sigma_a * 1e-3); for (int i=12;i<15;++i) Q_f[i*15 + i] = static_cast<float>(sigma_g * sigma_g * 1e-3);
     float P_f[15*15] = {0.0f}; for (int i=0;i<15;++i) P_f[i*15 + i] = 0.01f; for (int i=0;i<3;++i) P_f[i*15 + i] = 5.0f; for (int i=3;i<6;++i) P_f[i*15 + i] = 0.5f; for (int i=9;i<12;++i) P_f[i*15 + i] = 0.5f; for (int i=12;i<15;++i) P_f[i*15 + i] = 0.1f;
-    // write back into ESKFState (ESKFState now stores float for core fields)
+    // write back into FilterState (FilterState now stores float for core fields)
     for (int i=0;i<3;++i) s->p[i] = static_cast<float>(p_f[i]);
     for (int i=0;i<3;++i) s->v[i] = static_cast<float>(v_f[i]);
     for (int i=0;i<3;++i) s->ba[i] = static_cast<float>(ba_f[i]);

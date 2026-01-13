@@ -4,14 +4,14 @@
 
 
 /**
- * mex_run_eskf.cpp用のフィルター操作関数群
+ * mex_hybrid_filter.cpp用のフィルター操作関数群
  */
 
-#include "mex_eskf_common.hpp"
+#include "mex_hybrid_filter_common.hpp"
 
-namespace mex_run_eskf_impl {
+namespace mex_hybrid_filter_impl {
 
-inline void check_and_reset(ESKFState* s, int k) {
+inline void check_and_reset(FilterState* s, int k) {
     Matrix<15, 15, float> P_float;
     for (int i = 0; i < 15; ++i) {
         for (int j = 0; j < 15; ++j) {
@@ -45,7 +45,7 @@ inline void check_and_reset(ESKFState* s, int k) {
     }
 }
 
-inline void zupt_check_and_update(ESKFState* s, const double* a_meas, const double* w_meas) {
+inline void zupt_check_and_update(FilterState* s, const double* a_meas, const double* w_meas) {
     Vector<3, float> a_float, w_float;
     for (int i = 0; i < 3; ++i) { a_float(i,0) = static_cast<float>(a_meas[i]); w_float(i,0) = static_cast<float>(w_meas[i]); }
     bool stationary = check_zupt_condition(a_float, w_float, s->zupt_threshold_accel, s->zupt_threshold_gyro);
@@ -56,13 +56,13 @@ inline void zupt_check_and_update(ESKFState* s, const double* a_meas, const doub
         Matrix<15, 15, float> P_in, P_out;
         for (int i = 0; i < 3; ++i) v_in(i,0) = s->v[i];
         for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) P_in(i,j) = s->P[i + j*15];
-        ESKFCore::update_zupt(v_in, P_in, v_out, P_out);
+        HybridFilterCore::update_zupt(v_in, P_in, v_out, P_out);
         for (int i = 0; i < 3; ++i) s->v[i] = v_out(i,0);
         for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) s->P[i + j*15] = P_out(i,j);
     }
 }
 
-} // namespace mex_run_eskf_impl
+} // namespace mex_hybrid_filter_impl
 
 #endif // MEX_MEX_RUN_ESKF_FILTER_OPS_HPP_IMPL
 

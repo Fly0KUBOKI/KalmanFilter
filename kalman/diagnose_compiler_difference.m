@@ -11,7 +11,7 @@ function diagnose_compiler_difference()
     fprintf('場所: %s\n\n', cc.Location);
     
     % MEXバイナリ情報
-    mex_path = fullfile(pwd, 'kalman', 'cpp', 'bin', 'mex_run_eskf.mexw64');
+    mex_path = fullfile(pwd, 'kalman', 'cpp', 'bin', 'mex_hybrid_filter.mexw64');
     bin_dir = fullfile(pwd, 'kalman', 'cpp', 'bin');
     if exist(mex_path, 'file')
         info = dir(mex_path);
@@ -39,8 +39,8 @@ function diagnose_compiler_difference()
         rehash path;
     end
 
-    if exist('mex_run_eskf', 'file') ~= 3
-        fprintf('❌ mex_run_eskf MEX not visible on path (exist~=3).\n');
+    if exist('mex_hybrid_filter', 'file') ~= 3
+        fprintf('❌ mex_hybrid_filter MEX not visible on path (exist~=3).\n');
         fprintf('   Checked path: %s\n', bin_dir);
         return;
     end
@@ -89,7 +89,7 @@ function diagnose_compiler_difference()
     clear mex;  % MEXキャッシュをクリア
     
     try
-        handle = mex_run_eskf('init', obs, static_time, dt);
+        handle = mex_hybrid_filter('init', obs, static_time, dt);
         fprintf('✅ 初期化成功\n');
     catch ME
         fprintf('❌ 初期化失敗: %s\n', ME.message);
@@ -97,7 +97,7 @@ function diagnose_compiler_difference()
     end
     
     % 初期状態を取得
-    state0 = mex_run_eskf('get_state', handle);
+    state0 = mex_hybrid_filter('get_state', handle);
     fprintf('\n初期状態:\n');
     fprintf('  位置 p: [%.6f, %.6f, %.6f]\n', state0.p);
     fprintf('  速度 v: [%.6f, %.6f, %.6f]\n', state0.v);
@@ -114,11 +114,11 @@ function diagnose_compiler_difference()
     static_steps = round(static_time / dt);
     
     for k = (static_steps+1):n
-        mex_run_eskf('step', handle, obs, k);
+        mex_hybrid_filter('step', handle, obs, k);
         
         % チェックポイントで状態を記録
         if ismember(k, checkpoints)
-            state = mex_run_eskf('get_state', handle);
+            state = mex_hybrid_filter('get_state', handle);
             checkpoint_name = sprintf('step_%d', k);
             states.(checkpoint_name) = state;
             
@@ -143,7 +143,7 @@ function diagnose_compiler_difference()
     
     % 最終状態
     fprintf('\n【最終状態】\n');
-    final_state = mex_run_eskf('get_state', handle);
+    final_state = mex_hybrid_filter('get_state', handle);
     fprintf('  位置 p: [%.6f, %.6f, %.6f]\n', final_state.p);
     fprintf('  速度 v: [%.6f, %.6f, %.6f]\n', final_state.v);
     fprintf('  四元数 q: [%.6f, %.6f, %.6f, %.6f]\n', final_state.q);
@@ -174,7 +174,7 @@ function diagnose_compiler_difference()
     fprintf('\n診断結果を保存: %s\n', result_file);
     
     % クリーンアップ
-    mex_run_eskf('free', handle);
+    mex_hybrid_filter('free', handle);
     
     fprintf('\n--- 診断完了 ---\n');
     fprintf('次のステップ:\n');

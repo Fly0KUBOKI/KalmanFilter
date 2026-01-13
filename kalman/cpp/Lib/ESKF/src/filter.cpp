@@ -48,7 +48,7 @@ uint8_t ESKFFilter::update(const SensorData& obs) {
 
 
   // simple nominal integration
-  ESKFCore::integrate_nominal(p, v, q, ba, bg, a_meas, w_meas, dt, g, gyro_thr, accel_thr);
+  HybridFilterCore::integrate_nominal(p, v, q, ba, bg, a_meas, w_meas, dt, g, gyro_thr, accel_thr);
 
   // --- Predict covariance ---
   eskf::Matrix15x15 Pmat;
@@ -62,7 +62,7 @@ uint8_t ESKFFilter::update(const SensorData& obs) {
     for (int c = 0; c < 15; ++c)
       Qmat(r, c) = (r == c) ? (Scalar)1e-5 : (Scalar)0.0;
 
-  ESKFCore::predict_covariance(Pmat, q, a_meas, ba, w_meas, bg, Qmat, (Scalar)dt, Pmat);
+  HybridFilterCore::predict_covariance(Pmat, q, a_meas, ba, w_meas, bg, Qmat, (Scalar)dt, Pmat);
 
   // --- Magnetometer update (if available) ---
   bool has_mag = (obs.mag[0] != 0.0f) || (obs.mag[1] != 0.0f) || (obs.mag[2] != 0.0f);
@@ -82,7 +82,7 @@ uint8_t ESKFFilter::update(const SensorData& obs) {
 
     cmath_fx::Matrix<15,3,Scalar> K_out;
     eskf::Vector15 dx_out;
-    ESKFCore::update_mag(q, Pmat, m_meas, m_world, Rmag, K_out, dx_out);
+    HybridFilterCore::update_mag(q, Pmat, m_meas, m_world, Rmag, K_out, dx_out);
   }
 
   // --- Barometer update (if available) ---
@@ -93,7 +93,7 @@ uint8_t ESKFFilter::update(const SensorData& obs) {
 
     cmath_fx::Matrix<15,1,Scalar> Kb;
     eskf::Vector15 dxb;
-    ESKFCore::update_baro(p, Pmat, altitude, gps_origin, (Scalar)1e-1, Kb, dxb);
+    HybridFilterCore::update_baro(p, Pmat, altitude, gps_origin, (Scalar)1e-1, Kb, dxb);
   }
 
   // --- GPS update (if available) ---
@@ -111,7 +111,7 @@ uint8_t ESKFFilter::update(const SensorData& obs) {
 
     cmath_fx::Matrix<15,3,Scalar> Kg;
     eskf::Vector15 dxg;
-    ESKFCore::update_gps(p, v, Pmat, gps_pos, gps_origin, Rgps, Kg, dxg);
+    HybridFilterCore::update_gps(p, v, Pmat, gps_pos, gps_origin, Rgps, Kg, dxg);
   }
 
   // copy Pmat back to state_.P and symmetrize

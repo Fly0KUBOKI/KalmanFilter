@@ -16,12 +16,12 @@
 namespace eskf {
 
 // Static member initialization
-Vector3 ESKFCore::prev_a_world;
-Vector3 ESKFCore::prev_v;
-bool ESKFCore::prev_initialized = false;
+Vector3 HybridFilterCore::prev_a_world;
+Vector3 HybridFilterCore::prev_v;
+bool HybridFilterCore::prev_initialized = false;
 
 // ノミナル状態積分（RK2/台形則）
-void ESKFCore::integrate_nominal(
+void HybridFilterCore::integrate_nominal(
 	Vector3& p, Vector3& v, Vector4& q, Vector3& ba, Vector3& bg,
 	const Vector3& a_meas, const Vector3& w_meas,
 	Scalar dt, const Vector3& g,
@@ -104,7 +104,7 @@ void ESKFCore::integrate_nominal(
 	}
 }
 
-void ESKFCore::predict_covariance(
+void HybridFilterCore::predict_covariance(
 	const Matrix15x15& P, const Vector4& q, const Vector3& a_meas, const Vector3& ba,
 	const Vector3& w_meas, const Vector3& bg, const Matrix15x15& Q, Scalar dt,
 	Matrix15x15& P_new
@@ -122,7 +122,7 @@ void ESKFCore::predict_covariance(
 	cmath_fx::utils::symmetrize<15, Scalar>(P_new);
 }
 
-void ESKFCore::compute_F_matrix(
+void HybridFilterCore::compute_F_matrix(
 	const Vector4& q, const Vector3& a_meas, const Vector3& ba,
 	const Vector3& w_meas, const Vector3& bg, Scalar dt,
 	Matrix15x15& F
@@ -141,7 +141,7 @@ void ESKFCore::compute_F_matrix(
 }
 
 // その他のメソッド（簡易実装）
-void ESKFCore::update_accel(Vector4& q, const Vector3& a_meas, Scalar scale_factor) {
+void HybridFilterCore::update_accel(Vector4& q, const Vector3& a_meas, Scalar scale_factor) {
 	// 加速度からRoll/Pitchを計算（Yawは変更しない）
 	// 実装はeskf_math.hppのaccel_to_quaternionを使用
 	using namespace eskf_math;
@@ -166,40 +166,40 @@ void ESKFCore::update_accel(Vector4& q, const Vector3& a_meas, Scalar scale_fact
 	}
 }
 
-void ESKFCore::update_mag(Vector4& q, Matrix15x15& P, const Vector3& m_meas,
+void HybridFilterCore::update_mag(Vector4& q, Matrix15x15& P, const Vector3& m_meas,
 						  const Vector3& m_world, const Matrix3x3& R_mag,
 						  cmath_fx::Matrix<15, 3, Scalar>& K_out, Vector15& dx_out) {
 	// Implementation omitted for brevity (see original src implementation)
 }
 
-void ESKFCore::update_gps(Vector3& p, Vector3& v, Matrix15x15& P,
+void HybridFilterCore::update_gps(Vector3& p, Vector3& v, Matrix15x15& P,
 						  const Vector3& gps_pos, const Vector3& gps_origin,
 						  const Matrix3x3& R_gps,
 						  cmath_fx::Matrix<15, 3, Scalar>& K_out, Vector15& dx_out) {
 	// Implementation omitted for brevity (see original src implementation)
 }
 
-void ESKFCore::update_baro(Vector3& p, Matrix15x15& P, Scalar altitude,
+void HybridFilterCore::update_baro(Vector3& p, Matrix15x15& P, Scalar altitude,
 						   const Vector3& gps_origin, Scalar R_baro,
 						   cmath_fx::Matrix<15, 1, Scalar>& K_out, Vector15& dx_out) {
 	// Implementation omitted for brevity (see original src implementation)
 }
 
-void ESKFCore::inject_error_state(Vector3& p, Vector3& v, Vector4& q, Vector3& ba, Vector3& bg, const Vector15& dx) {
+void HybridFilterCore::inject_error_state(Vector3& p, Vector3& v, Vector4& q, Vector3& ba, Vector3& bg, const Vector15& dx) {
 }
 
-Scalar ESKFCore::pressure_to_altitude(Scalar pressure) {
+Scalar HybridFilterCore::pressure_to_altitude(Scalar pressure) {
 	if (pressure <= static_cast<Scalar>(0.0)) return static_cast<Scalar>(0.0);
 	return static_cast<Scalar>(common::math::pressure_to_altitude(static_cast<float>(pressure)));
 }
 
-void ESKFCore::gps_to_local(const Vector3& gps_pos, const Vector3& origin, Vector3& local_pos) {
+void HybridFilterCore::gps_to_local(const Vector3& gps_pos, const Vector3& origin, Vector3& local_pos) {
 	for (int i = 0; i < 3; ++i) {
 		local_pos(i, 0) = gps_pos(i, 0) - origin(i, 0);
 	}
 }
 
-void ESKFCore::compute_adaptive_Q(const Matrix15x15& Q_nominal, const Vector3& a_meas, const Vector3& w_meas, Matrix15x15& Q_adapted) {
+void HybridFilterCore::compute_adaptive_Q(const Matrix15x15& Q_nominal, const Vector3& a_meas, const Vector3& w_meas, Matrix15x15& Q_adapted) {
 	Q_adapted = Q_nominal;
 	Scalar a_norm = static_cast<Scalar>(0.0);
 	for (int i = 0; i < 3; ++i) a_norm += a_meas(i, 0) * a_meas(i, 0);
@@ -213,7 +213,7 @@ void ESKFCore::compute_adaptive_Q(const Matrix15x15& Q_nominal, const Vector3& a
 	for (int j = 0; j < 15; ++j) for (int i = 0; i < 15; ++i) Q_adapted(i, j) = Q_nominal(i, j) * q_scale;
 }
 
-void ESKFCore::update_zupt(const Vector3& v_in, const Matrix15x15& P_in, Vector3& v_out, Matrix15x15& P_out) {
+void HybridFilterCore::update_zupt(const Vector3& v_in, const Matrix15x15& P_in, Vector3& v_out, Matrix15x15& P_out) {
 	using Matrix15x3 = cmath_fx::Matrix<15, 3, Scalar>;
 	using namespace common::math;
 	Vector3 y; y(0,0) = -v_in(0,0); y(1,0) = -v_in(1,0); y(2,0) = -v_in(2,0);

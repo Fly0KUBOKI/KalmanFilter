@@ -1,7 +1,7 @@
 % run_batch_10sets.m
 % 10セットのシミュレーション実行と解析を行うプログラム
 % ログは `kalman/Results/log` に、CSV 等の結果は `kalman/Results` に保存される（ログは上書きされません）
-% 注意: ESKF処理はすべてMEX実装（mex_run_eskf）を使用します
+% 注意: ESKF処理はすべてMEX実装（mex_hybrid_filter）を使用します
 
 function run_batch_10sets()
     % 前回のログとCSVを削除

@@ -1,6 +1,6 @@
 function loop_elapsed = run_simulation(seed, skip_data_gen)
     % run_simulation - ESKF simulation using MEX implementation
-    % Uses mex_run_eskf for all ESKF operations
+    % Uses mex_hybrid_filter for all ESKF operations
     
     clc; rehash; clear functions;
     if nargin >= 1 && ~isempty(seed); rng(seed, 'twister'); end
@@ -15,7 +15,7 @@ function loop_elapsed = run_simulation(seed, skip_data_gen)
     dt = calculate_dt(obs);
     
     % Initialize ESKF via MEX
-    handle = mex_run_eskf('init', obs, params.static_time, dt);
+    handle = mex_hybrid_filter('init', obs, params.static_time, dt);
     
     try
         [results, loop_elapsed] = run_filter_mex(handle, obs, params.static_time, dt);
@@ -23,12 +23,12 @@ function loop_elapsed = run_simulation(seed, skip_data_gen)
         % Show plots of the results
         plot_results(proj_root);
     catch ME
-        mex_run_eskf('free', handle);
+        mex_hybrid_filter('free', handle);
         rethrow(ME);
     end
     
     % Cleanup
-    mex_run_eskf('free', handle);
+    mex_hybrid_filter('free', handle);
 end
 
 function add_paths(proj_root)
@@ -75,11 +75,11 @@ function [results, loop_elapsed] = run_filter_mex(handle, obs, static_time, dt)
         
         if k > static_samples
             % Run one ESKF step (predict + sensor updates + reset + zupt)
-            mex_run_eskf('step', handle, obs, k);
+            mex_hybrid_filter('step', handle, obs, k);
         end
         
         % Get current state (float output)
-        state = mex_run_eskf('get_state', handle);
+        state = mex_hybrid_filter('get_state', handle);
         
         results.p(:,k) = single(state.p);
         results.v(:,k) = single(state.v);

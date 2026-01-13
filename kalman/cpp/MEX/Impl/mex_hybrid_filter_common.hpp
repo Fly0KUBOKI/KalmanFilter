@@ -1,9 +1,9 @@
 ﻿#pragma once
-#ifndef MEX_IMPL_MEX_ESKF_COMMON_HPP
-#define MEX_IMPL_MEX_ESKF_COMMON_HPP
+#ifndef MEX_IMPL_MEX_HYBRID_FILTER_COMMON_HPP
+#define MEX_IMPL_MEX_HYBRID_FILTER_COMMON_HPP
 
 
-// mex_run_eskf.cpp用の共通インクルードと定義
+// mex_hybrid_filter.cpp用の共通インクルードと定義
 
 // 標準ライブラリ
 #include <mex.h>
@@ -28,7 +28,7 @@
 #include "../../Lib/ESKF/inc/eskf_postprocess.hpp"
 #include "../../Lib/ESKF/inc/eskf_state.hpp"
 #include "../../Lib/ESKF/inc/eskf_runner.hpp"
-#include "mex_eskf_initializer.hpp"
+#include "mex_hybrid_filter_initializer.hpp"
 
 // レイヤー4: 統合層
 #include "../../Lib/Common/inc/filter_mgmt.hpp"
@@ -56,10 +56,10 @@ using cm = cmath_fx::FixedMatrix;  // Alias for sensor filter
 #define getGyro(obs, idx, out)  getVec3(obs, "wx", "wy", "wz", idx, out)
 #define getMag(obs, idx, out)   getVec3(obs, "mx", "my", "mz", idx, out)
 
-// グローバル変数の前方宣言（mex_run_eskf_impl名前空間用）
-namespace mex_run_eskf_impl {
+// グローバル変数の前方宣言（mex_hybrid_filter_impl名前空間用）
+namespace mex_hybrid_filter_impl {
     extern SensorFilterLib g_filter_lib;
 }
 
-#endif // MEX_IMPL_MEX_ESKF_COMMON_HPP
+#endif // MEX_IMPL_MEX_HYBRID_FILTER_COMMON_HPP
 

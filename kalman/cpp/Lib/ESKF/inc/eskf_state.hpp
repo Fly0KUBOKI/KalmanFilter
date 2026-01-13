@@ -5,7 +5,7 @@
 
 namespace eskf {
 
-struct ESKFState {
+struct FilterState {
     float p[3], v[3], q[4], ba[3], bg[3];
     float P[15*15];
     float Q_nominal[15*15];

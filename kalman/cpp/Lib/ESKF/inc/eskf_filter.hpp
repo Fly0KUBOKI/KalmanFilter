@@ -15,7 +15,7 @@ using Matrix15x15 = cmath_fx::Matrix<15, 15, Scalar>;
 using Vector15 = cmath_fx::Vector<15, Scalar>;
 
 // ESKF状態構造体
-struct ESKFState {
+struct FilterState {
     Vector3 position;           // 位置
     Vector3 velocity;           // 速度
     Vector4 quaternion;         // クォータニオン
@@ -24,7 +24,7 @@ struct ESKFState {
     Matrix15x15 P;              // 共分散行列
     
     // デフォルトコンストラクタ
-    ESKFState()
+    FilterState()
         : position{0, 0, 0}
         , velocity{0, 0, 0}
         , quaternion{1, 0, 0, 0}
@@ -42,7 +42,7 @@ public:
     ~ESKFFilter() = default;
     
     // 初期化
-    void initialize(const ESKFState& initial_state, const FilterParams& params);
+    void initialize(const FilterState& initial_state, const FilterParams& params);
     
     // 統一update関数
     void update(const SensorInput& input, FilterOutput& output);
@@ -51,10 +51,10 @@ public:
     void reset();
     
     // 現在の状態を取得
-    const ESKFState& get_state() const { return state_; }
+    const FilterState& get_state() const { return state_; }
     
 private:
-    ESKFState state_;
+    FilterState state_;
     FilterParams params_;
     SensorDataManager sensor_manager_;
     
