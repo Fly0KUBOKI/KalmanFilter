@@ -3,19 +3,12 @@
 #define MEX_IMPL_MEX_ESKF_COMMON_HPP
 
 
-/**
- * mex_run_eskf.cpp用の共通インクルードと定義
- * 
- * このヘッダーは、ESKF関連のMEXファイルで共通して使用される
- * インクルード、定義、using宣言をまとめています。
- */
+// mex_run_eskf.cpp用の共通インクルードと定義
 
 // 標準ライブラリ
 #include <mex.h>
 #include <cmath>
 #include <cstring>
-#include <string>
-#include <vector>
 
 // 定数定義
 #ifndef M_PI

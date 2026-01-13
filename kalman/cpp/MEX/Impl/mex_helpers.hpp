@@ -5,18 +5,16 @@
 // Canonical mex_helpers implementation (moved from MEX/Inc)
 
 #include <mex.h>
-#include <string>
 #include <cstring>
 #include "../../Lib/Quaternion/quaternion_functions.hpp"
 #include "../../Lib/Matrix/fixed_matrix.hpp"
 
 namespace mex_helpers {
 
-inline std::string getCmd(const mxArray* a) {
-	char buf[256] = {0};
-	if (!mxIsChar(a)) return "";
-	mxGetString(a, buf, sizeof(buf));
-	return std::string(buf);
+inline bool getCmdBuffer(const mxArray* a, char* buf, int maxlen) {
+	if (!mxIsChar(a)) return false;
+	if (mxGetString(a, buf, maxlen) != 0) return false;
+	return true;
 }
 
 inline double get_value_from_single(const mxArray* arr, mwIndex i, const char* name) {

@@ -11,7 +11,6 @@
 #include <cstring>
 #include <cassert>
 #include <algorithm>
-#include <iostream>
 
 namespace cmath_fx {
 

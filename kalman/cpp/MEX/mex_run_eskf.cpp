@@ -66,9 +66,10 @@ namespace mex_run_eskf_impl {
 // mexFunctionのみを実装（他の関数はすべてヘッダーに移動済み）
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 1) mexErrMsgIdAndTxt("mex_run_eskf:usage", "Command required");
-    std::string cmd = getCmd(prhs[0]);
-    
-    if (cmd == "init") {
+    char cmd_buf[64] = {0};
+    if (!mex_helpers::getCmdBuffer(prhs[0], cmd_buf, sizeof(cmd_buf))) mexErrMsgIdAndTxt("mex_run_eskf:usage", "Command required");
+
+    if (std::strcmp(cmd_buf, "init") == 0) {
         if (nrhs < 4) mexErrMsgIdAndTxt("mex_run_eskf:usage", "init requires (obs, static_time, dt)");
         const mxArray* obs = prhs[1];
         double static_time = mxGetScalar(prhs[2]);
@@ -77,7 +78,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         plhs[0] = mxCreateNumericMatrix(1, 1, mxUINT64_CLASS, mxREAL);
         *((uint64_t*)mxGetData(plhs[0])) = handle;
     }
-    else if (cmd == "step") {
+    else if (std::strcmp(cmd_buf, "step") == 0) {
         if (nrhs < 4) mexErrMsgIdAndTxt("mex_run_eskf:usage", "step requires (handle, obs, k)");
         uint64_t handle = *((uint64_t*)mxGetData(prhs[1]));
         const mxArray* obs = prhs[2];
@@ -86,19 +87,19 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         if (!s) mexErrMsgIdAndTxt("mex_run_eskf:invalid", "Invalid handle");
         do_step(s, obs, k);
     }
-    else if (cmd == "get_state") {
+    else if (std::strcmp(cmd_buf, "get_state") == 0) {
         if (nrhs < 2) mexErrMsgIdAndTxt("mex_run_eskf:usage", "get_state requires (handle)");
         uint64_t handle = *((uint64_t*)mxGetData(prhs[1]));
         ESKFState* s = find_state(handle);
         if (!s) mexErrMsgIdAndTxt("mex_run_eskf:invalid", "Invalid handle");
         plhs[0] = do_get_state(s);
     }
-    else if (cmd == "free") {
+    else if (std::strcmp(cmd_buf, "free") == 0) {
         if (nrhs < 2) mexErrMsgIdAndTxt("mex_run_eskf:usage", "free requires (handle)");
         uint64_t handle = *((uint64_t*)mxGetData(prhs[1]));
         do_free(handle);
     }
-    else if (cmd == "meukf_step") {
+    else if (std::strcmp(cmd_buf, "meukf_step") == 0) {
         // API: mex_run_eskf('meukf_step', prev_state_struct, sensor_struct, params_struct)
         // 戻り値: [new_state, dbg_info, dbg_output] (mex_meukf_step_v2と互換)
         if (nrhs < 4) mexErrMsgIdAndTxt("mex_run_eskf:usage", "meukf_step requires (prev_state, sensor, params)");
@@ -113,18 +114,18 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         if (nlhs > 1) plhs[1] = dbg_out;
         if (nlhs > 2) plhs[2] = dbg_output;
     }
-    else if (cmd == "sensor_filter_reset_zero") {
+    else if (std::strcmp(cmd_buf, "sensor_filter_reset_zero") == 0) {
         plhs[0] = do_sensor_filter_reset_zero();
     }
-    else if (cmd == "sensor_filter_reset") {
+    else if (std::strcmp(cmd_buf, "sensor_filter_reset") == 0) {
         plhs[0] = do_sensor_filter_reset();
     }
-    else if (cmd == "sensor_filter_update") {
+    else if (std::strcmp(cmd_buf, "sensor_filter_update") == 0) {
         if (nrhs < 2) mexErrMsgIdAndTxt("mex_run_eskf:usage", "sensor_filter_update requires (sensor_struct)");
         const mxArray* sensor = prhs[1];
         plhs[0] = do_sensor_filter_update(sensor);
     }
     else {
-        mexErrMsgIdAndTxt("mex_run_eskf:unknown", "Unknown command: %s", cmd.c_str());
+        mexErrMsgIdAndTxt("mex_run_eskf:unknown", "Unknown command: %s", cmd_buf);
     }
 }

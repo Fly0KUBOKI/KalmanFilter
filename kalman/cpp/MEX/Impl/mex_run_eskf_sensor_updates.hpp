@@ -3,12 +3,6 @@
 #define MEX_IMPL_MEX_RUN_ESKF_SENSOR_UPDATES_HPP
 
 
-/**
- * mex_run_eskf.cpp用のセンサー更新関数群
- * 
- * 長い関数（call_sensor_update, call_gps_update）の実装を含みます。
- */
-
 #include "mex_eskf_common.hpp"
 #include "mex_type_conversion.hpp"
 #include <cstring>
@@ -514,8 +508,8 @@ inline void handle_sensor_update_internal(
             if (innov_len > 3) innov_len = 3;
             
             cmath_fx::FixedMatrix innov_cm(innov_len, 1);
-            std::vector<float> innov_tmp(static_cast<size_t>(innov_len));
-            mex_conv::mxArrayToFloatArray(innov, innov_tmp.data(), static_cast<size_t>(innov_len));
+            float innov_tmp[3];
+            mex_conv::mxArrayToFloatArray(innov, innov_tmp, static_cast<size_t>(innov_len));
             for (int i = 0; i < innov_len; ++i) {
                 innov_cm(i, 0) = innov_tmp[i];
             }
@@ -530,8 +524,8 @@ inline void handle_sensor_update_internal(
             if (H_cols > 15) H_cols = 15;
             
             cmath_fx::FixedMatrix H_cm(H_rows, H_cols);
-            std::vector<float> H_tmp(static_cast<size_t>(H_rows * H_cols));
-            mex_conv::mxArrayToFloatArray(H, H_tmp.data(), static_cast<size_t>(H_rows * H_cols));
+            float H_tmp[3*15];
+            mex_conv::mxArrayToFloatArray(H, H_tmp, static_cast<size_t>(H_rows * H_cols));
             for (int j = 0; j < H_cols; ++j) {
                 for (int i = 0; i < H_rows; ++i) {
                     H_cm(i, j) = H_tmp[j * H_rows + i];  // MATLAB column-major to row-major
@@ -540,8 +534,8 @@ inline void handle_sensor_update_internal(
             
             // Get P_pred
             cmath_fx::FixedMatrix P_pred(15, 15);
-            std::vector<float> P_tmp(15 * 15);
-            mex_conv::mxArrayToFloatArray(P_arr, P_tmp.data(), 15 * 15);
+            float P_tmp[15*15];
+            mex_conv::mxArrayToFloatArray(P_arr, P_tmp, 15 * 15);
             for (int j = 0; j < 15; ++j) {
                 for (int i = 0; i < 15; ++i) {
                     P_pred(i, j) = P_tmp[j * 15 + i];  // MATLAB column-major to row-major
@@ -627,8 +621,8 @@ inline void handle_sensor_update_internal(
                 
                 // Convert innov to FixedMatrix
                 cmath_fx::FixedMatrix innov_cm(innov_len, 1);
-                std::vector<float> innov_tmp(static_cast<size_t>(innov_len));
-                mex_conv::mxArrayToFloatArray(innov, innov_tmp.data(), static_cast<size_t>(innov_len));
+                float innov_tmp[3];
+                mex_conv::mxArrayToFloatArray(innov, innov_tmp, static_cast<size_t>(innov_len));
                 for (int i = 0; i < innov_len; ++i) {
                     innov_cm(i, 0) = innov_tmp[i];
                 }
