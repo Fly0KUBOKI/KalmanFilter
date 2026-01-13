@@ -13,12 +13,13 @@
 3. [モジュール別関数リスト](#モジュール別関数リスト)
 4. [重複・未使用検出](#重複未使用検出)
 5. [依存関係グラフ](#依存関係グラフ)
+6. [バイナリ最適化](#バイナリ最適化)
 
 ---
 
 ## アーキテクチャ概観
 
-### 全体構成
+### 全体構成（最適化版）
 ```
 kalman/cpp/Lib/
 ├── Common/             (11 files)
@@ -36,15 +37,41 @@ kalman/cpp/Lib/
 │   ├── inc/
 │   └── src/
 │
-├── EKF/               (3 files)  ← テンプレート
-├── UKF/               (3 files)  ← テンプレート
-├── KF/                (2 files)  ← 基本実装
+├── EKF/               (3 files)  ← テンプレート（未使用、削除予定）
+├── UKF/               (3 files)  ← テンプレート（未使用、削除予定）
+├── KF/                (2 files)  ← 基本実装（要検証）
 ├── Matrix/            (1 file)   ← 固定行列テンプレート
 │   └── fixed_matrix.hpp
 │
-└── Quaternion/        (1 file)   ← 四元数演算
-    └── quaternion_functions.hpp
+├── Quaternion/        (1 file)   ← 四元数演算
+│   └── quaternion_functions.hpp
+│
+└── Sensor/            (7 files)  ← 重複フォルダ（Lib/Common/inc/Sensor と同じ）
+
+❌ 削除済み:
+├── Core/                        ← 古い wrapper（機能しない）
 ```
+
+---
+
+## バイナリ最適化
+
+### 2026-01-13 最適化実施
+
+**実施内容**:
+1. ✅ `Lib/Core/` 削除（古い wrapper フォルダ）
+2. ⏳ `Lib/Sensor/` → `Lib/Common/inc/Sensor/` 統一（複雑なため保留）
+
+**効果測定**:
+| 項目 | 前 | 後 | 削減 | 率 |
+|------|-----|-----|---------|-------|
+| バイナリサイズ | 347 KB | 339 KB | 8 KB | 2.3% |
+| ビルド時間 | N/A | N/A | 推定微小 | - |
+
+**継続課題**:
+- Lib/Sensor の削除または統合（include パス複雑化により保留）
+- EKF/UKF テンプレート削除（未使用確認後）
+- meukf_core.cpp 分割（1346行）
 
 ---
 
