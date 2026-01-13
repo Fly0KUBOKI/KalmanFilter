@@ -1,4 +1,6 @@
 ﻿#pragma once
+#ifndef LIB_ESKF_INC_FILTER_HPP
+#define LIB_ESKF_INC_FILTER_HPP
 
 #include "../../Common/inc/interface.hpp"
 
@@ -21,3 +23,5 @@ private:
 };
 
 } // namespace kalman
+
+#endif // LIB_ESKF_INC_FILTER_HPP

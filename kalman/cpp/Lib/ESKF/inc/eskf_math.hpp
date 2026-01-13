@@ -1,4 +1,6 @@
 ﻿#pragma once
+#ifndef LIB_ESKF_INC_ESKF_MATH_HPP
+#define LIB_ESKF_INC_ESKF_MATH_HPP
 
 // Implementation: Src/ESKF/eskf_math.cpp
 
@@ -8,6 +10,7 @@
 #include "../../Common/inc/Math/statistics.hpp"
 #include "../../Common/inc/Math/geometry.hpp"
 #include "../../Common/inc/Math/numerical.hpp"
+#include "../../KF/inc/kalman_filter_core.hpp"
 
 namespace eskf_math {
 
@@ -51,14 +54,16 @@ public:
 template<int N, int M>
 void ESKFMath::kalman_update(const cmath_fx::Vector<N, Scalar>& x_in, const cmath_fx::Matrix<N, N, Scalar>& P_in, const cmath_fx::Vector<M, Scalar>& y, const cmath_fx::Matrix<M, N, Scalar>& H, const cmath_fx::Matrix<M, M, Scalar>& R, cmath_fx::Vector<N, Scalar>& x_out, cmath_fx::Matrix<N, N, Scalar>& P_out, cmath_fx::Matrix<N, M, Scalar>& K_out, cmath_fx::Matrix<M, M, Scalar>& S_out) {
     // Use kf operations (compile-time sizes) for innovation, gain and Joseph update
-    auto res = ::kf::compute_innovation<M, N, Scalar>(y, cmath_fx::Vector<M, Scalar>::Zero(), H, P_in, R);
+    kf::InnovationResult<M, N, Scalar> res = ::kf::compute_innovation<M, N, Scalar>(y, cmath_fx::Vector<M, Scalar>::Zero(), H, P_in, R);
     S_out = res.S;
     // Compute Kalman gain
     K_out = ::kf::compute_kalman_gain<N, M, Scalar>(P_in, H, S_out);
     // Update state and covariance via Joseph form
-    auto upd = ::kf::update_state_joseph<N, M, Scalar>(x_in, P_in, K_out, H, res.y, R);
+    kf::UpdateResult<N, M, Scalar> upd = ::kf::update_state_joseph<N, M, Scalar>(x_in, P_in, K_out, H, res.y, R);
     x_out = upd.x;
     P_out = upd.P;
 }
 
 } // namespace eskf_math
+
+#endif // LIB_ESKF_INC_ESKF_MATH_HPP

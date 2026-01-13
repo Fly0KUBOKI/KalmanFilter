@@ -1,32 +1,54 @@
 # KalmanFilter プロジェクトドキュメント
 
-## 📚 ドキュメント構成
+## 📚 ドキュメント構成（2026年1月11日更新）
 
 このプロジェクトは **MATLAB実験フロントエンド + C++ MEX高速計算** のハイブリッド実装による高精度慣性航法システムです。
 
+### ✅ **重要: コンパイラ依存問題を完全解決**
+
+MinGW/MSVCともに正常動作を確認（2026-01-11）。**真の原因は型の不整合でした。**
+
+- **[COMPILER_ISSUE_ROOT_CAUSE_FINAL.md](COMPILER_ISSUE_ROOT_CAUSE_FINAL.md)** — 真の根本原因と修正履歴（必読）
+- **[CODING_STANDARDS.md](CODING_STANDARDS.md)** — 再発防止のためのコーディング規約
+- **[BUILD_OPTIMIZATION_RECOMMENDATIONS.md](BUILD_OPTIMIZATION_RECOMMENDATIONS.md)** — ビルド最適化の推奨事項
+
 ### 🚀 クイックスタート
 
-1. **[プロジェクト概要](PROJECT_OVERVIEW.md)** — 全体像・性能指標・システム構成
-2. **[ビルド・実行手順](BUILD_AND_WORKFLOW.md)** — 5分で始める開発サイクル
-3. **[GitHub Copilot 指示](../.github/copilot-instructions.md)** — AI開発者向けガイド
+1. **[PROJECT_STATUS.md](../PROJECT_STATUS.md)** — プロジェクト全体ロードマップ・進行状況・メトリクス
+2. **[.github/copilot-instructions.md](../.github/copilot-instructions.md)** — AI開発者向けガイド・コード規約
+3. **標準テスト**: `run_batch_10sets()` — 10セット実行で推定精度を検証
 
-### 📖 詳細ドキュメント
+### 📖 詳細リファレンス
 
-#### システム理解
-- **[MATLABコンポーネント](MATLAB_COMPONENTS.md)** — データ生成・実行制御・可視化・テストフレームワーク
-- **[C++アーキテクチャ](CPP_ARCHITECTURE.md)** — MEX層・ESKFライブラリ・最適化技法・数値安定性
+#### システムアーキテクチャ理解
+- **[LIB_STRUCTURE.md](LIB_STRUCTURE.md)** — Lib層7層構造・全関数リスト・モジュール依存関係
+- **[CPP_ARCHITECTURE.md](CPP_ARCHITECTURE.md)** — C++アーキテクチャ・MEX層設計・最適化技法
+- **[CPP_INPUT_OUTPUT_SPEC.md](CPP_INPUT_OUTPUT_SPEC.md)** — 型マッピング・I/O仕様・MEX-MATLAB間の変換
 
-#### 運用・保守
-- **[トラブルシューティング](TROUBLESHOOTING_REFERENCE.md)** — 既知問題・デバッグ技法・品質管理・MEX API仕様
+#### ビルド・環境・コンパイラ
+- **[COMPILER_ISSUE_ROOT_CAUSE_FINAL.md](COMPILER_ISSUE_ROOT_CAUSE_FINAL.md)** — 型の不整合問題の真の原因と修正（重要）
+- **[CODING_STANDARDS.md](CODING_STANDARDS.md)** — 型の使用規則・再発防止策（必読）
+- **[BUILD_OPTIMIZATION_RECOMMENDATIONS.md](BUILD_OPTIMIZATION_RECOMMENDATIONS.md)** — デバッグビルド・最適化の推奨事項
+- **[ENVIRONMENT_QUICK_START.md](ENVIRONMENT_QUICK_START.md)** — 環境セットアップ（コンパイラ選択、ビルド手順）
 
-### 🎯 現在の達成状況
+#### 廃止（統合完了または誤った仮説）
+- ~~COMPILER_ANALYSIS_FINAL.md~~ → 誤った分析のため削除（真の原因は型の不整合）
+- ~~COMPILER_DEPENDENCY_ROOT_CAUSE.md~~ → 誤った仮説のため削除
+- ~~COMPILER_FIX_PLAN.md~~ → 不要な修正計画のため削除
+- ~~diagnose_compiler_difference.m~~ → 不正確なテストツールのため削除
+- ~~CODE_PORTABILITY_ANALYSIS.md~~ → 統合済み
+- ~~TROUBLESHOOTING_REFERENCE.md~~ → PROJECT_STATUS.md に統合
+- ~~PROJECT_OVERVIEW.md~~ → PROJECT_STATUS.md に統合
+
+### 🎯 現在の達成状況（2026-01-11 更新）
 
 | 指標 | 達成値 | 目標値 | 状況 |
 |------|--------|--------|------|
-| **Position RMSE** | 0.80-0.91m | < 2.0m | ✅ **達成** |
-| **Attitude RMSE** | 0.25-0.30° | < 1.0° | ✅ **達成** |
-| **成功率** | 100% (10/10) | > 90% | ✅ **達成** |
-| **実行時間** | < 60秒 | - | ✅ **高速** |
+| **Position RMSE** | **0.32m** | < 2.0m | ✅ **達成** (平均値、10セット) |
+| **Attitude RMSE** | **0.31/0.31/0.79°** | < 1.0° | ✅ **達成** (Roll/Pitch/Yaw) |
+| **成功率** | **100% (10/10)** | > 90% | ✅ **達成** |
+| **実行時間** | < 25秒/Run | - | ✅ **高速** |
+| **コンパイラ互換性** | MinGW/MSVC両対応 | - | ✅ **達成** |
 
 ### ⚡ 使用例
 
@@ -71,17 +93,23 @@ KalmanFilter/
 ### 🔧 開発ワークフロー
 
 1. **変更**: C++コード修正
-2. **ビルド**: `build_mex({'target'})` — 30秒
-3. **テスト**: `run_simulation(42, true)` — 60秒  
-4. **検証**: `run_batch_10sets()` — 10分
-5. **診断**: ログ・CSV結果確認
+2. **ビルド**: `build_mex()` — 30秒（自動的に `clear mex` 実行）
+3. **テスト**: `run_batch_10sets()` — 25秒（推奨）  
+4. **検証**: Results/batch_10sets_summary.csv で成功率・RMSE確認
+5. **診断**: Results/log/ 内のタイムスタンプ付きログで詳細確認
+
+**標準テスト**:
+```matlab
+cd kalman
+run_batch_10sets();  % 10セット実行、100%成功が期待値
+```
 
 ### 🎓 学習リソース
 
-- **初心者**: [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) → [BUILD_AND_WORKFLOW.md](BUILD_AND_WORKFLOW.md)
-- **MATLAB開発者**: [MATLAB_COMPONENTS.md](MATLAB_COMPONENTS.md)
-- **C++開発者**: [CPP_ARCHITECTURE.md](CPP_ARCHITECTURE.md) 
-- **トラブル時**: [TROUBLESHOOTING_REFERENCE.md](TROUBLESHOOTING_REFERENCE.md)
+- **初心者**: [ENVIRONMENT_QUICK_START.md](ENVIRONMENT_QUICK_START.md) → [LIB_STRUCTURE.md](LIB_STRUCTURE.md)
+- **MATLAB開発者**: [CPP_INPUT_OUTPUT_SPEC.md](CPP_INPUT_OUTPUT_SPEC.md)
+- **C++開発者**: [CPP_ARCHITECTURE.md](CPP_ARCHITECTURE.md) → [LIB_STRUCTURE.md](LIB_STRUCTURE.md)
+- **ビルド最適化**: [BUILD_OPTIMIZATION_RECOMMENDATIONS.md](BUILD_OPTIMIZATION_RECOMMENDATIONS.md)
 - **AI開発者**: [../.github/copilot-instructions.md](../.github/copilot-instructions.md)
 
 ---

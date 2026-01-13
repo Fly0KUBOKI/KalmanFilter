@@ -1,4 +1,6 @@
 ﻿#pragma once
+#ifndef LIB_MEUKF_INC_MEUKF_CORE_HPP
+#define LIB_MEUKF_INC_MEUKF_CORE_HPP
 
 // Copied from Inc/MEUKF/meukf_core.hpp (paths adjusted for Lib/ location)
 
@@ -57,3 +59,5 @@ public:
 };
 
 } // namespace meukf
+
+#endif // LIB_MEUKF_INC_MEUKF_CORE_HPP

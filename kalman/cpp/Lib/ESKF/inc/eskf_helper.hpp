@@ -1,8 +1,11 @@
 ﻿#pragma once
+#ifndef LIB_ESKF_INC_ESKF_HELPER_HPP
+#define LIB_ESKF_INC_ESKF_HELPER_HPP
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../KF/inc/kf_operations.hpp"
+#include "../../Common/inc/Math/portable_math.hpp"
 
 namespace eskf {
 
@@ -31,11 +34,11 @@ public:
     
     static void inject_with_constraints(NominalState& nominal, const Vector15& dx, T max_velocity = 100.0f, T max_accel_bias = 10.0f, T max_gyro_bias = 1.0f) {
         inject_error_state(nominal, dx);
-        T v_norm = std::sqrt(nominal.v(0,0)*nominal.v(0,0) + nominal.v(1,0)*nominal.v(1,0) + nominal.v(2,0)*nominal.v(2,0));
+        T v_norm = common::math::portable_sqrt(nominal.v(0,0)*nominal.v(0,0) + nominal.v(1,0)*nominal.v(1,0) + nominal.v(2,0)*nominal.v(2,0));
         if (v_norm > max_velocity) { T scale = max_velocity / v_norm; nominal.v(0,0) *= scale; nominal.v(1,0) *= scale; nominal.v(2,0) *= scale; }
-        T ba_norm = std::sqrt(nominal.ba(0,0)*nominal.ba(0,0) + nominal.ba(1,0)*nominal.ba(1,0) + nominal.ba(2,0)*nominal.ba(2,0));
+        T ba_norm = common::math::portable_sqrt(nominal.ba(0,0)*nominal.ba(0,0) + nominal.ba(1,0)*nominal.ba(1,0) + nominal.ba(2,0)*nominal.ba(2,0));
         if (ba_norm > max_accel_bias) { T scale = max_accel_bias / ba_norm; nominal.ba(0,0) *= scale; nominal.ba(1,0) *= scale; nominal.ba(2,0) *= scale; }
-        T bg_norm = std::sqrt(nominal.bg(0,0)*nominal.bg(0,0) + nominal.bg(1,0)*nominal.bg(1,0) + nominal.bg(2,0)*nominal.bg(2,0));
+        T bg_norm = common::math::portable_sqrt(nominal.bg(0,0)*nominal.bg(0,0) + nominal.bg(1,0)*nominal.bg(1,0) + nominal.bg(2,0)*nominal.bg(2,0));
         if (bg_norm > max_gyro_bias) { T scale = max_gyro_bias / bg_norm; nominal.bg(0,0) *= scale; nominal.bg(1,0) *= scale; nominal.bg(2,0) *= scale; }
     }
     
@@ -54,3 +57,5 @@ public:
 };
 
 } // namespace eskf
+
+#endif // LIB_ESKF_INC_ESKF_HELPER_HPP

@@ -1,10 +1,13 @@
 ﻿#pragma once
+#ifndef LIB_UKF_INC_UKF_SIGMA_POINTS_HPP
+#define LIB_UKF_INC_UKF_SIGMA_POINTS_HPP
 
 // UKF Sigma Point Generation
 // Provides templated sigma point generation for arbitrary state dimensions
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include <cmath>
+#include "../../Common/inc/Math/portable_math.hpp"
 
 namespace ukf {
 
@@ -59,12 +62,12 @@ public:
             // Fallback: diagonal approximation
             L = MatrixNN::Zero();
             for (int i = 0; i < N; ++i) {
-                L(i, i) = std::sqrt(std::max(static_cast<T>(0), P(i, i)));
+                    L(i, i) = common::math::portable_sqrt(std::max(static_cast<T>(0), P(i, i)));
             }
         }
 
         // Scale by sqrt(c)
-        T scale = std::sqrt(c);
+        T scale = common::math::portable_sqrt(c);
         for (int i = 0; i < N; ++i) {
             for (int j = 0; j < N; ++j) {
                 L(i, j) *= scale;
@@ -94,3 +97,5 @@ public:
 };
 
 } // namespace ukf
+
+#endif // LIB_UKF_INC_UKF_SIGMA_POINTS_HPP

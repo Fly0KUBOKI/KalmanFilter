@@ -1,7 +1,7 @@
 ﻿#pragma once
+#ifndef LIB_ESKF_INC_ESKF_INITIALIZER_HPP
+#define LIB_ESKF_INC_ESKF_INITIALIZER_HPP
 
-#ifndef ESKF_ESKF_INITIALIZER_HPP
-#define ESKF_ESKF_INITIALIZER_HPP
 
 #include "eskf_state.hpp"
 
@@ -29,7 +29,7 @@ struct ESKFInitializationData {
     double dt;               
 };
 
-ESKFState* initialize_eskf_state(const ESKFInitializationData& data);
+FilterState* initialize_eskf_state(const ESKFInitializationData& data);
 
 } // namespace eskf
 

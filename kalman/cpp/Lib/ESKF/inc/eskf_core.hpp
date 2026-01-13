@@ -1,4 +1,7 @@
-﻿// Copied from Inc/ESKF/eskf_core.hpp
+﻿#pragma once
+#ifndef LIB_ESKF_INC_ESKF_CORE_HPP
+#define LIB_ESKF_INC_ESKF_CORE_HPP
+// Copied from Inc/ESKF/eskf_core.hpp
 #pragma once
 
 // Implementation: Src/ESKF/eskf_core.cpp
@@ -17,7 +20,7 @@ using Matrix3x3 = cmath_fx::Matrix<3, 3, Scalar>;
 using Matrix15x15 = cmath_fx::Matrix<15, 15, Scalar>;
 using Vector15 = cmath_fx::Vector<15, Scalar>;
 
-class ESKFCore {
+class HybridFilterCore {
 public:
     // ノミナル状態積分（RK2/台形則）
     static void integrate_nominal(
@@ -28,14 +31,19 @@ public:
         const Vector3& accel_noise_threshold
     );
     
-    // 加速度更新（Roll/Pitch）
+    // ====================================================================
+    // NOTE: 以下のセンサー更新関数は MEUKF で置き換え済み（未使用）
+    // 実際のセンサー更新は MEUKFCore::step() で実行される
+    // ====================================================================
+    
+    // 加速度更新（Roll/Pitch）- UNUSED (replaced by MEUKFCore::update_accel_meukf)
     static void update_accel(
         Vector4& q,
         const Vector3& a_meas,
         Scalar scale_factor = 1.0
     );
     
-    // 磁気計更新
+    // 磁気計更新 - UNUSED (replaced by MEUKFCore::update_mag_meukf)
     static void update_mag(
         Vector4& q, Matrix15x15& P,
         const Vector3& m_meas,
@@ -45,7 +53,7 @@ public:
         Vector15& dx_out
     );
     
-    // GPS更新
+    // GPS更新 - UNUSED (replaced by MEUKFCore::update_gps_meukf_ukf_version)
     static void update_gps(
         Vector3& p, Vector3& v, Matrix15x15& P,
         const Vector3& gps_pos,
@@ -55,7 +63,7 @@ public:
         Vector15& dx_out
     );
     
-    // 気圧計更新
+    // 気圧計更新 - UNUSED (replaced by MEUKFCore::update_baro_meukf_ukf_version)
     static void update_baro(
         Vector3& p, Matrix15x15& P,
         Scalar altitude,
@@ -64,6 +72,10 @@ public:
         cmath_fx::Matrix<15, 1, Scalar>& K_out,
         Vector15& dx_out
     );
+    
+    // ====================================================================
+    // 以下は ESKF の予測・共分散管理で使用中（削除不可）
+    // ====================================================================
     
     // 共分散予測
     static void predict_covariance(const Matrix15x15& P, const Vector4& q, const Vector3& a_meas, const Vector3& ba,
@@ -104,3 +116,5 @@ private:
 };
 
 } // namespace eskf
+
+#endif // LIB_ESKF_INC_ESKF_CORE_HPP

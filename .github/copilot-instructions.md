@@ -2,7 +2,32 @@
 
 MATLAB実験フロントエンド + C++ MEXで計算ホットパスを高速化するハイブリッド実装です。
 
-## 【最優先ルール】状態・型・同期
+## 【最優先ルール】フィルタ実装の構造
+
+### ハイブリッドフィルタ構成（重要）
+**注意**: `mex_run_eskf` という名前だが、実装は **ESKF予測 + MEUKF更新のハイブリッド** です。
+
+- **予測ステップ**: ESKFCore（Error-State Kalman Filter）
+  - 状態積分: `ESKFCore::integrate_nominal()` (RK2積分)
+  - 共分散予測: `ESKFCore::predict_covariance()` 
+  - ZUPT更新: `ESKFCore::update_zupt()`
+  
+- **更新ステップ**: MEUKFCore（Multiplicative Extended UKF）
+  - センサー更新: `MEUKFCore::step()` → UKFベースのカルマンゲイン計算
+  - Accel/Mag/GPS/Baro の全更新は MEUKF が担当
+  
+- **実行フロー**:
+  ```
+  mex_run_eskf('step') 
+    → ESKFRunner::predict()        (ESKF予測)
+    → call_sensor_update()
+      → do_sensor_update_meukf()             (MEUKF更新)
+        → MEUKFCore::step()
+  ```
+
+詳細は [IMPLEMENTATION_ANALYSIS.md](IMPLEMENTATION_ANALYSIS.md) 参照。
+
+### 状態・型・同期ルール
 
 - **状態ベクトル順序（変更厳禁）**: `[p(3), v(3), q(4), ba(3), bg(3)]` 計15次元  
   - `q = [w, x, y, z]` スカラー先頭（ここがbugの出どころになりやすい）
@@ -12,7 +37,7 @@ MATLAB実験フロントエンド + C++ MEXで計算ホットパスを高速化�
   - GPS座標系データのみ `double`（`lat`, `lon`, `alt`）  
   - 他の全センサー出力は `float32` で統一
   - 共分散行列 `P[15x15]` は `float32` column-major で返却
-  - [CPP_INPUT_OUTPUT_SPEC.md](kalman/cpp/markdown/CPP_INPUT_OUTPUT_SPEC.md)で型マッピング確認必須
+  - [docs/CPP_INPUT_OUTPUT_SPEC.md](docs/CPP_INPUT_OUTPUT_SPEC.md)で型マッピング確認必須
 
 - **MEX-MATLAB同期ルール**:  
   - MEXバイナリ置換後は必ず `clear mex` してから再実行
@@ -28,7 +53,9 @@ MATLAB frontend (実験・可視化)
 
 C++ MEX実装層（計算エンジン）
 ├─ MEX/mex_run_eskf.cpp          ← メインエントリーポイント（init/step/get_state）
-├─ Lib/ESKF/                     ← ESKF filter実装（15x15共分散更新）
+│                                  ※名前はESKFだが、実装はESKF予測+MEUKF更新のハイブリッド
+├─ Lib/ESKF/                     ← ESKF予測実装（状態積分・共分散予測）
+├─ Lib/MEUKF/                    ← MEUKFセンサー更新実装（UKFベース）
 ├─ Lib/Common/Sensor/            ← センサー外れ値検出・ロバスト統計
 ├─ Lib/Quaternion/               ← 四元数演算（正規化・乗算）
 └─ Lib/Matrix/                   ← 固定サイズ行列（Cholesky分解など）
@@ -104,7 +131,7 @@ compare_mex_matlab_detailed();
 | [kalman/cpp/MEX/mex_run_eskf.cpp](kalman/cpp/MEX/mex_run_eskf.cpp) | MEX entry point（init/step/get_state dispatcher） | MEX I/O仕様確認 |
 | [kalman/cpp/Lib/ESKF/src/*.cpp](kalman/cpp/Lib/ESKF/src/) | ESKF状態更新・予測・リセット実装 | フィルタアルゴリズム修正 |
 | [kalman/cpp/Lib/Common/Sensor/sensor_filter.hpp](kalman/cpp/Lib/Common/Sensor/sensor_filter.hpp) | 外れ値検出・ロバスト統計 | センサー異常値処理 |
-| [kalman/cpp/markdown/CPP_INPUT_OUTPUT_SPEC.md](kalman/cpp/markdown/CPP_INPUT_OUTPUT_SPEC.md) | 型マッピング・配列レイアウト | MATLAB←→C++型変換debug時 |
+| [CPP_INPUT_OUTPUT_SPEC.md](docs/CPP_INPUT_OUTPUT_SPEC.md) | 型マッピング・配列レイアウト | MATLAB←→C++型変換debug時 |
 
 ## よくある落とし穴【10分で整理】
 
@@ -258,10 +285,9 @@ grep -rn "state\\.q\\[0\\].*state\\.p\\|state\\.ba\\[0\\].*state\\.v" kalman/cpp
 6. ビルド & テスト：`run_batch_10sets()` で回帰確認
 
 ## 【参考資料】
-- PLAN.md — 進捗・成功指標  
-- ROADMAP_TO_PHASE_13.md — 全体ロードマップ  
-- kalman/cpp/FILE_DUPLICATION_REPORT.md — ファイル重複解析  
-- kalman/cpp/Lib/README.md — ライブラリモジュール説明
+- docs/CPP_ARCHITECTURE.md — C++アーキテクチャ説明
+- docs/CPP_INPUT_OUTPUT_SPEC.md — 型マッピング・配列レイアウト
+- docs/CODING_STANDARDS.md — コーディング規約
 
 ---
 
@@ -382,7 +408,7 @@ Output state struct:
 ## C++ エラーの出所トップ 10
 
 1. **状態ベクトル順序混乱** (`p,v,q,ba,bg` 以外のセッション) → grep `state.q[0]`, `state.p[0]`
-2. **Float/Double混在** → [CPP_INPUT_OUTPUT_SPEC.md](kalman/cpp/markdown/CPP_INPUT_OUTPUT_SPEC.md) で型確認
+2. **Float/Double混在** → [docs/CPP_INPUT_OUTPUT_SPEC.md](docs/CPP_INPUT_OUTPUT_SPEC.md) で型確認
 3. **四元数正規化忘れ** → `cquat::normalize_quat()` は全積分後に必須
 4. **共分散非対称** → 出力前に `P = (P+P')/2`
 5. **メモリレイアウト** → `P[i,j]` が row-major と column-major で反転

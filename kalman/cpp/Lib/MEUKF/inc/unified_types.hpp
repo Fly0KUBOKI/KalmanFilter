@@ -1,4 +1,6 @@
 ﻿#pragma once
+#ifndef LIB_MEUKF_INC_UNIFIED_TYPES_HPP
+#define LIB_MEUKF_INC_UNIFIED_TYPES_HPP
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
@@ -153,3 +155,5 @@ struct FilterState {
 };
 
 } // namespace meukf
+
+#endif // LIB_MEUKF_INC_UNIFIED_TYPES_HPP

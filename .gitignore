@@ -7,3 +7,21 @@ kalman/cpp/bin/*.mexw64
 .DS_Store
 Thumbs.db
 *.swp
+
+# Backup / temporary files created by Phase6 refactor scripts
+kalman/**/.bakhdr
+kalman/**/.baktodo
+kalman/**/.bak
+kalman/**/*.bakhdr
+kalman/**/*.baktodo
+kalman/**/*.bak
+
+# Auto-generated logs and build artifacts
+kalman/Results/log/
+kalman/cpp/build/*.txt
+kalman/cpp/build/*.log
+kalman/cpp/build/*.mexw64
+
+# Editor temp / misc
+*.orig
+*.rej

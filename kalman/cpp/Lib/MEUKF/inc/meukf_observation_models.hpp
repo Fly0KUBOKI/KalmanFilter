@@ -1,10 +1,13 @@
 ﻿#pragma once
+#ifndef LIB_MEUKF_INC_MEUKF_OBSERVATION_MODELS_HPP
+#define LIB_MEUKF_INC_MEUKF_OBSERVATION_MODELS_HPP
 
 // MEUKF observation models for use with generic UKF library
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include <cmath>
+#include "../../Common/inc/Math/portable_math.hpp"
 
 namespace meukf {
 
@@ -18,7 +21,7 @@ namespace meukf {
 class AccelObservationModel {
 public:
     // gravity vector in NED frame
-    static constexpr float g_ned[3] = {0.0f, 0.0f, 9.81f};
+    static const float g_ned[3];
 
     // Quaternion to rotation matrix and apply to gravity
     // Input: 4D state vector representing quaternion [w, x, y, z]
@@ -64,7 +67,7 @@ class MagObservationModel {
 public:
     // magnetic field in NED frame (normalized, site-dependent)
     // For simplicity, assume pointing North with small dip
-    static constexpr float m_ned[3] = {1.0f, 0.0f, 0.2f};  // Placeholder
+    static const float m_ned[3];  // Placeholder
 
     static cmath_fx::Vector<3, float> h_mag(const cmath_fx::Vector<15, float>& x_15) {
         // Extract quaternion from state: x_15[6:10] = [w, x, y, z]
@@ -75,7 +78,7 @@ public:
 
         // Rotate m_ned from NED to body frame using q
         // m_body = R(q) @ m_ned
-        float m_norm = std::sqrt(m_ned[0]*m_ned[0] + m_ned[1]*m_ned[1] + m_ned[2]*m_ned[2]);
+        float m_norm = common::math::portable_sqrt(m_ned[0]*m_ned[0] + m_ned[1]*m_ned[1] + m_ned[2]*m_ned[2]);
 
         // Simple rotation via quaternion conjugate multiplication
         // For now, use simplified form (full implementation would be more complex)
@@ -118,3 +121,5 @@ public:
 };
 
 } // namespace meukf
+
+#endif // LIB_MEUKF_INC_MEUKF_OBSERVATION_MODELS_HPP

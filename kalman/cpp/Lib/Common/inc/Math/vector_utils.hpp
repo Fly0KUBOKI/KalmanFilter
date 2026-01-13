@@ -1,35 +1,13 @@
 ﻿#pragma once
+#ifndef LIB_COMMON_INC_MATH_VECTOR_UTILS_HPP
+#define LIB_COMMON_INC_MATH_VECTOR_UTILS_HPP
 
-#ifndef COMMON_MATH_VECTOR_UTILS_HPP
-#define COMMON_MATH_VECTOR_UTILS_HPP
 
-#include "../../../Matrix/fixed_matrix.hpp"
-#include <cmath>
-#include <cstring>
+#include "portable_math.hpp"
+#include "../../Matrix/fixed_matrix.hpp"
 
 namespace common {
 namespace math {
-
-// 3次元ベクトルのノルム計算
-template<typename T>
-T norm3(const T* v) {
-    return std::sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
-}
-
-// 配列にNaNが含まれているかチェック
-template<typename T>
-bool is_nan_any(const T* v, std::size_t n) {
-    for (std::size_t i = 0; i < n; ++i) {
-        if (std::isnan(v[i])) return true;
-    }
-    return false;
-}
-
-// ベクトルコピー（memcpyラッパー）
-template<typename T>
-void copy_vec(T* dst, const T* src, std::size_t n) {
-    std::memcpy(dst, src, n * sizeof(T));
-}
 
 // ベクトルのノルムでクリップ
 // v: ベクトル [入出力]
@@ -41,7 +19,7 @@ bool clip_vector_norm(cmath_fx::Vector<R, T>& v, T max_norm) {
     for (int i = 0; i < R; ++i) {
         v_norm += v(i, 0) * v(i, 0);
     }
-    v_norm = std::sqrt(v_norm);
+    v_norm = common::math::portable_sqrt(v_norm);
     if (v_norm > max_norm) {
         T scale = max_norm / v_norm;
         for (int i = 0; i < R; ++i) {
@@ -56,4 +34,3 @@ bool clip_vector_norm(cmath_fx::Vector<R, T>& v, T max_norm) {
 } // namespace common
 
 #endif // COMMON_MATH_VECTOR_UTILS_HPP
-

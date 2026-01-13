@@ -1,4 +1,6 @@
 ﻿#pragma once
+#ifndef LIB_UKF_INC_UKF_UPDATE_HPP
+#define LIB_UKF_INC_UKF_UPDATE_HPP
 
 // UKF Update Step
 // Provides templated UKF measurement update for arbitrary state/measurement dimensions
@@ -142,7 +144,7 @@ public:
         x = x + Ky;
 
         // Covariance update: P = P - K * S * K'
-        auto KS = K * S;
+        MatrixNM KS = K * S;
         MatrixNN KSKt = KS * K.transpose();
         P = P - KSKt;
 
@@ -163,3 +165,5 @@ public:
 };
 
 } // namespace ukf
+
+#endif // LIB_UKF_INC_UKF_UPDATE_HPP

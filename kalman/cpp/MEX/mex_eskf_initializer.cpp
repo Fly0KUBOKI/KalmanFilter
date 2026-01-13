@@ -1,4 +1,4 @@
-﻿#include "Impl/mex_eskf_initializer.hpp"
+﻿#include "Impl/mex_hybrid_filter_initializer.hpp"
 #include "../Lib/ESKF/inc/eskf_initializer.hpp"
 #include <mex.h>
 #include <vector>
@@ -32,7 +32,7 @@ static double get_value_at(const mxArray* arr, int idx, const char* field_name =
     }
     
     const float* pf = (const float*)mxGetData(arr);
-    return static_cast<double>(pf[idx]);
+    return pf[idx];
 }
 
 // Get value from double array (for GPS data)
@@ -56,7 +56,7 @@ static int get_length(const mxArray* arr) {
     return static_cast<int>(mxGetNumberOfElements(arr));
 }
 
-ESKFState* initialize_eskf_from_matlab(const mxArray* obs, double static_time, double dt) {
+FilterState* initialize_eskf_from_matlab(const mxArray* obs, double static_time, double dt) {
     // Calculate number of static samples
     int N_static = static_cast<int>(floor(static_time / dt));
     

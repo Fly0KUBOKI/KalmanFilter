@@ -1,4 +1,6 @@
 ﻿#pragma once
+#ifndef LIB_UKF_INC_UKF_UTILS_HPP
+#define LIB_UKF_INC_UKF_UTILS_HPP
 
 // UKF Shared Utilities
 // Common operations for UKF-based filters (Cholesky, sigma point generation, weight calculation)
@@ -76,14 +78,14 @@ inline void generate_attitude_sigma_points_3d(
     if (!cholesky3x3_robust(P_att_copy, L)) {
         // Fallback
         L = cmath_fx::Matrix<3, 3, float>::Zero();
-        for(int i=0; i<3; ++i) L(i,i) = std::sqrt(std::max(0.0f, P_att(i,i)));
+        for(int i=0; i<3; ++i) L(i,i) = common::math::portable_sqrt(std::max(0.0f, P_att(i,i)));
     }
 
     float alpha = params.alpha;
     float kappa = params.kappa;
     int n = 3;
     float lambda = alpha * alpha * (n + kappa) - n;
-    float gamma = std::sqrt(n + lambda);
+    float gamma = common::math::portable_sqrt(n + lambda);
 
     // Scale L
     for (int i = 0; i < 3; ++i) {
@@ -118,16 +120,12 @@ inline void generate_position_sigma_points_3d(
     // Similar to attitude but for position
     cmath_fx::Matrix<3, 3, float> L;
     cmath_fx::Matrix<3, 3, float> P_pos_copy = P_pos;
-    if (!cholesky3x3_robust(P_pos_copy, L)) {
-        L = cmath_fx::Matrix<3, 3, float>::Zero();
-        for(int i=0; i<3; ++i) L(i,i) = std::sqrt(std::max(0.0f, P_pos(i,i)));
-    }
 
     float alpha = params.alpha;
     float kappa = params.kappa;
     int n = 3;
     float lambda = alpha * alpha * (n + kappa) - n;
-    float gamma = std::sqrt(n + lambda);
+    float gamma = common::math::portable_sqrt(n + lambda);
 
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
@@ -148,3 +146,5 @@ inline void generate_position_sigma_points_3d(
 }
 
 } // namespace ukf_utils
+
+#endif // LIB_UKF_INC_UKF_UTILS_HPP

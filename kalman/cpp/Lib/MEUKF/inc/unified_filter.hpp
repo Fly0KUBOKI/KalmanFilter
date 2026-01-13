@@ -1,5 +1,6 @@
-﻿#ifndef UNIFIED_FILTER_HPP
-#define UNIFIED_FILTER_HPP
+﻿#pragma once
+#ifndef LIB_MEUKF_INC_UNIFIED_FILTER_HPP
+#define LIB_MEUKF_INC_UNIFIED_FILTER_HPP
 
 // Copied from Inc/MEUKF/unified_filter.hpp (paths adjusted)
 

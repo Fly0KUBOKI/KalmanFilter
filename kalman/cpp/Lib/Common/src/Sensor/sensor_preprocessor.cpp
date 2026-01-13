@@ -1,9 +1,9 @@
 ﻿#include "../../inc/Sensor/sensor_preprocessor.hpp"
-// Matrix operations consolidated into fixed_matrix.hpp
 #include "../../inc/Math/statistics.hpp"
 #include "../../inc/Math/geometry.hpp"
 #include "../../inc/Math/numerical.hpp"
 #include "../../inc/Math/math_utils.hpp"
+#include "../../inc/Math/portable_math.hpp"
 #include <cmath>
 
 namespace common {
@@ -24,7 +24,7 @@ PreprocessResult preprocess_accel(
         double d = a_meas(i, 0) - prev_a(i, 0);
         delta += d * d;
     }
-    delta = std::sqrt(delta);
+    delta = common::math::portable_sqrt(delta);
     
     // 出力値の初期化（測定値をそのまま使用）
     for (int i = 0; i < 3; ++i) {
@@ -38,7 +38,7 @@ PreprocessResult preprocess_accel(
     }
     
     // 外れ値チェック
-    double a_norm = std::sqrt(
+    double a_norm = common::math::portable_sqrt(
         a_meas(0, 0) * a_meas(0, 0) +
         a_meas(1, 0) * a_meas(1, 0) +
         a_meas(2, 0) * a_meas(2, 0)
@@ -65,7 +65,7 @@ PreprocessResult preprocess_mag(
         double d = m_meas(i, 0) - prev_m(i, 0);
         delta += d * d;
     }
-    delta = std::sqrt(delta);
+    delta = common::math::portable_sqrt(delta);
     
     // 出力値の初期化（測定値をそのまま使用）
     for (int i = 0; i < 3; ++i) {
@@ -90,7 +90,7 @@ double preprocess_baro(double pressure) {
         p_frac = 1e-9;
     }
     
-    double alt = ALT_COEFF * (1.0 - std::pow(p_frac, 0.1903));
+    double alt = static_cast<double>(common::math::pressure_to_altitude_simple(static_cast<float>(pressure)));
     return alt;
 }
 
@@ -124,7 +124,7 @@ PreprocessResult preprocess_gps(
     
     // GPS座標をメートル単位に変換
     double y_m = dlat / 9.0e-6;
-    double lat0rad = lat0 * common::math::PI_CONST / 180.0;
+    double lat0rad = lat0 * common::math::PI / 180.0;
     double x_m = dlon / (9.0e-6 / std::cos(lat0rad));
     double z_m = -dalt;
     
