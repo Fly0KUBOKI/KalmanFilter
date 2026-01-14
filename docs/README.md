@@ -1,123 +1,341 @@
-# KalmanFilter プロジェクトドキュメント
+# Kalman Filter C++ Library
 
-## 📚 ドキュメント構成（2026年1月11日更新）
+**バージョン**: 1.0.0  
+**更新日**: 2026年1月14日  
+**ライセンス**: MIT（予定）
 
-このプロジェクトは **MATLAB実験フロントエンド + C++ MEX高速計算** のハイブリッド実装による高精度慣性航法システムです。
-
-### ✅ **重要: コンパイラ依存問題を完全解決**
-
-MinGW/MSVCともに正常動作を確認（2026-01-11）。**真の原因は型の不整合でした。**
-
-- **[COMPILER_ISSUE_ROOT_CAUSE_FINAL.md](COMPILER_ISSUE_ROOT_CAUSE_FINAL.md)** — 真の根本原因と修正履歴（必読）
-- **[CODING_STANDARDS.md](CODING_STANDARDS.md)** — 再発防止のためのコーディング規約
-- **[BUILD_OPTIMIZATION_RECOMMENDATIONS.md](BUILD_OPTIMIZATION_RECOMMENDATIONS.md)** — ビルド最適化の推奨事項
-
-### 🚀 クイックスタート
-
-1. **[PROJECT_STATUS.md](../PROJECT_STATUS.md)** — プロジェクト全体ロードマップ・進行状況・メトリクス
-2. **[.github/copilot-instructions.md](../.github/copilot-instructions.md)** — AI開発者向けガイド・コード規約
-3. **標準テスト**: `run_batch_10sets()` — 10セット実行で推定精度を検証
-
-### 📖 詳細リファレンス
-
-#### システムアーキテクチャ理解
-- **[LIB_STRUCTURE.md](LIB_STRUCTURE.md)** — Lib層7層構造・全関数リスト・モジュール依存関係
-- **[CPP_ARCHITECTURE.md](CPP_ARCHITECTURE.md)** — C++アーキテクチャ・MEX層設計・最適化技法
-- **[CPP_INPUT_OUTPUT_SPEC.md](CPP_INPUT_OUTPUT_SPEC.md)** — 型マッピング・I/O仕様・MEX-MATLAB間の変換
-
-#### ビルド・環境・コンパイラ
-- **[COMPILER_ISSUE_ROOT_CAUSE_FINAL.md](COMPILER_ISSUE_ROOT_CAUSE_FINAL.md)** — 型の不整合問題の真の原因と修正（重要）
-- **[CODING_STANDARDS.md](CODING_STANDARDS.md)** — 型の使用規則・再発防止策（必読）
-- **[BUILD_OPTIMIZATION_RECOMMENDATIONS.md](BUILD_OPTIMIZATION_RECOMMENDATIONS.md)** — デバッグビルド・最適化の推奨事項
-- **[ENVIRONMENT_QUICK_START.md](ENVIRONMENT_QUICK_START.md)** — 環境セットアップ（コンパイラ選択、ビルド手順）
-
-#### 廃止（統合完了または誤った仮説）
-- ~~COMPILER_ANALYSIS_FINAL.md~~ → 誤った分析のため削除（真の原因は型の不整合）
-- ~~COMPILER_DEPENDENCY_ROOT_CAUSE.md~~ → 誤った仮説のため削除
-- ~~COMPILER_FIX_PLAN.md~~ → 不要な修正計画のため削除
-- ~~diagnose_compiler_difference.m~~ → 不正確なテストツールのため削除
-- ~~CODE_PORTABILITY_ANALYSIS.md~~ → 統合済み
-- ~~TROUBLESHOOTING_REFERENCE.md~~ → PROJECT_STATUS.md に統合
-- ~~PROJECT_OVERVIEW.md~~ → PROJECT_STATUS.md に統合
-
-### 🎯 現在の達成状況（2026-01-11 更新）
-
-| 指標 | 達成値 | 目標値 | 状況 |
-|------|--------|--------|------|
-| **Position RMSE** | **0.32m** | < 2.0m | ✅ **達成** (平均値、10セット) |
-| **Attitude RMSE** | **0.31/0.31/0.79°** | < 1.0° | ✅ **達成** (Roll/Pitch/Yaw) |
-| **成功率** | **100% (10/10)** | > 90% | ✅ **達成** |
-| **実行時間** | < 25秒/Run | - | ✅ **高速** |
-| **コンパイラ互換性** | MinGW/MSVC両対応 | - | ✅ **達成** |
-
-### ⚡ 使用例
-
-```matlab
-% 基本的な使用フロー
-cd kalman
-
-% MEXビルド (初回のみ)
-cd cpp/build
-build_mex();
-clear mex
-cd ../..
-
-% シミュレーション実行
-run_simulation(42, true);     % 単体テスト
-run_batch_10sets();           % 統計テスト (10seeds)
-
-% 結果確認
-type('Results/estimation_01.csv')
-```
-
-### 📂 プロジェクト構造
-
-```
-KalmanFilter/
-├── docs/                    # 📖 このドキュメント群
-├── .github/                 # 🤖 GitHub設定・AI指示
-├── PLAN.md                  # 📋 進捗レポート
-└── kalman/                  # 🏠 メインプロジェクト
-    ├── *.m                  # MATLAB実行スクリプト
-    ├── GenerateData/        # 📊 センサーデータ生成
-    ├── Graph/               # 📈 可視化ツール
-    ├── FFT/                # 🔄 周波数解析
-    ├── Results/            # 📄 実行結果・ログ
-    └── cpp/                # ⚡ C++ MEX実装
-        ├── build/          # 🔨 ビルドシステム
-        ├── bin/            # 📦 MEXバイナリ
-        ├── MEX/            # 🔌 MATLABインターフェース
-        └── Lib/            # 📚 ライブラリ実装
-```
-
-### 🔧 開発ワークフロー
-
-1. **変更**: C++コード修正
-2. **ビルド**: `build_mex()` — 30秒（自動的に `clear mex` 実行）
-3. **テスト**: `run_batch_10sets()` — 25秒（推奨）  
-4. **検証**: Results/batch_10sets_summary.csv で成功率・RMSE確認
-5. **診断**: Results/log/ 内のタイムスタンプ付きログで詳細確認
-
-**標準テスト**:
-```matlab
-cd kalman
-run_batch_10sets();  % 10セット実行、100%成功が期待値
-```
-
-### 🎓 学習リソース
-
-- **初心者**: [ENVIRONMENT_QUICK_START.md](ENVIRONMENT_QUICK_START.md) → [LIB_STRUCTURE.md](LIB_STRUCTURE.md)
-- **MATLAB開発者**: [CPP_INPUT_OUTPUT_SPEC.md](CPP_INPUT_OUTPUT_SPEC.md)
-- **C++開発者**: [CPP_ARCHITECTURE.md](CPP_ARCHITECTURE.md) → [LIB_STRUCTURE.md](LIB_STRUCTURE.md)
-- **ビルド最適化**: [BUILD_OPTIMIZATION_RECOMMENDATIONS.md](BUILD_OPTIMIZATION_RECOMMENDATIONS.md)
-- **AI開発者**: [../.github/copilot-instructions.md](../.github/copilot-instructions.md)
+高精度慣性航法システム（INS）のためのC++ライブラリ。MATLAB MEX、スタンドアロンアプリケーション、組み込みシステム（STM32など）で使用可能。
 
 ---
 
-## 🤝 貢献・サポート
+## 🚀 クイックスタート
 
-- **Issues**: バグ報告・機能要求
-- **Pull Requests**: コード改善・ドキュメント修正  
-- **Discussions**: 技術議論・質問
+### スタンドアロンアプリケーション（最小限の例）
 
-このドキュメントは2026年1月4日時点での情報です。最新の状況は [PLAN.md](../PLAN.md) をご確認ください。
+```cpp
+#include "Common/inc/standalone.hpp"
+#include <iostream>
+
+int main() {
+    using namespace kalman;
+    
+    // 1. フィルタタイプを設定
+    filter_setType(FILTER_ESKF);
+    
+    // 2. 初期化
+    if (filter_init() != 0) {
+        std::cerr << "Filter initialization failed\n";
+        return 1;
+    }
+    
+    // 3. センサーデータを準備
+    SensorData obs;
+    obs.accel[0] = 0.0f; obs.accel[1] = 0.0f; obs.accel[2] = -9.81f;
+    obs.gyro[0] = 0.0f; obs.gyro[1] = 0.0f; obs.gyro[2] = 0.0f;
+    obs.mag[0] = 30.0f; obs.mag[1] = 0.0f; obs.mag[2] = -50.0f;
+    obs.baro_alt = 100.0f;
+    obs.gps_lat = 35.6812; obs.gps_lon = 139.7671; obs.gps_alt = 40.0;
+    
+    // 4. フィルタ更新
+    if (filter_update(obs) != 0) {
+        std::cerr << "Filter update failed\n";
+        return 1;
+    }
+    
+    // 5. 状態を取得
+    State state;
+    if (filter_getState(state) != 0) {
+        std::cerr << "Get state failed\n";
+        return 1;
+    }
+    
+    // 6. 結果を表示
+    std::cout << "Position: [" << state.p[0] << ", " 
+              << state.p[1] << ", " << state.p[2] << "]\n";
+    std::cout << "Euler: [" << state.euler[0] << ", " 
+              << state.euler[1] << ", " << state.euler[2] << "] deg\n";
+    
+    // 7. クリーンアップ
+    filter_reset();
+    
+    return 0;
+}
+```
+
+### ビルド方法
+
+```bash
+# スタンドアロン実行ファイル（Linux/Mac）
+g++ -std=c++11 -I. \
+    Common/src/*.cpp ESKF/src/*.cpp MEUKF/src/*.cpp \
+    Matrix/src/*.cpp \
+    main.cpp -o kalman_app
+
+# 実行
+./kalman_app
+```
+
+---
+
+## 📚 ライブラリ構造
+
+### 7層アーキテクチャ
+
+```
+Lib/
+├── LAYER 1: ユーティリティ（独立、依存なし）
+│   ├── Matrix/              固定サイズ行列テンプレート
+│   ├── Quaternion/          四元数演算（[w,x,y,z]）
+│   └── Common/inc/Math/     数学関数、統計、Mahalanobis距離
+│
+├── LAYER 2: センサー処理
+│   └── Common/inc/Sensor/   外れ値検出、フィルタリング、前処理
+│
+├── LAYER 3: フィルタ管理
+│   └── Common/inc/          共分散管理、ZUPT、発散検出
+│
+└── LAYER 4: フィルタ実装（ホットパス）
+    ├── ESKF/                Error-State Kalman Filter
+    └── MEUKF/               Multiplicative Extended UKF
+```
+
+### 主要モジュール
+
+| モジュール | ファイル | 説明 |
+|-----------|---------|------|
+| **API** | `Common/inc/standalone.hpp` | 公開API定義 |
+| **インターフェース** | `Common/inc/interface.hpp` | SensorData, State, Params構造体 |
+| **行列演算** | `Matrix/fixed_matrix.hpp` | 行列、ベクトル、Cholesky分解 |
+| **四元数** | `Quaternion/quaternion_functions.hpp` | 正規化、乗算、Euler変換 |
+| **ESKFコア** | `ESKF/inc/eskf_core.hpp` | 予測・更新・状態積分 |
+| **センサー** | `Common/inc/Sensor/sensor_filter.hpp` | 外れ値検出、ロバスト推定 |
+
+---
+
+## 🔌 API リファレンス
+
+### フィルタ初期化・設定
+
+#### `filter_setType(FilterType t)`
+フィルタタイプを設定。
+
+**パラメータ**:
+- `t`: `FILTER_ESKF`, `FILTER_MEUKF`, `FILTER_UKF`, `FILTER_EKF`, `FILTER_KF`
+
+**戻り値**: `0` 成功
+
+#### `filter_init(void)`
+フィルタを初期化（現在の実装では内部でゼロセンサーデータで初期化）。
+
+**戻り値**: `0` 成功、`1` 失敗
+
+**⚠️ 注意**: 将来のバージョンではセンサーデータとパラメータを引数で渡せるよう改善予定（[STANDALONE_API_REFACTORING_PLAN.md](../../../docs/STANDALONE_API_REFACTORING_PLAN.md)参照）。
+
+### フィルタ更新・状態取得
+
+#### `filter_update(const SensorData& obs)`
+センサーデータでフィルタを更新。
+
+**パラメータ**:
+- `obs`: センサー観測値（加速度、ジャイロ、磁気、GPS、気圧）
+
+**戻り値**: `0` 成功、`1` 失敗
+
+#### `filter_getState(State& out)`
+現在の推定状態を取得。
+
+**パラメータ**:
+- `out`: 出力先（位置、速度、四元数、バイアスなど）
+
+**戻り値**: `0` 成功、`1` 失敗
+
+### クリーンアップ
+
+#### `filter_reset(void)`
+フィルタをリセット（メモリ解放）。
+
+**戻り値**: `0` 成功
+
+---
+
+## 📦 データ構造
+
+### SensorData（入力）
+
+```cpp
+struct SensorData {
+    float accel[3];      // 加速度 [m/s²] (body frame)
+    float gyro[3];       // 角速度 [rad/s] (body frame)
+    float mag[3];        // 磁気 [µT] (body frame)
+    float baro_alt;      // 気圧高度 [m]
+    double gps_lat;      // GPS緯度 [deg]
+    double gps_lon;      // GPS経度 [deg]
+    double gps_alt;      // GPS高度 [m]
+};
+```
+
+### State（出力）
+
+```cpp
+struct State {
+    float p[3];          // 位置 [m] (ENU frame)
+    float v[3];          // 速度 [m/s] (ENU frame)
+    float q[4];          // 四元数 [w, x, y, z] (body→ENU)
+    float euler[3];      // オイラー角 [deg] (roll, pitch, yaw)
+    float ba[3];         // 加速度バイアス [m/s²]
+    float bg[3];         // ジャイロバイアス [rad/s]
+    float P[15*15];      // 共分散行列（column-major）
+};
+```
+
+### Params（設定）
+
+```cpp
+struct Params {
+    float g[3];              // 重力ベクトル [m/s²] (通常 [0, 0, -9.81])
+    float mag_ref[3];        // 地磁気参照 [µT]
+    float dt;                // サンプリング周期 [s]
+    float noise_accel[3];    // 加速度ノイズ [m/s²]
+    float noise_gyro[3];     // ジャイロノイズ [rad/s]
+    float noise_ba[3];       // 加速度バイアスノイズ
+    float noise_bg[3];       // ジャイロバイアスノイズ
+    float noise_mag[3];      // 磁気ノイズ [µT]
+    float noise_baro;        // 気圧ノイズ [m]
+    double noise_gps[3];     // GPSノイズ [m] (ENU)
+};
+```
+
+---
+
+## 🛠️ 使用例
+
+### 1. MATLAB MEX経由（現在の主要用途）
+
+```matlab
+% MATLABからMEX経由で使用
+handle = mex_run_eskf('init', obs, static_time, dt);
+mex_run_eskf('step', handle, obs, k);
+state = mex_run_eskf('get_state', handle);
+mex_run_eskf('free', handle);
+```
+
+詳細は [kalman/run_simulation.m](../../run_simulation.m) を参照。
+
+### 2. スタンドアロンC++アプリケーション
+
+**CSVファイルからセンサーデータを読み込み**:
+```cpp
+// 将来実装予定: examples/standalone/main_from_csv.cpp
+// CSV読込 → フィルタ更新 → 結果をCSVに保存
+```
+
+### 3. 組み込みシステム（STM32）
+
+**FreeRTOS上でのリアルタイム実行**:
+```c
+// 将来実装予定: examples/embedded/stm32_example.c
+// IMUからセンサーデータ取得 → フィルタ更新 → UART出力
+```
+
+---
+
+## 🔍 依存関係
+
+### 必須
+- **C++11以上**（`std::memset`, テンプレート、`nullptr`など）
+- **標準ライブラリ**: `<cmath>`, `<cstring>`, `<cstdint>`, `<iostream>`（サンプルのみ）
+
+### オプション
+- **MATLAB R2018b以上**（MEX使用時）
+- **ARM CMSIS-DSP**（組み込み最適化時）
+
+### 外部ライブラリ不要
+- ✅ Eigen不使用（独自の`fixed_matrix.hpp`）
+- ✅ Boost不使用
+- ✅ OpenCV不使用
+
+---
+
+## ⚙️ ビルドシステム
+
+### 現在対応
+- ✅ MATLAB MEX（`build_mex.m`）
+- ✅ 手動g++コンパイル
+
+### 今後対応予定
+- ⏳ CMake（クロスプラットフォーム）
+- ⏳ Makefile（組み込み環境）
+- ⏳ ARM GCC（STM32）
+
+詳細は [STANDALONE_API_REFACTORING_PLAN.md](../../../docs/STANDALONE_API_REFACTORING_PLAN.md) を参照。
+
+---
+
+## 📊 パフォーマンス
+
+### MATLAB MEX実行時（2026-01-11測定）
+- **位置RMSE**: 0.32m（10セット平均）
+- **姿勢RMSE**: 0.31°/0.31°/0.79°（Roll/Pitch/Yaw）
+- **実行時間**: < 25秒/10,000ステップ
+- **バイナリサイズ**: 339 KB（MinGW64）
+
+### メモリ使用量（概算）
+- **フィルタ状態**: ~5 KB（ESKFState + 共分散）
+- **スタック**: ~10 KB（予測・更新関数）
+- **動的メモリ**: ~1 KB（Filter*インスタンス）
+
+---
+
+## 🚧 制限事項と既知の問題
+
+### 現在のAPI設計の制限
+1. **グローバル変数依存**: 複数フィルタインスタンス不可
+2. **初期化パラメータ**: `filter_init()`が引数を受け取らない
+3. **GPSオリジン**: 内部で自動設定（手動設定不可）
+
+→ **Phase 1で改善予定**（[リファクタリング計画](../../../docs/STANDALONE_API_REFACTORING_PLAN.md)）
+
+### 座標系
+- **入力**: Body frame（IMU、磁気）、ECEF（GPS）
+- **出力**: ENU frame（East-North-Up、GPS原点基準）
+- **四元数**: Body → ENU 回転を表現
+
+### 浮動小数点
+- **内部計算**: `float`（32bit）
+- **GPS座標**: `double`（64bit）→ 変換後は`float`
+
+---
+
+## 📖 関連ドキュメント
+
+| ドキュメント | 説明 |
+|-------------|------|
+| [docs/README.md](../../../docs/README.md) | プロジェクト全体の概要 |
+| [docs/CPP_ARCHITECTURE.md](../../../docs/CPP_ARCHITECTURE.md) | C++アーキテクチャ詳細 |
+| [docs/LIB_STRUCTURE.md](../../../docs/LIB_STRUCTURE.md) | Lib層の構造と全関数リスト |
+| [docs/STANDALONE_API_REFACTORING_PLAN.md](../../../docs/STANDALONE_API_REFACTORING_PLAN.md) | API改善計画 |
+| [docs/CODING_STANDARDS.md](../../../docs/CODING_STANDARDS.md) | コーディング規約 |
+| [MEX/README.md](../../MEX/README.md) | MEX層の設計原則 |
+
+---
+
+## 🤝 貢献
+
+バグ報告、機能要求、ドキュメント改善は歓迎です。
+
+### 開発ガイドライン
+1. **コーディング規約**: [CODING_STANDARDS.md](../../../docs/CODING_STANDARDS.md)
+2. **型使用規則**: GPS以外は`float`、状態ベクトルは`[p,v,q,ba,bg]`順
+3. **四元数**: 必ず`[w,x,y,z]`、正規化は`cquat::normalize_quat<T>()`
+
+---
+
+## 📜 ライセンス
+
+MIT License（予定）
+
+---
+
+**更新履歴**:
+- 2026-01-14: 初版作成、API制限事項の明記
+- 今後: API v2実装後に更新予定

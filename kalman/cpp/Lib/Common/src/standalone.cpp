@@ -1,49 +1,182 @@
-﻿#include "../inc/standalone.hpp"
+#include "../inc/standalone.hpp"
 #include "../../ESKF/inc/filter.hpp"
 #include <cstring>
 
 namespace kalman {
 
+// ============================================================================
+// Internal wrapper to hold Filter implementation + params (FilterInstance)
+// ============================================================================
+struct FilterInstance {
+    Filter* impl;
+    Params params;
+    bool initialized;
+    FilterInstance(): impl(nullptr), initialized(false) {
+        // default params
+        params.g[0] = 0.0f; params.g[1] = 0.0f; params.g[2] = -9.81f;
+        params.dt = 0.0f;
+        params.mag_ref[0] = params.mag_ref[1] = params.mag_ref[2] = 0.0f;
+        for (int i = 0; i < 3; i++) {
+            params.noise_accel[i] = 0.0f;
+            params.noise_gyro[i] = 0.0f;
+            params.noise_ba[i] = 0.0f;
+            params.noise_bg[i] = 0.0f;
+            params.noise_mag[i] = 0.0f;
+            params.noise_gps[i] = 0.0;
+        }
+        params.noise_baro = 0.0f;
+        params.gps_origin[0] = params.gps_origin[1] = params.gps_origin[2] = 0.0f;
+    }
+};
+
+// ============================================================================
+// Global instance for backward-compatible API
+// ============================================================================
 static FilterType g_type = FILTER_ESKF;
-static Filter* g_filter = nullptr;
+static FilterHandle g_handle = nullptr;
 static bool g_initialized = false;
 
+// ============================================================================
+// New Handle-based API (supports multiple instances)
+// ============================================================================
+
+FilterHandle filter_create(FilterType type) {
+    FilterInstance* inst = new FilterInstance();
+    Filter* f = nullptr;
+    if (type == FILTER_ESKF) {
+        f = new ESKFFilter();
+    } else {
+        f = new ESKFFilter();  // default to ESKF for unsupported types
+    }
+    inst->impl = f;
+    return reinterpret_cast<FilterHandle>(inst);
+}
+
+void filter_destroy(FilterHandle h) {
+    if (!h) return;
+    FilterInstance* inst = reinterpret_cast<FilterInstance*>(h);
+    if (inst->impl) delete inst->impl;
+    delete inst;
+}
+
+uint8_t filter_init(FilterHandle h, const SensorData* init_data, uint32_t /*init_samples*/, float dt) {
+    if (!h) return 1;
+    FilterInstance* inst = reinterpret_cast<FilterInstance*>(h);
+    if (!inst->impl) return 1;
+
+    SensorData tmp;
+    if (init_data) tmp = *init_data; else std::memset(&tmp, 0, sizeof(tmp));
+
+    float static_time = dt > 0.0f ? dt : 5.0f;
+    uint8_t r = inst->impl->init(tmp, static_time);
+    inst->initialized = (r == 0);
+    return r;
+}
+
+uint8_t filter_set_params(FilterHandle h, const Params& params) {
+    if (!h) return 1;
+    FilterInstance* inst = reinterpret_cast<FilterInstance*>(h);
+    if (!inst->impl) return 1;
+    inst->params = params;
+    return inst->impl->setParams(params);
+}
+
+uint8_t filter_set_gps_origin(FilterHandle h, double lat, double lon, double alt) {
+    if (!h) return 1;
+    FilterInstance* inst = reinterpret_cast<FilterInstance*>(h);
+    if (!inst->impl) return 1;
+    // store gps origin in params (Params::gps_origin is float[3])
+    inst->params.gps_origin[0] = static_cast<float>(lat);
+    inst->params.gps_origin[1] = static_cast<float>(lon);
+    inst->params.gps_origin[2] = static_cast<float>(alt);
+    // propagate via setParams if implemented by the filter
+    return inst->impl->setParams(inst->params);
+}
+
+uint8_t filter_update(FilterHandle h, const SensorData& obs) {
+    if (!h) return 1;
+    FilterInstance* inst = reinterpret_cast<FilterInstance*>(h);
+    if (!inst->impl) return 1;
+    return inst->impl->update(obs);
+}
+
+uint8_t filter_get_state(FilterHandle h, State& out) {
+    if (!h) return 1;
+    FilterInstance* inst = reinterpret_cast<FilterInstance*>(h);
+    if (!inst->impl) return 1;
+    return inst->impl->getState(out);
+}
+
+uint8_t filter_reset(FilterHandle h) {
+    if (!h) return 1;
+    FilterInstance* inst = reinterpret_cast<FilterInstance*>(h);
+    if (!inst->impl) return 1;
+    uint8_t r = inst->impl->reset();
+    inst->initialized = false;
+    return r;
+}
+
+uint8_t filter_is_initialized(FilterHandle h) {
+    if (!h) return 0;
+    FilterInstance* inst = reinterpret_cast<FilterInstance*>(h);
+    return inst->initialized ? 1 : 0;
+}
+
+const char* filter_get_version(void) {
+    return "kalman_filter_v2_unified";
+}
+
+// ============================================================================
+// Backward-compatible Global API (uses handle-based implementation internally)
+// ============================================================================
+
 uint8_t filter_setType(FilterType t) {
-  g_type = t;
-  return 0;
+    // set desired type; if already created, recreate immediately
+    g_type = t;
+    if (g_handle) {
+        // destroy existing and create new of requested type
+        filter_destroy(g_handle);
+        g_handle = filter_create(g_type);
+        if (!g_handle) { g_initialized = false; return 1; }
+        uint8_t r = filter_init(g_handle, nullptr, 0, 0.0f);
+        g_initialized = (r == 0);
+        if (!g_initialized) { filter_destroy(g_handle); g_handle = nullptr; return 1; }
+    }
+    return 0;
 }
 
 uint8_t filter_init(void) {
-  if (g_filter) { delete g_filter; g_filter = nullptr; g_initialized = false; }
-  // For now default to ESKF; future work: instantiate selected type
-  if (g_type == FILTER_ESKF) {
-    g_filter = new ESKFFilter();
-  } else {
-    g_filter = new ESKFFilter();
-  }
-  if (!g_filter) return 1;
-  SensorData zero_obs; std::memset(&zero_obs, 0, sizeof(zero_obs));
-  float static_time = 5.0f;
-  uint8_t r = g_filter->init(zero_obs, static_time);
-  g_initialized = (r == 0);
-  return g_initialized ? 0 : 1;
+    // destroy existing instance if present
+    if (g_handle) { filter_destroy(g_handle); g_handle = nullptr; g_initialized = false; }
+
+    // create new instance using handle-based API
+    g_handle = filter_create(g_type);
+    if (!g_handle) return 1;
+
+    // use default (null) init data and default dt (will use 5.0s if dt==0)
+    uint8_t r = filter_init(g_handle, nullptr, 0, 0.0f);
+    g_initialized = (r == 0);
+    if (!g_initialized) { filter_destroy(g_handle); g_handle = nullptr; }
+    return g_initialized ? 0 : 1;
 }
 
 uint8_t filter_update(const SensorData& obs) {
-  if (!g_initialized || !g_filter) return 1;
-  return g_filter->update(obs);
+    if (!g_initialized || !g_handle) return 1;
+    return filter_update(g_handle, obs);
 }
 
 uint8_t filter_getState(State& out) {
-  if (!g_initialized || !g_filter) return 1;
-  return g_filter->getState(out);
+    if (!g_initialized || !g_handle) return 1;
+    return filter_get_state(g_handle, out);
 }
 
 uint8_t filter_reset(void) {
-  if (!g_filter) return 0;
-  uint8_t r = g_filter->reset();
-  delete g_filter; g_filter = nullptr; g_initialized = false;
-  return r;
+    if (!g_handle) return 0;
+    uint8_t r = filter_reset(g_handle);
+    filter_destroy(g_handle);
+    g_handle = nullptr;
+    g_initialized = false;
+    return r;
 }
 
 } // namespace kalman

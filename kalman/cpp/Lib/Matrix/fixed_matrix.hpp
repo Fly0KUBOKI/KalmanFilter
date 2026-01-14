@@ -7,7 +7,6 @@
 
 #include <cmath>
 #include "../Common/inc/Math/portable_math.hpp"
-#include "../Common/inc/Math/portable_math.hpp"
 #include <cstring>
 #include <cassert>
 #include <algorithm>
