@@ -18,46 +18,46 @@
 
 int main() {
     using namespace kalman;
-    
-    // 1. フィルタタイプを設定
-    filter_setType(FILTER_ESKF);
-    
-    // 2. 初期化
-    if (filter_init() != 0) {
+
+    // Create a handle-based filter instance
+    FilterHandle h = filter_create(FILTER_ESKF);
+    if (!h) return 1;
+
+    // Initialize (use default init data)
+    if (filter_init(h, nullptr, 0, 0.0f) != 0) {
         std::cerr << "Filter initialization failed\n";
+        filter_destroy(h);
         return 1;
     }
-    
-    // 3. センサーデータを準備
-    SensorData obs;
-    obs.accel[0] = 0.0f; obs.accel[1] = 0.0f; obs.accel[2] = -9.81f;
-    obs.gyro[0] = 0.0f; obs.gyro[1] = 0.0f; obs.gyro[2] = 0.0f;
-    obs.mag[0] = 30.0f; obs.mag[1] = 0.0f; obs.mag[2] = -50.0f;
+
+    // Prepare sensor data
+    SensorData obs = {};
+    obs.accel[2] = -9.81f;
     obs.baro_alt = 100.0f;
     obs.gps_lat = 35.6812; obs.gps_lon = 139.7671; obs.gps_alt = 40.0;
-    
-    // 4. フィルタ更新
-    if (filter_update(obs) != 0) {
+
+    // Update
+    if (filter_update(h, obs) != 0) {
         std::cerr << "Filter update failed\n";
+        filter_reset(h);
+        filter_destroy(h);
         return 1;
     }
-    
-    // 5. 状態を取得
+
+    // Get state
     State state;
-    if (filter_getState(state) != 0) {
+    if (filter_get_state(h, state) != 0) {
         std::cerr << "Get state failed\n";
+        filter_reset(h);
+        filter_destroy(h);
         return 1;
     }
-    
-    // 6. 結果を表示
-    std::cout << "Position: [" << state.p[0] << ", " 
-              << state.p[1] << ", " << state.p[2] << "]\n";
-    std::cout << "Euler: [" << state.euler[0] << ", " 
-              << state.euler[1] << ", " << state.euler[2] << "] deg\n";
-    
-    // 7. クリーンアップ
-    filter_reset();
-    
+
+    std::cout << "Position: [" << state.p[0] << ", " << state.p[1] << ", " << state.p[2] << "]\n";
+
+    // Cleanup
+    filter_reset(h);
+    filter_destroy(h);
     return 0;
 }
 ```

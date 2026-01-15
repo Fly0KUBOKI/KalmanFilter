@@ -1,4 +1,4 @@
-#include "../inc/standalone.hpp"
+﻿#include "../inc/standalone.hpp"
 #include "../../ESKF/inc/filter.hpp"
 #include <cstring>
 
@@ -29,12 +29,7 @@ struct FilterInstance {
     }
 };
 
-// ============================================================================
-// Global instance for backward-compatible API
-// ============================================================================
-static FilterType g_type = FILTER_ESKF;
-static FilterHandle g_handle = nullptr;
-static bool g_initialized = false;
+// No global instances: use handle-based API only
 
 // ============================================================================
 // New Handle-based API (supports multiple instances)
@@ -124,59 +119,6 @@ uint8_t filter_is_initialized(FilterHandle h) {
 
 const char* filter_get_version(void) {
     return "kalman_filter_v2_unified";
-}
-
-// ============================================================================
-// Backward-compatible Global API (uses handle-based implementation internally)
-// ============================================================================
-
-uint8_t filter_setType(FilterType t) {
-    // set desired type; if already created, recreate immediately
-    g_type = t;
-    if (g_handle) {
-        // destroy existing and create new of requested type
-        filter_destroy(g_handle);
-        g_handle = filter_create(g_type);
-        if (!g_handle) { g_initialized = false; return 1; }
-        uint8_t r = filter_init(g_handle, nullptr, 0, 0.0f);
-        g_initialized = (r == 0);
-        if (!g_initialized) { filter_destroy(g_handle); g_handle = nullptr; return 1; }
-    }
-    return 0;
-}
-
-uint8_t filter_init(void) {
-    // destroy existing instance if present
-    if (g_handle) { filter_destroy(g_handle); g_handle = nullptr; g_initialized = false; }
-
-    // create new instance using handle-based API
-    g_handle = filter_create(g_type);
-    if (!g_handle) return 1;
-
-    // use default (null) init data and default dt (will use 5.0s if dt==0)
-    uint8_t r = filter_init(g_handle, nullptr, 0, 0.0f);
-    g_initialized = (r == 0);
-    if (!g_initialized) { filter_destroy(g_handle); g_handle = nullptr; }
-    return g_initialized ? 0 : 1;
-}
-
-uint8_t filter_update(const SensorData& obs) {
-    if (!g_initialized || !g_handle) return 1;
-    return filter_update(g_handle, obs);
-}
-
-uint8_t filter_getState(State& out) {
-    if (!g_initialized || !g_handle) return 1;
-    return filter_get_state(g_handle, out);
-}
-
-uint8_t filter_reset(void) {
-    if (!g_handle) return 0;
-    uint8_t r = filter_reset(g_handle);
-    filter_destroy(g_handle);
-    g_handle = nullptr;
-    g_initialized = false;
-    return r;
 }
 
 } // namespace kalman

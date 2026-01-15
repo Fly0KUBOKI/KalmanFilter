@@ -4,13 +4,11 @@
 
 #include "../../../Matrix/fixed_matrix.hpp"
 #include "../../../KF/inc/kf_operations.hpp"
+#include "../Math/portable_math.hpp"
+#include "../Math/vector_utils.hpp"
 #include "../Math/statistics.hpp"
-#include "../Math/geometry.hpp"
-#include "../Math/numerical.hpp"
-#include "../Math/math_utils.hpp"
 #include <cmath>
 #include <algorithm>
-#include "../Math/portable_math.hpp"
 
 namespace common {
 namespace validation {

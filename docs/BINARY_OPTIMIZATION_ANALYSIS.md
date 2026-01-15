@@ -25,7 +25,7 @@ Lib/
 │   ├── statistics.hpp
 │   └── ... (全 7 ファイル)    
 │
-└── Sensor/                     ⚠️ Lib/Common/inc/Sensor と完全重複
+└── Sensor/                     ⚠️ Lib/Sensor と完全重複
     ├── ema_filter.hpp
     ├── biquad_filter.hpp
     └── ... (全 7 ファイル)
@@ -33,7 +33,7 @@ Lib/
 
 **発見**:
 - `Lib/Core/` は `#include "../../../Core/"` で外部フォルダを参照しようとしているが、そのフォルダは存在しない
-- `Lib/Sensor/` は `Lib/Common/inc/Sensor/` と同じファイル群を持つ（重複）
+- `Lib/Sensor/` は `Lib/Sensor/` に実体が存在する（重複の統一を推奨）
 - **結論**: Core は削除、Sensor は一方に統一すべき
 
 #### 未使用テンプレートライブラリ
@@ -137,12 +137,11 @@ mex_targets = {
 - **影響**: なし（実際に include されていない）
 - **削減効果**: 最小限（ビルド効率わずかに向上）
 
-#### B. Lib/Sensor フォルダを削除・Common/inc/Sensor に統一
+#### B. Lib/Sensor フォルダを統一（推奨）
 - **対象**: `kalman/cpp/Lib/Sensor/` （7 ファイル）
-- **統合先**: `kalman/cpp/Lib/Common/inc/Sensor/` （既存）
-- **理由**: 同じ内容の重複
-- **影響**: なし（mex_hybrid_filter_common.hpp は `Lib/Sensor/` を include）
-  - 統一後は `Lib/Common/inc/Sensor/` に変更すれば OK
+- **統合先**: `kalman/cpp/Lib/Sensor/`（推奨）
+- **理由**: 運用の単純化と明確なヘッダ配置
+- **影響**: ドキュメントとサンプルのインクルードパスを `Lib/Sensor/` に更新する必要あり
 - **削減効果**: 最小限（ヘッダーのみ、リンク対象外）
 
 ### 2.2 段階的改善（要検証）
@@ -261,7 +260,7 @@ Lib/
 
 ❌ 削除対象:
 ├── Core/                              ← 古い wrapper（機能しない）
-└── Sensor/ (at Lib/Sensor level)      ← Lib/Common/inc/Sensor/ に統一
+└── Sensor/ (at Lib/Sensor level)      ← 統一先は `Lib/Sensor/`
 ```
 
 ---
@@ -321,12 +320,12 @@ ls -la ../bin/mex_hybrid_filter.mexw64
 # 予想: 340-342 KB（ほぼ変化なし）
 ```
 
-### Step 3: Lib/Sensor → Lib/Common/inc/Sensor に統一
+### Step 3: Lib/Common/inc/Sensor -> Lib/Sensor に統一
 ```bash
 # mex_hybrid_filter_common.hpp を編集:
 # #include "../../Lib/Sensor/sensor_filter.hpp"
 #   ↓
-# #include "../../Lib/Common/inc/Sensor/sensor_filter.hpp"
+# #include "../../Lib/Sensor/filters.hpp"
 # その後 Lib/Sensor を削除
 rm -rf kalman/cpp/Lib/Sensor/
 cd kalman/cpp/build && build_mex()

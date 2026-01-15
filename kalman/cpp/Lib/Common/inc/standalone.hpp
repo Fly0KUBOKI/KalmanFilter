@@ -17,12 +17,7 @@ typedef enum {
 // Opaque handle for new multi-instance API
 typedef void* FilterHandle;
 
-// Standalone global API (simple C++ entry points - backward compatible)
-uint8_t filter_init(void);
-uint8_t filter_update(const SensorData& obs);
-uint8_t filter_getState(State& out);
-uint8_t filter_reset(void);
-uint8_t filter_setType(FilterType t);
+// NOTE: legacy global API removed. Use handle-based API below.
 
 // New handle-based API (supports multiple instances)
 FilterHandle filter_create(FilterType type);

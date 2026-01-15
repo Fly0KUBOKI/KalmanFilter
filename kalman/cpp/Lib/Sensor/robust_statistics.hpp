@@ -17,9 +17,9 @@ using cm = cmath_fx::FixedMatrix;
 class NoiseEstimator {
 private:
 	static const int MAX_WARMUP = 10;
-	static const float R_ABS_MIN;
-	static const float R_ABS_MAX;
-	static const float OUTLIER_FACTOR;
+	static constexpr float R_ABS_MIN = 1e-12f;
+	static constexpr float R_ABS_MAX = 1e6f;
+	static constexpr float OUTLIER_FACTOR = 20.0f;
 	cm R_accel_, R_gyro_, R_mag_, R_gps_;
 	float R_baro_;
 	int count_accel_, count_gyro_, count_mag_, count_gps_, count_baro_;

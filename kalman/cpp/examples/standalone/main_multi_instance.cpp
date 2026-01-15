@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file main_multi_instance.cpp
  * @brief Multiple filter instances example using new handle-based API
  *

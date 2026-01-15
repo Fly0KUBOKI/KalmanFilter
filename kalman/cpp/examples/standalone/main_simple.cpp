@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file main_simple.cpp
  * @brief 最小限のKalman FilterライブラリUsageサンプル
  * 
@@ -31,15 +31,15 @@ int main() {
     // ========================================
     // 1. フィルタタイプを設定
     // ========================================
-    std::cout << "1. Setting filter type to ESKF...\n";
-    filter_setType(FILTER_ESKF);
-    
-    // ========================================
-    // 2. フィルタを初期化
-    // ========================================
-    std::cout << "2. Initializing filter...\n";
-    if (filter_init() != 0) {
+    std::cout << "1. Creating and initializing filter instance...\n";
+    FilterHandle h = filter_create(FILTER_ESKF);
+    if (!h) {
+        std::cerr << "ERROR: Failed to create filter instance!\n";
+        return 1;
+    }
+    if (filter_init(h, nullptr, 0, 0.0f) != 0) {
         std::cerr << "ERROR: Filter initialization failed!\n";
+        filter_destroy(h);
         return 1;
     }
     std::cout << "   Filter initialized successfully.\n\n";
@@ -94,9 +94,10 @@ int main() {
         obs.accel[1] = 0.01f * std::cos(i * 0.1f);
         obs.gyro[2] = 0.001f * std::sin(i * 0.2f);
         
-        if (filter_update(obs) != 0) {
+        if (filter_update(h, obs) != 0) {
             std::cerr << "ERROR: Filter update failed at step " << i << "!\n";
-            filter_reset();
+            filter_reset(h);
+            filter_destroy(h);
             return 1;
         }
         
@@ -111,9 +112,10 @@ int main() {
     // ========================================
     std::cout << "5. Retrieving estimated state...\n";
     State state;
-    if (filter_getState(state) != 0) {
+    if (filter_get_state(h, state) != 0) {
         std::cerr << "ERROR: Failed to get state!\n";
-        filter_reset();
+        filter_reset(h);
+        filter_destroy(h);
         return 1;
     }
     
@@ -162,8 +164,9 @@ int main() {
     // 7. クリーンアップ
     // ========================================
     std::cout << "6. Cleaning up...\n";
-    filter_reset();
-    std::cout << "   Filter reset successfully.\n\n";
+    filter_reset(h);
+    filter_destroy(h);
+    std::cout << "   Filter reset and destroyed successfully.\n\n";
     
     std::cout << "=== Example completed successfully! ===\n";
     

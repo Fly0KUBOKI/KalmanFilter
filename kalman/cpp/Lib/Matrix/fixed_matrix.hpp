@@ -174,6 +174,7 @@ struct Matrix {
 template <int N, typename T = float>
 using Vector = Matrix<N, 1, T>;
 
+
 // Runtime-sized matrix with fixed maximum capacity (for MEX interfacing)
 const int MAX_N = 20;
 
@@ -661,6 +662,27 @@ inline cm skew_symmetric(const cm& v) {
     S(1,0)=vz; S(1,1)=0.0f; S(1,2)=-vx;
     S(2,0)=-vy; S(2,1)=vx; S(2,2)=0.0f;
     return S;
+}
+
+// ベクトルのノルムでクリップ
+// v: ベクトル [入出力]
+// max_norm: 最大ノルム
+// 戻り値: クリップされたかどうか
+template<int R, typename T>
+bool clip_vector_norm(cmath_fx::Vector<R, T>& v, T max_norm) {
+    T v_norm = T(0);
+    for (int i = 0; i < R; ++i) {
+        v_norm += v(i, 0) * v(i, 0);
+    }
+    v_norm = common::math::portable_sqrt(v_norm);
+    if (v_norm > max_norm) {
+        T scale = max_norm / v_norm;
+        for (int i = 0; i < R; ++i) {
+            v(i, 0) *= scale;
+        }
+        return true;
+    }
+    return false;
 }
 
 } // namespace math

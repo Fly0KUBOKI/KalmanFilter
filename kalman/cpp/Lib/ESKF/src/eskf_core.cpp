@@ -6,12 +6,12 @@
 #include "../../KF/inc/kalman_filter_core.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 // Matrix operations consolidated into fixed_matrix.hpp
-#include "../../Common/inc/Math/statistics.hpp"
-#include "../../Common/inc/Math/geometry.hpp"
-#include "../../Common/inc/Math/numerical.hpp"
-// Matrix utilities consolidated into fixed_matrix.hpp
-#include <cmath>
 #include "../../Common/inc/Math/portable_math.hpp"
+#include "../../Common/inc/Math/vector_utils.hpp"
+#include "../../Common/inc/Math/statistics.hpp"
+// Matrix utilities consolidated into fixed_matrix.hpp
+#include "../../Matrix/fixed_matrix.hpp"
+#include <cmath>
 
 namespace eskf {
 

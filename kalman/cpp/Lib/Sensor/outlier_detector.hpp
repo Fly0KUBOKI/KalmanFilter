@@ -5,7 +5,8 @@
 
 #include "../Matrix/fixed_matrix.hpp"
 #include "../KF/inc/kf_operations.hpp"
-#include "../Common/inc/Math/math_utils.hpp"
+#include "../Common/inc/Math/vector_utils.hpp"
+#include "../Common/inc/Math/statistics.hpp"
 #include "../Common/inc/Math/portable_math.hpp"
 #include <cmath>
 

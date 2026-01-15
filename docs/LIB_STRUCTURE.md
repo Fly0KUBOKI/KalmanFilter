@@ -46,7 +46,7 @@ kalman/cpp/Lib/
 ├── Quaternion/        (1 file)   ← 四元数演算
 │   └── quaternion_functions.hpp
 │
-└── Sensor/            (7 files)  ← 重複フォルダ（Lib/Common/inc/Sensor と同じ）
+└── Sensor/            (7 files)  ← 重複フォルダ（Lib/Sensor と同じ）
 
 ❌ 削除済み:
 ├── Core/                        ← 古い wrapper（機能しない）
@@ -60,7 +60,7 @@ kalman/cpp/Lib/
 
 **実施内容**:
 1. ✅ `Lib/Core/` 削除（古い wrapper フォルダ）
-2. ⏳ `Lib/Sensor/` → `Lib/Common/inc/Sensor/` 統一（複雑なため保留）
+2. ⏳ `Lib/Sensor/` 統一（Lib/Sensor を正とする方針）
 
 **効果測定**:
 | 項目 | 前 | 後 | 削減 | 率 |
@@ -182,7 +182,7 @@ LAYER 1: ユーティリティ（型変換、数学）
 
 ---
 
-#### Common/inc/Sensor/sensor_filter.hpp
+#### Lib/Sensor/sensor_filter.hpp
 **役割**: 外れ値検出、フィルタリング、ロバスト統計  
 **実装度**: ★★★ 完全実装（現在分割作業中）  
 **依存**: Matrix/fixed_matrix.hpp, Math/math_utils.hpp
@@ -216,7 +216,7 @@ LAYER 1: ユーティリティ（型変換、数学）
 
 ---
 
-#### Common/inc/Sensor/sensor_preprocessor.hpp
+#### Lib/Sensor/sensor_preprocessor.hpp
 **役割**: センサー入力の前処理（キャリブレーション、座標変換）  
 **実装度**: ★★★ 完全実装（140行）  
 **依存**: Matrix/fixed_matrix.hpp, Math/math_utils.hpp

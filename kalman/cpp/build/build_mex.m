@@ -96,9 +96,7 @@ mex_targets = {
         fullfile(lib_dir, 'MEUKF', 'src', 'meukf_predict.cpp')
         fullfile(lib_dir, 'MEUKF', 'src', 'meukf_sigma_points.cpp')
         fullfile(lib_dir, 'MEUKF', 'src', 'meukf_update.cpp')
-        fullfile(lib_dir, 'Common', 'src', 'robust_statistics_constants.cpp')
-        fullfile(lib_dir, 'Common', 'src', 'sensor_filter_constants.cpp')
-        fullfile(lib_dir, 'Common', 'src', 'math_utils_constants.cpp')
+        % legacy constant-definition sources removed; constants moved to headers
         fullfile(lib_dir, 'MEUKF', 'src', 'meukf_observation_models_constants.cpp')
     }, 'mex_hybrid_filter'}
 };

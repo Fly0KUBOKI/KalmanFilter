@@ -1,8 +1,7 @@
 ﻿#include "../../inc/Sensor/sensor_preprocessor.hpp"
+#include "../../inc/Math/portable_math.hpp"
+#include "../../inc/Math/vector_utils.hpp"
 #include "../../inc/Math/statistics.hpp"
-#include "../../inc/Math/geometry.hpp"
-#include "../../inc/Math/numerical.hpp"
-#include "../../inc/Math/math_utils.hpp"
 #include "../../inc/Math/portable_math.hpp"
 #include <cmath>
 
