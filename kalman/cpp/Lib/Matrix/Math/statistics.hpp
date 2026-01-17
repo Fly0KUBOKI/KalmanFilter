@@ -1,13 +1,21 @@
 ﻿#pragma once
-#ifndef LIB_COMMON_INC_MATH_STATISTICS_HPP
-#define LIB_COMMON_INC_MATH_STATISTICS_HPP
+#ifndef LIB_MATRIX_MATH_STATISTICS_HPP
+#define LIB_MATRIX_MATH_STATISTICS_HPP
 
 
-#include "portable_math.hpp"
+#include <cmath>
 #include <cstddef>
 
 namespace common {
 namespace math {
+
+// Mathematical constants
+// Provide `PI` here so other modules depending on the old `portable_math.hpp`
+// can continue to reference `common::math::PI` without needing the legacy header.
+constexpr double PI = 3.14159265358979323846;
+
+template <typename T>
+inline T pi() { return static_cast<T>(PI); }
 
 template<typename T>
 inline void compute_mean_3d(const T* ax, const T* ay, const T* az, std::size_t n, T* mean_x, T* mean_y, T* mean_z) {
@@ -26,7 +34,7 @@ inline T compute_std(const T* data, std::size_t n, T mean) {
         T diff = data[i] - mean;
         sum_sq += diff * diff;
     }
-    return common::math::portable_sqrt(sum_sq / static_cast<T>(n - 1));
+    return std::sqrt(sum_sq / static_cast<T>(n - 1));
 }
 
 template<typename T>

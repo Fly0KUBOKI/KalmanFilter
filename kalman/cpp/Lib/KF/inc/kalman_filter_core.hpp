@@ -5,9 +5,8 @@
 // Implementation: このヘッダー内に実装含む（テンプレート実装）
 
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Common/inc/Math/portable_math.hpp"
-#include "../../Common/inc/Math/vector_utils.hpp"
-#include "../../Common/inc/Math/statistics.hpp"
+#include "../../Matrix/fixed_matrix.hpp"
+#include "../../Matrix/Math/statistics.hpp"
 #include "../../KF/inc/kf_operations.hpp"
 
 namespace kf {

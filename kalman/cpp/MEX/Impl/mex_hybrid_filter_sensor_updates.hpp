@@ -6,7 +6,8 @@
 #include "mex_hybrid_filter_common.hpp"
 #include "mex_type_conversion.hpp"
 #include <cstring>
-#include "../../Lib/Common/inc/Math/portable_math.hpp"
+#include <cmath>
+#include <cmath>
 
 namespace mex_hybrid_filter_impl {
 
@@ -76,7 +77,7 @@ inline void call_sensor_update(FilterState* s, const char* type, const double* m
             double w = s->w_body[i];
             w_norm += w * w;
         }
-        w_norm = common::math::portable_sqrt(w_norm);
+        w_norm = std::sqrt(w_norm);
         
         if (!no_change && !is_nan_any(a_corrected, 3) && !is_outlier && (w_norm <= 1.5)) {
             should_skip = false;

@@ -5,9 +5,8 @@
 
 #include "../Matrix/fixed_matrix.hpp"
 #include "../KF/inc/kf_operations.hpp"
-#include "../Common/inc/Math/vector_utils.hpp"
-#include "../Common/inc/Math/statistics.hpp"
-#include "../Common/inc/Math/portable_math.hpp"
+#include "../Matrix/fixed_matrix.hpp"
+#include "../Matrix/Math/statistics.hpp"
 #include <cmath>
 
 namespace common {
@@ -31,13 +30,13 @@ public:
 			for (int i = 0; i < count_; ++i) { sum += history_[i]; sum_sq += history_[i] * history_[i]; }
 			float mean = sum / count_;
 			float variance = sum_sq / count_ - mean * mean;
-			noise_std = common::math::portable_sqrt(fmaxf(variance, 0.0f));
+			noise_std = std::sqrt(fmaxf(variance, 0.0f));
 			noise_std = fmaxf(noise_std, fmaxf(residual_norm / 3.0f, min_std));
 		} else {
 			float sum = 0.0f, sum_sq = 0.0f;
 			for (int i = 0; i < count_; ++i) { sum += history_[i]; sum_sq += history_[i] * history_[i]; }
 			float mean = sum / count_;
-			noise_std = common::math::portable_sqrt(sum_sq / count_ - mean * mean);
+			noise_std = std::sqrt(sum_sq / count_ - mean * mean);
 			noise_std = fmaxf(noise_std, fmaxf(residual_norm / 3.0f, min_std));
 		}
 		float threshold = threshold_sigma * noise_std;
@@ -50,7 +49,7 @@ public:
 	}
 	static bool detect_mahalanobis_static(const ::common::math::cm& innovation, const ::common::math::cm& S, float threshold_sigma = 3.0f) {
 		float dist_sq = ::kf::ops::mahalanobis_distance_squared(innovation, S);
-		float dist = common::math::portable_sqrt(dist_sq);
+		float dist = std::sqrt(dist_sq);
 		return dist > threshold_sigma;
 	}
 	void reset() { count_ = 0; }

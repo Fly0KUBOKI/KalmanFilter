@@ -1,12 +1,10 @@
 ﻿#pragma once
-#ifndef LIB_COMMON_INC_VALIDATION_VALIDATION_HPP
-#define LIB_COMMON_INC_VALIDATION_VALIDATION_HPP
+#ifndef LIB_ESKF_INC_VALIDATION_VALIDATION_HPP
+#define LIB_ESKF_INC_VALIDATION_VALIDATION_HPP
 
 #include "../../../Matrix/fixed_matrix.hpp"
 #include "../../../KF/inc/kf_operations.hpp"
-#include "../Math/portable_math.hpp"
-#include "../Math/vector_utils.hpp"
-#include "../Math/statistics.hpp"
+#include "../../../Matrix/Math/statistics.hpp"
 #include <cmath>
 #include <algorithm>
 
@@ -80,7 +78,7 @@ public:
         for (int i = 0; i < innovation.rows; ++i) {
             norm_sq += innovation(i,0) * innovation(i,0);
         }
-        float norm = common::math::portable_sqrt(norm_sq);
+        float norm = std::sqrt(norm_sq);
         return (norm > threshold);
     }
     

@@ -3,7 +3,7 @@
 #define LIB_KF_INC_KF_CORE_HPP
 
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Common/Sensor/sensor_filter.hpp"
+#include "../../Sensor/sensor_filter.hpp"
 #include "kalman_filter_core.hpp"
 #include "kf_operations.hpp"
 #include <cmath>

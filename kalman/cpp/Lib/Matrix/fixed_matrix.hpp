@@ -4,14 +4,52 @@
 
 // Implementation: このヘッダー内に実装含む（テンプレート実装）
 // Moved from Inc/Common/Math/fixed_matrix.hpp to Lib/Matrix/fixed_matrix.hpp
+// Standalone library: No external dependencies (except std C++ library)
 
 #include <cmath>
-#include "../Common/inc/Math/portable_math.hpp"
 #include <cstring>
 #include <cassert>
-#include <algorithm>
 
 namespace cmath_fx {
+// ========================================
+// Portable Math Utilities (Standalone)
+// ========================================
+// sqrt implementation (standalone - no external dependencies)
+template <typename T>
+inline T safe_sqrt(T x) {
+    return (x > T(0)) ? std::sqrt(x) : T(0);
+}
+
+// fabs implementation
+template <typename T>
+inline T safe_fabs(T x) {
+    return (x < T(0)) ? -x : x;
+}
+
+// Internal swap implementation (replaces std::swap from <algorithm>)
+namespace internal {
+    template<typename T>
+    inline void swap(T& a, T& b) {
+        T tmp = a;
+        a = b;
+        b = tmp;
+    }
+}
+
+// Numeric tolerances and constants (centralized)
+namespace constants {
+    template <typename T> struct tolerance;
+    template <> struct tolerance<float> {
+        static constexpr float singular = 1e-6f;                // pivot / singular threshold
+        static constexpr float psd_min = 1e-8f;                  // positive-definite minimum diag
+        static constexpr float regularization_base = 1e-6f;      // base regularization added
+    };
+    template <> struct tolerance<double> {
+        static constexpr double singular = 1e-12;               // pivot / singular threshold
+        static constexpr double psd_min = 1e-10;                // positive-definite minimum diag
+        static constexpr double regularization_base = 1e-10;    // base regularization added
+    };
+}
 
 // Fixed-size matrix class
 template <int R, int C, typename T = float>
@@ -120,7 +158,7 @@ struct Matrix {
 
             // 行入れ替え
             if (pivot != i) {
-                for (int j = 0; j < 2 * R; ++j) std::swap(aug(i, j), aug(pivot, j));
+                for (int j = 0; j < 2 * R; ++j) internal::swap(aug(i, j), aug(pivot, j));
             }
 
             // 正規化
@@ -147,32 +185,31 @@ struct Matrix {
     // Returns true if successful, false if matrix is not positive definite
     bool cholesky(Matrix<R, C, T>& L) const {
         static_assert(R == C, "Cholesky decomposition requires square matrix");
-        L = Zero();
-
-        for (int i = 0; i < R; ++i) {
-            for (int j = 0; j <= i; ++j) {
-                T sum = static_cast<T>(0);
-                for (int k = 0; k < j; ++k) {
-                    sum += L(i, k) * L(j, k);
-                }
-
-                if (i == j) {
-                    T val = (*this)(i, i) - sum;
-                    if (val <= static_cast<T>(1e-12)) return false; // Not positive definite
-                    L(i, i) = common::math::portable_sqrt(val);
-                } else {
-                    if (std::abs(L(j, j)) < static_cast<T>(1e-12)) return false;
-                    L(i, j) = ((*this)(i, j) - sum) / L(j, j);
-                }
-            }
-        }
-        return true;
+        return internal::cholesky_core<R, T>(*this, L, R);
     }
 };
 
 // ベクトル型定義
 template <int N, typename T = float>
 using Vector = Matrix<N, 1, T>;
+
+
+// Internal helpers for matrix algorithms (template/p compile-time variants)
+namespace internal {
+    // Find pivot for augmented matrix (compile-time Matrix type)
+    template <int R, typename T>
+    inline int find_pivot(const Matrix<R, R*2, T>& aug, int col, int n) {
+        int pivot = col;
+        T max_val = std::abs(aug(col, col));
+        for (int k = col + 1; k < n; ++k) {
+            if (std::abs(aug(k, col)) > max_val) {
+                max_val = std::abs(aug(k, col));
+                pivot = k;
+            }
+        }
+        return pivot;
+    }
+}
 
 
 // Runtime-sized matrix with fixed maximum capacity (for MEX interfacing)
@@ -277,7 +314,8 @@ struct FixedMatrix {
         int n = rows;
         inv.resize(n, n);
 
-        // Simple Gauss-Jordan (copy-paste logic adapted for runtime size)
+        // Simple Gauss-Jordan (using inline implementation for now)
+        // Runtime Gauss-Jordan for [A | I] decomposition
         float aug[MAX_N][MAX_N * 2];
         for (int i = 0; i < n; ++i) {
             for (int j = 0; j < n; ++j) aug[i][j] = (*this)(i, j);
@@ -293,10 +331,10 @@ struct FixedMatrix {
                     pivot = k;
                 }
             }
-            if (max_val < 1e-12f) return false;
+            if (max_val < cmath_fx::constants::tolerance<float>::singular) return false;
 
             if (pivot != i) {
-                for (int j = 0; j < 2 * n; ++j) std::swap(aug[i][j], aug[pivot][j]);
+                for (int j = 0; j < 2 * n; ++j) internal::swap(aug[i][j], aug[pivot][j]);
             }
 
             float div = aug[i][i];
@@ -338,7 +376,7 @@ struct FixedMatrix {
                     if (i == j) {
                     float val = (*this)(i, i) - sum;
                     if (val <= 1e-12f) return false; // Not positive definite
-                    L(i, i) = common::math::portable_sqrt(val);
+                    L(i, i) = safe_sqrt(val);
                 } else {
                     if (std::abs(L(j, j)) < 1e-12f) return false;
                     L(i, j) = ((*this)(i, j) - sum) / L(j, j);
@@ -349,6 +387,129 @@ struct FixedMatrix {
     }
 };
 
+// Runtime helpers for algorithms (FixedMatrix variants)
+namespace internal {
+    inline int find_pivot_runtime(const FixedMatrix& aug, int col, int n) {
+        int pivot = col;
+        float max_val = std::abs(aug(col, col));
+        for (int k = col + 1; k < n; ++k) {
+            if (std::abs(aug(k, col)) > max_val) {
+                max_val = std::abs(aug(k, col));
+                pivot = k;
+            }
+        }
+        return pivot;
+    }
+
+    // Generic Gauss-Jordan in-place for augmented matrix [A | I]
+    // Specializations: Matrix<N,N,T> uses T as scalar; FixedMatrix uses float
+    template <typename MatrixType>
+    bool gauss_jordan_inplace(MatrixType& aug, int n, int aug_cols) {
+        for (int i = 0; i < n; ++i) {
+            // pivot selection
+            int pivot = i;
+            float max_val = std::abs(static_cast<float>(aug(i, i)));
+            for (int k = i + 1; k < n; ++k) {
+                if (std::abs(static_cast<float>(aug(k, i))) > max_val) {
+                    max_val = std::abs(static_cast<float>(aug(k, i)));
+                    pivot = k;
+                }
+            }
+
+            if (max_val < constants::tolerance<float>::singular) return false;
+
+            if (pivot != i) {
+                for (int j = 0; j < aug_cols; ++j) internal::swap(aug(i, j), aug(pivot, j));
+            }
+
+            float div = static_cast<float>(aug(i, i));
+            for (int j = i; j < aug_cols; ++j) aug(i, j) /= div;
+
+            for (int k = 0; k < n; ++k) {
+                if (k != i) {
+                    float factor = static_cast<float>(aug(k, i));
+                    for (int j = i; j < aug_cols; ++j) aug(k, j) -= factor * aug(i, j);
+                }
+            }
+        }
+        return true;
+    }
+
+    // Cholesky core for compile-time Matrix<N,N,T>
+    template <int N, typename T>
+    bool cholesky_core(const Matrix<N, N, T>& A, Matrix<N, N, T>& L, int n) {
+        (void)n;
+        L = Matrix<N, N, T>::Zero();
+
+        for (int i = 0; i < N; ++i) {
+            for (int j = 0; j <= i; ++j) {
+                T sum = static_cast<T>(0);
+                for (int k = 0; k < j; ++k) sum += L(i, k) * L(j, k);
+
+                if (i == j) {
+                    T val = A(i, i) - sum;
+                    if (val <= constants::tolerance<T>::psd_min) return false;
+                    L(i, i) = safe_sqrt(val);
+                } else {
+                    if (std::abs(L(j, j)) < constants::tolerance<T>::psd_min) return false;
+                    L(i, j) = (A(i, j) - sum) / L(j, j);
+                }
+            }
+        }
+        return true;
+    }
+
+    // Cholesky core for runtime FixedMatrix
+    inline bool cholesky_core(const FixedMatrix& A, FixedMatrix& L, int n) {
+        if (A.rows != A.cols) return false;
+        L.resize(n, n);
+        std::memset(L.data, 0, sizeof(L.data));
+
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j <= i; ++j) {
+                float sum = 0.0f;
+                for (int k = 0; k < j; ++k) sum += L(i, k) * L(j, k);
+
+                if (i == j) {
+                    float val = A(i, i) - sum;
+                    if (val <= constants::tolerance<float>::psd_min) return false;
+                    L(i, i) = safe_sqrt(val);
+                } else {
+                    if (std::abs(L(j, j)) < constants::tolerance<float>::psd_min) return false;
+                    L(i, j) = (A(i, j) - sum) / L(j, j);
+                }
+            }
+        }
+        return true;
+    }
+}
+
+// Solvers: forward/back substitution for template and runtime matrices
+namespace solvers {
+    template <int N, typename T>
+    inline void forward_substitution(const Matrix<N, N, T>& L, const Matrix<N, 1, T>& b, Matrix<N, 1, T>& y) {
+        for (int i = 0; i < N; ++i) {
+            T sum = static_cast<T>(0);
+            for (int j = 0; j < i; ++j) sum += L(i, j) * y(j, 0);
+            T d = L(i, i);
+            if (std::abs(d) < constants::tolerance<T>::singular) d = constants::tolerance<T>::singular;
+            y(i, 0) = (b(i, 0) - sum) / d;
+        }
+    }
+
+    inline void forward_substitution_runtime(const FixedMatrix& L, const FixedMatrix& b, FixedMatrix& y) {
+        int n = L.rows;
+        y.resize(n, 1);
+        for (int i = 0; i < n; ++i) {
+            float sum = 0.0f;
+            for (int j = 0; j < i; ++j) sum += L(i, j) * y(j, 0);
+            float d = L(i, i);
+            if (std::abs(d) < constants::tolerance<float>::singular) d = constants::tolerance<float>::singular;
+            y(i, 0) = (b(i, 0) - sum) / d;
+        }
+    }
+}
+
 // ========================================
 // Decomposition Namespace (Cholesky, etc.)
 // ========================================
@@ -357,26 +518,7 @@ namespace decomp {
 // Generic Cholesky Decomposition (NxN)
 template <int N, typename T = float>
 bool cholesky(const Matrix<N, N, T>& A, Matrix<N, N, T>& L) {
-    L = Matrix<N, N, T>::Zero();
-
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j <= i; ++j) {
-            T sum = static_cast<T>(0);
-            for (int k = 0; k < j; ++k) {
-                sum += L(i, k) * L(j, k);
-            }
-
-            if (i == j) {
-                T val = A(i, i) - sum;
-                if (val <= static_cast<T>(1e-12)) return false;
-                L(i, i) = common::math::portable_sqrt(val);
-            } else {
-                if (std::abs(L(j, j)) < static_cast<T>(1e-12)) return false;
-                L(i, j) = (A(i, j) - sum) / L(j, j);
-            }
-        }
-    }
-    return true;
+    return internal::cholesky_core<A.Rows, T>(A, L, N);
 }
 
 // Robust Cholesky with multi-stage fallback
@@ -413,7 +555,7 @@ bool cholesky_robust(Matrix<N, N, T>& A, Matrix<N, N, T>& L) {
     // 6. Fallback: diagonal sqrt approximation
     L = Matrix<N, N, T>::Zero();
     for (int i = 0; i < N; ++i) {
-        L(i, i) = common::math::portable_sqrt(std::max(static_cast<T>(0), A(i, i)));
+        L(i, i) = safe_sqrt(std::max(static_cast<T>(0), A(i, i)));
     }
     return true; // succeed with approximation
 }
@@ -423,19 +565,19 @@ template <typename T>
 bool cholesky_3x3_optimized(const Matrix<3, 3, T>& A, Matrix<3, 3, T>& L) {
     L = Matrix<3, 3, T>::Zero();
 
-    if (A(0, 0) <= static_cast<T>(1e-12)) return false;
-    L(0, 0) = common::math::portable_sqrt(A(0, 0));
+    if (A(0, 0) <= constants::tolerance<T>::psd_min) return false;
+    L(0, 0) = safe_sqrt(A(0, 0));
 
     L(1, 0) = A(1, 0) / L(0, 0);
     T val11 = A(1, 1) - L(1, 0) * L(1, 0);
-    if (val11 <= static_cast<T>(1e-12)) return false;
-    L(1, 1) = common::math::portable_sqrt(val11);
+    if (val11 <= constants::tolerance<T>::psd_min) return false;
+    L(1, 1) = safe_sqrt(val11);
 
     L(2, 0) = A(2, 0) / L(0, 0);
     L(2, 1) = (A(2, 1) - L(2, 0) * L(1, 0)) / L(1, 1);
     T val22 = A(2, 2) - L(2, 0) * L(2, 0) - L(2, 1) * L(2, 1);
-    if (val22 <= static_cast<T>(1e-12)) return false;
-    L(2, 2) = common::math::portable_sqrt(val22);
+    if (val22 <= constants::tolerance<T>::psd_min) return false;
+    L(2, 2) = safe_sqrt(val22);
 
     return true;
 }
@@ -497,9 +639,10 @@ bool inverse(const Matrix<3, 3, T>& A, Matrix<3, 3, T>& inv) {
 // ========================================
 namespace utils {
 
-// Symmetrize matrix in-place (template)
+
+// Symmetrize matrix in-place (template) - new unified name
 template <int N, typename T>
-void symmetrize(Matrix<N, N, T>& M) {
+inline void symmetrize_inplace(Matrix<N, N, T>& M) {
     for (int i = 0; i < N; ++i) {
         for (int j = i + 1; j < N; ++j) {
             T avg = (M(i, j) + M(j, i)) * static_cast<T>(0.5);
@@ -511,14 +654,14 @@ void symmetrize(Matrix<N, N, T>& M) {
 
 // Non-destructive copy version
 template <int N, typename T>
-Matrix<N, N, T> symmetrize_copy(const Matrix<N, N, T>& M) {
+inline Matrix<N, N, T> symmetrize_copy(const Matrix<N, N, T>& M) {
     Matrix<N, N, T> res = M;
-    symmetrize<N, T>(res);
+    symmetrize_inplace<N, T>(res);
     return res;
 }
 
-// Symmetrize runtime FixedMatrix in-place
-inline void symmetrize(FixedMatrix& M) {
+// Symmetrize runtime FixedMatrix in-place (unified)
+inline void symmetrize_inplace(FixedMatrix& M) {
     int n = M.rows;
     int m = M.cols;
     int N = (n < m) ? n : m;
@@ -530,6 +673,11 @@ inline void symmetrize(FixedMatrix& M) {
         }
     }
 }
+
+// Backwards-compatible alias (keep old name but forward to unified impl)
+template <int N, typename T>
+inline void symmetrize(Matrix<N, N, T>& M) { symmetrize_inplace<N, T>(M); }
+inline void symmetrize(FixedMatrix& M) { symmetrize_inplace(M); }
 
 // Ensure positive definite by regularizing diagonal if needed
 template <int N, typename T>
@@ -560,14 +708,23 @@ namespace math {
 
 using cm = cmath_fx::FixedMatrix;
 
-// Enforce matrix symmetry
+// Common safe math helpers used by the Matrix layer.
+// These are the canonical implementations used across the codebase.
+// Legacy `portable_*` aliases were removed as part of the portable-math
+// refactor — callers should use `std::` functions or these `safe_*`
+// helpers directly.
+
+template <typename T>
+inline T safe_sqrt(T x) { return cmath_fx::safe_sqrt<T>(x); }
+
+template <typename T>
+inline T safe_fabs(T x) { return cmath_fx::safe_fabs<T>(x); }
+
+
+// Enforce matrix symmetry (wrapper to unified symmetrize utility)
 inline cm enforce_symmetry(const cm& M) {
     cm result = M;
-    for (int i = 0; i < M.rows; ++i) {
-        for (int j = 0; j < M.cols; ++j) {
-            result(i,j) = 0.5f * (M(i,j) + M(j,i));
-        }
-    }
+    cmath_fx::utils::symmetrize_inplace(result);
     return result;
 }
 
@@ -579,7 +736,8 @@ inline void compute_innovation_and_S(const cm& z, const cm& h, const cm& H,
     cm HP = H * P_pred;
     cm HPHt = HP * H.transpose();
     S = HPHt + R;
-    S = enforce_symmetry(S);
+    // Use unified symmetrize implementation
+    cmath_fx::utils::symmetrize_inplace(S);
     R_out = R;
 }
 
@@ -589,37 +747,40 @@ inline bool invert3x3(const cmath_fx::Matrix<3,3,T>& A, cmath_fx::Matrix<3,3,T>&
     return cmath_fx::inv::inverse<3, T>(A, A_inv);
 }
 
-// Safe Cholesky: attempt robust methods from Matrix layer
+// Safe Cholesky: unified robust strategy (consistent with decomp::cholesky_robust)
 inline bool safe_cholesky(const cm& A, cm& L) {
     if (A.rows != A.cols) return false;
     int n = A.rows;
     L.resize(n, n);
 
-    // Try FixedMatrix cholesky first
-    if (A.cholesky(L)) return true;
-
     cm B = A;
-    // Symmetrize and delegate to matrix_decomposition robust routine
-    for (int i = 0; i < n; ++i) for (int j = i+1; j < n; ++j) {
-        float avg = 0.5f * (B(i,j) + B(j,i)); B(i,j) = avg; B(j,i) = avg;
-    }
+    
+    // 1. Symmetrize
+    cmath_fx::utils::symmetrize_inplace(B);
 
-    // Try robust cholesky from Matrix layer (fallbacks internally)
-    // Use dynamic path: convert cm to templated Matrix<N,N> not available, so use A.cholesky again
+    // 2. Try standard Cholesky
     if (B.cholesky(L)) return true;
 
-    // Try small regularization
-    float eps = 1e-8f;
-    for (int attempt=0; attempt<4; ++attempt) {
-        for (int i=0;i<n;++i) B(i,i) += eps;
-        if (B.cholesky(L)) return true;
-        eps *= 10.0f;
+    // 3. Light regularization (PSD threshold)
+    for (int i = 0; i < n; ++i) {
+        if (B(i, i) < cmath_fx::constants::tolerance<float>::psd_min) {
+            B(i, i) = cmath_fx::constants::tolerance<float>::psd_min;
+        }
     }
+    if (B.cholesky(L)) return true;
 
-    // Final fallback: diagonal
-    for (int i=0;i<n;++i) for (int j=0;j<n;++j) L(i,j) = 0.0f;
-    for (int i=0;i<n;++i) {
-        float v = A(i,i); if (v < 0.0f) v = 0.0f; L(i,i) = common::math::portable_sqrt(v);
+    // 4. Stronger regularization (base regularization)
+    for (int i = 0; i < n; ++i) {
+        B(i, i) += cmath_fx::constants::tolerance<float>::regularization_base;
+    }
+    if (B.cholesky(L)) return true;
+
+    // 5. Final fallback: diagonal sqrt
+    for (int i = 0; i < n; ++i) for (int j = 0; j < n; ++j) L(i, j) = 0.0f;
+    for (int i = 0; i < n; ++i) {
+        float v = A(i, i);
+        if (v < 0.0f) v = 0.0f;
+        L(i, i) = safe_sqrt(v);
     }
     return true;
 }
@@ -641,13 +802,7 @@ inline float mahalanobis_distance_squared(const cm& innovation, const cm& S) {
 
     // Solve L * y = innovation  (forward substitution)
     cm y_vec(n,1);
-    for (int i=0;i<n;++i) {
-        float sum = 0.0f;
-        for (int j=0;j<i;++j) sum += L(i,j) * y_vec(j,0);
-        float d = L(i,i);
-        if (fabsf(d) < 1e-12f) d = 1e-12f;
-        y_vec(i,0) = (innovation(i,0) - sum) / d;
-    }
+    cmath_fx::solvers::forward_substitution_runtime(L, innovation, y_vec);
 
     float dist_sq = 0.0f;
     for (int i=0;i<n;++i) dist_sq += y_vec(i,0) * y_vec(i,0);
@@ -674,7 +829,7 @@ bool clip_vector_norm(cmath_fx::Vector<R, T>& v, T max_norm) {
     for (int i = 0; i < R; ++i) {
         v_norm += v(i, 0) * v(i, 0);
     }
-    v_norm = common::math::portable_sqrt(v_norm);
+    v_norm = safe_sqrt(v_norm);
     if (v_norm > max_norm) {
         T scale = max_norm / v_norm;
         for (int i = 0; i < R; ++i) {

@@ -4,7 +4,6 @@
 // Copied from Inc/ESKF/eskf_filter.hpp
 #pragma once
 
-#include "Common/filter_interface.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 

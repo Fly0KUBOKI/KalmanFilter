@@ -1,8 +1,8 @@
 ﻿#pragma once
-#ifndef LIB_COMMON_INC_STANDALONE_HPP
-#define LIB_COMMON_INC_STANDALONE_HPP
+#ifndef LIB_STANDALONE_HPP
+#define LIB_STANDALONE_HPP
 
-#include "interface.hpp"
+#include "../../../ESKF/inc/interface.hpp"
 
 namespace kalman {
 

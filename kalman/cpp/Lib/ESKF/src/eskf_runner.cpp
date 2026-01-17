@@ -3,12 +3,13 @@
 #include "../inc/eskf_postprocess.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../Sensor/sensor_filter.hpp"
-#include "../../Common/inc/filter_mgmt.hpp"
+#include "../inc/filter_mgmt.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
 #include <cmath>
 #include <cstring>
 #include <vector>
-#include "../../Common/inc/Math/portable_math.hpp"
+#include <cmath>
+#include <cmath>
 
 namespace eskf {
 
@@ -97,7 +98,7 @@ void HybridFilterRunner::apply_accel_z_integration(cmath_fx::Vector<3, float>& v
 }
 
 void HybridFilterRunner::apply_velocity_clipping(cmath_fx::Vector<3, float>& v, cmath_fx::Matrix<15, 15, float>& P, float max_vel) {
-    float vnorm = 0.0f; for (int i=0;i<3;++i) vnorm += v(i,0)*v(i,0); vnorm = common::math::portable_sqrt(vnorm); if (vnorm > max_vel) { float scale = max_vel / vnorm; for (int i=0;i<3;++i) v(i,0) *= scale; }
+    float vnorm = 0.0f; for (int i=0;i<3;++i) vnorm += v(i,0)*v(i,0); vnorm = std::sqrt(vnorm); if (vnorm > max_vel) { float scale = max_vel / vnorm; for (int i=0;i<3;++i) v(i,0) *= scale; }
 }
 
 void HybridFilterRunner::regularize_covariance(cmath_fx::Matrix<15, 15, float>& P) {

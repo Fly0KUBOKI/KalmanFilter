@@ -2,7 +2,7 @@
 #ifndef LIB_ESKF_INC_FILTER_HPP
 #define LIB_ESKF_INC_FILTER_HPP
 
-#include "../../Common/inc/interface.hpp"
+#include "interface.hpp"
 
 namespace kalman {
 

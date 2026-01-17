@@ -24,7 +24,7 @@
  *   ./kalman_multi
  */
 
-#include "../../Lib/Common/inc/standalone.hpp"
+#include "../../Lib/examples/standalone/inc/standalone.hpp"
 #include <iostream>
 #include <iomanip>
 #include <cmath>

@@ -1,6 +1,6 @@
 ﻿#pragma once
-#ifndef LIB_COMMON_INC_FILTER_MGMT_HPP
-#define LIB_COMMON_INC_FILTER_MGMT_HPP
+#ifndef LIB_ESKF_INC_FILTER_MGMT_HPP
+#define LIB_ESKF_INC_FILTER_MGMT_HPP
 
 
 #include "../../Matrix/fixed_matrix.hpp"

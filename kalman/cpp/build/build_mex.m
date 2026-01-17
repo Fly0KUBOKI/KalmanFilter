@@ -72,7 +72,6 @@ candidates = {
     fullfile(lib_dir, 'KF', 'inc')
     fullfile(lib_dir, 'EKF', 'inc')
     fullfile(lib_dir, 'UKF', 'inc')
-    fullfile(lib_dir, 'Common', 'inc')
 };
 for ii = 1:numel(candidates)
     if exist(candidates{ii}, 'dir')
@@ -83,12 +82,12 @@ end
 % Define MEX targets
 mex_targets = {
     {'mex_hybrid_filter.cpp', {
-        fullfile(lib_dir, 'Common', 'src', 'filter_mgmt.cpp')
+        fullfile(lib_dir, 'ESKF', 'src', 'filter_mgmt.cpp')
         fullfile(lib_dir, 'ESKF', 'src', 'eskf_postprocess.cpp')
         fullfile(lib_dir, 'ESKF', 'src', 'eskf_core.cpp')
         fullfile(lib_dir, 'ESKF', 'src', 'eskf_math.cpp')
         fullfile(lib_dir, 'ESKF', 'src', 'eskf_sensor_updates.cpp')
-        fullfile(lib_dir, 'Common', 'src', 'Sensor', 'sensor_preprocessor.cpp')
+        fullfile(lib_dir, 'Sensor', 'sensor_preprocessor.cpp')
         fullfile(lib_dir, 'ESKF', 'src', 'eskf_runner.cpp')
         fullfile(lib_dir, 'ESKF', 'src', 'eskf_initializer.cpp')
         fullfile(mex_src_dir, 'mex_eskf_initializer.cpp')

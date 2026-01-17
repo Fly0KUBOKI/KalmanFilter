@@ -1,16 +1,16 @@
 ﻿#include "../inc/unified_filter.hpp"
 #include "../../Sensor/sensor_filter.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Common/inc/Math/statistics.hpp"
-#include "../../Common/inc/Math/portable_math.hpp"
-#include "../../Common/inc/Math/vector_utils.hpp"
-#include "../../Common/inc/Math/statistics.hpp"
+#include "../../Matrix/Math/statistics.hpp"
+#include <cmath>
+#include "../../Matrix/fixed_matrix.hpp"
+#include "../../Matrix/Math/statistics.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../inc/meukf_core.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include <cstring>
 #include <cmath>
-#include "../../Common/inc/Math/portable_math.hpp"
+// barometric functions inlined where needed; no central header included
 
 namespace meukf {
 
@@ -43,7 +43,7 @@ FilterOutput UnifiedFilter::update(FilterState& state, const FilterInput& input)
             float d = input.mag(i,0) - prev_mag_(i,0);
             diff += d * d;
         }
-        mag_changed = (common::math::portable_sqrt(diff) > tolerance_);
+        mag_changed = (std::sqrt(diff) > tolerance_);
     }
     
     bool gps_changed = false;
@@ -53,7 +53,7 @@ FilterOutput UnifiedFilter::update(FilterState& state, const FilterInput& input)
             float d = input.gps_pos(i,0) - prev_gps_pos_(i,0);
             diff += d * d;
         }
-        gps_changed = (common::math::portable_sqrt(diff) > tolerance_);
+        gps_changed = (std::sqrt(diff) > tolerance_);
     }
     
     bool baro_changed = false;

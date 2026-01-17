@@ -1,6 +1,6 @@
 ﻿#pragma once
-#ifndef LIB_COMMON_TYPES_HPP
-#define LIB_COMMON_TYPES_HPP
+#ifndef LIB_MATRIX_TYPES_HPP
+#define LIB_MATRIX_TYPES_HPP
 
 #include <cstdint>
 

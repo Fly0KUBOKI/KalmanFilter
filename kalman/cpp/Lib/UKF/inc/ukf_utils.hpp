@@ -78,14 +78,14 @@ inline void generate_attitude_sigma_points_3d(
     if (!cholesky3x3_robust(P_att_copy, L)) {
         // Fallback
         L = cmath_fx::Matrix<3, 3, float>::Zero();
-        for(int i=0; i<3; ++i) L(i,i) = common::math::portable_sqrt(std::max(0.0f, P_att(i,i)));
+        for(int i=0; i<3; ++i) L(i,i) = std::sqrt(std::max(0.0f, P_att(i,i)));
     }
 
     float alpha = params.alpha;
     float kappa = params.kappa;
     int n = 3;
     float lambda = alpha * alpha * (n + kappa) - n;
-    float gamma = common::math::portable_sqrt(n + lambda);
+    float gamma = std::sqrt(n + lambda);
 
     // Scale L
     for (int i = 0; i < 3; ++i) {
@@ -125,7 +125,7 @@ inline void generate_position_sigma_points_3d(
     float kappa = params.kappa;
     int n = 3;
     float lambda = alpha * alpha * (n + kappa) - n;
-    float gamma = common::math::portable_sqrt(n + lambda);
+    float gamma = cmath_fx::safe_sqrt<float>(n + lambda);
 
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {

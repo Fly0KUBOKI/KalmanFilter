@@ -5,9 +5,8 @@
 
 #include "../Matrix/fixed_matrix.hpp"
 #include "../KF/inc/kf_operations.hpp"
-#include "../Common/inc/Math/statistics.hpp"
-#include "../Common/inc/Math/vector_utils.hpp"
-#include "../Common/inc/Math/portable_math.hpp"
+#include "../Matrix/Math/statistics.hpp"
+#include "../Matrix/fixed_matrix.hpp"
 #include <cmath>
 #include <algorithm>
 #include <cstring>
@@ -78,7 +77,7 @@ public:
 	cm filter_accel(const cm& a_meas, const cm& a_expected, bool& is_outlier) {
 		float a_norm_sq = 0.0f;
 		for (int i = 0; i < 3; ++i) a_norm_sq += a_meas(i,0) * a_meas(i,0);
-		float a_norm = common::math::portable_sqrt(a_norm_sq);
+		float a_norm = std::sqrt(a_norm_sq);
 
 		if (a_norm < gravity_range_min_ || a_norm > gravity_range_max_) {
 			is_outlier = true;

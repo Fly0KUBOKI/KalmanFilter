@@ -1,6 +1,5 @@
 ﻿#include "../inc/filter_mgmt.hpp"
 #include <cmath>
-#include "../inc/Math/portable_math.hpp"
 // Matrix utilities consolidated into fixed_matrix.hpp
 
 namespace common {
@@ -78,7 +77,7 @@ void normalize_covariance(cmath_fx::Matrix<15, 15, float>& P) {
     
     for (int i = 0; i < 15; ++i) {
         if (P(i, i) > max_var[i]) {
-            float factor = common::math::portable_sqrt(max_var[i] / P(i, i));
+            float factor = std::sqrt(max_var[i] / P(i, i));
             for (int j = 0; j < 15; ++j) {
                 P(i, j) = P(i, j) * factor;
                 P(j, i) = P(j, i) * factor;
@@ -107,10 +106,10 @@ bool check_state_divergence(
     }
     
     // ノルム計算
-    float p_norm = common::math::portable_sqrt(p(0,0)*p(0,0) + p(1,0)*p(1,0) + p(2,0)*p(2,0));
-    float v_norm = common::math::portable_sqrt(v(0,0)*v(0,0) + v(1,0)*v(1,0) + v(2,0)*v(2,0));
-    float ba_norm = common::math::portable_sqrt(ba(0,0)*ba(0,0) + ba(1,0)*ba(1,0) + ba(2,0)*ba(2,0));
-    float bg_norm = common::math::portable_sqrt(bg(0,0)*bg(0,0) + bg(1,0)*bg(1,0) + bg(2,0)*bg(2,0));
+    float p_norm = std::sqrt(p(0,0)*p(0,0) + p(1,0)*p(1,0) + p(2,0)*p(2,0));
+    float v_norm = std::sqrt(v(0,0)*v(0,0) + v(1,0)*v(1,0) + v(2,0)*v(2,0));
+    float ba_norm = std::sqrt(ba(0,0)*ba(0,0) + ba(1,0)*ba(1,0) + ba(2,0)*ba(2,0));
+    float bg_norm = std::sqrt(bg(0,0)*bg(0,0) + bg(1,0)*bg(1,0) + bg(2,0)*bg(2,0));
     
     // NaN/Infチェック
     if (std::isnan(p(0,0)) || std::isnan(v(0,0)) || std::isnan(q(0,0))) return true;
@@ -133,10 +132,10 @@ bool check_zupt_condition(
     float zupt_threshold_gyro
 ) {
     // 加速度ノルム計算
-    float a_norm = common::math::portable_sqrt(a_meas(0,0)*a_meas(0,0) + a_meas(1,0)*a_meas(1,0) + a_meas(2,0)*a_meas(2,0));
+    float a_norm = std::sqrt(a_meas(0,0)*a_meas(0,0) + a_meas(1,0)*a_meas(1,0) + a_meas(2,0)*a_meas(2,0));
     
     // 角速度ノルム計算
-    float w_norm = common::math::portable_sqrt(w_meas(0,0)*w_meas(0,0) + w_meas(1,0)*w_meas(1,0) + w_meas(2,0)*w_meas(2,0));
+    float w_norm = std::sqrt(w_meas(0,0)*w_meas(0,0) + w_meas(1,0)*w_meas(1,0) + w_meas(2,0)*w_meas(2,0));
     
     // 静止状態チェック（重力加速度に近く、角速度が小さい）
     const float GRAVITY = 9.80665f;
@@ -168,7 +167,7 @@ void reset_state_on_divergence(
     P(6, 6) = P(7, 7) = P(8, 8) = deg30_rad_sq;
     
     // クォータニオンのノルムチェックとリセット
-    float q_norm = common::math::portable_sqrt(q(0,0)*q(0,0) + q(1,0)*q(1,0) + q(2,0)*q(2,0) + q(3,0)*q(3,0));
+    float q_norm = std::sqrt(q(0,0)*q(0,0) + q(1,0)*q(1,0) + q(2,0)*q(2,0) + q(3,0)*q(3,0));
     if (std::isnan(q_norm) || q_norm < 0.5f) {
         q(0, 0) = 1.0f;
         q(1, 0) = q(2, 0) = q(3, 0) = 0.0f;

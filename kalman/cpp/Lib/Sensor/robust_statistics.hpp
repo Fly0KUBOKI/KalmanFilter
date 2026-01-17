@@ -96,7 +96,7 @@ public:
 		if (innov_norm > max_allowed_innov_) { float target_norm = max_allowed_innov_ * max_innov_cap_fraction_; if (target_norm <= 0.0f) target_norm = max_allowed_innov_; float scale = target_norm / innov_norm; for (int i=0;i<innovation.rows;++i) innovation(i,0) *= scale; innov_norm = target_norm; was_attenuated = true; }
 		SensorHistory& hist = history_[idx];
 		if (hist.valid && hist.update_count > 0) {
-			float prev_norm = 0.0f; for (int i=0;i<hist.prev_innovation.rows;++i) prev_norm += hist.prev_innovation(i,0)*hist.prev_innovation(i,0); prev_norm = common::math::portable_sqrt(prev_norm);
+			float prev_norm = 0.0f; for (int i=0;i<hist.prev_innovation.rows;++i) prev_norm += hist.prev_innovation(i,0)*hist.prev_innovation(i,0); prev_norm = std::sqrt(prev_norm);
 			if (prev_norm > 1e-6f) { float change = 0.0f; for (int i=0;i<innovation.rows;++i) { float d = innovation(i,0) - hist.prev_innovation(i,0); change += d*d; } change = sqrtf(change); float ratio = change / prev_norm; if (ratio > innov_change_ratio_threshold_) { for (int i=0;i<dx.rows;++i) dx(i,0) *= attenuation_factor_; was_attenuated = true; } }
 		}
 		hist.prev_innovation = innovation; hist.update_count++; hist.valid = true; return false;

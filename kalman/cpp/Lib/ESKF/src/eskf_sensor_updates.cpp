@@ -1,7 +1,8 @@
 ﻿#include "../inc/eskf_sensor_updates.hpp"
 #include "../inc/eskf_state.hpp"
 #include <cmath>
-#include "../../Common/inc/Math/portable_math.hpp"
+#include <cmath>
+#include <cmath>
 
 namespace eskf {
 
@@ -27,7 +28,7 @@ SensorUpdateResult update_accel_sensor(FilterState* s, const Vector<3, float>& a
     PreprocessResult pre = preprocess_accel(a_meas, prev_accel_f, s->buffer_tolerance);
     float meas_arr[3] = {a_meas(0, 0), a_meas(1, 0), a_meas(2, 0)};
     if (!pre.no_change && !is_nan_any(meas_arr, 3) && !pre.is_outlier) {
-        float w_norm = 0.0f; for (int i = 0; i < 3; ++i) { float w = static_cast<float>(s->w_body[i]); w_norm += w*w; } w_norm = common::math::portable_sqrt(w_norm);
+        float w_norm = 0.0f; for (int i = 0; i < 3; ++i) { float w = static_cast<float>(s->w_body[i]); w_norm += w*w; } w_norm = std::sqrt(w_norm);
         if (w_norm <= 1.5f) {
             result.should_skip = false; copy_vec(s->prev_accel, meas_arr, 3);
             Vector<4, float> q_f; for (int i = 0; i < 4; ++i) q_f(i,0) = s->q[i];

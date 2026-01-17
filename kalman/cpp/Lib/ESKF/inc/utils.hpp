@@ -1,6 +1,6 @@
 ﻿#pragma once
-#ifndef LIB_COMMON_INC_UTILS_HPP
-#define LIB_COMMON_INC_UTILS_HPP
+#ifndef LIB_ESKF_INC_UTILS_HPP
+#define LIB_ESKF_INC_UTILS_HPP
 
 #include "interface.hpp"
 #include "filter_mgmt.hpp"

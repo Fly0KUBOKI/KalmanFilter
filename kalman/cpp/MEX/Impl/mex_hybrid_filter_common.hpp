@@ -18,10 +18,9 @@
 // レイヤー1: 基本型（最初に配置）
 #include "../../Lib/Matrix/fixed_matrix.hpp"
 
-// レイヤー2: ユーティリティ
-#include "../../Lib/Common/inc/Math/vector_utils.hpp"
+#include "../../Lib/Matrix/fixed_matrix.hpp"
 #include "../../Lib/Quaternion/quaternion_functions.hpp"
-#include "../../Lib/Common/inc/Math/statistics.hpp"
+#include "../../Lib/Matrix/Math/statistics.hpp"
 
 // レイヤー3: ESKF コア
 #include "../../Lib/ESKF/inc/eskf_core.hpp"
@@ -31,7 +30,7 @@
 #include "mex_hybrid_filter_initializer.hpp"
 
 // レイヤー4: 統合層
-#include "../../Lib/Common/inc/filter_mgmt.hpp"
+#include "../../Lib/ESKF/inc/filter_mgmt.hpp"
 #include "../../Lib/Sensor/sensor_filter.hpp"
 #include "../../Lib/Sensor/sensor_preprocessor.hpp"
 #include "../../Lib/ESKF/inc/eskf_sensor_updates.hpp"

@@ -1,9 +1,10 @@
 ﻿#include "../inc/meukf_core.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Common/inc/Math/statistics.hpp"
-#include "../../Common/inc/Math/portable_math.hpp"
-#include "../../Common/inc/Math/vector_utils.hpp"
-#include "../../Common/inc/Math/statistics.hpp"
+#include "../../Matrix/Math/statistics.hpp"
+#include <cmath>
+#include <cmath>
+#include "../../Matrix/fixed_matrix.hpp"
+#include "../../Matrix/Math/statistics.hpp"
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../UKF/inc/ukf_update.hpp"
@@ -12,8 +13,7 @@
 #include <cstdlib>
 #include <algorithm>
 
-#include "../../Common/inc/Math/portable_math.hpp"
-
+#include <cstddef>
 #include "../inc/meukf_helpers.hpp"
 
 namespace meukf {
@@ -233,7 +233,7 @@ void MEUKFCore::update_accel_meukf_ukf_version(State& state, const Vector3& a_me
         HFunc2D(const cmath_fx::Vector<4,float>& q, const Params& p) : q_nom_local(q), params_local(p) {}
         cmath_fx::Vector<2,float> operator()(const cmath_fx::Vector<3,float>& dtheta) const {
             float dx = dtheta(0,0); float dy = dtheta(1,0); float dz = dtheta(2,0);
-            float angle = common::math::portable_sqrt(dx*dx + dy*dy + dz*dz);
+            float angle = std::sqrt(dx*dx + dy*dy + dz*dz);
             cmath_fx::Vector<4,float> dq;
             if (angle < 1e-9f) {
                 dq(0,0) = 1.0f; dq(1,0) = 0.0f; dq(2,0) = 0.0f; dq(3,0) = 0.0f;
@@ -254,8 +254,8 @@ void MEUKFCore::update_accel_meukf_ukf_version(State& state, const Vector3& a_me
     };
     HFunc2D h_func_2d(q_nom, params);
 
-    float a_norm = common::math::portable_sqrt(a_meas(0,0)*a_meas(0,0) + a_meas(1,0)*a_meas(1,0) + a_meas(2,0)*a_meas(2,0));
-    float gravity_deviation = std::abs(a_norm - common::math::portable_sqrt(params.g[0]*params.g[0] + params.g[1]*params.g[1] + params.g[2]*params.g[2]));
+    float a_norm = std::sqrt(a_meas(0,0)*a_meas(0,0) + a_meas(1,0)*a_meas(1,0) + a_meas(2,0)*a_meas(2,0));
+    float gravity_deviation = std::abs(a_norm - std::sqrt(params.g[0]*params.g[0] + params.g[1]*params.g[1] + params.g[2]*params.g[2]));
     float R_scale = 1.0f + (gravity_deviation / 0.7f);
     float R_floor = 0.25f;
 
@@ -311,14 +311,14 @@ void MEUKFCore::update_accel_meukf_ukf_version(State& state, const Vector3& a_me
     cmath_fx::Vector<2,float> y2 = y_out;
 
     float max_innovation = 0.05f;
-    float innov_norm = common::math::portable_sqrt(y2(0,0)*y2(0,0) + y2(1,0)*y2(1,0));
+    float innov_norm = std::sqrt(y2(0,0)*y2(0,0) + y2(1,0)*y2(1,0));
     if (innov_norm > max_innovation) {
         float scale = max_innovation / innov_norm;
         y2(0,0) *= scale; y2(1,0) *= scale;
     }
     cmath_fx::Vector<2,float> S2_inv_y = S2_inv * y2;
     float mahal_sq = y2(0,0)*S2_inv_y(0,0) + y2(1,0)*S2_inv_y(1,0);
-    float mahal = common::math::portable_sqrt(mahal_sq);
+    float mahal = std::sqrt(mahal_sq);
     if (mahal > 5.0f) { output.status = 1; return; }
     if (mahal > 2.5f) {
         float att = 2.5f / mahal; y2(0,0) *= att; y2(1,0) *= att;
@@ -327,7 +327,7 @@ void MEUKFCore::update_accel_meukf_ukf_version(State& state, const Vector3& a_me
     cmath_fx::Matrix<3,2,float> K_small = K_out;
     cmath_fx::Vector<3,float> dx_small = K_small * y2;
 
-    float dtheta_norm = common::math::portable_sqrt(dx_small(0,0)*dx_small(0,0) + dx_small(1,0)*dx_small(1,0));
+    float dtheta_norm = std::sqrt(dx_small(0,0)*dx_small(0,0) + dx_small(1,0)*dx_small(1,0));
     float max_dtheta = 0.6f * 3.14159265f / 180.0f;
     if (dtheta_norm > max_dtheta) {
         float sc = max_dtheta / dtheta_norm; dx_small(0,0) *= sc; dx_small(1,0) *= sc;
@@ -372,7 +372,7 @@ void MEUKFCore::update_accel_meukf_ukf_version(State& state, const Vector3& a_me
     P_full = (P_full + P_full.transpose()) * 0.5f;
 
     float dxs = dx_small(0,0), dys = dx_small(1,0), dzs = dx_small(2,0);
-    float ang = common::math::portable_sqrt(dxs*dxs + dys*dys + dzs*dzs);
+    float ang = std::sqrt(dxs*dxs + dys*dys + dzs*dzs);
     cmath_fx::Vector<4,float> dqv;
     if (ang < 1e-9f) { dqv(0,0)=1.0f; dqv(1,0)=dqv(2,0)=dqv(3,0)=0.0f; }
     else { float s=std::sin(ang*0.5f); dqv(0,0)=std::cos(ang*0.5f); dqv(1,0)=(dxs/ang)*s; dqv(2,0)=(dys/ang)*s; dqv(3,0)=(dzs/ang)*s; }
@@ -424,7 +424,7 @@ void MEUKFCore::update_mag_meukf_ukf_version(State& state, const Vector3& m_meas
         HFunc3D(const cmath_fx::Vector<4,float>& q, const Params& p) : q_nom_local(q), params_local(p) {}
         cmath_fx::Vector<3,float> operator()(const cmath_fx::Vector<3,float>& dtheta) const {
             float dx = dtheta(0,0), dy = dtheta(1,0), dz = dtheta(2,0);
-            float angle = common::math::portable_sqrt(dx*dx + dy*dy + dz*dz);
+            float angle = std::sqrt(dx*dx + dy*dy + dz*dz);
             cmath_fx::Vector<4,float> dq;
             if (angle < 1e-9f) { dq(0,0)=1; dq(1,0)=dq(2,0)=dq(3,0)=0; }
             else { float s = std::sin(angle*0.5f); dq(0,0)=std::cos(angle*0.5f); dq(1,0)=(dx/angle)*s; dq(2,0)=(dy/angle)*s; dq(3,0)=(dz/angle)*s; }
@@ -473,7 +473,7 @@ void MEUKFCore::update_mag_meukf_ukf_version(State& state, const Vector3& m_meas
     cmath_fx::Vector<3,float> y3 = y_out;
     cmath_fx::Vector<3,float> S_inv_y = S_inv * y3;
     float mahal_sq = y3(0,0)*S_inv_y(0,0) + y3(1,0)*S_inv_y(1,0) + y3(2,0)*S_inv_y(2,0);
-    float mahal = common::math::portable_sqrt(mahal_sq);
+    float mahal = std::sqrt(mahal_sq);
     if (mahal > 5.0f) { output.status = 1; return; }
     if (mahal > 2.5f) { float att = 2.5f/mahal; y3(0,0)*=att; y3(1,0)*=att; y3(2,0)*=att; }
 
@@ -508,7 +508,7 @@ void MEUKFCore::update_mag_meukf_ukf_version(State& state, const Vector3& m_meas
     P_full = (P_full + P_full.transpose()) * 0.5f;
 
     float dxs=dx_small(0,0), dys=dx_small(1,0), dzs=dx_small(2,0);
-    float ang = common::math::portable_sqrt(dxs*dxs + dys*dys + dzs*dzs);
+    float ang = std::sqrt(dxs*dxs + dys*dys + dzs*dzs);
     Vector4 dqv;
     if (ang < 1e-9f) {
         dqv(0,0)=1.0f; dqv(1,0)=0.0f; dqv(2,0)=0.0f; dqv(3,0)=0.0f;
