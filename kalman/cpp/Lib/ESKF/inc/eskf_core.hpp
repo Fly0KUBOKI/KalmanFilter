@@ -2,7 +2,6 @@
 #ifndef LIB_ESKF_INC_ESKF_CORE_HPP
 #define LIB_ESKF_INC_ESKF_CORE_HPP
 // Copied from Inc/ESKF/eskf_core.hpp
-#pragma once
 
 // Implementation: Src/ESKF/eskf_core.cpp
 

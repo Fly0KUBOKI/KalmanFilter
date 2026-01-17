@@ -1,18 +1,11 @@
-﻿#include "../inc/meukf_core.hpp"
-#include "../../Matrix/fixed_matrix.hpp"
-#include "../../Matrix/Math/statistics.hpp"
-#include <cmath>
-#include <cmath>
-#include "../../Matrix/fixed_matrix.hpp"
-#include "../../Matrix/Math/statistics.hpp"
-#include "../../Matrix/fixed_matrix.hpp"
-#include "../../Quaternion/quaternion_functions.hpp"
-#include <cmath>
-#include <cstring>
-#include <cstdlib>
-#include <algorithm>
+﻿#include "../inc/meukf_includes.hpp"
 
-#include "../inc/meukf_helpers.hpp"
+// Local debug helper (was in meukf_helpers.hpp)
+inline int get_debug_level() {
+    const char* s = std::getenv("MEUKF_DEBUG_LEVEL");
+    if (!s) return 0;
+    return std::atoi(s);
+}
 
 namespace meukf {
 
@@ -51,20 +44,20 @@ void MEUKFCore::predict(State& state, const SensorData& sensor, const Params& pa
     state_to_vars(state, p, v, q, ba, bg, P);
 
     float dt = sensor.dt;
-    Vector3 a_meas = make_vector3(sensor.accel[0], sensor.accel[1], sensor.accel[2]);
-    Vector3 w_meas = make_vector3(sensor.gyro[0], sensor.gyro[1], sensor.gyro[2]);
-    Vector3 g = make_vector3(params.g[0], params.g[1], params.g[2]);
+    Vector3 a_meas = sensor::processing::make_vector3(sensor.accel[0], sensor.accel[1], sensor.accel[2]);
+    Vector3 w_meas = sensor::processing::make_vector3(sensor.gyro[0], sensor.gyro[1], sensor.gyro[2]);
+    Vector3 g = sensor::processing::make_vector3(params.g[0], params.g[1], params.g[2]);
 
     // 1. Nominal State Update
     // Attitude Update
     Vector3 w_corrected = w_meas - bg;
     
     // Quaternion integration
-    float w_norm = vector3_norm(w_corrected);
+    float w_norm = sensor::processing::vector3_norm(w_corrected);
     
     Vector4 dq;
     if (w_norm * dt < 1e-9f) {
-        dq = make_vector4(1.0f, 0.0f, 0.0f, 0.0f);
+        dq = sensor::processing::make_vector4_f(1.0f, 0.0f, 0.0f, 0.0f);
     } else {
         float half_angle = w_norm * dt * 0.5f;
         float s = std::sin(half_angle);

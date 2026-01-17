@@ -1,9 +1,6 @@
 ﻿#include "../inc/eskf_postprocess.hpp"
-#include "../../Quaternion/quaternion_functions.hpp"
-#include "../../Matrix/fixed_matrix.hpp"
-#include "../inc/filter_mgmt.hpp"
-// Matrix utilities consolidated into fixed_matrix.hpp
-#include <cmath>
+#include "../inc/eskf_includes.hpp"
+// filter_mgmt.hpp is provided by eskf_includes.hpp
 
 namespace eskf {
 

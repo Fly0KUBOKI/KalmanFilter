@@ -1,16 +1,5 @@
 ﻿#include "../inc/eskf_initializer.hpp"
-#include "../../Quaternion/quaternion_functions.hpp"
-#include "../../Matrix/fixed_matrix.hpp"
-
-// Core math utilities (explicit includes to avoid depending on wrapper headers)
-#include <cmath>
-#include "../../Matrix/fixed_matrix.hpp"
-#include "../../Matrix/Math/statistics.hpp"
-
-#include <cmath>
-#include <cstring>
-#include <algorithm>
-#include <vector>
+#include "../inc/eskf_includes.hpp"
 
 namespace eskf {
 

@@ -1,27 +1,21 @@
 ﻿// eskf_math.cpp
+// DEPRECATED WRAPPERS: These delegate to unified modules (Sensor, Quaternion, Matrix)
+// Callers should use sensor::processing::*, sensor::coord::*, cquat::*, cmath_fx::utils::*
 
 #include "../inc/eskf_math.hpp"
-#include "../../Quaternion/quaternion_functions.hpp"
-#include "../inc/filter_mgmt.hpp"
-#include "../../Matrix/fixed_matrix.hpp"
-#include <cmath>
-#include <cmath>
+#include "../inc/eskf_includes.hpp"
+// filter_mgmt.hpp is provided by eskf_includes.hpp
 
 namespace eskf_math {
 
 void ESKFMath::quaternion_integration(const Vector4& q_in, const Vector3& w, Scalar dt, Vector4& q_out) {
-    Vector3 w_half = w; for (int i=0;i<3;++i) w_half(i,0) *= static_cast<Scalar>(0.5) * dt;
-    Vector4 dq; dq(0,0) = static_cast<Scalar>(-0.5) * (q_in(1,0)*w_half(0,0) + q_in(2,0)*w_half(1,0) + q_in(3,0)*w_half(2,0)); dq(1,0) = static_cast<Scalar>(0.5)*(q_in(0,0)*w_half(0,0)+q_in(2,0)*w_half(2,0)-q_in(3,0)*w_half(1,0)); dq(2,0)=static_cast<Scalar>(0.5)*(q_in(0,0)*w_half(1,0)-q_in(1,0)*w_half(2,0)+q_in(3,0)*w_half(0,0)); dq(3,0)=static_cast<Scalar>(0.5)*(q_in(0,0)*w_half(2,0)+q_in(1,0)*w_half(1,0)-q_in(2,0)*w_half(0,0));
-    q_out(0,0)=q_in(0,0)+dq(0,0); q_out(1,0)=q_in(1,0)+dq(1,0); q_out(2,0)=q_in(2,0)+dq(2,0); q_out(3,0)=q_in(3,0)+dq(3,0); cquat::normalize_quat(q_out);
+    // Delegate to unified quaternion module
+    cquat::quaternion_integration(q_in, w, dt, q_out);
 }
 
 void ESKFMath::accel_to_quaternion(const Vector3& a_meas, Scalar scale_factor, Vector4& q_out) {
-    Scalar a_norm = 0.0f; for (int i=0;i<3;++i) a_norm += a_meas(i,0)*a_meas(i,0); a_norm = std::sqrt(a_norm);
-    if (a_norm < static_cast<Scalar>(1e-6)) { q_out(0,0)=static_cast<Scalar>(1.0); q_out(1,0)=0; q_out(2,0)=0; q_out(3,0)=0; return; }
-    Vector3 a_norm_vec = a_meas; for (int i=0;i<3;++i){ a_norm_vec(i,0) /= a_norm; a_norm_vec(i,0) *= scale_factor; }
-    Scalar roll = std::atan2(a_norm_vec(1,0), a_norm_vec(2,0)); Scalar pitch = std::asin(-a_norm_vec(0,0));
-    Scalar cr = std::cos(roll * static_cast<Scalar>(0.5)); Scalar sr = std::sin(roll * static_cast<Scalar>(0.5)); Scalar cp = std::cos(pitch * static_cast<Scalar>(0.5)); Scalar sp = std::sin(pitch * static_cast<Scalar>(0.5));
-    q_out(0,0) = cr * cp; q_out(1,0) = sr * cp; q_out(2,0) = cr * sp; q_out(3,0) = -sr * sp; cquat::normalize_quat(q_out);
+    // Delegate to unified sensor processing module
+    sensor::processing::accel_to_quaternion(a_meas, scale_factor, q_out);
 }
 
 void ESKFMath::pv_integration(const PVIntegrationInput& input, PVIntegrationOutput& output) {
@@ -48,17 +42,19 @@ void ESKFMath::covariance_prediction(const Matrix15x15& P, const Matrix15x15& F,
 
 void ESKFMath::inject_error_state(const Vector3& p_in, const Vector3& v_in, const Vector4& q_in, const Vector3& ba_in, const Vector3& bg_in, const Vector15& dx, Vector3& p_out, Vector3& v_out, Vector4& q_out, Vector3& ba_out, Vector3& bg_out) { for (int i=0;i<3;++i){ p_out(i,0)=p_in(i,0)+dx(i,0); v_out(i,0)=v_in(i,0)+dx(i+3,0); ba_out(i,0)=ba_in(i,0)+dx(i+9,0); bg_out(i,0)=bg_in(i,0)+dx(i+12,0); } Vector4 dq; dq(0,0)=static_cast<Scalar>(1.0); dq(1,0)=dx(6,0)*static_cast<Scalar>(0.5); dq(2,0)=dx(7,0)*static_cast<Scalar>(0.5); dq(3,0)=dx(8,0)*static_cast<Scalar>(0.5); cquat::normalize_quat(dq); cquat::multiply_quat(q_in, dq, q_out); cquat::normalize_quat(q_out); }
 
-void ESKFMath::mag_observation_prediction(const Vector4& q, const Vector3& m_world, Vector3& m_body_expected) { Matrix3x3 R; cquat::quat_to_rotm(q, R); for (int i=0;i<3;++i){ m_body_expected(i,0)=static_cast<Scalar>(0.0); for (int j=0;j<3;++j) m_body_expected(i,0) += R(i,j) * m_world(j,0); } }
+void ESKFMath::mag_observation_prediction(const Vector4& q, const Vector3& m_world, Vector3& m_body_expected) {
+    // Delegate to unified sensor processing module
+    sensor::processing::mag_observation_prediction(q, m_world, m_body_expected);
+}
 
-void ESKFMath::gps_to_local(const Vector3& gps_pos, const Vector3& origin_pos, Vector3& local_pos) { for (int i=0;i<3;++i) local_pos(i,0) = gps_pos(i,0) - origin_pos(i,0); }
+void ESKFMath::gps_to_local(const Vector3& gps_pos, const Vector3& origin_pos, Vector3& local_pos) {
+    // Delegate to unified coordinate transform module
+    sensor::coord::gps_to_local(gps_pos, origin_pos, local_pos);
+}
 
 Scalar ESKFMath::pressure_to_altitude(Scalar pressure) {
-    const Scalar p0 = static_cast<Scalar>(101325.0);
-    if (pressure <= static_cast<Scalar>(0.0)) return static_cast<Scalar>(0.0);
-    float pf = static_cast<float>(pressure);
-    float ratio = pf / 101325.0f;
-    float alt = 44330.0f * (1.0f - std::pow(ratio, 1.0f/5.255f));
-    return static_cast<Scalar>(alt);
+    // Delegate to unified coordinate transform module
+    return sensor::coord::pressure_to_altitude(pressure);
 }
 
 } // namespace eskf_math

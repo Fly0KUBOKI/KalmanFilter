@@ -5,8 +5,8 @@
 
 #include "mex_hybrid_filter_common.hpp"
 #include "mex_type_conversion.hpp"
+#include "../../Lib/Sensor/sensor_all.hpp"
 #include <cstring>
-#include <cmath>
 #include <cmath>
 
 namespace mex_hybrid_filter_impl {
@@ -62,7 +62,7 @@ inline void call_sensor_update(FilterState* s, const char* type, const double* m
             prev_a_f(i, 0) = s->prev_accel[i];
         }
         
-        PreprocessResult result = preprocess_accel(a_meas_f, prev_a_f, s->buffer_tolerance);
+        sensor::preprocess::Result result = sensor::preprocess::accel(a_meas_f, prev_a_f, s->buffer_tolerance);
         
         double a_corrected[3];
         for (int i = 0; i < 3; ++i) {
@@ -105,7 +105,7 @@ inline void call_sensor_update(FilterState* s, const char* type, const double* m
             prev_m_f(i, 0) = s->prev_mag[i];
         }
         
-        PreprocessResult result = preprocess_mag(m_meas_f, prev_m_f, s->buffer_tolerance);
+        sensor::preprocess::Result result = sensor::preprocess::mag(m_meas_f, prev_m_f, s->buffer_tolerance);
         
         double m_filtered[3];
         for (int i = 0; i < 3; ++i) {
@@ -139,7 +139,7 @@ inline void call_sensor_update(FilterState* s, const char* type, const double* m
             s->prev_baro = pressure;
             
             // Preprocess baro (C++ direct implementation)
-            double alt_baro = preprocess_baro(pressure);
+            double alt_baro = sensor::preprocess::baro(pressure);
             
             if (!should_skip) {
                 // Call handle_sensor_update_internal directly (integrated from mex_eskf_do_update)
@@ -195,7 +195,7 @@ inline void call_gps_update(FilterState* s, double lat, double lon, double alt, 
         origin_f(i, 0) = static_cast<float>(s->gps_origin[i]);
     }
     
-    PreprocessResult result = preprocess_gps(lat, lon, alt, origin_f, s->buffer_tolerance);
+    sensor::preprocess::Result result = sensor::preprocess::gps(lat, lon, alt, origin_f, s->buffer_tolerance);
     
     bool should_skip = true;
     double z_gps[3];

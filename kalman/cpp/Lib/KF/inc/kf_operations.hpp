@@ -105,12 +105,6 @@ T mahalanobis_distance_squared(
     return dist_sq;
 }
 
-} // namespace kf
-#pragma once
-
-#include "../../Matrix/fixed_matrix.hpp"
-
-namespace kf {
 namespace ops {
 
 // Compute innovation covariance S = H * P * H' + R (templated square MxM)

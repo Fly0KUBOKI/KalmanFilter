@@ -94,8 +94,7 @@ public:
             #define COMMON_VALIDATION_HPP
 
             #include "../../../Matrix/fixed_matrix.hpp"
-            #include "../Sensor/outlier_detector.hpp"
-            #include "../Sensor/robust_statistics.hpp"
+            #include "../../../Sensor/sensor_filters.hpp"
             #include <cmath>
             #include <cfloat>
 
@@ -105,9 +104,9 @@ public:
             using cm = cmath_fx::FixedMatrix;
 
             // 後方互換用エイリアス
-            using OutlierDetector = common::sensor::OutlierDetector;
-            using NoiseEstimator = common::sensor::NoiseEstimator;
-            using DivergenceGuard = common::sensor::DivergenceGuard;
+            using OutlierDetector = sensor::filter::OutlierDetector;
+            using NoiseEstimator = sensor::filter::NoiseEstimator;
+            using DivergenceGuard = sensor::filter::DivergenceGuard;
 
             // 共分散の基本チェック
             template<typename T>

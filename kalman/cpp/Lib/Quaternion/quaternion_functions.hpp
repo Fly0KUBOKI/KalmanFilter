@@ -4,7 +4,6 @@
 // Moved from Inc/Common/Math/quaternion.hpp to Lib/Quaternion/quaternion_functions.hpp
 #include <cmath>
 #include "../Matrix/fixed_matrix.hpp"
-#include "../Matrix/fixed_matrix.hpp"
 #include "../Matrix/Math/statistics.hpp"
 
 namespace cquat {
@@ -163,6 +162,99 @@ inline void quat_to_rotm_array(const cmath_fx::Vector<4, T>& q, T R[9]) {
             R[i] = (R[i] < static_cast<T>(0.0)) ? static_cast<T>(-1.0) : static_cast<T>(1.0);
         }
     }
+}
+
+/**
+ * 四元数の時間積分（角速度ベクトルによる更新）
+ * @param q_in 入力四元数 [w, x, y, z]
+ * @param w 角速度ベクトル [rad/s]
+ * @param dt 時間ステップ [s]
+ * @param q_out 出力四元数（正規化済み）
+ */
+template <typename T>
+inline void quaternion_integration(
+    const cmath_fx::Vector<4, T>& q_in,
+    const cmath_fx::Vector<3, T>& w,
+    T dt,
+    cmath_fx::Vector<4, T>& q_out
+) {
+    // w_half = w * dt/2
+    cmath_fx::Vector<3, T> w_half = w;
+    for (int i = 0; i < 3; ++i) {
+        w_half(i, 0) *= static_cast<T>(0.5) * dt;
+    }
+    
+    // dq = 0.5 * q * [0; w_half]
+    cmath_fx::Vector<4, T> dq;
+    dq(0, 0) = static_cast<T>(-0.5) * (q_in(1, 0) * w_half(0, 0) + 
+                                        q_in(2, 0) * w_half(1, 0) + 
+                                        q_in(3, 0) * w_half(2, 0));
+    dq(1, 0) = static_cast<T>(0.5) * (q_in(0, 0) * w_half(0, 0) + 
+                                       q_in(2, 0) * w_half(2, 0) - 
+                                       q_in(3, 0) * w_half(1, 0));
+    dq(2, 0) = static_cast<T>(0.5) * (q_in(0, 0) * w_half(1, 0) - 
+                                       q_in(1, 0) * w_half(2, 0) + 
+                                       q_in(3, 0) * w_half(0, 0));
+    dq(3, 0) = static_cast<T>(0.5) * (q_in(0, 0) * w_half(2, 0) + 
+                                       q_in(1, 0) * w_half(1, 0) - 
+                                       q_in(2, 0) * w_half(0, 0));
+    
+    // q_out = q_in + dq
+    for (int i = 0; i < 4; ++i) {
+        q_out(i, 0) = q_in(i, 0) + dq(i, 0);
+    }
+    
+    // 正規化
+    normalize_quat(q_out);
+}
+
+/**
+ * 四元数の共役（逆回転）
+ * @param q 入力四元数 [w, x, y, z]
+ * @param q_conj 出力：共役四元数 [w, -x, -y, -z]
+ */
+template <typename T>
+inline void conjugate_quat(
+    const cmath_fx::Vector<4, T>& q,
+    cmath_fx::Vector<4, T>& q_conj
+) {
+    q_conj(0, 0) = q(0, 0);
+    q_conj(1, 0) = -q(1, 0);
+    q_conj(2, 0) = -q(2, 0);
+    q_conj(3, 0) = -q(3, 0);
+}
+
+/**
+ * 四元数による3Dベクトルの回転
+ * @param q 回転四元数 [w, x, y, z]
+ * @param v 入力ベクトル
+ * @param v_rot 出力：回転後のベクトル
+ */
+template <typename T>
+inline void rotate_vector_by_quat(
+    const cmath_fx::Vector<4, T>& q,
+    const cmath_fx::Vector<3, T>& v,
+    cmath_fx::Vector<3, T>& v_rot
+) {
+    // v_rot = q * [0; v] * q^-1
+    cmath_fx::Vector<4, T> v_quat;
+    v_quat(0, 0) = static_cast<T>(0.0);
+    v_quat(1, 0) = v(0, 0);
+    v_quat(2, 0) = v(1, 0);
+    v_quat(3, 0) = v(2, 0);
+    
+    cmath_fx::Vector<4, T> q_conj;
+    conjugate_quat(q, q_conj);
+    
+    cmath_fx::Vector<4, T> temp;
+    multiply_quat(q, v_quat, temp);
+    
+    cmath_fx::Vector<4, T> result;
+    multiply_quat(temp, q_conj, result);
+    
+    v_rot(0, 0) = result(1, 0);
+    v_rot(1, 0) = result(2, 0);
+    v_rot(2, 0) = result(3, 0);
 }
 
 } // namespace cquat

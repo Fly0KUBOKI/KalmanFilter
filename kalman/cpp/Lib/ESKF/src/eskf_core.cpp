@@ -2,16 +2,7 @@
 // Implementation file for ESKF core functions
 
 #include "../inc/eskf_core.hpp"
-#include "../inc/eskf_math.hpp"
-#include "../../KF/inc/kalman_filter_core.hpp"
-#include "../../Quaternion/quaternion_functions.hpp"
-// Matrix operations consolidated into fixed_matrix.hpp
-#include <cmath>
-#include "../../Matrix/fixed_matrix.hpp"
-#include "../../Matrix/Math/statistics.hpp"
-// Matrix utilities consolidated into fixed_matrix.hpp
-#include "../../Matrix/fixed_matrix.hpp"
-#include <cmath>
+#include "../inc/eskf_includes.hpp"
 
 namespace eskf {
 
@@ -143,12 +134,9 @@ void HybridFilterCore::compute_F_matrix(
 // その他のメソッド（簡易実装）
 void HybridFilterCore::update_accel(Vector4& q, const Vector3& a_meas, Scalar scale_factor) {
 	// 加速度からRoll/Pitchを計算（Yawは変更しない）
-	// 実装はeskf_math.hppのaccel_to_quaternionを使用
-	using namespace eskf_math;
-	Vector4 q_rp;
-	ESKFMath::accel_to_quaternion(a_meas, scale_factor, q_rp);
-    
-	// 現在のYawを保持してRoll/Pitchのみ更新
+		// 直接 sensor::processing モジュールを使用
+		Vector4 q_rp;
+		sensor::processing::accel_to_quaternion(a_meas, scale_factor, q_rp);
 	// 簡易実装：q_rpとqを合成（実際にはより複雑な処理が必要）
 	Scalar q0 = q(0, 0), q1 = q(1, 0), q2 = q(2, 0), q3 = q(3, 0);
 	Scalar qrp0 = q_rp(0, 0), qrp1 = q_rp(1, 0), qrp2 = q_rp(2, 0), qrp3 = q_rp(3, 0);

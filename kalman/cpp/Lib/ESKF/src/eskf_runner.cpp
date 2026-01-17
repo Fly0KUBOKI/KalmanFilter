@@ -1,15 +1,5 @@
 ﻿#include "../inc/eskf_runner.hpp"
-#include "../inc/eskf_core.hpp"
-#include "../inc/eskf_postprocess.hpp"
-#include "../../Quaternion/quaternion_functions.hpp"
-#include "../../Sensor/sensor_filter.hpp"
-#include "../inc/filter_mgmt.hpp"
-#include "../../Matrix/fixed_matrix.hpp"
-#include <cmath>
-#include <cstring>
-#include <vector>
-#include <cmath>
-#include <cmath>
+#include "../inc/eskf_includes.hpp"
 
 namespace eskf {
 

@@ -1,16 +1,5 @@
 ﻿#include "../inc/unified_filter.hpp"
-#include "../../Sensor/sensor_filter.hpp"
-#include "../../Matrix/fixed_matrix.hpp"
-#include "../../Matrix/Math/statistics.hpp"
-#include <cmath>
-#include "../../Matrix/fixed_matrix.hpp"
-#include "../../Matrix/Math/statistics.hpp"
-#include "../../Matrix/fixed_matrix.hpp"
-#include "../inc/meukf_core.hpp"
-#include "../../Quaternion/quaternion_functions.hpp"
-#include <cstring>
-#include <cmath>
-// barometric functions inlined where needed; no central header included
+#include "../inc/meukf_includes.hpp"
 
 namespace meukf {
 

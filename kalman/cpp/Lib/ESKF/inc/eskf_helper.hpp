@@ -6,7 +6,6 @@
 #include "../../Quaternion/quaternion_functions.hpp"
 #include "../../KF/inc/kf_operations.hpp"
 #include <cmath>
-#include <cmath>
 
 namespace eskf {
 

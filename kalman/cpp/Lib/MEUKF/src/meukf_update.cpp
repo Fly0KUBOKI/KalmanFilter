@@ -1,20 +1,5 @@
-﻿#include "../inc/meukf_core.hpp"
-#include "../../Matrix/fixed_matrix.hpp"
-#include "../../Matrix/Math/statistics.hpp"
-#include <cmath>
-#include <cmath>
-#include "../../Matrix/fixed_matrix.hpp"
-#include "../../Matrix/Math/statistics.hpp"
-#include "../../Matrix/fixed_matrix.hpp"
-#include "../../Quaternion/quaternion_functions.hpp"
-#include "../../UKF/inc/ukf_update.hpp"
-#include <cmath>
-#include <cstring>
-#include <cstdlib>
-#include <algorithm>
-
-#include <cstddef>
-#include "../inc/meukf_helpers.hpp"
+﻿#include "../inc/meukf_includes.hpp"
+// meukf_helpers.hpp removed; use sensor::processing functions directly when needed
 
 namespace meukf {
 

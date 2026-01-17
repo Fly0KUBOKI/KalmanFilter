@@ -2,6 +2,7 @@
 #ifndef LIB_ESKF_INC_INTERFACE_HPP
 #define LIB_ESKF_INC_INTERFACE_HPP
 
+#include "../../Matrix/fixed_matrix.hpp"
 #include <cstdint>
 
 namespace kalman {
@@ -50,12 +51,6 @@ public:
 };
 
 } // namespace kalman
-#pragma once
-
-#include "../../Matrix/fixed_matrix.hpp"
-#include <cstdint>
-
-namespace kalman {
 
 // 基本型定義
 using Scalar = float;

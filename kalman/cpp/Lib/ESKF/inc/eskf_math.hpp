@@ -6,11 +6,11 @@
 
 #include "../../Matrix/fixed_matrix.hpp"
 #include "../../Quaternion/quaternion_functions.hpp"
-#include <cmath>
-#include <cmath>
-#include "../../Matrix/fixed_matrix.hpp"
+#include "../../Sensor/sensor_processing.hpp"
+#include "../../Sensor/coordinate_transform.hpp"
 #include "../../Matrix/Math/statistics.hpp"
 #include "../../KF/inc/kalman_filter_core.hpp"
+#include <cmath>
 
 namespace eskf_math {
 
@@ -23,6 +23,7 @@ using Matrix15x15 = cmath_fx::Matrix<15, 15, Scalar>;
 
 class ESKFMath {
 public:
+    // DEPRECATED: Use cquat::quaternion_integration() directly
     static void quaternion_integration(
         const Vector4& q_in,
         const Vector3& w,
@@ -30,6 +31,7 @@ public:
         Vector4& q_out
     );
 
+    // DEPRECATED: Use sensor::processing::accel_to_quaternion() directly
     static void accel_to_quaternion(
         const Vector3& a_meas,
         Scalar scale_factor,
@@ -43,8 +45,14 @@ public:
     static void compute_F_matrix(const Vector4& q, const Vector3& a_meas, const Vector3& ba, const Vector3& w_meas, const Vector3& bg, Scalar dt, Matrix15x15& F);
     static void covariance_prediction(const Matrix15x15& P, const Matrix15x15& F, const Matrix15x15& Q, Matrix15x15& P_new);
     static void inject_error_state(const Vector3& p_in, const Vector3& v_in, const Vector4& q_in, const Vector3& ba_in, const Vector3& bg_in, const Vector15& dx, Vector3& p_out, Vector3& v_out, Vector4& q_out, Vector3& ba_out, Vector3& bg_out);
+    
+    // DEPRECATED: Use sensor::processing::mag_observation_prediction() directly
     static void mag_observation_prediction(const Vector4& q, const Vector3& m_world, Vector3& m_body_expected);
+    
+    // DEPRECATED: Use sensor::coord::gps_to_local() directly
     static void gps_to_local(const Vector3& gps_pos, const Vector3& origin_pos, Vector3& local_pos);
+    
+    // DEPRECATED: Use sensor::coord::pressure_to_altitude() directly
     static Scalar pressure_to_altitude(Scalar pressure);
 
     template<int N, int M>

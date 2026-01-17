@@ -6,8 +6,6 @@
 
 #include "unified_types.hpp"
 #include "meukf_types.hpp"  // MEUKFInput, MEUKFOutput用
-#include "../../Matrix/fixed_matrix.hpp"
-#include "../../Quaternion/quaternion_functions.hpp"
 
 namespace meukf {
 

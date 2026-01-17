@@ -5,7 +5,6 @@
 // Implementation: このヘッダー内に実装含む（テンプレート実装）
 
 #include "../../Matrix/fixed_matrix.hpp"
-#include "../../Matrix/fixed_matrix.hpp"
 #include "../../Matrix/Math/statistics.hpp"
 #include "../../KF/inc/kf_operations.hpp"
 

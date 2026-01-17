@@ -1,7 +1,4 @@
-﻿#include "../inc/meukf_core.hpp"
-#include "../../Matrix/fixed_matrix.hpp"
-#include "../../UKF/inc/ukf_sigma_points.hpp"
-#include <cmath>
+﻿#include "../inc/meukf_includes.hpp"
 
 namespace meukf {
 

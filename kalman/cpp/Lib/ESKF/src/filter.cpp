@@ -1,5 +1,5 @@
 ﻿#include "../inc/filter.hpp"
-#include "../inc/eskf_core.hpp"
+#include "../inc/eskf_includes.hpp"
 #include <cstring>
 
 namespace kalman {
