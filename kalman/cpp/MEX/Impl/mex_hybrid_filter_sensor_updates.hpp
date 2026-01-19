@@ -130,28 +130,55 @@ inline void call_sensor_update(FilterState* s, const char* type, const double* m
             );
         }
     }
+    else if (strcmp(type, "gyro") == 0 && meas_len == 3) {
+        // Preprocess gyro (C++ direct implementation)
+        cmath_fx::Vector<3, float> g_meas_f;
+        cmath_fx::Vector<3, float> prev_g_f;
+        for (int i = 0; i < 3; ++i) {
+            g_meas_f(i, 0) = static_cast<float>(meas[i]);
+            prev_g_f(i, 0) = s->prev_gyro[i];
+        }
+        
+        sensor::preprocess::Result result = sensor::preprocess::gyro(g_meas_f, prev_g_f, s->buffer_tolerance);
+        
+        double g_corrected[3];
+        for (int i = 0; i < 3; ++i) {
+            g_corrected[i] = result.output(i, 0);
+        }
+        bool no_change = result.no_change;
+        
+        if (!no_change && !is_nan_any(g_corrected, 3)) {
+            should_skip = false;
+            for (int i = 0; i < 3; ++i) s->prev_gyro[i] = static_cast<float>(meas[i]);
+        }
+        
+        // Gyroは現在の実装では更新ステップを実行しない（w_bodyの更新のみ）
+        if (!should_skip) {
+            for (int i = 0; i < 3; ++i) {
+                s->w_body[i] = static_cast<float>(g_corrected[i] * 0.017453292519943295);  // deg2rad
+            }
+        }
+    }
     else if (strcmp(type, "baro") == 0 && meas_len == 1) {
         double pressure = meas[0];
-        double prev_baro = s->prev_baro;
+        double prev_pressure = s->prev_baro;
         
-        if (fabs(pressure - prev_baro) > s->buffer_tolerance) {
+        bool no_change = false;
+        double alt_baro = sensor::preprocess::baro(pressure, prev_pressure, &no_change);
+        
+        if (!no_change) {
             should_skip = false;
-            s->prev_baro = pressure;
+            s->prev_baro = static_cast<float>(pressure);
             
-            // Preprocess baro (C++ direct implementation)
-            double alt_baro = sensor::preprocess::baro(pressure);
-            
-            if (!should_skip) {
-                // Call handle_sensor_update_internal directly (integrated from mex_eskf_do_update)
-                double alt_baro_arr[1] = {alt_baro};
-                handle_sensor_update_internal(
-                    "baro", alt_baro_arr, 1,
-                    out_p, out_v, out_q, out_ba, out_bg, out_P,
-                    g, dt, sample, s,
-                    out_p, out_v, out_q, out_ba, out_bg, out_P,
-                    should_skip
-                );
-            }
+            // Call handle_sensor_update_internal directly
+            double alt_baro_arr[1] = {alt_baro};
+            handle_sensor_update_internal(
+                "baro", alt_baro_arr, 1,
+                out_p, out_v, out_q, out_ba, out_bg, out_P,
+                g, dt, sample, s,
+                out_p, out_v, out_q, out_ba, out_bg, out_P,
+                should_skip
+            );
         }
     }
     
@@ -195,7 +222,11 @@ inline void call_gps_update(FilterState* s, double lat, double lon, double alt, 
         origin_f(i, 0) = static_cast<float>(s->gps_origin[i]);
     }
     
-    sensor::preprocess::Result result = sensor::preprocess::gps(lat, lon, alt, origin_f, s->buffer_tolerance);
+    double prev_lat = s->prev_gps_lat;
+    double prev_lon = s->prev_gps_lon;
+    double prev_alt = s->prev_gps_alt;
+    
+    sensor::preprocess::Result result = sensor::preprocess::gps(lat, lon, alt, origin_f, prev_lat, prev_lon, prev_alt, s->buffer_tolerance);
     
     bool should_skip = true;
     double z_gps[3];
@@ -207,9 +238,10 @@ inline void call_gps_update(FilterState* s, double lat, double lon, double alt, 
     
     if (!no_change && !is_outlier) {
         should_skip = false;
+        s->prev_gps_lat = lat;
+        s->prev_gps_lon = lon;
+        s->prev_gps_alt = alt;
     }
-    
-    // (debug prints removed)
     
     if (!should_skip) {
         // Call handle_sensor_update_internal directly (integrated from mex_eskf_do_update)
@@ -220,11 +252,6 @@ inline void call_gps_update(FilterState* s, double lat, double lon, double alt, 
             out_p, out_v, out_q, out_ba, out_bg, out_P,
             should_skip
         );
-        
-        // Update prev_gps
-        s->prev_gps_lat = lat;
-        s->prev_gps_lon = lon;
-        s->prev_gps_alt = alt;
     }
     
     // Update state if not skipped

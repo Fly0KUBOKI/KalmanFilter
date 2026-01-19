@@ -4,9 +4,17 @@ function params = config_params()
     params = struct();
 
     % タイミング
-    params.dt = 0.0025;
+    params.dt = 0.0025;  % システム全体の周期 (400Hz)
     params.T = 50;
     params.static_time = 5;
+    
+    % センサー更新頻度 [Hz]
+    params.sensor_freq = struct();
+    params.sensor_freq.system = 400;   % システム全体の周期
+    params.sensor_freq.imu = 400;      % IMU (加速度・ジャイロ)
+    params.sensor_freq.mag = 100;      % 磁気センサー
+    params.sensor_freq.gps = 10;       % GPS
+    params.sensor_freq.baro = 50;      % 気圧センサー
 
     % 運動タイプ
     params.motion_type = 'circular';

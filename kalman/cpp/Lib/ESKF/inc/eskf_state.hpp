@@ -13,7 +13,7 @@ struct FilterState {
     float dt;
     double gps_origin[3];
     float prev_accel[3], prev_gyro[3], prev_mag[3];
-    float prev_gps_lat, prev_gps_lon, prev_gps_alt;
+    double prev_gps_lat, prev_gps_lon, prev_gps_alt;  // GPS座標はdoubleで保持
     float prev_baro;
     float buffer_tolerance;
     float w_body[3];

@@ -153,6 +153,9 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
             fprintf('Sensor step %d / %d\n', i, N);
         end
     end
+    
+    % ノイズは add_sensor_noise で追加されるため、ここではセンサー周期の補完は行わない
+    % （ノイズ追加後に補完を実行する必要がある）
 
     % Keep sensor outputs in double for internal accuracy. CSV export will
     % convert non-GPS fields to single as required.

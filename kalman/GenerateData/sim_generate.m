@@ -59,6 +59,38 @@ function sim_generate(params)
     % ノイズ追加
     [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ...
         add_sensor_noise(accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt, params);
+    
+    % センサー更新頻度に応じてデータを補完（ノイズ追加後に実行）
+    if isfield(params, 'sensor_freq')
+        system_freq = params.sensor_freq.system;
+        
+        % IMU (accel/gyro): 400Hz → そのまま
+        imu_rate = round(system_freq / params.sensor_freq.imu);
+        if imu_rate > 1
+            accel_body = apply_update_frequency(accel_body, imu_rate, N);
+            gyro_body = apply_update_frequency(gyro_body, imu_rate, N);
+        end
+        
+        % 磁気センサー: 100Hz → 4サンプルごとに同じ値
+        mag_rate = round(system_freq / params.sensor_freq.mag);
+        if mag_rate > 1
+            mag_body = apply_update_frequency(mag_body, mag_rate, N);
+        end
+        
+        % GPS: 10Hz → 40サンプルごとに同じ値
+        gps_rate = round(system_freq / params.sensor_freq.gps);
+        if gps_rate > 1
+            gps_lat = apply_update_frequency(gps_lat, gps_rate, N);
+            gps_lon = apply_update_frequency(gps_lon, gps_rate, N);
+            gps_alt = apply_update_frequency(gps_alt, gps_rate, N);
+        end
+        
+        % 気圧センサー: 50Hz → 8サンプルごとに同じ値
+        baro_rate = round(system_freq / params.sensor_freq.baro);
+        if baro_rate > 1
+            baro = apply_update_frequency(baro, baro_rate, N);
+        end
+    end
 
     % 保存
     save_simulation_data(t, pos_world, vel_world, attitude, accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt, params);

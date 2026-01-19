@@ -132,26 +132,24 @@ inline void call_sensor_update(ESKFState* s, const char* type, const double* mea
     }
     else if (strcmp(type, "baro") == 0 && meas_len == 1) {
         double pressure = meas[0];
-        double prev_baro = s->prev_baro;
+        double prev_pressure = s->prev_baro;
         
-        if (fabs(pressure - prev_baro) > s->buffer_tolerance) {
+        bool no_change = false;
+        double alt_baro = sensor::preprocess::baro(pressure, prev_pressure, &no_change);
+        
+        if (!no_change) {
             should_skip = false;
-            s->prev_baro = pressure;
+            s->prev_baro = static_cast<float>(pressure);
             
-            // Preprocess baro (C++ direct implementation)
-            double alt_baro = sensor::preprocess::baro(pressure);
-            
-            if (!should_skip) {
-                // Call handle_sensor_update_internal directly (integrated from mex_eskf_do_update)
-                double alt_baro_arr[1] = {alt_baro};
-                handle_sensor_update_internal(
-                    "baro", alt_baro_arr, 1,
-                    out_p, out_v, out_q, out_ba, out_bg, out_P,
-                    g, dt, sample, s,
-                    out_p, out_v, out_q, out_ba, out_bg, out_P,
-                    should_skip
-                );
-            }
+            // Call handle_sensor_update_internal directly
+            double alt_baro_arr[1] = {alt_baro};
+            handle_sensor_update_internal(
+                "baro", alt_baro_arr, 1,
+                out_p, out_v, out_q, out_ba, out_bg, out_P,
+                g, dt, sample, s,
+                out_p, out_v, out_q, out_ba, out_bg, out_P,
+                should_skip
+            );
         }
     }
     
@@ -195,7 +193,11 @@ inline void call_gps_update(ESKFState* s, double lat, double lon, double alt, do
         origin_f(i, 0) = static_cast<float>(s->gps_origin[i]);
     }
     
-    sensor::preprocess::Result result = sensor::preprocess::gps(lat, lon, alt, origin_f, s->buffer_tolerance);
+    double prev_lat = s->prev_gps_lat;
+    double prev_lon = s->prev_gps_lon;
+    double prev_alt = s->prev_gps_alt;
+    
+    sensor::preprocess::Result result = sensor::preprocess::gps(lat, lon, alt, origin_f, prev_lat, prev_lon, prev_alt, s->buffer_tolerance);
     
     bool should_skip = true;
     double z_gps[3];
@@ -207,9 +209,10 @@ inline void call_gps_update(ESKFState* s, double lat, double lon, double alt, do
     
     if (!no_change && !is_outlier) {
         should_skip = false;
+        s->prev_gps_lat = lat;
+        s->prev_gps_lon = lon;
+        s->prev_gps_alt = alt;
     }
-    
-    // (debug prints removed)
     
     if (!should_skip) {
         // Call handle_sensor_update_internal directly (integrated from mex_eskf_do_update)
@@ -220,11 +223,6 @@ inline void call_gps_update(ESKFState* s, double lat, double lon, double alt, do
             out_p, out_v, out_q, out_ba, out_bg, out_P,
             should_skip
         );
-        
-        // Update prev_gps
-        s->prev_gps_lat = lat;
-        s->prev_gps_lon = lon;
-        s->prev_gps_alt = alt;
     }
     
     // Update state if not skipped
