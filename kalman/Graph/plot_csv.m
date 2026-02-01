@@ -20,7 +20,7 @@ function varargout = plot_csv(filePath, mode)
             % 時系列比較をそれぞれ独立した figure に分ける
             time = T.time;
 
-            % Position (px, py, pz)
+            % Position (px, py, pz) - Z-up: positive = higher altitude
             fh_pos = figure('Name', 'Position [m]');
             plot(time, T.px, '-','Color',[0 0 1],'LineWidth',1.5); hold on; % x: blue
             plot(time, T.py, '-','Color',[1 0 0],'LineWidth',1.5);           % y: red
@@ -33,9 +33,9 @@ function varargout = plot_csv(filePath, mode)
             plot(time, ty, '--','Color',[1 0 0],'LineWidth',1.2);
             plot(time, tz, '--','Color',[1 0.75 0],'LineWidth',1.2);
             hold off; grid on; xlabel('時刻 [s]'); ylabel('Position [m]');
-            legend('px','py','pz','px\_truth','py\_truth','pz\_truth','Location','best');
+            legend('px','py','pz (altitude)','px\_truth','py\_truth','pz\_truth','Location','best');
 
-            % Velocity (vx, vy, vz)
+            % Velocity (vx, vy, vz) - Z-up: positive vz = upward velocity
             fh_vel = figure('Name', 'Velocity [m/s]');
             plot(time, T.vx, '-','Color',[0 0 1],'LineWidth',1.5); hold on; % x: blue
             plot(time, T.vy, '-','Color',[1 0 0],'LineWidth',1.5);           % y: red
@@ -131,8 +131,8 @@ function varargout = plot_csv(filePath, mode)
 
         case 'vel'
             % ベクトルは原点 (0,0) から表示する
-            U = T.vx; V = T.vy;
-            fh = figure;
+            U = T.vx(valid_idx:end); V = T.vy(valid_idx:end);
+            fh = fig; V = T.vy
             maxmag = max(sqrt(U.^2 + V.^2));
             if isempty(maxmag) || maxmag==0, maxmag = 1; end
             lim = maxmag * 1.1;

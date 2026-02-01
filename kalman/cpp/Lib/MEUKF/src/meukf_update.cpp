@@ -232,7 +232,8 @@ void MEUKFCore::update_accel_meukf_ukf_version(State& state, const Vector3& a_me
             cmath_fx::Vector<4,float> q_i; cquat::multiply_quat(q_nom_local, dq, q_i); cquat::normalize_quat(q_i);
             cmath_fx::Matrix<3,3,float> Rm; cquat::quat_to_rotm(q_i, Rm);
             cmath_fx::Vector<3,float> g_vec; g_vec(0,0) = params_local.g[0]; g_vec(1,0) = params_local.g[1]; g_vec(2,0) = params_local.g[2];
-            cmath_fx::Vector<3,float> a_pred = (Rm.transpose() * g_vec) * -1.0f;
+            // Z-up: a_body = -R^T * g_world = -R^T * [0,0,-9.81] = R^T * [0,0,+9.81]
+            cmath_fx::Vector<3,float> a_pred = Rm.transpose() * g_vec * -1.0f;
             cmath_fx::Vector<2,float> z2; z2(0,0) = a_pred(0,0); z2(1,0) = a_pred(1,0);
             return z2;
         }
@@ -240,7 +241,9 @@ void MEUKFCore::update_accel_meukf_ukf_version(State& state, const Vector3& a_me
     HFunc2D h_func_2d(q_nom, params);
 
     float a_norm = std::sqrt(a_meas(0,0)*a_meas(0,0) + a_meas(1,0)*a_meas(1,0) + a_meas(2,0)*a_meas(2,0));
-    float gravity_deviation = std::abs(a_norm - std::sqrt(params.g[0]*params.g[0] + params.g[1]*params.g[1] + params.g[2]*params.g[2]));
+    // Z-up: 重力ベクトルの大きさは abs(g[2]) = abs(-9.81) = 9.81
+    float g_norm = std::sqrt(params.g[0]*params.g[0] + params.g[1]*params.g[1] + params.g[2]*params.g[2]);
+    float gravity_deviation = std::abs(a_norm - g_norm);
     float R_scale = 1.0f + (gravity_deviation / 0.7f);
     float R_floor = 0.25f;
 

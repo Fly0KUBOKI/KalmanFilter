@@ -38,6 +38,9 @@ function sim_generate(params)
         error('未サポートの運動タイプ: %s', motion_type);
     end
 
+    % 上下運動を真値位置に追加
+    [pos_world, vel_world] = apply_vertical_motion_to_truth(pos_world, vel_world, t, params);
+
     % NOTE: don't apply apply_random_walk_overlay here — it may overwrite
     % the intended oscillatory attitude generation. Previously this helper
     % could replace roll/pitch with a smooth random walk; keep it disabled
@@ -139,5 +142,27 @@ function data_out = apply_update_frequency(data_in, freq, N)
                 data_out(i, :) = data_out(update_idx, :);
             end
         end
+    end
+end
+
+function [pos_world_out, vel_world_out] = apply_vertical_motion_to_truth(pos_world, vel_world, t, params)
+    % 真値位置と速度に上下運動成分を適用
+    % 統一計算関数を使用して、センサーデータとの整合性を保証
+    
+    pos_world_out = pos_world;
+    vel_world_out = vel_world;
+    
+    if ~isfield(params, 'motion') || ~isfield(params.motion, 'vertical')
+        return;
+    end
+    
+    N = length(t);
+    
+    for i = 1:N
+        [z_vertical, vz_vertical, ~] = compute_vertical_motion_unified(t(i), params);
+        
+        % 真値に追加
+        pos_world_out(i, 3) = pos_world(i, 3) + z_vertical;
+        vel_world_out(i, 3) = vel_world(i, 3) + vz_vertical;
     end
 end

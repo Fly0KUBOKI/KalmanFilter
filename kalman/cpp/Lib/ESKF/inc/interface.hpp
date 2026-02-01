@@ -140,7 +140,7 @@ struct FilterParams {
     Scalar R_baro;              // 気圧計観測ノイズ
     
     // 環境パラメータ
-    Vector3 gravity;            // 重力ベクトル [m/s^2]
+    Vector3 gravity;            // 重力ベクトル [m/s^2] (Z-up: [0, 0, -9.81])
     Vector3 mag_world;          // 地磁気ベクトル（ワールド座標系）
     Vector3 gps_origin;         // GPS原点 [m]
     
@@ -150,7 +150,7 @@ struct FilterParams {
     
     // デフォルトコンストラクタ
     FilterParams() 
-        : gravity{0, 0, 9.81f}
+        : gravity{0, 0, -9.81f}  // Z-up convention: gravity points down
         , mag_world{1, 0, 0}
         , gps_origin{0, 0, 0}
         , gyro_noise_threshold{0.001f, 0.001f, 0.001f}

@@ -85,10 +85,10 @@ function [pos_world, vel_world, attitude] = generate_circular_motion(params, t, 
         end
         theta_dot = theta_dot_cur;
 
-        % 位置計算 (NED: North, East, Down)
+        % 位置計算 (Z-up: Up 正)
         pos_world(i,1) = center_y + radius * sin(theta);  % North
         pos_world(i,2) = center_x + radius * cos(theta);  % East
-        pos_world(i,3) = -altitude;  % Down
+        pos_world(i,3) = altitude;  % Up (positive = higher altitude)
 
         % 速度計算 (NED)
         vel_world(i,1) =  radius * theta_dot * cos(theta);  % North

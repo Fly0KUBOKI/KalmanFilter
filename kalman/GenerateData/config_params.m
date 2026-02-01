@@ -5,7 +5,7 @@ function params = config_params()
 
     % タイミング
     params.dt = 0.0025;  % システム全体の周期 (400Hz)
-    params.T = 50;
+    params.T = 100;      % シミュレーション総時間 [秒]
     params.static_time = 5;
     
     % センサー更新頻度 [Hz]
@@ -13,7 +13,7 @@ function params = config_params()
     params.sensor_freq.system = 400;   % システム全体の周期
     params.sensor_freq.imu = 400;      % IMU (加速度・ジャイロ)
     params.sensor_freq.mag = 100;      % 磁気センサー
-    params.sensor_freq.gps = 10;       % GPS
+    params.sensor_freq.gps = 20;       % GPS
     params.sensor_freq.baro = 50;      % 気圧センサー
 
     % 運動タイプ
@@ -41,7 +41,7 @@ function params = config_params()
     params.noise.base.accel_std = single(0.1);
     params.noise.base.gyro_std = single(0.5);
     params.noise.base.mag_std = single(5.0);
-    params.noise.base.baro_std = single(1.0);
+    params.noise.base.baro_std = single(2.0);
     params.noise.base.gps_std = single(1.0);
     
     % 実際のノイズ設定 (フラグに基づいて決定)
@@ -58,7 +58,7 @@ function params = config_params()
             'accel', single(2.0), ...  % m/s^2
             'gyro', single(2.0), ...   % deg/s
             'mag', single(50.0), ...    % nT
-            'baro', single(5.0), ...   % meters
+            'baro', single(10.0), ...   % meters
             'gps', single(10.0) ...     % meters
         );
     else
@@ -78,15 +78,15 @@ function params = config_params()
         params.noise.gyro_pink_std = single(0.2);    % Gyroscope pink noise (deg/s)
         params.noise.gps_pink_std = single(1.0);     % GPS pink noise (meters)
     else
-        params.noise.accel_pink_std = single(0.0);
+        params.noise.accel_pink_std = single(0.5);
         params.noise.gyro_pink_std = single(0.0);
         params.noise.gps_pink_std = single(0.0);
     end
 
     % Allan偏差
     if params.noise.enable.allan
-        params.noise.gyro_allan_std = single(0.2);   % Gyroscope Allan deviation (deg/s)
-        params.noise.baro_allan_std = single(0.2);   % Barometer Allan deviation (meters)
+        params.noise.gyro_allan_std = single(0.5);   % Gyroscope Allan deviation (deg/s)
+        params.noise.baro_allan_std = single(1.0);   % Barometer Allan deviation (meters)
     else
         params.noise.accel_allan_std = single(0.0);
         params.noise.gyro_allan_std = single(0.0);
@@ -106,11 +106,18 @@ function params = config_params()
     params.motion.circular.angular_tau = single(5.0);
     % Pitch/Roll振動
     params.motion.oscillation = struct();
-    params.motion.oscillation.roll_amplitude_deg = single(5);
-    params.motion.oscillation.roll_period = single(5);
-    params.motion.oscillation.pitch_amplitude_deg = single(3);
-    params.motion.oscillation.pitch_period = single(5);
+        params.motion.oscillation.roll_amplitude_deg = single(3); % 0 = disabled
+        params.motion.oscillation.roll_period = single(10);
+        params.motion.oscillation.pitch_amplitude_deg = single(2); % 0 = disabled
+        params.motion.oscillation.pitch_period = single(10);
     params.motion.oscillation.soft_start_time = single(5);
+    
+    % 上下運動 (高度振動)
+    params.motion.vertical = struct();
+    params.motion.vertical.amplitude = single(2.0);        % 振幅 [m]
+    params.motion.vertical.period = single(10.0);          % 周期 [s]
+    params.motion.vertical.soft_start_time = single(5);    % ソフトスタート時間 [s]
+    
     % ランダムウォーク
     params.motion.random_walk = struct();
     params.motion.random_walk.velocity_std = single(0.0);

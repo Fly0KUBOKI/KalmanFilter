@@ -118,5 +118,6 @@ function save_results(proj_root, results)
 end
 
 function plot_results(proj_root)
+    % 時系列グラフを表示（'time'モードを明示的に指定）
     plot_csv(fullfile(proj_root, 'Results', 'estimation.csv'), 'time');
 end

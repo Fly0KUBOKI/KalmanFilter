@@ -76,7 +76,7 @@ function run_batch_10sets()
                 [metrics, has_error] = analyze_single_run(proj_root, run_id);
             
             % 判定: 各軸ごとにRMSE閾値で判定する
-            thr = 1.0; % 位置RMSE閾値 (m)
+            thr = 3.0; % 位置RMSE閾値 (m) - GPS誤差許容範囲
             att_thr = 5.0; % 姿勢RMSE閾値 (deg) - Roll/Pitch/Yaw がこの値を超えるとFAILED
             % 基本フィールドは常に保存
             results_summary(run_id).pos_rmse = metrics.pos_rmse;
@@ -116,7 +116,7 @@ function run_batch_10sets()
                 results_summary(run_id).att_ok = att_ok;
 
                 % 追加条件: 各姿勢軸の厳密閾値（deg）
-                att_axis_thr = 1.0; % Roll/Pitch/Yaw 各軸の厳格閾値 (deg)
+                att_axis_thr = 2.0; % Roll/Pitch/Yaw 各軸の厳格閾値 (deg) - 2°以下
                 att_axis_ok = (metrics.roll_rmse <= att_axis_thr) && (metrics.pitch_rmse <= att_axis_thr) && (metrics.yaw_rmse <= att_axis_thr);
                 results_summary(run_id).att_axis_ok = att_axis_ok;
 

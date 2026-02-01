@@ -14,14 +14,18 @@ FilterState* initialize_eskf_state(const ESKFInitializationData& data) {
     FilterState* s = new FilterState(); memset(s, 0, sizeof(FilterState)); s->valid = true; s->dt = data.dt;
     const float GRAVITY = 9.80665f; const float DEG2RAD = 0.017453292f;
     int N_static = data.n_static; if (N_static > data.n_samples) N_static = data.n_samples;
-    float p_f[3] = {0.0f,0.0f,0.0f}; float v_f[3] = {0.0f,0.0f,0.0f}; float g_f[3] = {0.0f,0.0f,GRAVITY}; double q[4] = {1,0,0,0}; float ba_f[3]={0.0f,0.0f,0.0f}; float bg_f[3]={0.0f,0.0f,0.0f};
+    float p_f[3] = {0.0f,0.0f,0.0f}; float v_f[3] = {0.0f,0.0f,0.0f}; float g_f[3] = {0.0f,0.0f,-GRAVITY}; double q[4] = {1,0,0,0}; float ba_f[3]={0.0f,0.0f,0.0f}; float bg_f[3]={0.0f,0.0f,0.0f};  // Z-up: gravity=[0,0,-9.81]
     float sigma_a = 0.1f; float sigma_g = DEG2RAD * 0.1f; float sigma_mag = 10.0f; float sigma_press = 1.0f; float sigma_gps = 1.0f; float gyro_noise_threshold = DEG2RAD * 0.1f; float gps_origin_f[3] = {0.0f,0.0f,0.0f};
     if (data.accel_x && data.accel_y && data.accel_z && N_static > 10) {
         double accel_mean_x_d, accel_mean_y_d, accel_mean_z_d; compute_mean_3d(data.accel_x, data.accel_y, data.accel_z, N_static, &accel_mean_x_d, &accel_mean_y_d, &accel_mean_z_d);
         float accel_mean_x = static_cast<float>(accel_mean_x_d), accel_mean_y = static_cast<float>(accel_mean_y_d), accel_mean_z = static_cast<float>(accel_mean_z_d);
         double sigma_a_d = compute_std_3d(data.accel_x, data.accel_y, data.accel_z, N_static, accel_mean_x_d, accel_mean_y_d, accel_mean_z_d);
         sigma_a = static_cast<float>(sigma_a_d); if (sigma_a < 0.01f) sigma_a = 0.01f;
-            float phi = static_cast<float>(std::atan2(-accel_mean_y, -accel_mean_z)); float theta = static_cast<float>(std::atan2(accel_mean_x, std::sqrt(accel_mean_y*accel_mean_y + accel_mean_z*accel_mean_z)));
+            // Z-up: 加速度計は静止時に [0, 0, +g] を測定（上向きの支持力）
+            // Roll:  φ = atan2(-ay, +az)
+            // Pitch: θ = atan2(ax, sqrt(ay² + az²))
+            float phi = static_cast<float>(std::atan2(-accel_mean_y, accel_mean_z)); 
+            float theta = static_cast<float>(std::atan2(accel_mean_x, std::sqrt(accel_mean_y*accel_mean_y + accel_mean_z*accel_mean_z)));
         if (data.gyro_x && data.gyro_y && data.gyro_z) {
             double gyro_mean_x_d, gyro_mean_y_d, gyro_mean_z_d; compute_mean_3d(data.gyro_x, data.gyro_y, data.gyro_z, N_static, &gyro_mean_x_d, &gyro_mean_y_d, &gyro_mean_z_d);
             double sigma_g_deg_d = compute_std_3d(data.gyro_x, data.gyro_y, data.gyro_z, N_static, gyro_mean_x_d, gyro_mean_y_d, gyro_mean_z_d);

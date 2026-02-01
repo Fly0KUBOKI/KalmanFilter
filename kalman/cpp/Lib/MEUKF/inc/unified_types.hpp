@@ -30,7 +30,7 @@ struct FilterInput {
     bool baro_valid;
     
     // 基準値
-    Vec3 g;              // 重力ベクトル [0, 0, 9.80665]
+    Vec3 g;              // 重力ベクトル [0, 0, -9.80665] (Z-up)
     Vec3 mag_ref;        // 磁場基準 [Bx, 0, Bz]
     
     // ノイズパラメータ

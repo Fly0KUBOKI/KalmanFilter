@@ -19,7 +19,7 @@ namespace meukf {
 // Measurement: normalized acceleration = -R(q)^T @ g_nominal
 class AccelObservationModel {
 public:
-    // gravity vector in NED frame
+    // gravity vector in Z-up frame: [0, 0, -9.81]
     static const float g_ned[3];
 
     // Quaternion to rotation matrix and apply to gravity
@@ -43,14 +43,16 @@ public:
         cmath_fx::Matrix<3,3,float> R;
         cquat::quat_to_rotm(q, R);
 
-        // gravity vector in NED frame
+        // gravity vector in Z-up frame: [0, 0, -9.81] (downward in world frame)
         cmath_fx::Vector<3, float> g_vec;
-        g_vec(0,0) = g_ned[0];
-        g_vec(1,0) = g_ned[1];
-        g_vec(2,0) = g_ned[2];
+        g_vec(0,0) = g_ned[0];  // 0
+        g_vec(1,0) = g_ned[1];  // 0
+        g_vec(2,0) = g_ned[2];  // -9.81
 
-        // Expected accelerometer reading in body frame = - R^T * g_ned
-        cmath_fx::Vector<3, float> a_pred = (R.transpose() * g_vec) * -1.0f;
+        // 加速度計は比力（specific force）を測定 = 重力に対する反作用
+        // Expected accelerometer reading in body frame = -R^T * g_world
+        // Z-up: a_body = -R^T * [0,0,-9.81] = R^T * [0,0,+9.81]
+        cmath_fx::Vector<3, float> a_pred = R.transpose() * g_vec * -1.0f;
 
         cmath_fx::Vector<3, float> z_pred;
         z_pred(0,0) = a_pred(0,0);

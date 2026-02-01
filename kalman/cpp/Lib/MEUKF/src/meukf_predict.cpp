@@ -77,7 +77,7 @@ void MEUKFCore::predict(State& state, const SensorData& sensor, const Params& pa
     cquat::quat_to_rotm(q_new, R);  // q -> q_new に修正
     Vector3 a_corrected = a_meas - ba;
     // a_meas is proper acceleration (includes reaction to gravity).
-    // a_kinematic = R * a_meas + g (where g is [0,0,-9.8])
+    // a_kinematic = R * a_meas + g (where g is [0,0,-9.8] for Z-up)
     Vector3 a_world = R * a_corrected + g;
     
     Vector3 p_new = p + v * dt + a_world * (0.5 * dt * dt);

@@ -101,14 +101,20 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
             a_world = compute_general_acceleration(i, vel_world, dt, params);
         end
         
-        g_world = [0, 0, 9.81]; % NED gravity (Down)
+        % 上下運動の加速度成分を追加（統一計算関数を使用）
+        [~, ~, a_vertical] = compute_vertical_motion_unified(t(i), params);
+        a_world(3) = a_world(3) + a_vertical;
+        
+        % Z-up: 重力ベクトルは下向き [0, 0, -9.81]
+        % 加速度計は比力（specific force）を測定 = a_kinematic - g_world
+        g_world = [0, 0, -9.81]; % Z-up: gravity points down
         specific_force_world = a_world - g_world;
-    % 機体軸: 標準航空機座標系 x=roll軸, y=pitch軸, z=down（直接マップ）
+    % 機体軸: 標準航空機座標系 x=roll軸, y=pitch軸, z=up
     accel_tmp = (R' * specific_force_world')';
     % 標準的な航空機座標系の軸割り当て
     accel_body(i,1) = accel_tmp(1); % x: roll軸方向（機体前向き）
     accel_body(i,2) = accel_tmp(2); % y: pitch軸方向（機体右向き）
-    accel_body(i,3) = accel_tmp(3); % z: yaw軸方向（機体下向き）
+    accel_body(i,3) = accel_tmp(3); % z: yaw軸方向（機体上向き、Z-up）
 
         % ジャイロスコープ（角速度）
         % 各軸の角速度を姿勢角の時間微分から直接計算（簡略化）
@@ -136,7 +142,8 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
         mag_body(i,:) = (R' * mag_world')';
 
         % 気圧計（高度はGPSと同じdoubleソースを用いる）
-        alt = alt0 - pos_world_gps(i,3); % NED Down is negative altitude
+        % 注: vertical motion は既に pos_world_gps に反映されている
+        alt = alt0 + pos_world_gps(i,3); % Z-up: positive z = altitude increase
         P0 = 101325;
         alt_clip = min(alt, 44330 - eps);
         baro(i) = P0 * (1 - (alt_clip / 44330))^(1/0.1903);
