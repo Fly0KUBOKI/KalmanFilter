@@ -15,6 +15,21 @@ struct SensorData {
   double gps_lat;      // deg
   double gps_lon;      // deg
   double gps_alt;      // m
+  
+  // 時刻情報（秒単位）
+  double current_time;      // 現在のグローバル時刻
+  double prev_time_accel;   // 加速度計の前回更新時刻
+  double prev_time_gyro;    // ジャイロの前回更新時刻
+  double prev_time_mag;     // 磁気計の前回更新時刻
+  double prev_time_gps;     // GPSの前回更新時刻
+  double prev_time_baro;    // 気圧計の前回更新時刻
+  
+  // 個別のセンサーdt（秒単位）
+  float dt_accel;    // 加速度計の周期
+  float dt_gyro;     // ジャイロの周期
+  float dt_mag;      // 磁気計の周期
+  float dt_gps;      // GPSの周期
+  float dt_baro;     // 気圧計の周期
 };
 
 struct State {
@@ -30,7 +45,7 @@ struct State {
 struct Params {
   float g[3];
   float mag_ref[3];
-  float dt;
+  // dt は Params から削除 (now calculated per-sensor in SensorData)
   float noise_accel[3];
   float noise_gyro[3];
   float noise_ba[3];

@@ -16,6 +16,8 @@ FilterState* initialize_eskf_state(const ESKFInitializationData& data) {
     int N_static = data.n_static; if (N_static > data.n_samples) N_static = data.n_samples;
     float p_f[3] = {0.0f,0.0f,0.0f}; float v_f[3] = {0.0f,0.0f,0.0f}; float g_f[3] = {0.0f,0.0f,-GRAVITY}; double q[4] = {1,0,0,0}; float ba_f[3]={0.0f,0.0f,0.0f}; float bg_f[3]={0.0f,0.0f,0.0f};  // Z-up: gravity=[0,0,-9.81]
     float sigma_a = 0.1f; float sigma_g = DEG2RAD * 0.1f; float sigma_mag = 10.0f; float sigma_press = 1.0f; float sigma_gps = 1.0f; float gyro_noise_threshold = DEG2RAD * 0.1f; float gps_origin_f[3] = {0.0f,0.0f,0.0f};
+    float mag_ref_world[3] = {50.0f, 0.0f, 0.0f};  // Default mag reference in world frame (North)
+    float psi = 0.0f;  // Estimated Yaw angle
     if (data.accel_x && data.accel_y && data.accel_z && N_static > 10) {
         double accel_mean_x_d, accel_mean_y_d, accel_mean_z_d; compute_mean_3d(data.accel_x, data.accel_y, data.accel_z, N_static, &accel_mean_x_d, &accel_mean_y_d, &accel_mean_z_d);
         float accel_mean_x = static_cast<float>(accel_mean_x_d), accel_mean_y = static_cast<float>(accel_mean_y_d), accel_mean_z = static_cast<float>(accel_mean_z_d);
@@ -32,12 +34,39 @@ FilterState* initialize_eskf_state(const ESKFInitializationData& data) {
             sigma_g = static_cast<float>(DEG2RAD * sigma_g_deg_d); if (sigma_g < 0.001f) sigma_g = 0.001f;
             double std_wx = compute_std(data.gyro_x, N_static, gyro_mean_x_d); double std_wy = compute_std(data.gyro_y, N_static, gyro_mean_y_d); double std_wz = compute_std(data.gyro_z, N_static, gyro_mean_z_d); double max_std = std_wx; if (std_wy > max_std) max_std = std_wy; if (std_wz > max_std) max_std = std_wz; gyro_noise_threshold = static_cast<float>(2.0 * DEG2RAD * max_std);
         }
-        float psi = 0.0f; if (data.mag_x && data.mag_y && data.mag_z) {
-            double mag_mean_x_d, mag_mean_y_d, mag_mean_z_d; compute_mean_3d(data.mag_x, data.mag_y, data.mag_z, N_static, &mag_mean_x_d, &mag_mean_y_d, &mag_mean_z_d);
+        if (data.mag_x && data.mag_y && data.mag_z) { 
+            double mag_mean_x_d, mag_mean_y_d, mag_mean_z_d;
+            compute_mean_3d(data.mag_x, data.mag_y, data.mag_z, N_static, &mag_mean_x_d, &mag_mean_y_d, &mag_mean_z_d);
             float mag_mean_x = static_cast<float>(mag_mean_x_d), mag_mean_y = static_cast<float>(mag_mean_y_d), mag_mean_z = static_cast<float>(mag_mean_z_d);
             float sigma_mag_f = static_cast<float>(compute_std_3d(data.mag_x, data.mag_y, data.mag_z, N_static, mag_mean_x_d, mag_mean_y_d, mag_mean_z_d)); sigma_mag = (sigma_mag_f < 0.1f) ? 0.1f : sigma_mag_f;
-            Vector<4, float> quat_rp; from_euler_deg(static_cast<float>(phi * 180.0f / common::math::PI), static_cast<float>(theta * 180.0f / common::math::PI), 0.0f, quat_rp); cquat::normalize_quat(quat_rp); float R_rp[9]; quat_to_rotm_array(quat_rp, R_rp);
-            float m_level_x = R_rp[0]*mag_mean_x + R_rp[3]*mag_mean_y + R_rp[6]*mag_mean_z; float m_level_y = R_rp[1]*mag_mean_x + R_rp[4]*mag_mean_y + R_rp[7]*mag_mean_z; psi = -std::atan2(m_level_y, m_level_x);
+            
+            // Build quaternion for Roll/Pitch only (Yaw=0 initially)
+            Vector<4, float> quat_rp; from_euler_deg(static_cast<float>(phi * 180.0f / common::math::PI), static_cast<float>(theta * 180.0f / common::math::PI), 0.0f, quat_rp); 
+            cquat::normalize_quat(quat_rp); 
+            float R_rp[9]; quat_to_rotm_array(quat_rp, R_rp);
+            
+            // Transform measured mag (body frame) to level frame (only Roll/Pitch corrected)
+            // mag_level = R_b2w * mag_body  (row-major R_b2w multiplication)
+            // This gives the magnetic vector projected onto the horizontal (level) plane
+            float mag_level_x = R_rp[0]*mag_mean_x + R_rp[1]*mag_mean_y + R_rp[2]*mag_mean_z;
+            float mag_level_y = R_rp[3]*mag_mean_x + R_rp[4]*mag_mean_y + R_rp[5]*mag_mean_z;
+            float mag_level_z = R_rp[6]*mag_mean_x + R_rp[7]*mag_mean_y + R_rp[8]*mag_mean_z;
+            
+            // Estimate Yaw from the leveled magnetic vector
+            // mag_level = R_z(-psi) * mag_world, so mag_level_y = -mag_N*sin(psi)
+            // Therefore psi = -atan2(mag_level_y, mag_level_x) = atan2(-mag_level_y, mag_level_x)
+            psi = static_cast<float>(std::atan2(-mag_level_y, mag_level_x));
+            
+            // Now build the full quaternion with estimated Yaw
+            Vector<4, float> quat_full; from_euler_deg(static_cast<float>(phi * 180.0f / common::math::PI), static_cast<float>(theta * 180.0f / common::math::PI), static_cast<float>(psi * 180.0f / common::math::PI), quat_full); 
+            cquat::normalize_quat(quat_full); 
+            float R_full[9]; quat_to_rotm_array(quat_full, R_full);
+            
+            // Transform measured mag to world frame using full attitude (R/P/Y)
+            // mag_world = R_b2w * mag_body (should yield ≈ [mag_strength, 0, 0] if estimation is correct)
+            mag_ref_world[0] = R_full[0]*mag_mean_x + R_full[1]*mag_mean_y + R_full[2]*mag_mean_z;
+            mag_ref_world[1] = R_full[3]*mag_mean_x + R_full[4]*mag_mean_y + R_full[5]*mag_mean_z;
+            mag_ref_world[2] = R_full[6]*mag_mean_x + R_full[7]*mag_mean_y + R_full[8]*mag_mean_z;
         }
         Vector<4,float> quat_final; from_euler_deg(static_cast<float>(phi * 180.0 / common::math::PI), static_cast<float>(theta * 180.0 / common::math::PI), static_cast<float>(psi * 180.0 / common::math::PI), quat_final); cquat::normalize_quat(quat_final); q[0]=static_cast<float>(quat_final(0,0)); q[1]=static_cast<float>(quat_final(1,0)); q[2]=static_cast<float>(quat_final(2,0)); q[3]=static_cast<float>(quat_final(3,0));
             if (data.pressure) {
@@ -64,17 +93,26 @@ FilterState* initialize_eskf_state(const ESKFInitializationData& data) {
             }
         if (data.gps_lat && data.gps_lon && data.gps_alt) { double lat_sum=0, lon_sum=0, alt_sum=0; int valid_count=0; for (int i=0;i<N_static;++i){ if (!std::isnan(data.gps_lat[i])){ lat_sum += data.gps_lat[i]; lon_sum += data.gps_lon[i]; alt_sum += data.gps_alt[i]; valid_count++; } } if (valid_count>0){ double gps0_lat = lat_sum/valid_count; double gps0_lon = lon_sum/valid_count; double gps0_alt = alt_sum/valid_count; gps_origin_f[0] = static_cast<float>(gps0_lat); gps_origin_f[1] = static_cast<float>(gps0_lon); gps_origin_f[2] = static_cast<float>(gps0_alt); double cos_lat0 = cos(gps0_lat * DEG2RAD); std::vector<float> x_m(valid_count), y_m(valid_count), z_m(valid_count); int idx=0; for (int i=0;i<N_static;++i){ if (!std::isnan(data.gps_lat[i])){ y_m[idx] = static_cast<float>((data.gps_lat[i] - gps0_lat) / 9.0e-6); x_m[idx] = static_cast<float>((data.gps_lon[i] - gps0_lon) / (9.0e-6 / cos_lat0)); z_m[idx] = static_cast<float>(data.gps_alt[i] - gps0_alt); idx++; } } float mean_x=0.0f, mean_y=0.0f, mean_z=0.0f; for (int i=0;i<valid_count;++i){ mean_x += x_m[i]; mean_y += y_m[i]; mean_z += z_m[i]; } mean_x /= static_cast<float>(valid_count); mean_y /= static_cast<float>(valid_count); mean_z /= static_cast<float>(valid_count); float std_x = static_cast<float>(compute_std(x_m.data(), valid_count, mean_x)); float std_y = static_cast<float>(compute_std(y_m.data(), valid_count, mean_y)); float std_z = static_cast<float>(compute_std(z_m.data(), valid_count, mean_z)); sigma_gps = (std_x + std_y + std_z) / 3.0f; if (sigma_gps < 0.1f) sigma_gps = 0.1f; } }
     }
-    float Q_f[15*15] = {0.0f}; for (int i=3;i<6;++i) Q_f[i*15 + i] = 0.003f * 0.003f; for (int i=6;i<9;++i) Q_f[i*15 + i] = 0.003f * 0.003f; for (int i=9;i<12;++i) Q_f[i*15 + i] = static_cast<float>(sigma_a * sigma_a * 1e-3); for (int i=12;i<15;++i) Q_f[i*15 + i] = static_cast<float>(sigma_g * sigma_g * 1e-3);
-    float P_f[15*15] = {0.0f}; for (int i=0;i<15;++i) P_f[i*15 + i] = 0.01f; for (int i=0;i<3;++i) P_f[i*15 + i] = 5.0f; for (int i=3;i<6;++i) P_f[i*15 + i] = 0.5f; for (int i=9;i<12;++i) P_f[i*15 + i] = 0.5f; for (int i=12;i<15;++i) P_f[i*15 + i] = 0.1f;
+    float Q_f[15*15] = {0.0f}; for (int i=3;i<6;++i) Q_f[i*15 + i] = 0.003f * 0.003f; for (int i=6;i<10;++i) Q_f[i*15 + i] = 0.003f * 0.003f; for (int i=10;i<13;++i) Q_f[i*15 + i] = static_cast<float>(sigma_a * sigma_a * 1e-3); for (int i=13;i<15;++i) Q_f[i*15 + i] = static_cast<float>(sigma_g * sigma_g * 1e-3);
+    float P_f[15*15] = {0.0f}; 
+    for (int i=0;i<15;++i) P_f[i*15 + i] = 0.01f;  // Default for all
+    for (int i=0;i<3;++i) P_f[i*15 + i] = 5.0f;    // Position: 5 m²
+    for (int i=3;i<6;++i) P_f[i*15 + i] = 0.5f;    // Velocity: 0.5 m²/s²
+    for (int i=6;i<10;++i) P_f[i*15 + i] = 1.0f;   // Attitude (quat 4D): 1.0 rad² (accounts for initialization uncertainty)
+    for (int i=10;i<13;++i) P_f[i*15 + i] = 0.5f;  // AccelBias: 0.5 m²/s⁴
+    for (int i=13;i<15;++i) P_f[i*15 + i] = 0.1f;  // GyroBias: 0.1 rad²/s²
     // write back into FilterState (FilterState now stores float for core fields)
     for (int i=0;i<3;++i) s->p[i] = static_cast<float>(p_f[i]);
     for (int i=0;i<3;++i) s->v[i] = static_cast<float>(v_f[i]);
+    for (int i=0;i<4;++i) s->q[i] = static_cast<float>(q[i]);  // Initial quaternion (critical: must not be [0,0,0,0])
     for (int i=0;i<3;++i) s->ba[i] = static_cast<float>(ba_f[i]);
     for (int i=0;i<3;++i) s->bg[i] = static_cast<float>(bg_f[i]);
     for (int i=0;i<15*15;++i) s->P[i] = static_cast<float>(P_f[i]);
     for (int i=0;i<15*15;++i) s->Q_nominal[i] = static_cast<float>(Q_f[i]);
     for (int i=0;i<3;++i) s->g[i] = static_cast<float>(g_f[i]);
     for (int i=0;i<3;++i) s->gps_origin[i] = gps_origin_f[i];
+    for (int i=0;i<3;++i) s->mag_ref[i] = mag_ref_world[i];  // Store computed mag reference in world frame
+    for (int i=0;i<4;++i) s->q_init[i] = static_cast<float>(q[i]);  // Store initial quaternion for relative yaw computation
     s->gyro_noise_threshold = static_cast<float>(gyro_noise_threshold);
     double zeros3_d[3] = {0,0,0};
     // prev_accel/gyro/mag are float arrays: initialize to zero

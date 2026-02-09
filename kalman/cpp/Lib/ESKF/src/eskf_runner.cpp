@@ -65,11 +65,12 @@ void HybridFilterRunner::predict(FilterState* s, const float* a_meas, const floa
     PredictParams params; params.enable_accel_z_integration = false; params.accel_z_threshold = accel_z_threshold; params.accel_z_damping = accel_z_damping; params.velocity_damping = velocity_damping;
     predict_postprocess(v_f, q_f, P_f, a_for_vel_f, dt_f, g_f, params);
 
-    static SensorFilterLib filter_lib;
+    // regularize_covariance is stateless — use a lightweight local DivergenceGuard
+    DivergenceGuard div_guard;
     using cm = cmath_fx::FixedMatrix;
     cm P_fixed(15,15);
     for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) P_fixed(i,j) = P_f(i,j);
-    filter_lib.divergence_guard.regularize_covariance(P_fixed);
+    div_guard.regularize_covariance(P_fixed);
     for (int i = 0; i < 15; ++i) for (int j = 0; j < 15; ++j) P_f(i,j) = P_fixed(i,j);
 
     common::covariance::ensure_positive_definite(P_f);

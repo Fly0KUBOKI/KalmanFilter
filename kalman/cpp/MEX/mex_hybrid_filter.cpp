@@ -73,11 +73,10 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (mxGetString(prhs[0], cmd_buf, sizeof(cmd_buf)) != 0) mexErrMsgIdAndTxt("mex_hybrid_filter:usage", "Command string too long");
     
     if (std::strcmp(cmd_buf, "init") == 0) {
-        if (nrhs < 4) mexErrMsgIdAndTxt("mex_hybrid_filter:usage", "init requires (obs, static_time, dt)");
+        if (nrhs < 3) mexErrMsgIdAndTxt("mex_hybrid_filter:usage", "init requires (obs, static_time)");
         const mxArray* obs = prhs[1];
         double static_time = mxGetScalar(prhs[2]);
-        double dt = mxGetScalar(prhs[3]);
-        uint64_t handle = do_init(obs, static_time, dt);
+        uint64_t handle = do_init(obs, static_time);
         plhs[0] = mxCreateNumericMatrix(1, 1, mxUINT64_CLASS, mxREAL);
         *((uint64_t*)mxGetData(plhs[0])) = handle;
     }

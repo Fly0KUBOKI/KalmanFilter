@@ -10,6 +10,8 @@ struct FilterState {
     float P[15*15];
     float Q_nominal[15*15];
     float g[3];
+    float mag_ref[3];  // Magnetic reference vector in world frame (computed during static initialization)
+    float q_init[4];   // Initial quaternion (roll/pitch/yaw estimated at static initialization). Used to compute relative yaw.
     float dt;
     double gps_origin[3];
     float prev_accel[3], prev_gyro[3], prev_mag[3];

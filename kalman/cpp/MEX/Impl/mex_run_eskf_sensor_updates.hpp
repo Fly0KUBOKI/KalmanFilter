@@ -356,10 +356,11 @@ inline void handle_sensor_update_internal(
     float* g_ptr = (float*)mxGetData(g_arr);
     for (int i = 0; i < 3; ++i) g_ptr[i] = static_cast<float>(g[i]);
     mxSetField(mex_params, 0, "g", g_arr);
-    float mag_ref[3] = {50.0f, 0.0f, 0.0f};
+    
+    // mag_ref: Use the calibrated magnetic reference from FilterState (computed during static initialization)
     mxArray* mag_ref_arr = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* mag_ref_ptr = (float*)mxGetData(mag_ref_arr);
-    for (int i = 0; i < 3; ++i) mag_ref_ptr[i] = mag_ref[i];
+    for (int i = 0; i < 3; ++i) mag_ref_ptr[i] = s->mag_ref[i];
     mxSetField(mex_params, 0, "mag_ref", mag_ref_arr);
 
     // ノイズパラメータはsingle（float）、GPSノイズはdouble

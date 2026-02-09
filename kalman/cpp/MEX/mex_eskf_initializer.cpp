@@ -56,9 +56,37 @@ static int get_length(const mxArray* arr) {
     return static_cast<int>(mxGetNumberOfElements(arr));
 }
 
-FilterState* initialize_eskf_from_matlab(const mxArray* obs, double static_time, double dt) {
-    // Calculate number of static samples
-    int N_static = static_cast<int>(floor(static_time / dt));
+FilterState* initialize_eskf_from_matlab(const mxArray* obs, double static_time) {
+    // Get time array to calculate dt dynamically
+    const mxArray* time_arr = mxGetField(obs, 0, "time");
+    double dt = 0.01; // Default to 10ms
+    if (time_arr && mxGetM(time_arr) * mxGetN(time_arr) >= 2) {
+        if (mxGetClassID(time_arr) == mxDOUBLE_CLASS) {
+            const double* time_data = mxGetPr(time_arr);
+            dt = time_data[1] - time_data[0]; // Use first time difference
+        } else {
+            const float* time_data = (const float*)mxGetData(time_arr);
+            dt = (double)time_data[1] - (double)time_data[0];
+        }
+    }
+    
+    // Calculate number of static samples based on time, not dt
+    int N_static = 0;
+    if (time_arr) {
+        const double* time_data = mxGetPr(time_arr);
+        int n_samples = mxGetM(time_arr) * mxGetN(time_arr);
+        double elapsed = 0.0;
+        for (int i = 0; i < n_samples && elapsed < static_time; ++i) {
+            if (i > 0) {
+                elapsed += time_data[i] - time_data[i-1];
+                if (elapsed >= static_time) {
+                    N_static = i;
+                    break;
+                }
+            }
+        }
+        if (N_static == 0) N_static = (int)(n_samples * 0.1); // Fallback to 10% of samples
+    }
     
     // Get field arrays
     const mxArray* ax_arr = get_field_any(obs, "ax", "accel_x");
@@ -67,13 +95,14 @@ FilterState* initialize_eskf_from_matlab(const mxArray* obs, double static_time,
     
     int n_samples = ax_arr ? get_length(ax_arr) : 0;
     if (N_static > n_samples) N_static = n_samples;
+    if (N_static < 10) N_static = 10; // Minimum samples for initialization
     
     // Prepare initialization data structure
     ESKFInitializationData init_data;
     init_data.n_samples = n_samples;
     init_data.n_static = N_static;
     init_data.static_time = static_time;
-    init_data.dt = dt;
+    init_data.dt = dt;  // Use calculated dt for initialization
     
     // Convert MATLAB arrays to C++ arrays
     // Use temporary vectors to store converted data

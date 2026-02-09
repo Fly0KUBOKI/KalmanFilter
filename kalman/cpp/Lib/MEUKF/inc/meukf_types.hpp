@@ -24,10 +24,20 @@ struct SensorData {
     float gps_pos[3];   // GPS位置 (LLA または NED)
     float alt_baro;     // 気圧高度 [m]
     
+    // 現在時刻 [s]
+    double current_time;     // 現在のグローバル時刻
+    
     // 前回のセンサー値（変更検知用）
     float prev_mag[3];       // 前回の磁気計値
     float prev_gps_pos[3];   // 前回のGPS位置
     float prev_baro_alt;     // 前回の気圧高度
+    
+    // 各センサーの前回更新時刻 [s]
+    double prev_time_accel;  // 加速度計の前回更新時刻
+    double prev_time_gyro;   // ジャイロの前回更新時刻
+    double prev_time_mag;    // 磁気計の前回更新時刻
+    double prev_time_gps;    // GPSの前回更新時刻
+    double prev_time_baro;   // 気圧計の前回更新時刻
     
     // 更新フラグ (1: 更新あり, 0: 更新なし)
     uint8_t update_accel;
@@ -37,12 +47,23 @@ struct SensorData {
     uint8_t update_baro;
     uint8_t update_zupt; // ZUPT更新フラグ
     
-    float dt;           // 前回からの経過時間 [s]
+    // 個別のセンサーdt [s]
+    float dt_accel;  // 加速度計の周期
+    float dt_gyro;   // ジャイロの周期
+    float dt_mag;    // 磁気計の周期
+    float dt_gps;    // GPSの周期
+    float dt_baro;   // 気圧計の周期
     
-    // Default constructor: zero-initialize previous sensors and flags
-    SensorData() : accel{0.0f,0.0f,0.0f}, gyro{0.0f,0.0f,0.0f}, mag{0.0f,0.0f,0.0f}, gps_pos{0.0f,0.0f,0.0f}, alt_baro(0.0f),
-        prev_mag{0.0f,0.0f,0.0f}, prev_gps_pos{0.0f,0.0f,0.0f}, prev_baro_alt(0.0f),
-        update_accel(0), update_gyro(0), update_mag(0), update_gps(0), update_baro(0), update_zupt(0), dt(0.0f) {}
+    // 統合dt (per-sensor dt の平均値または最新値を使用)
+    float dt;        // Mean or latest dt for overall system (computed as average of valid sensor dts)
+    
+    // Default constructor: zero-initialize all fields
+    SensorData() : accel{0.0f,0.0f,0.0f}, gyro{0.0f,0.0f,0.0f}, mag{0.0f,0.0f,0.0f}, gps_pos{0.0f,0.0f,0.0f}, 
+                  alt_baro(0.0f), current_time(0.0),
+                  prev_mag{0.0f,0.0f,0.0f}, prev_gps_pos{0.0f,0.0f,0.0f}, prev_baro_alt(0.0f),
+                  prev_time_accel(0.0), prev_time_gyro(0.0), prev_time_mag(0.0), prev_time_gps(0.0), prev_time_baro(0.0),
+                  update_accel(0), update_gyro(0), update_mag(0), update_gps(0), update_baro(0), update_zupt(0),
+                  dt_accel(0.0f), dt_gyro(0.0f), dt_mag(0.0f), dt_gps(0.0f), dt_baro(0.0f), dt(0.01f) {}
 };
 
 // パラメータ（定数設定）

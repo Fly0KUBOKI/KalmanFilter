@@ -56,8 +56,10 @@ inline void set_vec3_impl(mxArray* out_new_state_local, const char* name, const 
     pf[0] = in[0]; pf[1] = in[1]; pf[2] = in[2];
 }
 
-inline uint64_t do_init(const mxArray* obs, double static_time, double dt) {
-    FilterState* s = initialize_eskf_from_matlab(obs, static_time, dt);
+inline uint64_t do_init(const mxArray* obs, double static_time) {
+    // Full reset of sensor filter library (includes noise_estimator and divergence_guard)
+    g_filter_lib = SensorFilterLib();
+    FilterState* s = initialize_eskf_from_matlab(obs, static_time);
     return allocate_handle(s);
 }
 
@@ -77,13 +79,13 @@ inline void do_step(FilterState* s, const mxArray* obs, int k) {
         m_f[i] = static_cast<float>(m_d[i]);
     }
 
-    // Predict
+    // Predict (ESKF prediction step)
     call_predict(s, a_f, w_f);
     
-    // ZUPT check
+    // ZUPT check and update
     zupt_check_and_update(s, a_d, w_d);
 
-    // Sensor updates
+    // Sensor updates (MEUKF update step)
     call_sensor_update(s, "accel", a_d, 3, k);
     call_sensor_update(s, "mag", m_d, 3, k);
 
@@ -129,7 +131,7 @@ inline void do_step(FilterState* s, const mxArray* obs, int k) {
         }
     }
     
-    // Reset check
+    // Reset check (divergence detection)
     check_and_reset(s, k);
 }
 
@@ -152,14 +154,32 @@ inline mxArray* do_get_state(FilterState* s) {
     for (int i = 0; i < 4; i++) q_ptr[i] = s->q[i];
     mxSetField(out, 0, "q", q);
 
-    double euler[3];
-    double q_d[4]; for (int i=0;i<4;++i) q_d[i] = s->q[i];
-    quat_to_euler(q_d, euler);
+    // Compute Euler angles relative to the initialization quaternion (so displayed yaw starts at 0)
     mxArray* eu = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* eu_ptr = (float*)mxGetData(eu);
-    eu_ptr[0] = static_cast<float>(euler[0] * 180.0 / M_PI);
-    eu_ptr[1] = static_cast<float>(euler[1] * 180.0 / M_PI);
-    eu_ptr[2] = static_cast<float>(euler[2] * 180.0 / M_PI);
+    // If q_init is available and state marked valid, compute relative quaternion q_rel = q_init^{-1} * q
+    bool use_relative = s->valid;
+    if (use_relative) {
+        cmath_fx::Vector<4,float> q_curr; cmath_fx::Vector<4,float> q_init; cmath_fx::Vector<4,float> q_init_conj; cmath_fx::Vector<4,float> q_rel;
+        for (int i=0;i<4;++i) { q_curr(i,0) = s->q[i]; q_init(i,0) = s->q_init[i]; }
+        cquat::normalize_quat(q_curr);
+        cquat::normalize_quat(q_init);
+        cquat::conjugate_quat(q_init, q_init_conj);
+        cquat::multiply_quat(q_init_conj, q_curr, q_rel);
+        cquat::normalize_quat(q_rel);
+        float roll_deg, pitch_deg, yaw_deg;
+        cquat::to_euler_deg(q_rel, roll_deg, pitch_deg, yaw_deg);
+        eu_ptr[0] = roll_deg;
+        eu_ptr[1] = pitch_deg;
+        eu_ptr[2] = yaw_deg;
+    } else {
+        double euler[3];
+        double q_d[4]; for (int i=0;i<4;++i) q_d[i] = s->q[i];
+        quat_to_euler(q_d, euler);
+        eu_ptr[0] = static_cast<float>(euler[0] * 180.0 / M_PI);
+        eu_ptr[1] = static_cast<float>(euler[1] * 180.0 / M_PI);
+        eu_ptr[2] = static_cast<float>(euler[2] * 180.0 / M_PI);
+    }
     mxSetField(out, 0, "euler", eu);
 
     mxArray* ba = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
@@ -243,9 +263,89 @@ inline void do_sensor_update(const mxArray* m_prev_state, const mxArray* m_senso
     input.sensor.update_gps = (uint8_t)get_field_scalar_impl(m_sensor, "update_gps");
     input.sensor.update_baro = (uint8_t)get_field_scalar_impl(m_sensor, "update_baro");
     input.sensor.update_zupt = (uint8_t)get_field_scalar_impl(m_sensor, "update_zupt");
-    input.sensor.dt = mex_conv::mxGetScalarAsFloat(mxGetField(m_sensor,0,"dt"));
-
-    // Params
+    
+    // 時刻情報を読み込む
+    input.sensor.current_time = mex_conv::mxGetScalarAsDouble(mxGetField(m_sensor, 0, "current_time"));
+    input.sensor.prev_time_accel = mex_conv::mxGetScalarAsDouble(mxGetField(m_sensor, 0, "prev_time_accel"));
+    input.sensor.prev_time_gyro = mex_conv::mxGetScalarAsDouble(mxGetField(m_sensor, 0, "prev_time_gyro"));
+    input.sensor.prev_time_mag = mex_conv::mxGetScalarAsDouble(mxGetField(m_sensor, 0, "prev_time_mag"));
+    input.sensor.prev_time_gps = mex_conv::mxGetScalarAsDouble(mxGetField(m_sensor, 0, "prev_time_gps"));
+    input.sensor.prev_time_baro = mex_conv::mxGetScalarAsDouble(mxGetField(m_sensor, 0, "prev_time_baro"));
+    
+    // 個別のセンサーdtを計算（値が更新された場合のみ）
+    // 加速度計
+    float new_accel[3];
+    mex_conv::mxArrayToFloatArray(mxGetField(m_sensor, 0, "accel"), new_accel, 3);
+    float accel_diff = 0.0f;
+    for (int i = 0; i < 3; ++i) {
+        float diff = new_accel[i] - input.sensor.accel[i];
+        accel_diff += diff * diff;
+    }
+    if (accel_diff > 1e-6f && input.sensor.current_time > input.sensor.prev_time_accel) {
+        input.sensor.dt_accel = (float)(input.sensor.current_time - input.sensor.prev_time_accel);
+    }
+    for (int i = 0; i < 3; ++i) input.sensor.accel[i] = new_accel[i];
+    
+    // ジャイロ
+    float new_gyro[3];
+    mex_conv::mxArrayToFloatArray(mxGetField(m_sensor, 0, "gyro"), new_gyro, 3);
+    float gyro_diff = 0.0f;
+    for (int i = 0; i < 3; ++i) {
+        float diff = new_gyro[i] - input.sensor.gyro[i];
+        gyro_diff += diff * diff;
+    }
+    if (gyro_diff > 1e-6f && input.sensor.current_time > input.sensor.prev_time_gyro) {
+        input.sensor.dt_gyro = (float)(input.sensor.current_time - input.sensor.prev_time_gyro);
+    }
+    for (int i = 0; i < 3; ++i) input.sensor.gyro[i] = new_gyro[i];
+    
+    // 磁気計
+    float new_mag[3];
+    mex_conv::mxArrayToFloatArray(mxGetField(m_sensor, 0, "mag"), new_mag, 3);
+    float mag_diff = 0.0f;
+    for (int i = 0; i < 3; ++i) {
+        float diff = new_mag[i] - input.sensor.mag[i];
+        mag_diff += diff * diff;
+    }
+    if (mag_diff > 1e-6f && input.sensor.current_time > input.sensor.prev_time_mag) {
+        input.sensor.dt_mag = (float)(input.sensor.current_time - input.sensor.prev_time_mag);
+    }
+    for (int i = 0; i < 3; ++i) input.sensor.mag[i] = new_mag[i];
+    
+    // GPS位置
+    mxArray* gps_pos_field_new = mxGetField(m_sensor, 0, "gps_pos");
+    float new_gps_pos[3];
+    if (gps_pos_field_new) {
+        if (mxGetClassID(gps_pos_field_new) != mxDOUBLE_CLASS) {
+            mexErrMsgIdAndTxt("mex_hybrid_filter:type_error", 
+                "Expected double array for GPS 'gps_pos', but got %s.", 
+                mxGetClassName(gps_pos_field_new));
+        }
+        const double* gps_pr = mxGetPr(gps_pos_field_new);
+        for (int i = 0; i < 3; ++i) {
+            new_gps_pos[i] = static_cast<float>(gps_pr[i]);
+        }
+    } else {
+        new_gps_pos[0] = new_gps_pos[1] = new_gps_pos[2] = 0.0f;
+    }
+    float gps_diff = 0.0f;
+    for (int i = 0; i < 3; ++i) {
+        float diff = new_gps_pos[i] - input.sensor.gps_pos[i];
+        gps_diff += diff * diff;
+    }
+    if (gps_diff > 1e-6f && input.sensor.current_time > input.sensor.prev_time_gps) {
+        input.sensor.dt_gps = (float)(input.sensor.current_time - input.sensor.prev_time_gps);
+    }
+    for (int i = 0; i < 3; ++i) input.sensor.gps_pos[i] = new_gps_pos[i];
+    
+    // 気圧高度
+    float new_baro_alt = mex_conv::mxGetScalarAsFloat(mxGetField(m_sensor, 0, "alt_baro"));
+    if (fabsf(new_baro_alt - input.sensor.alt_baro) > 1e-3f && input.sensor.current_time > input.sensor.prev_time_baro) {
+        input.sensor.dt_baro = (float)(input.sensor.current_time - input.sensor.prev_time_baro);
+    }
+    input.sensor.alt_baro = new_baro_alt;
+    
+    // Params: g, mag_ref, noise (accel/gyro/ba/bg/mag)
     mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"g"), input.params.g, 3);
     mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"mag_ref"), input.params.mag_ref, 3);
     mex_conv::mxArrayToFloatArray(mxGetField(m_params,0,"noise_accel"), input.params.noise_accel, 3);

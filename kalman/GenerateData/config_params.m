@@ -4,16 +4,18 @@ function params = config_params()
     params = struct();
 
     % タイミング
-    params.dt = 0.0025;  % システム全体の周期 (400Hz)
     params.T = 100;      % シミュレーション総時間 [秒]
     params.static_time = 5;
     
     % センサー更新頻度 [Hz]
     params.sensor_freq = struct();
-    params.sensor_freq.system = 400;   % システム全体の周期
-    params.sensor_freq.imu = 400;      % IMU (加速度・ジャイロ)
+    params.sensor_freq.system = 100;   % システム全体の周波数 [Hz]
+
+    % システム全体の周期 dt を周波数から計算（秒）
+    params.dt = 1.0 / double(params.sensor_freq.system);  % 例: 50 Hz -> 0.02 s
+    params.sensor_freq.imu = 100;      % IMU (加速度・ジャイロ)
     params.sensor_freq.mag = 100;      % 磁気センサー
-    params.sensor_freq.gps = 20;       % GPS
+    params.sensor_freq.gps = 10;       % GPS
     params.sensor_freq.baro = 50;      % 気圧センサー
 
     % 運動タイプ
@@ -40,6 +42,7 @@ function params = config_params()
     params.noise.base = struct();
     params.noise.base.accel_std = single(0.1);
     params.noise.base.gyro_std = single(0.5);
+    % 磁気センサの標準偏差（単位: μT）
     params.noise.base.mag_std = single(5.0);
     params.noise.base.baro_std = single(2.0);
     params.noise.base.gps_std = single(1.0);
@@ -57,7 +60,7 @@ function params = config_params()
         params.noise.outlier.range = struct( ...
             'accel', single(2.0), ...  % m/s^2
             'gyro', single(2.0), ...   % deg/s
-            'mag', single(50.0), ...    % nT
+            'mag', single(50.0), ...    % μT
             'baro', single(10.0), ...   % meters
             'gps', single(10.0) ...     % meters
         );
@@ -106,10 +109,10 @@ function params = config_params()
     params.motion.circular.angular_tau = single(5.0);
     % Pitch/Roll振動
     params.motion.oscillation = struct();
-        params.motion.oscillation.roll_amplitude_deg = single(3); % 0 = disabled
-        params.motion.oscillation.roll_period = single(10);
-        params.motion.oscillation.pitch_amplitude_deg = single(2); % 0 = disabled
-        params.motion.oscillation.pitch_period = single(10);
+        params.motion.oscillation.roll_amplitude_deg = single(15); % 0 = disabled
+        params.motion.oscillation.roll_period = single(50);
+        params.motion.oscillation.pitch_amplitude_deg = single(20); % 0 = disabled
+        params.motion.oscillation.pitch_period = single(45);
     params.motion.oscillation.soft_start_time = single(5);
     
     % 上下運動 (高度振動)
@@ -135,6 +138,9 @@ function params = config_params()
     params.initial.gps_position = [params.gps_origin.lat, params.gps_origin.lon, 0];
     params.initial.velocity = [0, 0, 0];
     params.initial.attitude = [0, 0, 0];
+    % 初期地磁気ベクトル（world frame, 単位: μT）
+    % 例: [50, 0, 0] = 北向き 50 μT, [0, 50, 0] = 東向き 50 μT
+    params.initial.mag_ref = [0, 50, 0];
 
     % 出力設定
     cfg_dir = fileparts(mfilename('fullpath'));

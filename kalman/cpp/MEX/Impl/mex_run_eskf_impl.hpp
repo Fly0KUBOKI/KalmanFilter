@@ -155,6 +155,8 @@ inline mxArray* do_get_state(ESKFState* s) {
     double euler[3];
     double q_d[4]; for (int i=0;i<4;++i) q_d[i] = s->q[i];
     quat_to_euler(q_d, euler);
+    
+    // Output absolute Euler angles (rad → deg)
     mxArray* eu = mxCreateNumericMatrix(3, 1, mxSINGLE_CLASS, mxREAL);
     float* eu_ptr = (float*)mxGetData(eu);
     eu_ptr[0] = static_cast<float>(euler[0] * 180.0 / M_PI);

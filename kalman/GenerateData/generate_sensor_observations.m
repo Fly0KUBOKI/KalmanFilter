@@ -24,7 +24,8 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
     alt0 = params.gps_origin.alt;
 
     % 物理定数
-    mag_strength = 50;  % nT
+    % 地磁気強度（単位: μT）
+    mag_strength = 50;  % μT
 
     % 円運動パラメータ（必要な場合）
     if strcmp(motion_type, 'circular')
@@ -137,8 +138,15 @@ function [accel_body, gyro_body, mag_body, baro, gps_lat, gps_lon, gps_alt] = ge
         gyro_body(i,2) = rad2deg(q);  % y軸周り: pitch角速度 (度/秒)
         gyro_body(i,3) = rad2deg(r);  % z軸周り: yaw角速度 (度/秒)
 
-        % 磁気計
-        mag_world = [mag_strength, 0, 0]; % NED North
+        % 磁気計: 設定に初期地磁気ベクトルがあればそれを使用（world frame, μT）
+        if isfield(params, 'initial') && isfield(params.initial, 'mag_ref')
+            mag_world = double(params.initial.mag_ref(:)');
+            if numel(mag_world) ~= 3
+                mag_world = [mag_strength, 0, 0];
+            end
+        else
+            mag_world = [mag_strength, 0, 0]; % NED North (units: μT)
+        end
         mag_body(i,:) = (R' * mag_world')';
 
         % 気圧計（高度はGPSと同じdoubleソースを用いる）

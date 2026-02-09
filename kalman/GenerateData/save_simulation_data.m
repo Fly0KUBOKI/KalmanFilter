@@ -62,8 +62,8 @@ function save_simulation_data(t, pos_world, vel_world, attitude, accel_body, gyr
     fprintf(fid, 'time, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z, baro, gps_lat, gps_lon, gps_alt\n');
 
     n = length(time_col);
-    % Formats: time double (6 decimals), sensors single-like (7 decimals), gps double (10 decimals)
-    fmt = '%.6f, %.7f, %.7f, %.7f, %.7f, %.7f, %.7f, %.7f, %.7f, %.7f, %.6f, %.10f, %.10f, %.6f\n';
+    % Formats: time double (3 decimals), sensors single-like (7 decimals), gps double (10 decimals)
+    fmt = '%.3f, %.7f, %.7f, %.7f, %.7f, %.7f, %.7f, %.7f, %.7f, %.7f, %.6f, %.10f, %.10f, %.6f\n';
     for i = 1:n
         fprintf(fid, fmt, single(time_col(i)), single(accel_x(i)), single(accel_y(i)), single(accel_z(i)), ...
             single(gyro_x(i)), single(gyro_y(i)), single(gyro_z(i)), ...

@@ -69,6 +69,19 @@ inline float mxGetScalarAsFloat(const mxArray* a) {
 	return pf ? pf[0] : 0.0f;
 }
 
+// Get scalar value as double (double only)
+inline double mxGetScalarAsDouble(const mxArray* a) {
+	if (!a) return 0.0;
+	if (mxGetClassID(a) != mxDOUBLE_CLASS) {
+		mexErrMsgIdAndTxt("mex_conv:type_error", 
+			"Expected double scalar, but got %s.", 
+			mxGetClassName(a));
+		return 0.0;
+	}
+	const double* pd = mxGetPr(a);
+	return pd ? pd[0] : 0.0;
+}
+
 // Template functions for Matrix/Vector types
 template<int R>
 bool matToVector(const mxArray* arr, Vector<R, float>& out) {

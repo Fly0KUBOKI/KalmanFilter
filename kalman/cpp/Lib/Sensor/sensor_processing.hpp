@@ -65,8 +65,8 @@ inline void accel_to_quaternion(const Vector3& a_meas, float scale_factor, Vecto
 /**
  * 磁気センサーの観測予測（ワールド→ボディ座標変換）
  * @param q 姿勢四元数 [w, x, y, z]
- * @param m_world ワールド座標系の磁場ベクトル [nT]
- * @param m_body_expected 出力：ボディ座標系の期待磁場 [nT]
+ * @param m_world ワールド座標系の磁場ベクトル [μT]
+ * @param m_body_expected 出力：ボディ座標系の期待磁場 [μT]
  */
 inline void mag_observation_prediction(
     const Vector4& q,

@@ -14,9 +14,9 @@ struct FilterState;
 // Initialize ESKF state from MATLAB observation data
 // obs: MATLAB struct array containing sensor data
 // static_time: static initialization time (seconds)
-// dt: sampling time (seconds)
 // Returns: initialized FilterState (caller must manage memory)
-FilterState* initialize_eskf_from_matlab(const mxArray* obs, double static_time, double dt);
+// Note: dt is calculated dynamically from timestamps during step execution
+FilterState* initialize_eskf_from_matlab(const mxArray* obs, double static_time);
 
 } // namespace eskf
 
